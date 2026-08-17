@@ -1,0 +1,51 @@
+---
+title: Creating a session
+description: How to create a new session in CalaStudio
+order: 1
+---
+
+# Creating a session
+
+Sessions are the core of CalaStudio. Every class, workshop, or event you run is a session.
+
+## Create a new session
+
+1. From your dashboard, click **Sessions** in the sidebar
+2. Click **+ New session**
+3. Fill in the details and click **Create session**
+
+## Required fields
+
+| Field | Notes |
+|-------|-------|
+| Session name | Must be unique in your studio |
+| Delivery mode | In-person, online, or hybrid |
+| Duration | How long the session runs |
+
+## Delivery modes
+
+- **In-person** — members attend at your physical location
+- **Online** — members join via a link (Zoom, Google Meet, etc.)
+- **Hybrid** — some members in-person, some online. Each has its own capacity.
+
+## Recurrence
+
+Set a session as **recurring** to have it repeat on a schedule. Choose which days of the week it runs — for example, every Monday, Wednesday, and Friday.
+
+One-off sessions (like a special workshop) leave recurrence set to **One-off**.
+
+## Visibility
+
+| Setting | What it means |
+|---------|---------------|
+| **Public** | Listed on your booking page |
+| **Private** | Not listed — bookable via direct link only |
+| **Draft** | Invisible everywhere while you're setting it up |
+
+## Booking access
+
+| Setting | What it means |
+|---------|---------------|
+| **Open** | Any pricing option works — pass, membership, or drop-in |
+| **Free** | No payment required. Anyone can book. |
+| **Restricted** | Only specific passes or memberships can be used |
