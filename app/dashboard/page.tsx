@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Sidebar from '@/app/components/Sidebar'
 
 // ── Types ─────────────────────────────────────────────────
 interface StatCardProps {
@@ -226,7 +227,7 @@ export default function DashboardPage() {
     { id: '1', text: 'Emma Thompson booked Morning Vinyasa', time: '2 minutes ago', type: 'booking' },
     { id: '2', text: 'James Wilson purchased a 10-class pass', time: '15 minutes ago', type: 'pass' },
     { id: '3', text: 'New member: Sophie Laurent joined', time: '1 hour ago', type: 'member' },
-    { id: '4', text: 'Michael Chen cancelled Lunchtime Flow', time: '2 hours ago', type: 'cancel' },
+    { id: '4', text : 'Michael Chen cancelled Lunchtime Flow', time: '2 hours ago', type: 'cancel' },
     { id: '5', text: 'Anna Park booked Online Yin', time: '3 hours ago', type: 'booking' },
   ]
 
@@ -240,82 +241,8 @@ export default function DashboardPage() {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
 
       {/* Sidebar */}
-      <div style={{
-        width: '240px',
-        backgroundColor: 'white',
-        borderRight: '1px solid #e2e2e2',
-        padding: '24px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'fixed',
-        height: '100vh',
-        overflowY: 'auto'
-      }}>
-        {/* Logo */}
-        <div style={{
-          backgroundColor: '#085041',
-          color: 'white',
-          fontWeight: 700,
-          fontSize: '16px',
-          padding: '8px 16px',
-          borderRadius: '8px',
-          marginBottom: '32px',
-          textAlign: 'center'
-        }}>
-          CalaStudio
-        </div>
-
-        {/* Nav */}
-        <nav style={{ flex: 1 }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', padding: '0 16px' }}>
-            Studio
-          </div>
-          <SidebarLink href="/dashboard" icon="🏠" label="Dashboard" active />
-          <SidebarLink href="/dashboard/sessions" icon="📅" label="Sessions" />
-          <SidebarLink href="/dashboard/members" icon="👥" label="Members" />
-          <SidebarLink href="/dashboard/bookings" icon="🎟" label="Bookings" />
-
-          <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', marginTop: '24px', padding: '0 16px' }}>
-            Revenue
-          </div>
-          <SidebarLink href="/dashboard/passes" icon="💳" label="Passes" />
-          <SidebarLink href="/dashboard/memberships" icon="⭐" label="Memberships" />
-          <SidebarLink href="/dashboard/reports" icon="📊" label="Reports" />
-
-          <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', marginTop: '24px', padding: '0 16px' }}>
-            Settings
-          </div>
-          <SidebarLink href="/dashboard/team" icon="👤" label="Team" />
-          <SidebarLink href="/dashboard/settings" icon="⚙️" label="Settings" />
-        </nav>
-
-        {/* User */}
-        <div style={{
-          borderTop: '1px solid #e2e2e2',
-          paddingTop: '16px',
-          marginTop: '16px'
-        }}>
-          <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {userEmail}
-          </div>
-          <button
-            onClick={handleSignOut}
-            style={{
-              width: '100%',
-              padding: '8px',
-              backgroundColor: 'transparent',
-              border: '1px solid #e2e2e2',
-              borderRadius: '6px',
-              fontSize: '13px',
-              cursor: 'pointer',
-              color: '#666'
-            }}
-          >
-            Sign out
-          </button>
-        </div>
-      </div>
-
+      <Sidebar active="dashboard"/>
+     
       {/* Main content */}
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
 
