@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
+import { useSearchParams } from 'next/navigation'   
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -109,7 +110,59 @@ export default function NewSessionPage() {
     guestBookingsEnabled: true,
     guestMaxPerBooking: '1',
   })
-
+  const searchParams = useSearchParams()
+  const copyId = searchParams.get('copy')
+  
+  useEffect(() => {
+    if (!copyId) return
+  
+    const loadCopy = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+  
+      const token = session.access_token
+  
+      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!orgRes.ok) return
+      const org = await orgRes.json()
+  
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${copyId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (!res.ok) return
+      const s = await res.json()
+  
+      setForm(prev => ({
+        ...prev,
+        name: `${s.name} (copy)`,
+        description: s.description ?? '',
+        sessionType: s.session_type ?? 'class',
+        deliveryMode: s.delivery_mode ?? 'in_person',
+        locationName: s.location_name ?? '',
+        locationAddress: s.location_address ?? '',
+        capacityInperson: s.capacity_inperson?.toString() ?? '12',
+        capacityOnline: s.capacity_online?.toString() ?? '',
+        priceInperson: s.price_inperson?.toString() ?? '',
+        priceOnline: s.price_online?.toString() ?? '',
+        currency: s.currency ?? 'AUD',
+        durationMinutes: s.duration_minutes?.toString() ?? '60',
+        isRecurring: s.is_recurring ?? false,
+        recurrenceRule: s.recurrence_rule ?? '',
+        visibility: 'draft',
+        bookingAccessMode: s.booking_access_mode ?? 'open',
+        cancellationHours: s.cancellation_hours?.toString() ?? '12',
+        guestBookingsEnabled: s.guest_bookings_enabled ?? true,
+        guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
+      }))
+    }
+  
+    loadCopy()
+  }, [copyId])
+  
   const update = (key: string, value: string | boolean | string[]) =>
     setForm(prev => ({ ...prev, [key]: value }))
 
@@ -219,7 +272,9 @@ export default function NewSessionPage() {
           >
             ← Sessions
           </a>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>New session</h1>
+          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>
+            {copyId ? 'Copy session' : 'New session'}
+            </h1>
         </div>
 
         <div style={{

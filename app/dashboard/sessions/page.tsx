@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Sidebar from '@/app/components/Sidebar'
 
 interface Session {
   id: string
@@ -95,6 +96,30 @@ export default function SessionsPage() {
 
       setLoading(false)
     }
+    const handleDuplicate = async (sessionId: string) => {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) return
+      
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/sessions/${sessionId}/duplicate`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          }
+        )
+      
+        if (res.ok) {
+          // Reload sessions
+          const sessionsRes = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/sessions`,
+            { headers: { Authorization: `Bearer ${session.access_token}` } }
+          )
+          if (sessionsRes.ok) {
+            setSessions(await sessionsRes.json())
+          }
+        }
+      }
 
     load()
   }, [router])
@@ -111,61 +136,7 @@ export default function SessionsPage() {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
 
       {/* Sidebar */}
-      <div style={{
-        width: '240px',
-        backgroundColor: 'white',
-        borderRight: '1px solid #e2e2e2',
-        padding: '24px 16px',
-        position: 'fixed',
-        height: '100vh'
-      }}>
-        <div style={{
-          backgroundColor: '#085041',
-          color: 'white',
-          fontWeight: 700,
-          fontSize: '16px',
-          padding: '8px 16px',
-          borderRadius: '8px',
-          marginBottom: '32px',
-          textAlign: 'center'
-        }}>
-          CalaStudio
-        </div>
-        <nav>
-          {[
-            { href: '/dashboard', icon: '🏠', label: 'Dashboard' },
-            { href: '/dashboard/sessions', icon: '📅', label: 'Sessions', active: true },
-            { href: '/dashboard/members', icon: '👥', label: 'Members' },
-            { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings' },
-            { href: '/dashboard/passes', icon: '💳', label: 'Passes' },
-            { href: '/dashboard/memberships', icon: '⭐', label: 'Memberships' },
-            { href: '/dashboard/reports', icon: '📊', label: 'Reports' },
-            { href: '/dashboard/settings', icon: '⚙️', label: 'Settings' },
-          ].map(item => (
-            
-              <a
-              key={item.href}
-              href={item.href}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 16px',
-                borderRadius: '8px',
-                backgroundColor: item.active ? '#e8f5ee' : 'transparent',
-                color: item.active ? '#085041' : '#444',
-                textDecoration: 'none',
-                fontSize: '14px',
-                fontWeight: item.active ? 600 : 400,
-                marginBottom: '2px'
-              }}
-            >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </a>
-          ))}
-        </nav>
-      </div>
+      <Sidebar active="sessions"/>
 
       {/* Main */}
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
@@ -265,22 +236,27 @@ export default function SessionsPage() {
                 }}
               >
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+                  <div
+                    style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', cursor: 'default' }}
+                    title={(session as any).description ?? undefined}
+                  >
                     {session.name}
                   </div>
                   <div style={{ fontSize: '12px', color: '#666' }}>
-                    {session.duration_minutes} min
-                    {session.location_name ? ` · ${session.location_name}` : ''}
-                    {session.is_recurring ? ' · Recurring' : ' · One-off'}
+                    {(session as any).duration_minutes} min
+                    {(session as any).location_name ? ` · ${(session as any).location_name}` : ''}
+                    {(session as any).is_recurring ? ' · Recurring' : ' · One-off'}
                   </div>
                 </div>
                 <div><Badge text={session.session_type} /></div>
                 <div><Badge text={session.delivery_mode} /></div>
                 <div style={{ fontSize: '14px', color: '#444' }}>
-                  {session.capacity_inperson ?? session.capacity_online ?? '∞'}
+                  {(session as any).capacityInperson ?? (session as any).capacity_inperson ?? (session as any).capacityOnline ?? (session as any).capacity_online ?? '∞'}
                 </div>
                 <div style={{ fontSize: '14px', color: '#444' }}>
-                  {session.price_inperson ? `$${session.price_inperson}` : 'Free'}
+                  {((session as any).priceInperson ?? (session as any).price_inperson)
+                    ? `$${(session as any).priceInperson ?? (session as any).price_inperson}`
+                    : 'Free'}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   
@@ -299,6 +275,21 @@ export default function SessionsPage() {
                   >
                     Edit
                   </a>
+                  <a href={`/dashboard/sessions/new?copy=${session.id}`}
+                    style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#f4f4f4',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        color: '#444',
+                        textDecoration: 'none',
+                        fontWeight: 500
+                    }}
+                    >
+                    Copy
+                    </a>
                 </div>
               </div>
             ))}
