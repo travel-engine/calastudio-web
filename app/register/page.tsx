@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import Link from 'next/link'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -30,38 +31,125 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ maxWidth: 400, margin: '100px auto', padding: 24 }}>
-      <h1 style={{ marginBottom: 24 }}>Create your CalaStudio account</h1>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#f4f4f4'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '48px',
+        width: '100%',
+        maxWidth: '420px',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.08)'
+      }}>
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{
+            display: 'inline-block',
+            backgroundColor: '#085041',
+            color: 'white',
+            fontWeight: 700,
+            fontSize: '20px',
+            padding: '8px 20px',
+            borderRadius: '8px',
+            marginBottom: '16px'
+          }}>
+            CalaStudio
+          </div>
+          <h1 style={{ fontSize: '24px', fontWeight: 600, color: '#1a1a1a' }}>
+            Create your account
+          </h1>
+          <p style={{ color: '#666', marginTop: '8px', fontSize: '14px' }}>
+            Get your studio live in under 30 minutes
+          </p>
+        </div>
 
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={e => setEmail(e.target.value)}
-        style={{ display: 'block', width: '100%', marginBottom: 12, padding: 8 }}
-      />
+        {/* Form */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
+              Email address
+            </label>
+            <input
+              type="email"
+              placeholder="you@yourstudio.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: '1px solid #e2e2e2',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
+          </div>
 
-      <input
-        type="password"
-        placeholder="Password (min 8 characters)"
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-        style={{ display: 'block', width: '100%', marginBottom: 12, padding: 8 }}
-      />
+          <div>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
+              Password
+            </label>
+            <input
+              type="password"
+              placeholder="Minimum 8 characters"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: '1px solid #e2e2e2',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
+          </div>
 
-      <button
-        onClick={handleRegister}
-        disabled={loading}
-        style={{ padding: '8px 24px', background: '#085041', color: 'white', border: 'none', cursor: 'pointer' }}
-      >
-        {loading ? 'Creating account...' : 'Create account'}
-      </button>
+          <button
+            onClick={handleRegister}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: loading ? '#9fd6b8' : '#085041',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              marginTop: '8px'
+            }}
+          >
+            {loading ? 'Creating account...' : 'Create account'}
+          </button>
 
-      {message && (
-        <p style={{ marginTop: 16, color: message.includes('Check') ? 'green' : 'red' }}>
-          {message}
-        </p>
-      )}
+          {message && (
+            <div style={{
+              padding: '12px',
+              borderRadius: '8px',
+              backgroundColor: message.includes('Check') ? '#e8f5ee' : '#fdecea',
+              color: message.includes('Check') ? '#085041' : '#8b1a1a',
+              fontSize: '14px',
+              textAlign: 'center'
+            }}>
+              {message}
+            </div>
+          )}
+
+          <p style={{ textAlign: 'center', fontSize: '14px', color: '#666', marginTop: '8px' }}>
+            Already have an account?{' '}
+            <Link href="/login" style={{ color: '#085041', fontWeight: 500 }}>
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
