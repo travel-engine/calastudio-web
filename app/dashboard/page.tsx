@@ -52,8 +52,22 @@ function StatCard({ label, value, sub, color = '#085041' }: StatCardProps) {
   )
 }
 
+function dayLabel(date: Date) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
+
+  if (target.getTime() === today.getTime()) return 'Today'
+  if (target.getTime() === tomorrow.getTime()) return 'Tomorrow'
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
 function SessionCard({ occurrence }: { occurrence: TodayOccurrence }) {
-  const time = new Date(occurrence.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  const startsAt = new Date(occurrence.starts_at)
+  const time = startsAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
   const session = occurrence.session
   const capacity = session?.delivery_mode === 'online' ? session.capacity_online : session?.capacity_inperson
 
@@ -70,12 +84,15 @@ function SessionCard({ occurrence }: { occurrence: TodayOccurrence }) {
     }}>
       {/* Time */}
       <div style={{
-        minWidth: '60px',
+        minWidth: '68px',
         textAlign: 'center',
         backgroundColor: '#f4f4f4',
         borderRadius: '8px',
         padding: '8px'
       }}>
+        <div style={{ fontSize: '11px', fontWeight: 600, color: '#666', marginBottom: '2px' }}>
+          {dayLabel(startsAt)}
+        </div>
         <div style={{ fontSize: '15px', fontWeight: 700, color: '#085041' }}>
           {time}
         </div>
@@ -168,7 +185,8 @@ export default function DashboardPage() {
   const [orgName, setOrgName] = useState('My Studio')
   const [userEmail, setUserEmail] = useState('')
   const [roles, setRoles] = useState<string[]>([])
-  const [todayOccurrences, setTodayOccurrences] = useState<TodayOccurrence[]>([])
+  const [upcomingOccurrences, setUpcomingOccurrences] = useState<TodayOccurrence[]>([])
+  const [sessionsToday, setSessionsToday] = useState(0)
   const [sessionsLoading, setSessionsLoading] = useState(true)
 
   useEffect(() => {
@@ -199,18 +217,21 @@ export default function DashboardPage() {
         return
       }
 
-      const startOfToday = new Date()
+      const now = new Date()
+      const startOfToday = new Date(now)
       startOfToday.setHours(0, 0, 0, 0)
       const endOfToday = new Date(startOfToday)
       endOfToday.setDate(endOfToday.getDate() + 1)
 
       const occRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/occurrences?from=${startOfToday.toISOString()}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/occurrences?from=${now.toISOString()}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (occRes.ok) {
         const all: TodayOccurrence[] = await occRes.json()
-        setTodayOccurrences(all.filter(o => o.status === 'scheduled' && new Date(o.starts_at) < endOfToday))
+        const scheduled = all.filter(o => o.status === 'scheduled')
+        setSessionsToday(scheduled.filter(o => new Date(o.starts_at) < endOfToday).length)
+        setUpcomingOccurrences(scheduled.slice(0, 3))
       }
       setSessionsLoading(false)
     }
@@ -271,7 +292,7 @@ export default function DashboardPage() {
 
         {/* Today at a glance */}
         <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
-          <StatCard label="Sessions today" value={todayOccurrences.length} />
+          <StatCard label="Sessions today" value={sessionsToday} />
           <StatCard label="Bookings today" value={28} sub="across all sessions" color="#1B4F8A" />
           <StatCard label="Revenue today" value="$420" sub="3 payments" color="#4B2D8A" />
           <StatCard label="Waitlisted" value={4} sub="for today's sessions" color="#7A4F00" />
@@ -280,13 +301,13 @@ export default function DashboardPage() {
         {/* Two column layout */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '24px' }}>
 
-          {/* Today's sessions */}
+          {/* Upcoming sessions */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '17px', fontWeight: 600, color: '#1a1a1a' }}>
-                Today&apos;s sessions
+                Next up
               </h2>
-              <a href="/dashboard/sessions" style={{ fontSize: '13px', color: '#085041' }}>
+              <a href="/dashboard/schedule" style={{ fontSize: '13px', color: '#085041' }}>
                 View all
               </a>
             </div>
@@ -294,12 +315,12 @@ export default function DashboardPage() {
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', textAlign: 'center', color: '#666', fontSize: '13px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
                 Loading...
               </div>
-            ) : todayOccurrences.length === 0 ? (
+            ) : upcomingOccurrences.length === 0 ? (
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', textAlign: 'center', color: '#666', fontSize: '13px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                Nothing on the schedule today.
+                Nothing coming up.
               </div>
             ) : (
-              todayOccurrences.map(occurrence => (
+              upcomingOccurrences.map(occurrence => (
                 <SessionCard key={occurrence.id} occurrence={occurrence} />
               ))
             )}

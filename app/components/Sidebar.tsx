@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { canViewSessions, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog } from '@/lib/roles'
+import { canViewSessions, canViewOccurrences, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog } from '@/lib/roles'
 
 interface SidebarProps {
   active?: string
@@ -13,6 +13,7 @@ interface SidebarProps {
 
 const navItems = [
   { href: '/dashboard', icon: '🏠', label: 'Dashboard', key: 'dashboard', canView: undefined },
+  { href: '/dashboard/schedule', icon: '🗓', label: 'Schedule', key: 'schedule', canView: canViewOccurrences },
   { href: '/dashboard/sessions', icon: '📅', label: 'Sessions', key: 'sessions', canView: canViewSessions },
   { href: '/dashboard/members', icon: '👥', label: 'Members', key: 'members', canView: undefined },
   { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings', key: 'bookings', canView: canViewBookings },
@@ -79,7 +80,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
           Studio
         </div>
 
-        {navItems.slice(0, 4).filter(visible).map(item => (
+        {navItems.slice(0, 5).filter(visible).map(item => (
           <NavLink key={item.key} item={item} active={active === item.key} />
         ))}
 
@@ -96,7 +97,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
           Revenue
         </div>
 
-        {navItems.slice(4, 7).filter(visible).map(item => (
+        {navItems.slice(5, 8).filter(visible).map(item => (
           <NavLink key={item.key} item={item} active={active === item.key} />
         ))}
 
@@ -113,7 +114,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
           Settings
         </div>
 
-        {navItems.slice(7).filter(visible).map(item => (
+        {navItems.slice(8).filter(visible).map(item => (
           <NavLink key={item.key} item={item} active={active === item.key} />
         ))}
       </nav>

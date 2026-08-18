@@ -1,0 +1,335 @@
+'use client'
+
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase'
+import Sidebar from '@/app/components/Sidebar'
+import Forbidden from '@/app/components/Forbidden'
+import { canViewOccurrences } from '@/lib/roles'
+
+interface Occurrence {
+  id: string
+  starts_at: string
+  status: 'scheduled' | 'cancelled' | 'completed'
+  session: {
+    name: string
+    delivery_mode: 'in_person' | 'online' | 'hybrid'
+  } | null
+}
+
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function startOfDay(d: Date) {
+  const r = new Date(d)
+  r.setHours(0, 0, 0, 0)
+  return r
+}
+function addDays(d: Date, n: number) {
+  const r = new Date(d)
+  r.setDate(r.getDate() + n)
+  return r
+}
+function startOfWeek(d: Date) {
+  const r = startOfDay(d)
+  const dow = r.getDay() // 0 = Sunday
+  const mondayOffset = dow === 0 ? -6 : 1 - dow
+  return addDays(r, mondayOffset)
+}
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1)
+}
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+function dateKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export default function SchedulePage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [orgId, setOrgId] = useState('')
+  const [token, setToken] = useState('')
+  const [roles, setRoles] = useState<string[]>([])
+  const [forbidden, setForbidden] = useState(false)
+
+  const [viewDate, setViewDate] = useState(() => startOfDay(new Date()))
+  const [occurrences, setOccurrences] = useState<Occurrence[]>([])
+  const [fetchedFrom, setFetchedFrom] = useState<string>('')
+
+  const today = useMemo(() => startOfDay(new Date()), [])
+  const weekStart = useMemo(() => startOfWeek(viewDate), [viewDate])
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
+
+  // Calendar grid: the Monday on/before the 1st of viewDate's month, 6 full weeks (42 days) —
+  // always covers the month plus enough padding into neighbouring months to fill the grid.
+  const monthAnchor = useMemo(() => startOfMonth(viewDate), [viewDate])
+  const gridStart = useMemo(() => startOfWeek(monthAnchor), [monthAnchor])
+  const gridDays = useMemo(() => Array.from({ length: 42 }, (_, i) => addDays(gridStart, i)), [gridStart])
+
+  const authedFetch = useCallback((path: string) =>
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}${path}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }), [orgId, token])
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.push('/login'); return }
+
+      const t = session.access_token
+      setToken(t)
+
+      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      if (!orgRes.ok) { router.push('/onboarding'); return }
+      const org = await orgRes.json()
+      setOrgId(org.id)
+
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      setRoles(myRoles)
+
+      if (!canViewOccurrences(myRoles)) {
+        setForbidden(true)
+        setLoading(false)
+        return
+      }
+
+      setLoading(false)
+    }
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router])
+
+  // Re-fetch whenever navigation moves outside the currently-fetched window. `from` has no upper
+  // bound server-side, so one fetch from the grid's start covers everything visible plus future
+  // months — only refetch when the grid start moves earlier than what we last fetched.
+  useEffect(() => {
+    if (loading || forbidden || !orgId) return
+    const from = gridStart.toISOString()
+    if (fetchedFrom && new Date(from) >= new Date(fetchedFrom)) return
+
+    const run = async () => {
+      const res = await authedFetch(`/occurrences?from=${from}`)
+      if (res.ok) {
+        setOccurrences(await res.json())
+        setFetchedFrom(from)
+      }
+    }
+    run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridStart, loading, forbidden, orgId])
+
+  const occurrencesByDay = useMemo(() => {
+    const map: Record<string, Occurrence[]> = {}
+    for (const occ of occurrences) {
+      if (occ.status !== 'scheduled') continue
+      const key = dateKey(new Date(occ.starts_at))
+      if (!map[key]) map[key] = []
+      map[key].push(occ)
+    }
+    for (const key in map) map[key].sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+    return map
+  }, [occurrences])
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar active="schedule" />
+        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#666' }}>Loading...</div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+      <Sidebar active="schedule" roles={roles} />
+
+      <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+        {forbidden ? <Forbidden /> : <>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <div>
+            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Schedule</h1>
+            <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
+              Every upcoming class, by week
+            </p>
+          </div>
+          <button
+            onClick={() => setViewDate(today)}
+            style={{
+              padding: '8px 16px', backgroundColor: 'white', border: '1px solid #e2e2e2',
+              borderRadius: '8px', fontSize: '13px', color: '#444', cursor: 'pointer', fontWeight: 500
+            }}
+          >
+            Today
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', alignItems: 'start' }}>
+
+          {/* Week view */}
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '16px 20px', borderBottom: '1px solid #e2e2e2'
+            }}>
+              <button
+                onClick={() => setViewDate(addDays(viewDate, -7))}
+                style={navButtonStyle}
+                aria-label="Previous week"
+              >
+                ‹
+              </button>
+              <div style={{ fontSize: '15px', fontWeight: 600 }}>
+                {weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                {' – '}
+                {addDays(weekStart, 6).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+              <button
+                onClick={() => setViewDate(addDays(viewDate, 7))}
+                style={navButtonStyle}
+                aria-label="Next week"
+              >
+                ›
+              </button>
+            </div>
+
+            <div>
+              {weekDays.map((day, i) => {
+                const dayOccurrences = occurrencesByDay[dateKey(day)] ?? []
+                return (
+                  <div key={dateKey(day)} style={{
+                    display: 'grid', gridTemplateColumns: '110px 1fr',
+                    padding: '16px 20px', borderBottom: i < 6 ? '1px solid #f4f4f4' : 'none'
+                  }}>
+                    <div>
+                      <div style={{
+                        fontSize: '13px', fontWeight: 600,
+                        color: isSameDay(day, today) ? '#085041' : '#1a1a1a'
+                      }}>
+                        {day.toLocaleDateString(undefined, { weekday: 'short' })}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#999' }}>
+                        {day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      </div>
+                    </div>
+                    <div>
+                      {dayOccurrences.length === 0 ? (
+                        <div style={{ fontSize: '13px', color: '#ccc' }}>—</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {dayOccurrences.map(occ => (
+                            <a
+                              key={occ.id}
+                              href={`/dashboard/bookings?occurrence=${occ.id}`}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                padding: '8px 12px', backgroundColor: '#f4f4f4', borderRadius: '8px',
+                                textDecoration: 'none', color: '#1a1a1a', fontSize: '13px'
+                              }}
+                            >
+                              <span style={{ fontWeight: 600, color: '#085041', minWidth: '68px' }}>
+                                {new Date(occ.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                              </span>
+                              <span style={{ flex: 1 }}>{occ.session?.name ?? 'Session'}</span>
+                              <span style={{ fontSize: '11px', color: '#999', textTransform: 'capitalize' }}>
+                                {occ.session?.delivery_mode.replace('_', ' ')}
+                              </span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Month calendar */}
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <button
+                onClick={() => setViewDate(d => startOfMonth(addDays(startOfMonth(d), -1)))}
+                style={navButtonStyle}
+                aria-label="Previous month"
+              >
+                ‹
+              </button>
+              <div style={{ fontSize: '14px', fontWeight: 600 }}>
+                {monthAnchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+              </div>
+              <button
+                onClick={() => setViewDate(d => {
+                  const next = new Date(startOfMonth(d))
+                  next.setMonth(next.getMonth() + 1)
+                  return next
+                })}
+                style={navButtonStyle}
+                aria-label="Next month"
+              >
+                ›
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', marginBottom: '4px' }}>
+              {DAY_LABELS.map(label => (
+                <div key={label} style={{ textAlign: 'center', fontSize: '11px', color: '#999', fontWeight: 600, padding: '4px 0' }}>
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
+              {gridDays.map(day => {
+                const inMonth = day.getMonth() === monthAnchor.getMonth()
+                const hasClasses = (occurrencesByDay[dateKey(day)] ?? []).length > 0
+                const isToday = isSameDay(day, today)
+                const isSelected = isSameDay(day, viewDate)
+                return (
+                  <button
+                    key={dateKey(day)}
+                    onClick={() => setViewDate(day)}
+                    style={{
+                      aspectRatio: '1',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: '6px',
+                      border: isSelected ? '2px solid #085041' : isToday ? '1px solid #085041' : '1px solid transparent',
+                      backgroundColor: hasClasses ? '#e8f5ee' : 'transparent',
+                      color: !inMonth ? '#ccc' : hasClasses ? '#085041' : '#444',
+                      fontSize: '12px',
+                      fontWeight: hasClasses ? 600 : 400,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {day.getDate()}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '16px', fontSize: '11px', color: '#666' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: '#e8f5ee', display: 'inline-block' }} />
+              Has classes
+            </div>
+          </div>
+        </div>
+        </>}
+      </div>
+    </div>
+  )
+}
+
+const navButtonStyle: React.CSSProperties = {
+  width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  border: '1px solid #e2e2e2', borderRadius: '6px', backgroundColor: 'white',
+  fontSize: '14px', color: '#444', cursor: 'pointer'
+}
