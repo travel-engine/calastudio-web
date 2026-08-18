@@ -147,7 +147,9 @@ export default function EditSessionPage() {
     cancellationHours: '12',
     guestBookingsEnabled: true,
     guestMaxPerBooking: '1',
+    instructorId: '',
   })
+  const [teachers, setTeachers] = useState<{ id: string; full_name: string }[]>([])
 
   const update = (key: string, value: string | boolean | string[]) =>
     setForm(prev => ({ ...prev, [key]: value }))
@@ -178,7 +180,8 @@ export default function EditSessionPage() {
       const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
         headers: { Authorization: `Bearer ${t}` }
       })
-      if (roleRes.ok) setRoles((await roleRes.json()).roles)
+      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      setRoles(myRoles)
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${sessionId}`,
@@ -214,7 +217,18 @@ export default function EditSessionPage() {
         cancellationHours: s.cancellation_hours?.toString() ?? '12',
         guestBookingsEnabled: s.guest_bookings_enabled ?? true,
         guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
+        instructorId: s.instructor_id ?? '',
       })
+
+      if (canManageSessions(myRoles)) {
+        const teachersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/teachers`, {
+          headers: { Authorization: `Bearer ${t}` }
+        })
+        if (teachersRes.ok) {
+          const data = await teachersRes.json()
+          setTeachers(data.map((x: any) => ({ id: x.id, full_name: x.full_name })))
+        }
+      }
 
       const occRes = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${sessionId}/occurrences`,
@@ -374,6 +388,7 @@ export default function EditSessionPage() {
             cancellation_hours: parseInt(form.cancellationHours),
             guest_bookings_enabled: form.guestBookingsEnabled,
             guest_max_per_booking: parseInt(form.guestMaxPerBooking),
+            instructor_id: form.instructorId || null,
           })
         }
       )
@@ -523,6 +538,15 @@ export default function EditSessionPage() {
               </Select>
             </Field>
           </div>
+
+          <Field label="Instructor" hint="Determines which teacher this session shows up for under their own sessions and bookings">
+            <Select value={form.instructorId} onChange={e => update('instructorId', e.target.value)}>
+              <option value="">Unassigned</option>
+              {teachers.map(t => (
+                <option key={t.id} value={t.id}>{t.full_name}</option>
+              ))}
+            </Select>
+          </Field>
 
           <SectionHeader title="Delivery" />
 

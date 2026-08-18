@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
@@ -85,6 +85,21 @@ function SectionHeader({ title, description }: { title: string; description?: st
 }
 
 export default function NewSessionPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar active="sessions" />
+        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#666' }}>Loading...</div>
+        </div>
+      </div>
+    }>
+      <NewSessionPageContent />
+    </Suspense>
+  )
+}
+
+function NewSessionPageContent() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -111,7 +126,9 @@ export default function NewSessionPage() {
     cancellationHours: '12',
     guestBookingsEnabled: true,
     guestMaxPerBooking: '1',
+    instructorId: '',
   })
+  const [teachers, setTeachers] = useState<{ id: string; full_name: string }[]>([])
   const searchParams = useSearchParams()
   const copyId = searchParams.get('copy')
 
@@ -134,6 +151,15 @@ export default function NewSessionPage() {
       const roles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
 
       if (!canManageSessions(roles)) { router.push('/dashboard/sessions'); return }
+
+      const teachersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/teachers`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (teachersRes.ok) {
+        const data = await teachersRes.json()
+        setTeachers(data.map((t: any) => ({ id: t.id, full_name: t.full_name })))
+      }
+
       setCheckingAccess(false)
     }
     checkAccess()
@@ -183,6 +209,7 @@ export default function NewSessionPage() {
         cancellationHours: s.cancellation_hours?.toString() ?? '12',
         guestBookingsEnabled: s.guest_bookings_enabled ?? true,
         guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
+        instructorId: s.instructor_id ?? '',
       }))
     }
   
@@ -238,23 +265,24 @@ export default function NewSessionPage() {
         body: JSON.stringify({
           name: form.name,
           description: form.description || null,
-          sessionType: form.sessionType,
-          deliveryMode: form.deliveryMode,
-          locationName: form.locationName || null,
-          locationAddress: form.locationAddress || null,
-          capacityInperson: form.capacityInperson ? parseInt(form.capacityInperson) : null,
-          capacityOnline: form.capacityOnline ? parseInt(form.capacityOnline) : null,
-          priceInperson: form.priceInperson ? parseFloat(form.priceInperson) : null,
-          priceOnline: form.priceOnline ? parseFloat(form.priceOnline) : null,
+          session_type: form.sessionType,
+          delivery_mode: form.deliveryMode,
+          location_name: form.locationName || null,
+          location_address: form.locationAddress || null,
+          capacity_inperson: form.capacityInperson ? parseInt(form.capacityInperson) : null,
+          capacity_online: form.capacityOnline ? parseInt(form.capacityOnline) : null,
+          price_inperson: form.priceInperson ? parseFloat(form.priceInperson) : null,
+          price_online: form.priceOnline ? parseFloat(form.priceOnline) : null,
           currency: form.currency,
-          durationMinutes: parseInt(form.durationMinutes),
-          isRecurring: form.isRecurring,
-          recurrenceRule: buildRRule() || null,
+          duration_minutes: parseInt(form.durationMinutes),
+          is_recurring: form.isRecurring,
+          recurrence_rule: buildRRule() || null,
           visibility: form.visibility,
-          bookingAccessMode: form.bookingAccessMode,
-          cancellationHours: parseInt(form.cancellationHours),
-          guestBookingsEnabled: form.guestBookingsEnabled,
-          guestMaxPerBooking: parseInt(form.guestMaxPerBooking),
+          booking_access_mode: form.bookingAccessMode,
+          cancellation_hours: parseInt(form.cancellationHours),
+          guest_bookings_enabled: form.guestBookingsEnabled,
+          guest_max_per_booking: parseInt(form.guestMaxPerBooking),
+          instructor_id: form.instructorId || null,
         })
       })
 
@@ -359,6 +387,15 @@ export default function NewSessionPage() {
               </Select>
             </Field>
           </div>
+
+          <Field label="Instructor" hint="Determines which teacher this session shows up for under their own sessions and bookings">
+            <Select value={form.instructorId} onChange={e => update('instructorId', e.target.value)}>
+              <option value="">Unassigned</option>
+              {teachers.map(t => (
+                <option key={t.id} value={t.id}>{t.full_name}</option>
+              ))}
+            </Select>
+          </Field>
 
           {/* Delivery */}
           <SectionHeader title="Delivery" description="How will students attend this session?" />

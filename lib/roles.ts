@@ -11,12 +11,15 @@ export const MEMBER = 'member'
 
 const has = (roles: string[], allowed: string[]) => roles.some(r => allowed.includes(r))
 
-// Sessions (SessionEndpoints.cs)
-export const canViewSessions = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK])
+// Sessions (SessionEndpoints.cs). teacher_general/teacher_basic can view too, but scoped to
+// sessions where they're the instructor — enforced server-side (list is pre-filtered by the API;
+// single-session GET is gated by RequireSessionOwnershipFilter), not something this client needs
+// to replicate — it only needs to know whether to show the page/nav item at all.
+export const canViewSessions = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK, TEACHER_GENERAL, TEACHER_BASIC])
 export const canManageSessions = (roles: string[]) => has(roles, [ADMIN])
 
-// Session occurrences (SessionOccurrenceEndpoints.cs)
-export const canViewOccurrences = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK])
+// Session occurrences (SessionOccurrenceEndpoints.cs) — same ownership-scoping note as sessions above
+export const canViewOccurrences = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK, TEACHER_GENERAL, TEACHER_BASIC])
 export const canManageOccurrences = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
 
 // Team (TeacherEndpoints.cs)
@@ -30,8 +33,10 @@ export const canManagePassTemplates = (roles: string[]) => has(roles, [ADMIN])
 // Member passes + ledger (MemberPassEndpoints.cs) — view and manage are the same gate today
 export const canManageMemberPasses = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
 
-// Bookings (BookingEndpoints.cs)
-export const canViewBookings = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK])
+// Bookings (BookingEndpoints.cs). Roster GET now also includes teacher_general/teacher_basic,
+// ownership-scoped to occurrences they instruct (RequireSessionOwnershipFilter) — same "server
+// already scopes it" note as sessions above.
+export const canViewBookings = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK, TEACHER_GENERAL, TEACHER_BASIC])
 export const canManageBookings = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER]) // create/cancel booking, cancel occurrence
 export const canMarkAttended = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL, TEACHER_BASIC, FRONT_DESK])
 export const canMarkNoShow = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL, TEACHER_BASIC])
