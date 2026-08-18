@@ -126,6 +126,7 @@ export default function EditSessionPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [error, setError] = useState('')
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
@@ -164,6 +165,7 @@ export default function EditSessionPage() {
     guestBookingsEnabled: true,
     guestMaxPerBooking: '1',
     instructorId: '',
+    photoUrl: '',
   })
   const [teachers, setTeachers] = useState<{ id: string; full_name: string }[]>([])
 
@@ -175,6 +177,37 @@ export default function EditSessionPage() {
       ? form.recurrenceDays.filter(d => d !== day)
       : [...form.recurrenceDays, day]
     update('recurrenceDays', days)
+  }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) { setError('Please select an image file'); return }
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB'); return }
+
+    setUploadingPhoto(true)
+    setError('')
+
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const path = `sessions/${sessionId}-${Date.now()}.${ext}`
+
+      const { data, error: uploadError } = await supabase.storage
+        .from('teacher-photos')
+        .upload(path, file, { upsert: false })
+
+      if (uploadError) {
+        setError(`Upload failed: ${uploadError.message}`)
+        return
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from('teacher-photos').getPublicUrl(data.path)
+      update('photoUrl', publicUrl)
+    } finally {
+      setUploadingPhoto(false)
+    }
   }
 
   useEffect(() => {
@@ -239,6 +272,7 @@ export default function EditSessionPage() {
         guestBookingsEnabled: s.guest_bookings_enabled ?? true,
         guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
         instructorId: s.instructor_id ?? '',
+        photoUrl: s.photo_url ?? '',
       })
 
       if (canManageSessions(myRoles)) {
@@ -397,6 +431,7 @@ export default function EditSessionPage() {
             description: form.description || null,
             location_name: form.locationName || null,
             location_address: form.locationAddress || null,
+            photo_url: form.photoUrl || null,
             capacity_inperson: form.capacityInperson ? parseInt(form.capacityInperson) : null,
             capacity_online: form.capacityOnline ? parseInt(form.capacityOnline) : null,
             price_inperson: form.priceInperson ? parseFloat(form.priceInperson) : null,
@@ -530,6 +565,37 @@ export default function EditSessionPage() {
         }}>
 
           <SectionHeader title="Basics" />
+
+          <Field label="Photo" hint="Shown on your booking page and in the schedule. Optional.">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{
+                width: '80px', height: '80px', borderRadius: '12px', backgroundColor: '#f4f4f4',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                border: '1px solid #e2e2e2', flexShrink: 0
+              }}>
+                {form.photoUrl ? (
+                  <img src={form.photoUrl} alt="Session" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <span style={{ fontSize: '24px' }}>📷</span>
+                )}
+              </div>
+              <label style={{
+                padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px',
+                fontSize: '13px', fontWeight: 500, color: '#444', cursor: uploadingPhoto ? 'not-allowed' : 'pointer'
+              }}>
+                {uploadingPhoto ? 'Uploading...' : form.photoUrl ? 'Replace photo' : 'Upload photo'}
+                <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} style={{ display: 'none' }} />
+              </label>
+              {form.photoUrl && (
+                <button
+                  onClick={() => update('photoUrl', '')}
+                  style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </Field>
 
           <Field label="Session name">
             <Input

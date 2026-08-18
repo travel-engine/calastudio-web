@@ -21,6 +21,7 @@ interface Session {
   is_recurring: boolean
   location_name: string | null
   is_active: boolean
+  photo_url?: string | null
 }
 
 function Badge({ text }: { text: string | null | undefined; color?: string }) {
@@ -258,17 +259,29 @@ export default function SessionsPage() {
                   alignItems: 'center'
                 }}
               >
-                <div>
-                  <div
-                    style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', cursor: 'default' }}
-                    title={(session as any).description ?? undefined}
-                  >
-                    {session.name}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#f4f4f4',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0
+                  }}>
+                    {session.photo_url ? (
+                      <img src={session.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ fontSize: '14px' }}>📅</span>
+                    )}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {(session as any).duration_minutes} min
-                    {(session as any).location_name ? ` · ${(session as any).location_name}` : ''}
-                    {(session as any).is_recurring ? ' · Recurring' : ' · One-off'}
+                  <div>
+                    <div
+                      style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', cursor: 'default' }}
+                      title={(session as any).description ?? undefined}
+                    >
+                      {session.name}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      {(session as any).duration_minutes} min
+                      {(session as any).location_name ? ` · ${(session as any).location_name}` : ''}
+                      {(session as any).is_recurring ? ' · Recurring' : ' · One-off'}
+                    </div>
                   </div>
                 </div>
                 <div><Badge text={session.session_type} /></div>

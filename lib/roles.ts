@@ -47,3 +47,6 @@ export const canAddStudent = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUP
 // reasons, is more sensitive than most screens here, so it doesn't reuse the admin/teacher_super
 // pattern used elsewhere.
 export const canViewAuditLog = (roles: string[]) => has(roles, [ADMIN])
+
+// Studio settings — PATCH /organisations/{id} (OrganisationEndpoints.cs). Admin only.
+export const canManageSettings = (roles: string[]) => has(roles, [ADMIN])
