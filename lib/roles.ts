@@ -37,6 +37,8 @@ export const canManageMemberPasses = (roles: string[]) => has(roles, [ADMIN, TEA
 // ownership-scoped to occurrences they instruct (RequireSessionOwnershipFilter) — same "server
 // already scopes it" note as sessions above.
 export const canViewBookings = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK, TEACHER_GENERAL, TEACHER_BASIC])
-export const canManageBookings = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER]) // create/cancel booking, cancel occurrence
+export const canManageBookings = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER]) // POST /bookings (paid), cancel booking, cancel occurrence
 export const canMarkAttended = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL, TEACHER_BASIC, FRONT_DESK])
 export const canMarkNoShow = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL, TEACHER_BASIC])
+// POST .../add-student — the no-payment path (front_desk excluded, unlike canMarkAttended above)
+export const canAddStudent = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL, TEACHER_BASIC])

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewBookings, canManageBookings, canMarkAttended, canMarkNoShow } from '@/lib/roles'
+import { canViewBookings, canManageBookings, canMarkAttended, canMarkNoShow, canAddStudent } from '@/lib/roles'
 
 interface SessionSummary {
   id: string
@@ -33,10 +33,12 @@ interface Occurrence {
   session: SessionSummary | null
 }
 
+// email is absent for teacher_general/teacher_basic — GET /members returns a name-only
+// projection for them (17.3 denies contact info), full detail for admin/teacher_super.
 interface Member {
   id: string
   full_name: string
-  email: string
+  email?: string
 }
 
 interface MemberPass {
@@ -318,6 +320,8 @@ function BookingsPageContent() {
 
   const selectMember = async (memberId: string) => {
     setAddForm(p => ({ ...p, userId: memberId, memberPassId: '' }))
+    if (!canManageBookings(roles)) return // add-student is always free — no need to look up passes
+
     setPassesLoading(true)
     const res = await authedFetch(`/members/${memberId}/passes`)
     if (res.ok) {
@@ -331,28 +335,47 @@ function BookingsPageContent() {
     if (!managingOccurrence) return
     if (!addForm.userId) { setAddBookingError('Select a member'); return }
 
-    const isFree = managingOccurrence.session?.booking_access_mode === 'free'
-    const paymentType = isFree ? 'free' : addForm.paymentType
-    if (paymentType === 'pass' && !addForm.memberPassId) {
-      setAddBookingError('Select which pass to use')
-      return
+    // admin/teacher_super get the paid path (POST /bookings); teacher_general/teacher_basic only
+    // ever get the no-payment "add student" path (POST .../add-student) — the payment section
+    // above is hidden for them, so addForm.paymentType is never meaningful in that case.
+    const useAddStudent = !canManageBookings(roles)
+
+    if (!useAddStudent) {
+      const isFree = managingOccurrence.session?.booking_access_mode === 'free'
+      const paymentType = isFree ? 'free' : addForm.paymentType
+      if (paymentType === 'pass' && !addForm.memberPassId) {
+        setAddBookingError('Select which pass to use')
+        return
+      }
     }
 
     setAddingBooking(true)
     setAddBookingError('')
 
     try {
-      const res = await authedFetch('/bookings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: addForm.userId,
-          session_occurrence_id: managingOccurrence.id,
-          booked_mode: addForm.bookedMode,
-          payment_type: paymentType,
-          member_pass_id: paymentType === 'pass' ? addForm.memberPassId : null,
-        })
-      })
+      const isFree = managingOccurrence.session?.booking_access_mode === 'free'
+      const paymentType = isFree ? 'free' : addForm.paymentType
+
+      const res = useAddStudent
+        ? await authedFetch(`/occurrences/${managingOccurrence.id}/add-student`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: addForm.userId,
+              booked_mode: addForm.bookedMode,
+            })
+          })
+        : await authedFetch('/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: addForm.userId,
+              session_occurrence_id: managingOccurrence.id,
+              booked_mode: addForm.bookedMode,
+              payment_type: paymentType,
+              member_pass_id: paymentType === 'pass' ? addForm.memberPassId : null,
+            })
+          })
 
       if (res.ok) {
         setShowAddBooking(false)
@@ -371,7 +394,7 @@ function BookingsPageContent() {
   const filteredMembers = members.filter(m => {
     const q = memberSearch.trim().toLowerCase()
     if (!q) return true
-    return m.full_name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
+    return m.full_name.toLowerCase().includes(q) || (m.email?.toLowerCase().includes(q) ?? false)
   })
   const selectedMember = members.find(m => m.id === addForm.userId)
 
@@ -497,27 +520,31 @@ function BookingsPageContent() {
               </div>
             )}
 
-            {managingOccurrence.status === 'scheduled' && canManageBookings(roles) && (
+            {managingOccurrence.status === 'scheduled' && (canManageBookings(roles) || canAddStudent(roles)) && (
               <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
                 <button onClick={openAddBooking} style={{
                   padding: '8px 16px', backgroundColor: '#085041', color: 'white', border: 'none',
                   borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
                 }}>
-                  + Add booking
+                  + Add {canManageBookings(roles) ? 'booking' : 'student'}
                 </button>
-                <button onClick={handleCancelOccurrence} disabled={cancellingOccurrence} style={{
-                  padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #fdecea',
-                  borderRadius: '8px', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
-                }}>
-                  {cancellingOccurrence ? 'Cancelling...' : 'Cancel occurrence'}
-                </button>
+                {canManageBookings(roles) && (
+                  <button onClick={handleCancelOccurrence} disabled={cancellingOccurrence} style={{
+                    padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #fdecea',
+                    borderRadius: '8px', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
+                  }}>
+                    {cancellingOccurrence ? 'Cancelling...' : 'Cancel occurrence'}
+                  </button>
+                )}
               </div>
             )}
 
             {/* Add booking form */}
             {showAddBooking && (
               <div style={{ border: '1px solid #e2e2e2', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '14px' }}>Add a booking</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '14px' }}>
+                  {canManageBookings(roles) ? 'Add a booking' : 'Add a student'}
+                </div>
 
                 {isRestricted ? (
                   <p style={{ fontSize: '13px', color: '#666' }}>
@@ -534,7 +561,7 @@ function BookingsPageContent() {
                         }}>
                           <div>
                             <div style={{ fontSize: '14px', fontWeight: 600 }}>{selectedMember.full_name}</div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>{selectedMember.email}</div>
+                            {selectedMember.email && <div style={{ fontSize: '12px', color: '#666' }}>{selectedMember.email}</div>}
                           </div>
                           <button
                             onClick={() => { setAddForm(p => ({ ...p, userId: '', memberPassId: '' })); setMemberPasses([]) }}
@@ -547,7 +574,7 @@ function BookingsPageContent() {
                         <>
                           <input
                             type="text"
-                            placeholder="Search members by name or email..."
+                            placeholder={members[0]?.email ? "Search members by name or email..." : "Search members by name..."}
                             value={memberSearch}
                             onChange={e => setMemberSearch(e.target.value)}
                             style={inputStyle}
@@ -568,7 +595,7 @@ function BookingsPageContent() {
                                   }}
                                 >
                                   <div style={{ fontSize: '13px', fontWeight: 600 }}>{m.full_name}</div>
-                                  <div style={{ fontSize: '12px', color: '#666' }}>{m.email}</div>
+                                  {m.email && <div style={{ fontSize: '12px', color: '#666' }}>{m.email}</div>}
                                 </button>
                               ))
                             )}
@@ -591,7 +618,9 @@ function BookingsPageContent() {
                       </div>
                     )}
 
-                    {isFreeSession ? (
+                    {!canManageBookings(roles) ? (
+                      <p style={{ fontSize: '13px', color: '#666' }}>Added at no charge — payment isn't part of this action.</p>
+                    ) : isFreeSession ? (
                       <p style={{ fontSize: '13px', color: '#666' }}>This session is free — no payment required.</p>
                     ) : (
                       <>
@@ -650,7 +679,7 @@ function BookingsPageContent() {
                           cursor: addingBooking ? 'not-allowed' : 'pointer'
                         }}
                       >
-                        {addingBooking ? 'Booking...' : 'Confirm booking'}
+                        {addingBooking ? 'Adding...' : (canManageBookings(roles) ? 'Confirm booking' : 'Add student')}
                       </button>
                     </div>
                   </div>
