@@ -429,18 +429,18 @@ export default function TeamPage() {
                     cursor: 'pointer'
                   }}
                 >
-                  <option value="teacher_super">Super teacher — full studio access</option>
-                  <option value="teacher_general">Teacher — own sessions and students</option>
+                  <option value="teacher_super">Super teacher — schedule and bookings</option>
+                  <option value="teacher_general">Teacher — own sessions and roster</option>
                   <option value="teacher_basic">Basic teacher — attendance only</option>
                   <option value="front_desk">Front desk — schedule and check-in</option>
                 </select>
 
                 {/* Role description */}
                 <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-                  {inviteForm.role === 'teacher_super' && 'Can manage all sessions, view all members, issue passes and process bookings. Cannot change billing or org settings.'}
-                  {inviteForm.role === 'teacher_general' && 'Can view and manage their own sessions and the students booked into them.'}
-                  {inviteForm.role === 'teacher_basic' && 'Can add students to their sessions and mark attendance only. No access to member details.'}
-                  {inviteForm.role === 'front_desk' && 'Can view the full schedule and check in members. No financial data.'}
+                  {inviteForm.role === 'teacher_super' && 'Can view every session, add or cancel dates, process paid bookings, and issue or adjust passes. Cannot create/edit session templates, invite teachers, or change studio settings.'}
+                  {inviteForm.role === 'teacher_general' && 'Can view their own sessions and full roster, add students at no charge, and mark attendance. Cannot edit session details or process payments.'}
+                  {inviteForm.role === 'teacher_basic' && 'Can add students to their own sessions and mark attendance only. Sees member names on the roster, not contact or financial details.'}
+                  {inviteForm.role === 'front_desk' && 'Can view the full schedule and check members in. Sees member names only, no contact/financial details, and cannot mark no-shows or add students.'}
                 </p>
               </div>
 
