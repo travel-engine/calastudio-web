@@ -42,3 +42,8 @@ export const canMarkAttended = (roles: string[]) => has(roles, [ADMIN, TEACHER_S
 export const canMarkNoShow = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL, TEACHER_BASIC])
 // POST .../add-student — the no-payment path (front_desk excluded, unlike canMarkAttended above)
 export const canAddStudent = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL, TEACHER_BASIC])
+
+// Audit log (AuditEndpoints.cs) — admin only. Org-wide activity history, including override
+// reasons, is more sensitive than most screens here, so it doesn't reuse the admin/teacher_super
+// pattern used elsewhere.
+export const canViewAuditLog = (roles: string[]) => has(roles, [ADMIN])

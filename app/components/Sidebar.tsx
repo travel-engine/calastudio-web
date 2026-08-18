@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { canViewSessions, canViewBookings, canViewPassTemplates, canViewTeam } from '@/lib/roles'
+import { canViewSessions, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog } from '@/lib/roles'
 
 interface SidebarProps {
   active?: string
@@ -20,6 +20,7 @@ const navItems = [
   { href: '/dashboard/memberships', icon: '⭐', label: 'Memberships', key: 'memberships', canView: undefined },
   { href: '/dashboard/reports', icon: '📊', label: 'Reports', key: 'reports', canView: undefined },
   { href: '/dashboard/team', icon: '👤', label: 'Team', key: 'team', canView: canViewTeam },
+  { href: '/dashboard/audit-log', icon: '🕘', label: 'Activity log', key: 'audit-log', canView: canViewAuditLog },
   { href: '/dashboard/settings', icon: '⚙️', label: 'Settings', key: 'settings', canView: undefined },
 ]
 
