@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
-import { canManageSessions } from '@/lib/roles'
+import { canManageSessions, canViewOccurrences } from '@/lib/roles'
 
 // ── Types ─────────────────────────────────────────────────
 interface StatCardProps {
@@ -14,14 +14,16 @@ interface StatCardProps {
   color?: string
 }
 
-interface Session {
+interface TodayOccurrence {
   id: string
-  name: string
-  time: string
-  instructor: string
-  booked: number
-  capacity: number
-  mode: string
+  starts_at: string
+  status: 'scheduled' | 'cancelled' | 'completed'
+  session: {
+    name: string
+    delivery_mode: 'in_person' | 'online' | 'hybrid'
+    capacity_inperson: number | null
+    capacity_online: number | null
+  } | null
 }
 
 interface Activity {
@@ -50,10 +52,10 @@ function StatCard({ label, value, sub, color = '#085041' }: StatCardProps) {
   )
 }
 
-function SessionCard({ session }: { session: Session }) {
-  const fillPct = Math.round((session.booked / session.capacity) * 100)
-  const isFull = session.booked >= session.capacity
-  const isLow = session.capacity - session.booked <= 3
+function SessionCard({ occurrence }: { occurrence: TodayOccurrence }) {
+  const time = new Date(occurrence.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  const session = occurrence.session
+  const capacity = session?.delivery_mode === 'online' ? session.capacity_online : session?.capacity_inperson
 
   return (
     <div style={{
@@ -75,72 +77,34 @@ function SessionCard({ session }: { session: Session }) {
         padding: '8px'
       }}>
         <div style={{ fontSize: '15px', fontWeight: 700, color: '#085041' }}>
-          {session.time}
+          {time}
         </div>
       </div>
 
       {/* Details */}
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '2px' }}>
-          {session.name}
+          {session?.name ?? 'Session'}
         </div>
         <div style={{ fontSize: '13px', color: '#666' }}>
-          {session.instructor} · {session.mode}
-        </div>
-      </div>
-
-      {/* Capacity */}
-      <div style={{ textAlign: 'right', minWidth: '80px' }}>
-        <div style={{
-          fontSize: '13px',
-          fontWeight: 600,
-          color: isFull ? '#8b1a1a' : isLow ? '#7a4f00' : '#085041'
-        }}>
-          {isFull ? 'Full' : `${session.booked}/${session.capacity}`}
-        </div>
-        <div style={{
-          height: '4px',
-          backgroundColor: '#e2e2e2',
-          borderRadius: '99px',
-          marginTop: '6px',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            height: '100%',
-            width: `${fillPct}%`,
-            backgroundColor: isFull ? '#8b1a1a' : isLow ? '#f59e0b' : '#085041',
-            borderRadius: '99px'
-          }} />
+          {session?.delivery_mode.replace('_', ' ') ?? ''}{capacity ? ` · Capacity ${capacity}` : ''}
         </div>
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <ActionButton>Roster</ActionButton>
-        <ActionButton>Check in</ActionButton>
-      </div>
-    </div>
-  )
-}
-
-function ActionButton({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
+      <a href={`/dashboard/bookings?occurrence=${occurrence.id}`} style={{
         padding: '6px 12px',
         backgroundColor: '#f4f4f4',
-        border: 'none',
         borderRadius: '6px',
         fontSize: '13px',
-        cursor: 'pointer',
         color: '#444',
         fontWeight: 500,
-        whiteSpace: 'nowrap'
-      }}
-    >
-      {children}
-    </button>
+        whiteSpace: 'nowrap',
+        textDecoration: 'none'
+      }}>
+        Manage roster
+      </a>
+    </div>
   )
 }
 
@@ -204,6 +168,8 @@ export default function DashboardPage() {
   const [orgName, setOrgName] = useState('My Studio')
   const [userEmail, setUserEmail] = useState('')
   const [roles, setRoles] = useState<string[]>([])
+  const [todayOccurrences, setTodayOccurrences] = useState<TodayOccurrence[]>([])
+  const [sessionsLoading, setSessionsLoading] = useState(true)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -225,17 +191,31 @@ export default function DashboardPage() {
       const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      if (roleRes.ok) setRoles((await roleRes.json()).roles)
+      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      setRoles(myRoles)
+
+      if (!canViewOccurrences(myRoles)) {
+        setSessionsLoading(false)
+        return
+      }
+
+      const startOfToday = new Date()
+      startOfToday.setHours(0, 0, 0, 0)
+      const endOfToday = new Date(startOfToday)
+      endOfToday.setDate(endOfToday.getDate() + 1)
+
+      const occRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/occurrences?from=${startOfToday.toISOString()}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (occRes.ok) {
+        const all: TodayOccurrence[] = await occRes.json()
+        setTodayOccurrences(all.filter(o => o.status === 'scheduled' && new Date(o.starts_at) < endOfToday))
+      }
+      setSessionsLoading(false)
     }
     checkAuth()
   }, [router])
-
-  // Placeholder data — will be replaced with real API calls in Sprint 13
-  const todaySessions: Session[] = [
-    { id: '1', name: 'Morning Vinyasa', time: '7:00 AM', instructor: 'Sarah', booked: 10, capacity: 12, mode: 'In-person' },
-    { id: '2', name: 'Lunchtime Flow', time: '12:00 PM', instructor: 'Sarah', booked: 6, capacity: 12, mode: 'In-person' },
-    { id: '3', name: 'Online Yin', time: '6:00 PM', instructor: 'Sarah', booked: 12, capacity: 12, mode: 'Online' },
-  ]
 
   const recentActivity: Activity[] = [
     { id: '1', text: 'Emma Thompson booked Morning Vinyasa', time: '2 minutes ago', type: 'booking' },
@@ -291,7 +271,7 @@ export default function DashboardPage() {
 
         {/* Today at a glance */}
         <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
-          <StatCard label="Sessions today" value={3} />
+          <StatCard label="Sessions today" value={todayOccurrences.length} />
           <StatCard label="Bookings today" value={28} sub="across all sessions" color="#1B4F8A" />
           <StatCard label="Revenue today" value="$420" sub="3 payments" color="#4B2D8A" />
           <StatCard label="Waitlisted" value={4} sub="for today's sessions" color="#7A4F00" />
@@ -310,9 +290,19 @@ export default function DashboardPage() {
                 View all
               </a>
             </div>
-            {todaySessions.map(session => (
-              <SessionCard key={session.id} session={session} />
-            ))}
+            {sessionsLoading ? (
+              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', textAlign: 'center', color: '#666', fontSize: '13px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                Loading...
+              </div>
+            ) : todayOccurrences.length === 0 ? (
+              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', textAlign: 'center', color: '#666', fontSize: '13px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                Nothing on the schedule today.
+              </div>
+            ) : (
+              todayOccurrences.map(occurrence => (
+                <SessionCard key={occurrence.id} occurrence={occurrence} />
+              ))
+            )}
           </div>
 
           {/* Right column */}
