@@ -16,7 +16,7 @@ export default function LoginPage() {
     setLoading(true)
     const supabase = createClient()
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -24,9 +24,13 @@ export default function LoginPage() {
     if (error) {
       setMessage(error.message)
       setLoading(false)
-    } else {
-      router.push('/onboarding')
+      return
     }
+
+    const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
+      headers: { Authorization: `Bearer ${data.session.access_token}` }
+    })
+    router.push(orgRes.ok ? '/dashboard' : '/onboarding')
   }
 
   return (
