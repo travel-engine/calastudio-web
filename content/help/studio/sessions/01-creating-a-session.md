@@ -21,6 +21,7 @@ Sessions are the core of CalaStudio. Every class, workshop, or event you run is 
 | Session name | Must be unique in your studio |
 | Delivery mode | In-person, online, or hybrid |
 | Duration | How long the session runs |
+| First occurrence | The date and time of the very first class. For a recurring session, every later date is generated from this one — see **Recurring sessions** |
 
 ## Instructor
 
@@ -34,9 +35,9 @@ Assign a teacher as the session's instructor and it determines what they can see
 
 ## Recurrence
 
-Set a session as **recurring** to have it repeat on a schedule. Choose which days of the week it runs — for example, every Monday, Wednesday, and Friday.
+Set a session as **recurring** to have it repeat on a schedule. Choose which days of the week it runs — for example, every Monday, Wednesday, and Friday — and optionally when it ends. See **Recurring sessions** for how that turns into actual bookable dates.
 
-One-off sessions (like a special workshop) leave recurrence set to **One-off**.
+One-off sessions (like a special workshop) leave recurrence set to **One-off** — **First occurrence** is the only date it needs.
 
 ## Visibility
 
