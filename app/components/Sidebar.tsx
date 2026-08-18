@@ -2,25 +2,30 @@
 
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { canViewSessions, canViewBookings, canViewPassTemplates, canViewTeam } from '@/lib/roles'
 
 interface SidebarProps {
   active?: string
+  // Current user's roles in this org, if known — gates nav items whose page enforces a role.
+  // Omit while roles are still loading; items with no gate always show.
+  roles?: string[]
 }
 
 const navItems = [
-  { href: '/dashboard', icon: '🏠', label: 'Dashboard', key: 'dashboard' },
-  { href: '/dashboard/sessions', icon: '📅', label: 'Sessions', key: 'sessions' },
-  { href: '/dashboard/members', icon: '👥', label: 'Members', key: 'members' },
-  { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings', key: 'bookings' },
-  { href: '/dashboard/passes', icon: '💳', label: 'Passes', key: 'passes' },
-  { href: '/dashboard/memberships', icon: '⭐', label: 'Memberships', key: 'memberships' },
-  { href: '/dashboard/reports', icon: '📊', label: 'Reports', key: 'reports' },
-  { href: '/dashboard/team', icon: '👤', label: 'Team', key: 'team' },
-  { href: '/dashboard/settings', icon: '⚙️', label: 'Settings', key: 'settings' },
+  { href: '/dashboard', icon: '🏠', label: 'Dashboard', key: 'dashboard', canView: undefined },
+  { href: '/dashboard/sessions', icon: '📅', label: 'Sessions', key: 'sessions', canView: canViewSessions },
+  { href: '/dashboard/members', icon: '👥', label: 'Members', key: 'members', canView: undefined },
+  { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings', key: 'bookings', canView: canViewBookings },
+  { href: '/dashboard/passes', icon: '💳', label: 'Passes', key: 'passes', canView: canViewPassTemplates },
+  { href: '/dashboard/memberships', icon: '⭐', label: 'Memberships', key: 'memberships', canView: undefined },
+  { href: '/dashboard/reports', icon: '📊', label: 'Reports', key: 'reports', canView: undefined },
+  { href: '/dashboard/team', icon: '👤', label: 'Team', key: 'team', canView: canViewTeam },
+  { href: '/dashboard/settings', icon: '⚙️', label: 'Settings', key: 'settings', canView: undefined },
 ]
 
-export default function Sidebar({ active }: SidebarProps) {
+export default function Sidebar({ active, roles }: SidebarProps) {
   const router = useRouter()
+  const visible = (item: typeof navItems[0]) => !item.canView || !roles || item.canView(roles)
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -73,7 +78,7 @@ export default function Sidebar({ active }: SidebarProps) {
           Studio
         </div>
 
-        {navItems.slice(0, 4).map(item => (
+        {navItems.slice(0, 4).filter(visible).map(item => (
           <NavLink key={item.key} item={item} active={active === item.key} />
         ))}
 
@@ -90,7 +95,7 @@ export default function Sidebar({ active }: SidebarProps) {
           Revenue
         </div>
 
-        {navItems.slice(4, 7).map(item => (
+        {navItems.slice(4, 7).filter(visible).map(item => (
           <NavLink key={item.key} item={item} active={active === item.key} />
         ))}
 
@@ -107,7 +112,7 @@ export default function Sidebar({ active }: SidebarProps) {
           Settings
         </div>
 
-        {navItems.slice(7).map(item => (
+        {navItems.slice(7).filter(visible).map(item => (
           <NavLink key={item.key} item={item} active={active === item.key} />
         ))}
       </nav>

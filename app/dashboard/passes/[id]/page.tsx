@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
+import { canManagePassTemplates } from '@/lib/roles'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -127,6 +128,7 @@ export default function EditPassTemplatePage() {
   const [error, setError] = useState('')
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
+  const [roles, setRoles] = useState<string[]>([])
   const [templates, setTemplates] = useState<PassTemplateOption[]>([])
 
   const [form, setForm] = useState({
@@ -178,6 +180,11 @@ export default function EditPassTemplatePage() {
       if (!orgRes.ok) { router.push('/onboarding'); return }
       const org = await orgRes.json()
       setOrgId(org.id)
+
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      if (roleRes.ok) setRoles((await roleRes.json()).roles)
 
       const [tplRes, allRes] = await Promise.all([
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/pass-templates/${templateId}`,
@@ -319,17 +326,30 @@ export default function EditPassTemplatePage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
-      <Sidebar active="passes" />
+      <Sidebar active="passes" roles={roles} />
 
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px', maxWidth: '800px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
           <a href="/dashboard/passes" style={{ color: '#666', textDecoration: 'none', fontSize: '14px' }}>
             ← Passes
           </a>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Edit pass template</h1>
+          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{canManagePassTemplates(roles) ? 'Edit pass template' : 'Pass template'}</h1>
         </div>
 
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        {!canManagePassTemplates(roles) && (
+          <div style={{
+            padding: '12px 16px', backgroundColor: '#e8eef8', borderRadius: '8px',
+            color: '#1B4F8A', fontSize: '13px', marginBottom: '16px'
+          }}>
+            You can view this pass template, but only an admin can change it.
+          </div>
+        )}
+
+        <div style={{
+          backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          opacity: canManagePassTemplates(roles) ? 1 : 0.7,
+          pointerEvents: canManagePassTemplates(roles) ? 'auto' : 'none'
+        }}>
 
           <SectionHeader title="Basics" />
 

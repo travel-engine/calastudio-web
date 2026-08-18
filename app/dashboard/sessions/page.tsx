@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
+import Forbidden from '@/app/components/Forbidden'
+import { canViewSessions, canManageSessions } from '@/lib/roles'
 
 interface Session {
   id: string
@@ -56,6 +58,8 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState<string | null>(null)
+  const [roles, setRoles] = useState<string[]>([])
+  const [forbidden, setForbidden] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -82,6 +86,19 @@ export default function SessionsPage() {
 
       const org = await orgRes.json()
       setOrgId(org.id)
+
+      const roleRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      setRoles(myRoles)
+
+      if (!canViewSessions(myRoles)) {
+        setForbidden(true)
+        setLoading(false)
+        return
+      }
 
       // Get sessions
       const sessionsRes = await fetch(
@@ -136,10 +153,12 @@ export default function SessionsPage() {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
 
       {/* Sidebar */}
-      <Sidebar active="sessions"/>
+      <Sidebar active="sessions" roles={roles}/>
 
       {/* Main */}
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+
+        {forbidden ? <Forbidden /> : <>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -149,7 +168,7 @@ export default function SessionsPage() {
               {sessions.length} session{sessions.length !== 1 ? 's' : ''} in your studio
             </p>
           </div>
-          
+          {canManageSessions(roles) && (
             <a href="/dashboard/sessions/new"
             style={{
               padding: '10px 20px',
@@ -163,6 +182,7 @@ export default function SessionsPage() {
           >
             + New session
           </a>
+          )}
         </div>
 
         {/* Sessions list */}
@@ -177,9 +197,11 @@ export default function SessionsPage() {
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
             <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No sessions yet</h3>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
-              Create your first session and your booking page will go live immediately.
+              {canManageSessions(roles)
+                ? 'Create your first session and your booking page will go live immediately.'
+                : "Your studio hasn't added any sessions yet."}
             </p>
-            
+            {canManageSessions(roles) && (
               <a href="/dashboard/sessions/new"
               style={{
                 display: 'inline-block',
@@ -194,6 +216,7 @@ export default function SessionsPage() {
             >
               Create a session
             </a>
+            )}
           </div>
         ) : (
           <div style={{
@@ -259,7 +282,7 @@ export default function SessionsPage() {
                     : 'Free'}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  
+
                     <a href={`/dashboard/sessions/${session.id}`}
                     style={{
                       padding: '6px 12px',
@@ -273,28 +296,31 @@ export default function SessionsPage() {
                       fontWeight: 500
                     }}
                   >
-                    Edit
+                    {canManageSessions(roles) ? 'Edit' : 'View'}
                   </a>
-                  <a href={`/dashboard/sessions/new?copy=${session.id}`}
-                    style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#f4f4f4',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        color: '#444',
-                        textDecoration: 'none',
-                        fontWeight: 500
-                    }}
-                    >
-                    Copy
-                    </a>
+                  {canManageSessions(roles) && (
+                    <a href={`/dashboard/sessions/new?copy=${session.id}`}
+                      style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#f4f4f4',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          color: '#444',
+                          textDecoration: 'none',
+                          fontWeight: 500
+                      }}
+                      >
+                      Copy
+                      </a>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
+        </>}
       </div>
     </div>
   )

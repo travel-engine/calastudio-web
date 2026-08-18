@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
+import { canManageSessions } from '@/lib/roles'
 
 // ── Types ─────────────────────────────────────────────────
 interface StatCardProps {
@@ -202,6 +203,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const [orgName, setOrgName] = useState('My Studio')
   const [userEmail, setUserEmail] = useState('')
+  const [roles, setRoles] = useState<string[]>([])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -212,6 +214,18 @@ export default function DashboardPage() {
         return
       }
       setUserEmail(session.user.email ?? '')
+
+      const token = session.access_token
+      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!orgRes.ok) return
+      const org = await orgRes.json()
+
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (roleRes.ok) setRoles((await roleRes.json()).roles)
     }
     checkAuth()
   }, [router])
@@ -241,8 +255,8 @@ export default function DashboardPage() {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
 
       {/* Sidebar */}
-      <Sidebar active="dashboard"/>
-     
+      <Sidebar active="dashboard" roles={roles}/>
+
       {/* Main content */}
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
 
@@ -256,22 +270,23 @@ export default function DashboardPage() {
               {new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            
+          {canManageSessions(roles) && (
+            <div style={{ display: 'flex', gap: '12px' }}>
               <a href="/dashboard/sessions/new"
-              style={{
-                padding: '10px 20px',
-                backgroundColor: '#085041',
-                color: 'white',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                textDecoration: 'none'
-              }}            
-              >
-              + New session
-            </a>
-          </div>
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#085041',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  textDecoration: 'none'
+                }}
+                >
+                + New session
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Today at a glance */}

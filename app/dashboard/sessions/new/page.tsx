@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
-import { useSearchParams } from 'next/navigation'   
+import { useSearchParams } from 'next/navigation'
+import { canManageSessions } from '@/lib/roles'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -87,6 +88,7 @@ export default function NewSessionPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [checkingAccess, setCheckingAccess] = useState(true)
 
   const [form, setForm] = useState({
     name: '',
@@ -112,7 +114,31 @@ export default function NewSessionPage() {
   })
   const searchParams = useSearchParams()
   const copyId = searchParams.get('copy')
-  
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.push('/login'); return }
+
+      const token = session.access_token
+      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!orgRes.ok) { router.push('/onboarding'); return }
+      const org = await orgRes.json()
+
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const roles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+
+      if (!canManageSessions(roles)) { router.push('/dashboard/sessions'); return }
+      setCheckingAccess(false)
+    }
+    checkAccess()
+  }, [router])
+
   useEffect(() => {
     if (!copyId) return
   
@@ -254,6 +280,17 @@ export default function NewSessionPage() {
     { code: 'SA', label: 'Sat' },
     { code: 'SU', label: 'Sun' },
   ]
+
+  if (checkingAccess) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar active="sessions" />
+        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#666' }}>Loading...</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>

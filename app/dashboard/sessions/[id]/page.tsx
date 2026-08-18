@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../../components/Sidebar'
+import { canManageSessions, canManageOccurrences } from '@/lib/roles'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -117,6 +118,7 @@ export default function EditSessionPage() {
   const [error, setError] = useState('')
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
+  const [roles, setRoles] = useState<string[]>([])
 
   const [occurrences, setOccurrences] = useState<Occurrence[]>([])
   const [showAddOccurrence, setShowAddOccurrence] = useState(false)
@@ -172,6 +174,11 @@ export default function EditSessionPage() {
       if (!orgRes.ok) { router.push('/onboarding'); return }
       const org = await orgRes.json()
       setOrgId(org.id)
+
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      if (roleRes.ok) setRoles((await roleRes.json()).roles)
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${sessionId}`,
@@ -431,7 +438,7 @@ export default function EditSessionPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
-      <Sidebar active="sessions" />
+      <Sidebar active="sessions" roles={roles} />
 
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px', maxWidth: '800px' }}>
 
@@ -441,30 +448,43 @@ export default function EditSessionPage() {
             <a href="/dashboard/sessions" style={{ color: '#666', textDecoration: 'none', fontSize: '14px' }}>
               ← Sessions
             </a>
-            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Edit session</h1>
+            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{canManageSessions(roles) ? 'Edit session' : 'Session'}</h1>
           </div>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: 'transparent',
-              border: '1px solid #fdecea',
-              borderRadius: '8px',
-              fontSize: '13px',
-              color: '#8b1a1a',
-              cursor: 'pointer'
-            }}
-          >
-            {deleting ? 'Deleting...' : 'Delete session'}
-          </button>
+          {canManageSessions(roles) && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: 'transparent',
+                border: '1px solid #fdecea',
+                borderRadius: '8px',
+                fontSize: '13px',
+                color: '#8b1a1a',
+                cursor: 'pointer'
+              }}
+            >
+              {deleting ? 'Deleting...' : 'Delete session'}
+            </button>
+          )}
         </div>
+
+        {!canManageSessions(roles) && (
+          <div style={{
+            padding: '12px 16px', backgroundColor: '#e8eef8', borderRadius: '8px',
+            color: '#1B4F8A', fontSize: '13px', marginBottom: '16px'
+          }}>
+            You can view this session, but only an admin can change its settings.
+          </div>
+        )}
 
         <div style={{
           backgroundColor: 'white',
           borderRadius: '12px',
           padding: '32px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          opacity: canManageSessions(roles) ? 1 : 0.7,
+          pointerEvents: canManageSessions(roles) ? 'auto' : 'none'
         }}>
 
           <SectionHeader title="Basics" />
@@ -761,15 +781,17 @@ export default function EditSessionPage() {
                 Bookable dates and times for this session. Members can only book an occurrence you've added here.
               </p>
             </div>
-            <button
-              onClick={openAddOccurrence}
-              style={{
-                padding: '8px 16px', backgroundColor: '#085041', color: 'white', border: 'none',
-                borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
-              }}
-            >
-              + Add occurrence
-            </button>
+            {canManageOccurrences(roles) && (
+              <button
+                onClick={openAddOccurrence}
+                style={{
+                  padding: '8px 16px', backgroundColor: '#085041', color: 'white', border: 'none',
+                  borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
+                }}
+              >
+                + Add occurrence
+              </button>
+            )}
           </div>
 
           {occurrences.length === 0 ? (
@@ -798,7 +820,7 @@ export default function EditSessionPage() {
                     }}>
                       Manage roster
                     </a>
-                    {occ.status === 'scheduled' && (
+                    {occ.status === 'scheduled' && canManageOccurrences(roles) && (
                       <button
                         onClick={() => handleCancelOccurrence(occ.id)}
                         disabled={cancellingId === occ.id}

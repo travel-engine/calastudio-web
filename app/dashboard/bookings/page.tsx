@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
+import Forbidden from '@/app/components/Forbidden'
+import { canViewBookings, canManageBookings, canMarkAttended, canMarkNoShow } from '@/lib/roles'
 
 interface SessionSummary {
   id: string
@@ -142,6 +144,8 @@ function BookingsPageContent() {
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
+  const [roles, setRoles] = useState<string[]>([])
+  const [forbidden, setForbidden] = useState(false)
   const [occurrences, setOccurrences] = useState<Occurrence[]>([])
 
   const [managingOccurrence, setManagingOccurrence] = useState<Occurrence | null>(null)
@@ -205,6 +209,18 @@ function BookingsPageContent() {
       if (!orgRes.ok) { router.push('/onboarding'); return }
       const org = await orgRes.json()
       setOrgId(org.id)
+
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      setRoles(myRoles)
+
+      if (!canViewBookings(myRoles)) {
+        setForbidden(true)
+        setLoading(false)
+        return
+      }
 
       await reloadOccurrences(org.id, t)
       setLoading(false)
@@ -370,9 +386,10 @@ function BookingsPageContent() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
-      <Sidebar active="bookings" />
+      <Sidebar active="bookings" roles={roles} />
 
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+        {forbidden ? <Forbidden /> : <>
         <div style={{ marginBottom: '24px' }}>
           <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Bookings</h1>
           <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
@@ -436,6 +453,7 @@ function BookingsPageContent() {
             ))}
           </div>
         )}
+        </>}
       </div>
 
       {/* Roster modal */}
@@ -474,7 +492,7 @@ function BookingsPageContent() {
               </div>
             )}
 
-            {managingOccurrence.status === 'scheduled' && (
+            {managingOccurrence.status === 'scheduled' && canManageBookings(roles) && (
               <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
                 <button onClick={openAddBooking} style={{
                   padding: '8px 16px', backgroundColor: '#085041', color: 'white', border: 'none',
@@ -660,24 +678,30 @@ function BookingsPageContent() {
                       <BookingStatusBadge status={b.status} />
                       {b.status === 'confirmed' && (
                         <>
-                          <button onClick={() => handleMarkAttended(b.id)} disabled={manageBusy} style={{
-                            padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
-                            fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
-                          }}>
-                            Attended
-                          </button>
-                          <button onClick={() => handleMarkNoShow(b.id)} disabled={manageBusy} style={{
-                            padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
-                            fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
-                          }}>
-                            No-show
-                          </button>
-                          <button onClick={() => handleCancelBooking(b.id)} disabled={manageBusy} style={{
-                            padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #fdecea', borderRadius: '6px',
-                            fontSize: '11px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
-                          }}>
-                            Cancel
-                          </button>
+                          {canMarkAttended(roles) && (
+                            <button onClick={() => handleMarkAttended(b.id)} disabled={manageBusy} style={{
+                              padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
+                              fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
+                            }}>
+                              Attended
+                            </button>
+                          )}
+                          {canMarkNoShow(roles) && (
+                            <button onClick={() => handleMarkNoShow(b.id)} disabled={manageBusy} style={{
+                              padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
+                              fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
+                            }}>
+                              No-show
+                            </button>
+                          )}
+                          {canManageBookings(roles) && (
+                            <button onClick={() => handleCancelBooking(b.id)} disabled={manageBusy} style={{
+                              padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #fdecea', borderRadius: '6px',
+                              fontSize: '11px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
+                            }}>
+                              Cancel
+                            </button>
+                          )}
                         </>
                       )}
                     </div>

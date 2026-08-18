@@ -112,6 +112,7 @@ export default function EditTeacherPage() {
   const [success, setSuccess] = useState('')
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
+  const [roles, setRoles] = useState<string[]>([])
   const [teacher, setTeacher] = useState<TeacherData | null>(null)
 
   const [form, setForm] = useState({
@@ -145,6 +146,11 @@ export default function EditTeacherPage() {
       if (!orgRes.ok) { router.push('/onboarding'); return }
       const org = await orgRes.json()
       setOrgId(org.id)
+
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      if (roleRes.ok) setRoles((await roleRes.json()).roles)
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/teachers/${teacherId}`,
@@ -302,7 +308,7 @@ export default function EditTeacherPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
-      <Sidebar active="team" />
+      <Sidebar active="team" roles={roles} />
 
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px', maxWidth: '800px' }}>
 

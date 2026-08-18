@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
+import { canManagePassTemplates } from '@/lib/roles'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -119,6 +120,7 @@ interface PassTemplateOption {
 export default function NewPassTemplatePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [checkingAccess, setCheckingAccess] = useState(true)
   const [error, setError] = useState('')
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
@@ -175,6 +177,12 @@ export default function NewPassTemplatePage() {
       setOrgId(org.id)
       update('currency', org.currency ?? 'AUD')
 
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      const roles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      if (!canManagePassTemplates(roles)) { router.push('/dashboard/passes'); return }
+
       const tplRes = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/pass-templates`,
         { headers: { Authorization: `Bearer ${t}` } }
@@ -183,6 +191,7 @@ export default function NewPassTemplatePage() {
         const data = await tplRes.json()
         setTemplates(data.map((pt: any) => ({ id: pt.id, name: pt.name })))
       }
+      setCheckingAccess(false)
     }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,6 +252,17 @@ export default function NewPassTemplatePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (checkingAccess) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        <Sidebar active="passes" />
+        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#666' }}>Loading...</div>
+        </div>
+      </div>
+    )
   }
 
   return (

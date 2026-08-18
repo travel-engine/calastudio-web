@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
+import Forbidden from '@/app/components/Forbidden'
+import { canViewPassTemplates, canManagePassTemplates } from '@/lib/roles'
 
 interface PassTemplate {
   id: string
@@ -108,6 +110,8 @@ export default function PassesPage() {
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
+  const [roles, setRoles] = useState<string[]>([])
+  const [forbidden, setForbidden] = useState(false)
   const [tab, setTab] = useState<'templates' | 'issued'>('templates')
 
   const [templates, setTemplates] = useState<PassTemplate[]>([])
@@ -166,6 +170,18 @@ export default function PassesPage() {
       if (!orgRes.ok) { router.push('/onboarding'); return }
       const org = await orgRes.json()
       setOrgId(org.id)
+
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      setRoles(myRoles)
+
+      if (!canViewPassTemplates(myRoles)) {
+        setForbidden(true)
+        setLoading(false)
+        return
+      }
 
       const [tplRes, passRes] = await Promise.all([
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/pass-templates`, { headers: { Authorization: `Bearer ${t}` } }),
@@ -332,9 +348,11 @@ export default function PassesPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
-      <Sidebar active="passes" />
+      <Sidebar active="passes" roles={roles} />
 
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+
+        {forbidden ? <Forbidden /> : <>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -345,12 +363,14 @@ export default function PassesPage() {
             </p>
           </div>
           {tab === 'templates' ? (
-            <a href="/dashboard/passes/new" style={{
-              padding: '10px 20px', backgroundColor: '#085041', color: 'white', borderRadius: '8px',
-              fontSize: '14px', fontWeight: 600, textDecoration: 'none'
-            }}>
-              + New pass template
-            </a>
+            canManagePassTemplates(roles) && (
+              <a href="/dashboard/passes/new" style={{
+                padding: '10px 20px', backgroundColor: '#085041', color: 'white', borderRadius: '8px',
+                fontSize: '14px', fontWeight: 600, textDecoration: 'none'
+              }}>
+                + New pass template
+              </a>
+            )
           ) : (
             <button onClick={openIssueModal} style={{
               padding: '10px 20px', backgroundColor: '#085041', color: 'white', border: 'none', borderRadius: '8px',
@@ -389,13 +409,26 @@ export default function PassesPage() {
         {/* Pass templates tab */}
         {tab === 'templates' && (
           templates.length === 0 ? (
-            <EmptyState
-              icon="💳"
-              title="No pass templates yet"
-              body="Create a pass type — like a 10-class pack or monthly unlimited — that members can purchase."
-              cta="Create a pass template"
-              href="/dashboard/passes/new"
-            />
+            <div style={{
+              backgroundColor: 'white', borderRadius: '12px', padding: '64px', textAlign: 'center',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>💳</div>
+              <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No pass templates yet</h3>
+              <p style={{ color: '#666', fontSize: '14px', marginBottom: canManagePassTemplates(roles) ? '24px' : 0 }}>
+                {canManagePassTemplates(roles)
+                  ? "Create a pass type — like a 10-class pack or monthly unlimited — that members can purchase."
+                  : "Your studio hasn't created any pass types yet."}
+              </p>
+              {canManagePassTemplates(roles) && (
+                <a href="/dashboard/passes/new" style={{
+                  display: 'inline-block', padding: '10px 24px', backgroundColor: '#085041', color: 'white',
+                  borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none'
+                }}>
+                  Create a pass template
+                </a>
+              )}
+            </div>
           ) : (
             <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
               <div style={{
@@ -425,12 +458,16 @@ export default function PassesPage() {
                   <div style={{ fontSize: '13px', color: '#666' }}>{expiryRuleLabel(t)}</div>
                   <div style={{ fontSize: '13px' }}>{formatMoney(t.price, t.currency)}</div>
                   <div>
-                    <a href={`/dashboard/passes/${t.id}`} style={{
-                      padding: '6px 12px', backgroundColor: '#f4f4f4', borderRadius: '6px',
-                      fontSize: '12px', color: '#444', textDecoration: 'none', fontWeight: 500
-                    }}>
-                      Edit
-                    </a>
+                    {canManagePassTemplates(roles) ? (
+                      <a href={`/dashboard/passes/${t.id}`} style={{
+                        padding: '6px 12px', backgroundColor: '#f4f4f4', borderRadius: '6px',
+                        fontSize: '12px', color: '#444', textDecoration: 'none', fontWeight: 500
+                      }}>
+                        Edit
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: '#999' }}>—</span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -491,6 +528,7 @@ export default function PassesPage() {
             </div>
           )
         )}
+        </>}
       </div>
 
       {/* Issue pass modal */}

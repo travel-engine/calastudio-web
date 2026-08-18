@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../components/Sidebar'
+import Forbidden from '../../components/Forbidden'
+import { canViewTeam } from '@/lib/roles'
 
 interface Teacher {
   id: string
@@ -83,6 +85,8 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
+  const [roles, setRoles] = useState<string[]>([])
+  const [forbidden, setForbidden] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteForm, setInviteForm] = useState({
     full_name: '',
@@ -108,6 +112,18 @@ export default function TeamPage() {
       if (!orgRes.ok) { router.push('/onboarding'); return }
       const org = await orgRes.json()
       setOrgId(org.id)
+
+      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      setRoles(myRoles)
+
+      if (!canViewTeam(myRoles)) {
+        setForbidden(true)
+        setLoading(false)
+        return
+      }
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/teachers`,
@@ -171,9 +187,11 @@ export default function TeamPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
-      <Sidebar active="team" />
+      <Sidebar active="team" roles={roles} />
 
       <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+
+        {forbidden ? <Forbidden /> : <>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -320,6 +338,7 @@ export default function TeamPage() {
             ))}
           </div>
         )}
+        </>}
       </div>
 
       {/* Invite modal */}
