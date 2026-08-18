@@ -118,9 +118,14 @@ function NewSessionPageContent() {
     priceOnline: '',
     currency: 'AUD',
     durationMinutes: '60',
+    firstOccurrenceDate: '',
+    firstOccurrenceTime: '09:00',
     isRecurring: false,
     recurrenceRule: '',
     recurrenceDays: [] as string[],
+    recurrenceEndMode: 'never' as 'never' | 'date' | 'count',
+    recurrenceEndDate: '',
+    recurrenceCount: '10',
     visibility: 'public',
     bookingAccessMode: 'open',
     cancellationHours: '12',
@@ -237,6 +242,12 @@ function NewSessionPageContent() {
       setError('Session name is required')
       return
     }
+    if (!form.firstOccurrenceDate) {
+      setError('First occurrence date is required')
+      return
+    }
+
+    const firstOccurrenceStartsAt = new Date(`${form.firstOccurrenceDate}T${form.firstOccurrenceTime}`)
 
     setLoading(true)
     setError('')
@@ -275,8 +286,11 @@ function NewSessionPageContent() {
           price_online: form.priceOnline ? parseFloat(form.priceOnline) : null,
           currency: form.currency,
           duration_minutes: parseInt(form.durationMinutes),
+          first_occurrence_starts_at: firstOccurrenceStartsAt.toISOString(),
           is_recurring: form.isRecurring,
           recurrence_rule: buildRRule() || null,
+          recurrence_end_date: form.isRecurring && form.recurrenceEndMode === 'date' && form.recurrenceEndDate ? form.recurrenceEndDate : null,
+          recurrence_count: form.isRecurring && form.recurrenceEndMode === 'count' && form.recurrenceCount ? parseInt(form.recurrenceCount) : null,
           visibility: form.visibility,
           booking_access_mode: form.bookingAccessMode,
           cancellation_hours: parseInt(form.cancellationHours),
@@ -471,6 +485,21 @@ function NewSessionPageContent() {
           {/* Schedule */}
           <SectionHeader title="Schedule" description="When does this session run?" />
 
+          <Field label="First occurrence" hint="The date and time of the first bookable class. For a recurring session, later dates are generated from this same time.">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '16px' }}>
+              <Input
+                type="date"
+                value={form.firstOccurrenceDate}
+                onChange={e => update('firstOccurrenceDate', e.target.value)}
+              />
+              <Input
+                type="time"
+                value={form.firstOccurrenceTime}
+                onChange={e => update('firstOccurrenceTime', e.target.value)}
+              />
+            </div>
+          </Field>
+
           <Field label="Recurrence">
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               {[
@@ -521,6 +550,53 @@ function NewSessionPageContent() {
                     </button>
                   ))}
                 </div>
+
+                <p style={{ fontSize: '13px', color: '#666', margin: '16px 0 10px' }}>Ends</p>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                  {[
+                    { value: 'never', label: 'Never' },
+                    { value: 'date', label: 'On date' },
+                    { value: 'count', label: 'After N classes' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => update('recurrenceEndMode', opt.value)}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        border: `2px solid ${form.recurrenceEndMode === opt.value ? '#085041' : '#e2e2e2'}`,
+                        borderRadius: '8px',
+                        backgroundColor: form.recurrenceEndMode === opt.value ? '#e8f5ee' : 'white',
+                        color: form.recurrenceEndMode === opt.value ? '#085041' : '#444',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: form.recurrenceEndMode === opt.value ? 600 : 400
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {form.recurrenceEndMode === 'date' && (
+                  <Input
+                    type="date"
+                    value={form.recurrenceEndDate}
+                    onChange={e => update('recurrenceEndDate', e.target.value)}
+                  />
+                )}
+                {form.recurrenceEndMode === 'count' && (
+                  <Input
+                    type="number"
+                    min="1"
+                    value={form.recurrenceCount}
+                    onChange={e => update('recurrenceCount', e.target.value)}
+                  />
+                )}
+                {form.recurrenceEndMode === 'never' && (
+                  <p style={{ fontSize: '12px', color: '#666' }}>
+                    Dates are generated up to 90 days ahead on a rolling basis — there's no need to set an end date for an ongoing class.
+                  </p>
+                )}
               </div>
             )}
           </Field>

@@ -83,6 +83,17 @@ function SectionHeader({ title, description }: { title: string; description?: st
   )
 }
 
+// Local-time <input type="date"/"time"> values from an ISO timestamp — same convention the
+// occurrence modal below already uses (no server-side timezone conversion, browser-local throughout).
+function toDateInputValue(iso: string) {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function toTimeInputValue(iso: string) {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 interface Occurrence {
   id: string
   starts_at: string
@@ -140,8 +151,13 @@ export default function EditSessionPage() {
     priceOnline: '',
     currency: 'AUD',
     durationMinutes: '60',
+    firstOccurrenceDate: '',
+    firstOccurrenceTime: '09:00',
     isRecurring: false,
     recurrenceDays: [] as string[],
+    recurrenceEndMode: 'never' as 'never' | 'date' | 'count',
+    recurrenceEndDate: '',
+    recurrenceCount: '10',
     visibility: 'public',
     bookingAccessMode: 'open',
     cancellationHours: '12',
@@ -210,8 +226,13 @@ export default function EditSessionPage() {
         priceOnline: s.price_online?.toString() ?? '',
         currency: s.currency ?? 'AUD',
         durationMinutes: s.duration_minutes?.toString() ?? '60',
+        firstOccurrenceDate: s.first_occurrence_starts_at ? toDateInputValue(s.first_occurrence_starts_at) : '',
+        firstOccurrenceTime: s.first_occurrence_starts_at ? toTimeInputValue(s.first_occurrence_starts_at) : '09:00',
         isRecurring: s.is_recurring ?? false,
         recurrenceDays: days,
+        recurrenceEndMode: (s.recurrence_end_date ? 'date' : s.recurrence_count ? 'count' : 'never') as 'never' | 'date' | 'count',
+        recurrenceEndDate: s.recurrence_end_date ?? '',
+        recurrenceCount: s.recurrence_count?.toString() ?? '10',
         visibility: s.visibility ?? 'public',
         bookingAccessMode: s.booking_access_mode ?? 'open',
         cancellationHours: s.cancellation_hours?.toString() ?? '12',
@@ -346,8 +367,11 @@ export default function EditSessionPage() {
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError('Session name is required'); return }
+    if (!form.firstOccurrenceDate) { setError('First occurrence date is required'); return }
     setSaving(true)
     setError('')
+
+    const firstOccurrenceStartsAt = new Date(`${form.firstOccurrenceDate}T${form.firstOccurrenceTime}`)
 
     try {
         console.log('Saving:', JSON.stringify({
@@ -381,10 +405,13 @@ export default function EditSessionPage() {
             booking_access_mode: form.bookingAccessMode,
             delivery_mode: form.deliveryMode,
             duration_minutes: parseInt(form.durationMinutes),
+            first_occurrence_starts_at: firstOccurrenceStartsAt.toISOString(),
             is_recurring: form.isRecurring,
             recurrence_rule: form.isRecurring && form.recurrenceDays.length > 0
               ? `RRULE:FREQ=WEEKLY;BYDAY=${form.recurrenceDays.join(',')}`
               : null,
+            recurrence_end_date: form.isRecurring && form.recurrenceEndMode === 'date' && form.recurrenceEndDate ? form.recurrenceEndDate : null,
+            recurrence_count: form.isRecurring && form.recurrenceEndMode === 'count' && form.recurrenceCount ? parseInt(form.recurrenceCount) : null,
             cancellation_hours: parseInt(form.cancellationHours),
             guest_bookings_enabled: form.guestBookingsEnabled,
             guest_max_per_booking: parseInt(form.guestMaxPerBooking),
@@ -619,6 +646,21 @@ export default function EditSessionPage() {
 
           <SectionHeader title="Schedule" />
 
+          <Field label="First occurrence" hint="The date and time of the first bookable class. For a recurring session, later dates are generated from this same time.">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '16px' }}>
+              <Input
+                type="date"
+                value={form.firstOccurrenceDate}
+                onChange={e => update('firstOccurrenceDate', e.target.value)}
+              />
+              <Input
+                type="time"
+                value={form.firstOccurrenceTime}
+                onChange={e => update('firstOccurrenceTime', e.target.value)}
+              />
+            </div>
+          </Field>
+
           <Field label="Recurrence">
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               {[
@@ -668,6 +710,53 @@ export default function EditSessionPage() {
                     </button>
                   ))}
                 </div>
+
+                <p style={{ fontSize: '13px', color: '#666', margin: '16px 0 10px' }}>Ends</p>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                  {[
+                    { value: 'never', label: 'Never' },
+                    { value: 'date', label: 'On date' },
+                    { value: 'count', label: 'After N classes' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => update('recurrenceEndMode', opt.value)}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        border: `2px solid ${form.recurrenceEndMode === opt.value ? '#085041' : '#e2e2e2'}`,
+                        borderRadius: '8px',
+                        backgroundColor: form.recurrenceEndMode === opt.value ? '#e8f5ee' : 'white',
+                        color: form.recurrenceEndMode === opt.value ? '#085041' : '#444',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: form.recurrenceEndMode === opt.value ? 600 : 400
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {form.recurrenceEndMode === 'date' && (
+                  <Input
+                    type="date"
+                    value={form.recurrenceEndDate}
+                    onChange={e => update('recurrenceEndDate', e.target.value)}
+                  />
+                )}
+                {form.recurrenceEndMode === 'count' && (
+                  <Input
+                    type="number"
+                    min="1"
+                    value={form.recurrenceCount}
+                    onChange={e => update('recurrenceCount', e.target.value)}
+                  />
+                )}
+                {form.recurrenceEndMode === 'never' && (
+                  <p style={{ fontSize: '12px', color: '#666' }}>
+                    Dates are generated up to 90 days ahead on a rolling basis — there's no need to set an end date for an ongoing class.
+                  </p>
+                )}
               </div>
             )}
           </Field>
@@ -802,7 +891,7 @@ export default function EditSessionPage() {
             <div>
               <h2 style={{ fontSize: '17px', fontWeight: 600 }}>Occurrences</h2>
               <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
-                Bookable dates and times for this session. Members can only book an occurrence you've added here.
+                Bookable dates and times for this session. Generated automatically overnight from the schedule above, up to 90 days ahead — add one manually below for a one-off extra date, or to get a date immediately without waiting for the nightly run.
               </p>
             </div>
             {canManageOccurrences(roles) && (
@@ -819,7 +908,7 @@ export default function EditSessionPage() {
           </div>
 
           {occurrences.length === 0 ? (
-            <p style={{ fontSize: '13px', color: '#666' }}>No occurrences yet — add one so members have something to book.</p>
+            <p style={{ fontSize: '13px', color: '#666' }}>No occurrences yet. If this session was just created, the first one appears after tonight's 2am generation run — or add one now to make it bookable immediately.</p>
           ) : (
             <div>
               {occurrences.map((occ, i) => (
