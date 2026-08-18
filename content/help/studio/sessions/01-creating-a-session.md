@@ -22,6 +22,10 @@ Sessions are the core of CalaStudio. Every class, workshop, or event you run is 
 | Delivery mode | In-person, online, or hybrid |
 | Duration | How long the session runs |
 
+## Instructor
+
+Assign a teacher as the session's instructor and it determines what they can see: Teacher and Basic teacher roles only see sessions (and their rosters) where they're the assigned instructor. Leave it **Unassigned** and no teacher-level role can see the session at all — only Admin, Super teacher, and Front desk can. See **Team → Teacher roles** for the full picture.
+
 ## Delivery modes
 
 - **In-person** — members attend at your physical location

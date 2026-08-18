@@ -21,10 +21,12 @@ They'll appear in your team list immediately. When they sign up with the same em
 
 | Role | What they can do |
 |------|-----------------|
-| **Super teacher** | Manages sessions and members. Can issue passes and process bookings. Cannot change billing or studio settings. |
-| **Teacher** | Views and manages their own sessions and students only. |
-| **Basic teacher** | Marks attendance only. Cannot see member details. |
-| **Front desk** | Views the schedule and checks in members. No financial access. |
+| **Super teacher** | Views every session. Adds or cancels occurrence dates, processes paid bookings, issues and adjusts passes. Can't create or edit session templates, invite teachers, or change studio settings. |
+| **Teacher** | Views their own sessions and full roster (including member contact info). Adds students at no charge, marks attendance. Can't edit session details or process payments. |
+| **Basic teacher** | Adds students to their own sessions and marks attendance only. Sees member names on the roster, not contact or financial details. |
+| **Front desk** | Views the full schedule and checks members in as attended. Sees member names only — no contact/financial details, and can't mark no-shows or add students. |
+
+See **Teacher roles** for the full permission breakdown, including exactly which screens each role can and can't reach.
 
 ## Multiple roles
 
