@@ -22,7 +22,9 @@ Capacity and price default to the session's settings — there's no need to re-e
 
 ## The Bookings dashboard
 
-Go to **Bookings** in the sidebar for a view of upcoming occurrences, soonest first. Admin, Super teacher, and Front desk see every occurrence in the studio; Teacher and Basic teacher only see occurrences for sessions they're the instructor on. Click **Manage** on any row to open its roster.
+Go to **Bookings** in the sidebar for a flat list of upcoming occurrences, soonest first. Admin, Super teacher, and Front desk see every occurrence in the studio; Teacher and Basic teacher only see occurrences for sessions they're the instructor on. Click **Manage** on any row to open its roster.
+
+Prefer a calendar over a list? **Schedule** shows the same occurrences as a week view with a month overview alongside it, and leads to the same roster — see **Schedule** for how it works.
 
 What the roster itself shows also depends on role — see **Team → Teacher roles** for the full breakdown. Admin, Super teacher, and Teacher see full member detail (name, email, payment method); Basic teacher and Front desk see names only, with no contact or financial information.
 
