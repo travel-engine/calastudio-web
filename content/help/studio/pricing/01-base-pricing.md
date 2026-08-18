@@ -28,4 +28,8 @@ Drop-in pricing only applies when a member pays directly for a single booking. I
 
 ## Restricting to pass/membership only
 
-If you don't want members paying drop-in at all — for example, a members-only class — set the session's **Booking access** to **Restricted** so only specific passes or memberships can be used to book it.
+If you don't want members paying drop-in at all — for example, a members-only class — set the session's **Booking access** to **Restricted** so only specific passes or memberships can be used to book it. Restricted sessions can't be booked yet, by staff or members — this is still being built.
+
+## Card payment isn't live yet
+
+Right now, bookings can only be made with an existing pass or comped by staff (see **Managing bookings**) — paying the drop-in price by card isn't wired up yet, so setting a price here doesn't yet mean it can be charged.

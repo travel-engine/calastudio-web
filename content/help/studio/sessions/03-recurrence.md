@@ -6,7 +6,7 @@ order: 3
 
 # Recurring sessions
 
-Instead of creating the same class over and over, set it to repeat automatically on a weekly schedule.
+Instead of creating the same class over and over, mark it as repeating on a weekly schedule. This sets the *pattern* — see **Managing bookings** for how to turn that pattern into actual bookable dates.
 
 ## Setting up recurrence
 
@@ -16,13 +16,17 @@ Instead of creating the same class over and over, set it to repeat automatically
 
 Currently, recurrence is weekly only — every selected day, every week. There's no support yet for skipping weeks or running every other week.
 
+## This doesn't create bookable dates by itself
+
+Marking a session recurring records the pattern, but it doesn't automatically generate dates members can book. You still add each bookable date as an **occurrence** — see **Managing bookings** for how. Think of the recurring session as the template and each occurrence as one instance of it on the calendar.
+
 ## One-off sessions
 
-For a single event — a workshop, a special class, a one-time event — leave recurrence set to **One-off**. It appears once on your schedule with no repeat.
+For a single event — a workshop, a special class, a one-time event — leave recurrence set to **One-off**. It still needs at least one occurrence added before members can book it.
 
 ## Editing a recurring session
 
-Changes you make to a recurring session — price, capacity, description, and so on — apply to the series. There's currently no way to edit or cancel a single occurrence independently of the rest of the series.
+Changes you make to the session itself — price, capacity, description, and so on — are defaults for every occurrence you add afterward. Occurrences you've already created keep their own settings; edit or cancel those individually from **Bookings** or the session's **Occurrences** section.
 
 ## Copying instead of recurring
 
