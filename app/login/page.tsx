@@ -27,10 +27,15 @@ export default function LoginPage() {
       return
     }
 
-    const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
-      headers: { Authorization: `Bearer ${data.session.access_token}` }
-    })
-    router.push(orgRes.ok ? '/dashboard' : '/onboarding')
+    try {
+      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
+        headers: { Authorization: `Bearer ${data.session.access_token}` }
+      })
+      router.push(orgRes.ok ? '/dashboard' : '/onboarding')
+    } catch {
+      setMessage("Signed in, but couldn't reach the server. Please try again.")
+      setLoading(false)
+    }
   }
 
   return (
