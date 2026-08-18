@@ -47,14 +47,19 @@ interface MemberPass {
   pass_template: { name: string } | null
 }
 
+// GET .../bookings returns either full Booking rows (admin, teacher_super, teacher_general) or,
+// for front_desk/teacher_basic — denied member-profile visibility per §17.3 even on their own
+// roster — a redacted RosterEntry with name-only identification. `user`/`payment_type`/`booked_at`
+// are absent on the redacted shape; `member_name` is present only there.
 interface Booking {
   id: string
   user_id: string
   booked_mode: 'in_person' | 'online'
   status: 'confirmed' | 'attended' | 'cancelled' | 'late_cancel' | 'no_show' | 'waitlisted'
-  payment_type: 'card' | 'pass' | 'membership' | 'admin_waived' | 'free'
-  booked_at: string
-  user: Member | null
+  payment_type?: 'card' | 'pass' | 'membership' | 'admin_waived' | 'free'
+  booked_at?: string
+  user?: Member | null
+  member_name?: string
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -669,9 +674,10 @@ function BookingsPageContent() {
                     padding: '10px 0', borderBottom: i < bookings.length - 1 ? '1px solid #f4f4f4' : 'none'
                   }}>
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{b.user?.full_name ?? 'Unknown member'}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{b.user?.full_name ?? b.member_name ?? 'Unknown member'}</div>
                       <div style={{ fontSize: '12px', color: '#666' }}>
-                        {b.user?.email} · {b.booked_mode.replace('_', ' ')} · {paymentTypeLabels[b.payment_type] ?? b.payment_type}
+                        {b.user?.email && `${b.user.email} · `}{b.booked_mode.replace('_', ' ')}
+                        {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
