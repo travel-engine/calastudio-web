@@ -82,6 +82,30 @@ function SectionHeader({ title, description }: { title: string; description?: st
   )
 }
 
+interface Occurrence {
+  id: string
+  starts_at: string
+  ends_at: string
+  status: 'scheduled' | 'cancelled' | 'completed'
+}
+
+function OccurrenceStatusBadge({ status }: { status: string }) {
+  const styles: Record<string, { bg: string; color: string; label: string }> = {
+    scheduled: { bg: '#e8f5ee', color: '#085041', label: 'Scheduled' },
+    cancelled: { bg: '#fdecea', color: '#8b1a1a', label: 'Cancelled' },
+    completed: { bg: '#f4f4f4', color: '#666', label: 'Completed' },
+  }
+  const s = styles[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
+  return (
+    <span style={{
+      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
+      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
+    }}>
+      {s.label}
+    </span>
+  )
+}
+
 export default function EditSessionPage() {
   const router = useRouter()
   const params = useParams()
@@ -93,6 +117,13 @@ export default function EditSessionPage() {
   const [error, setError] = useState('')
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
+
+  const [occurrences, setOccurrences] = useState<Occurrence[]>([])
+  const [showAddOccurrence, setShowAddOccurrence] = useState(false)
+  const [occurrenceForm, setOccurrenceForm] = useState({ date: '', startTime: '', endTime: '' })
+  const [addingOccurrence, setAddingOccurrence] = useState(false)
+  const [occurrenceError, setOccurrenceError] = useState('')
+  const [cancellingId, setCancellingId] = useState('')
 
   const [form, setForm] = useState({
     name: '',
@@ -178,11 +209,113 @@ export default function EditSessionPage() {
         guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
       })
 
+      const occRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${sessionId}/occurrences`,
+        { headers: { Authorization: `Bearer ${t}` } }
+      )
+      if (occRes.ok) setOccurrences(await occRes.json())
+
       setLoading(false)
     }
 
     load()
   }, [sessionId, router])
+
+  const reloadOccurrences = async () => {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/sessions/${sessionId}/occurrences`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    if (res.ok) setOccurrences(await res.json())
+  }
+
+  const openAddOccurrence = () => {
+    setOccurrenceError('')
+    setOccurrenceForm({ date: '', startTime: '', endTime: '' })
+    setShowAddOccurrence(true)
+  }
+
+  const handleStartTimeChange = (date: string, startTime: string) => {
+    let endTime = occurrenceForm.endTime
+    if (startTime) {
+      const [h, m] = startTime.split(':').map(Number)
+      const start = new Date(2000, 0, 1, h, m)
+      start.setMinutes(start.getMinutes() + (parseInt(form.durationMinutes) || 60))
+      endTime = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`
+    }
+    setOccurrenceForm({ date, startTime, endTime })
+  }
+
+  const handleAddOccurrence = async () => {
+    if (!occurrenceForm.date || !occurrenceForm.startTime || !occurrenceForm.endTime) {
+      setOccurrenceError('Date, start time, and end time are all required')
+      return
+    }
+
+    const startsAt = new Date(`${occurrenceForm.date}T${occurrenceForm.startTime}`)
+    const endsAt = new Date(`${occurrenceForm.date}T${occurrenceForm.endTime}`)
+    if (endsAt <= startsAt) {
+      setOccurrenceError('End time must be after the start time')
+      return
+    }
+
+    setAddingOccurrence(true)
+    setOccurrenceError('')
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/occurrences`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          session_id: sessionId,
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt.toISOString(),
+          instructor_id: null,
+          capacity_inperson: null,
+          capacity_online: null,
+          price_inperson: null,
+          price_online: null,
+          cancellation_hours: null,
+          notes: null,
+        })
+      })
+
+      if (res.ok) {
+        setShowAddOccurrence(false)
+        await reloadOccurrences()
+      } else {
+        const data = await res.json().catch(() => null)
+        setOccurrenceError(data?.error ?? 'Could not create this occurrence.')
+      }
+    } catch {
+      setOccurrenceError('Could not create this occurrence.')
+    } finally {
+      setAddingOccurrence(false)
+    }
+  }
+
+  const handleCancelOccurrence = async (occurrenceId: string) => {
+    if (!confirm('Cancel this occurrence? Every confirmed booking will be cancelled and any pass credits used will be returned.')) return
+
+    setCancellingId(occurrenceId)
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/occurrences/${occurrenceId}/cancel`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ reason: null })
+        }
+      )
+      if (res.ok) {
+        await reloadOccurrences()
+      } else {
+        alert('Could not cancel this occurrence.')
+      }
+    } finally {
+      setCancellingId('')
+    }
+  }
 
   const buildRRule = () => {
     if (!form.isRecurring) return ''
@@ -615,7 +748,157 @@ export default function EditSessionPage() {
             </button>
           </div>
         </div>
+
+        {/* Occurrences */}
+        <div style={{
+          backgroundColor: 'white', borderRadius: '12px', padding: '32px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginTop: '24px'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div>
+              <h2 style={{ fontSize: '17px', fontWeight: 600 }}>Occurrences</h2>
+              <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
+                Bookable dates and times for this session. Members can only book an occurrence you've added here.
+              </p>
+            </div>
+            <button
+              onClick={openAddOccurrence}
+              style={{
+                padding: '8px 16px', backgroundColor: '#085041', color: 'white', border: 'none',
+                borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
+              }}
+            >
+              + Add occurrence
+            </button>
+          </div>
+
+          {occurrences.length === 0 ? (
+            <p style={{ fontSize: '13px', color: '#666' }}>No occurrences yet — add one so members have something to book.</p>
+          ) : (
+            <div>
+              {occurrences.map((occ, i) => (
+                <div key={occ.id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '12px 0', borderBottom: i < occurrences.length - 1 ? '1px solid #f4f4f4' : 'none'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ fontSize: '13px' }}>
+                      {new Date(occ.starts_at).toLocaleString(undefined, {
+                        weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                      })}
+                      {' – '}
+                      {new Date(occ.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                    </div>
+                    <OccurrenceStatusBadge status={occ.status} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <a href={`/dashboard/bookings?occurrence=${occ.id}`} style={{
+                      padding: '6px 12px', backgroundColor: '#f4f4f4', borderRadius: '6px',
+                      fontSize: '12px', color: '#444', textDecoration: 'none', fontWeight: 500
+                    }}>
+                      Manage roster
+                    </a>
+                    {occ.status === 'scheduled' && (
+                      <button
+                        onClick={() => handleCancelOccurrence(occ.id)}
+                        disabled={cancellingId === occ.id}
+                        style={{
+                          padding: '6px 12px', backgroundColor: 'transparent', border: '1px solid #fdecea',
+                          borderRadius: '6px', fontSize: '12px', color: '#8b1a1a',
+                          cursor: cancellingId === occ.id ? 'not-allowed' : 'pointer', fontWeight: 500
+                        }}
+                      >
+                        {cancellingId === occ.id ? 'Cancelling...' : 'Cancel'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Add occurrence modal */}
+      {showAddOccurrence && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+        }}>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
+            maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Add occurrence</h2>
+              <button
+                onClick={() => setShowAddOccurrence(false)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <Field label="Date">
+                <Input
+                  type="date"
+                  value={occurrenceForm.date}
+                  onChange={e => setOccurrenceForm(p => ({ ...p, date: e.target.value }))}
+                />
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Field label="Start time">
+                  <Input
+                    type="time"
+                    value={occurrenceForm.startTime}
+                    onChange={e => handleStartTimeChange(occurrenceForm.date, e.target.value)}
+                  />
+                </Field>
+                <Field label="End time">
+                  <Input
+                    type="time"
+                    value={occurrenceForm.endTime}
+                    onChange={e => setOccurrenceForm(p => ({ ...p, endTime: e.target.value }))}
+                  />
+                </Field>
+              </div>
+              <p style={{ fontSize: '12px', color: '#666', marginTop: '-8px' }}>
+                Capacity and price default to this session's settings unless overridden later.
+              </p>
+
+              {occurrenceError && (
+                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                  {occurrenceError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <button
+                  onClick={() => setShowAddOccurrence(false)}
+                  style={{
+                    flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
+                    borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#444'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddOccurrence}
+                  disabled={addingOccurrence}
+                  style={{
+                    flex: 1, padding: '10px', backgroundColor: addingOccurrence ? '#9fd6b8' : '#085041', color: 'white',
+                    border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                    cursor: addingOccurrence ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {addingOccurrence ? 'Adding...' : 'Add occurrence'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
