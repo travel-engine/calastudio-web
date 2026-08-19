@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../../components/Sidebar'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 interface TeacherData {
   id: string
@@ -297,9 +298,9 @@ export default function EditTeacherPage() {
 
   if (loading || !teacher) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="team" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -307,10 +308,10 @@ export default function EditTeacherPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
       <Sidebar active="team" roles={roles} />
 
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px', maxWidth: '800px' }}>
+      <div className={styles.main} style={{ maxWidth: '800px' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -351,7 +352,7 @@ export default function EditTeacherPage() {
             <Textarea placeholder="Tell students about this teacher..." value={form.bio} onChange={e => update('bio', e.target.value)} />
           </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Specialties" hint="Comma separated">
               <Input placeholder="Vinyasa, Yin, Meditation" value={form.specialties} onChange={e => update('specialties', e.target.value)} />
             </Field>
@@ -360,7 +361,7 @@ export default function EditTeacherPage() {
             </Field>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Years of experience">
               <Input type="number" min="0" placeholder="e.g. 8" value={form.years_experience} onChange={e => update('years_experience', e.target.value)} />
             </Field>
@@ -378,7 +379,7 @@ export default function EditTeacherPage() {
 
             {/* Photo grid */}
             {form.photos.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+              <div className={styles.formGrid} style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
                 {form.photos.map((url, i) => (
                   <div key={`${url}-${i}`} style={{ position: 'relative' }}>
                     <img

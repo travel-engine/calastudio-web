@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewSessions, canManageSessions } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Session {
   id: string
@@ -151,13 +152,13 @@ export default function SessionsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
 
       {/* Sidebar */}
       <Sidebar active="sessions" roles={roles}/>
 
       {/* Main */}
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+      <div className={styles.main}>
 
         {forbidden ? <Forbidden /> : <>
 
@@ -227,17 +228,8 @@ export default function SessionsPage() {
             overflow: 'hidden'
           }}>
             {/* Table header */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px',
-              padding: '12px 24px',
-              backgroundColor: '#f4f4f4',
-              borderBottom: '1px solid #e2e2e2',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#666',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
+            <div className={styles.tableHeaderRow} style={{
+              gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px'
             }}>
               <div>Session</div>
               <div>Type</div>
@@ -251,12 +243,10 @@ export default function SessionsPage() {
             {sessions.map((session, i) => (
               <div
                 key={session.id}
+                className={styles.tableRow}
                 style={{
-                  display: 'grid',
                   gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 120px',
-                  padding: '16px 24px',
-                  borderBottom: i < sessions.length - 1 ? '1px solid #f4f4f4' : 'none',
-                  alignItems: 'center'
+                  borderBottom: i < sessions.length - 1 ? '1px solid #f4f4f4' : 'none'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

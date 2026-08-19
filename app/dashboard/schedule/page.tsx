@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewOccurrences } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Occurrence {
   id: string
@@ -139,9 +140,9 @@ export default function SchedulePage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="schedule" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -149,10 +150,10 @@ export default function SchedulePage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
       <Sidebar active="schedule" roles={roles} />
 
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+      <div className={styles.main}>
         {forbidden ? <Forbidden /> : <>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -173,7 +174,7 @@ export default function SchedulePage() {
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', alignItems: 'start' }}>
+        <div className={styles.twoCol} style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', alignItems: 'start' }}>
 
           {/* Week view */}
           <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>

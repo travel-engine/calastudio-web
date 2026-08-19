@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../../components/Sidebar'
 import { canManageSessions, canManageOccurrences } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -504,9 +505,9 @@ export default function EditSessionPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="sessions" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -514,10 +515,10 @@ export default function EditSessionPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
       <Sidebar active="sessions" roles={roles} />
 
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px', maxWidth: '800px' }}>
+      <div className={styles.main} style={{ maxWidth: '800px' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -613,7 +614,7 @@ export default function EditSessionPage() {
             />
           </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Session type">
               <Select value={form.sessionType} onChange={e => update('sessionType', e.target.value)} disabled>
                 <option value="class">Class</option>
@@ -713,7 +714,7 @@ export default function EditSessionPage() {
           <SectionHeader title="Schedule" />
 
           <Field label="First occurrence" hint="The date and time of the first bookable class. For a recurring session, later dates are generated from this same time.">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '16px' }}>
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 140px', gap: '16px' }}>
               <Input
                 type="date"
                 value={form.firstOccurrenceDate}
@@ -829,7 +830,7 @@ export default function EditSessionPage() {
 
           <SectionHeader title="Pricing" />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             {(form.deliveryMode === 'in_person' || form.deliveryMode === 'hybrid') && (
               <Field label="In-person price (AUD)">
                 <Input
@@ -858,7 +859,7 @@ export default function EditSessionPage() {
 
           <SectionHeader title="Settings" />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Visibility">
               <Select value={form.visibility} onChange={e => update('visibility', e.target.value)}>
                 <option value="public">Public</option>
@@ -875,7 +876,7 @@ export default function EditSessionPage() {
             </Field>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Cancellation window (hours)">
               <Input
                 type="number"
@@ -1048,7 +1049,7 @@ export default function EditSessionPage() {
                   onChange={e => setOccurrenceForm(p => ({ ...p, date: e.target.value }))}
                 />
               </Field>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <Field label="Start time">
                   <Input
                     type="time"

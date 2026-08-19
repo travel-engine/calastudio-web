@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import styles from './home.module.css'
 
 function NavBar() {
   return (
@@ -53,10 +54,7 @@ function ValueCard({ icon, title, body }: { icon: string; title: string; body: s
 
 function FeatureRow({ icon, title, body, reverse }: { icon: string; title: string; body: string; reverse?: boolean }) {
   return (
-    <div style={{
-      display: 'flex', flexDirection: reverse ? 'row-reverse' : 'row',
-      alignItems: 'center', gap: '48px', padding: '32px 0'
-    }}>
+    <div className={`${styles.featureRow} ${reverse ? styles.reverse : ''}`}>
       <div style={{
         flexShrink: 0, width: '96px', height: '96px', borderRadius: '20px',
         backgroundColor: 'var(--brand-light)', display: 'flex', alignItems: 'center',
@@ -64,12 +62,9 @@ function FeatureRow({ icon, title, body, reverse }: { icon: string; title: strin
       }}>
         {icon}
       </div>
-      <div style={{ flex: 1, textAlign: reverse ? 'right' : 'left' }}>
+      <div className={styles.featureText}>
         <h3 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>{title}</h3>
-        <p style={{
-          fontSize: '15px', color: 'var(--muted-foreground)', lineHeight: 1.7,
-          maxWidth: '520px', marginLeft: reverse ? 'auto' : 0
-        }}>
+        <p className={styles.featureBody} style={{ fontSize: '15px', color: 'var(--muted-foreground)', lineHeight: 1.7 }}>
           {body}
         </p>
       </div>
@@ -91,7 +86,7 @@ export default function Home() {
           }}>
             You keep 100% of every booking
           </div>
-          <h1 style={{ fontSize: '48px', fontWeight: 800, lineHeight: 1.15, marginBottom: '20px', color: '#0a0a0a' }}>
+          <h1 className={styles.hero} style={{ fontWeight: 800, lineHeight: 1.15, marginBottom: '20px', color: '#0a0a0a' }}>
             Your sessions. Your rules.<br />Your members.
           </h1>
           <p style={{ fontSize: '18px', color: 'var(--muted-foreground)', lineHeight: 1.6, marginBottom: '36px' }}>

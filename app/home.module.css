@@ -1,0 +1,52 @@
+.hero {
+  font-size: clamp(32px, 7vw, 48px);
+}
+
+.featureRow {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  padding: 32px 0;
+}
+
+.featureRow.reverse {
+  flex-direction: row-reverse;
+}
+
+.featureText {
+  flex: 1;
+  text-align: left;
+}
+
+.featureRow.reverse .featureText {
+  text-align: right;
+}
+
+.featureBody {
+  max-width: 520px;
+  margin-left: 0;
+}
+
+.featureRow.reverse .featureBody {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .featureRow,
+  .featureRow.reverse {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .featureText,
+  .featureRow.reverse .featureText {
+    text-align: left;
+  }
+
+  .featureBody,
+  .featureRow.reverse .featureBody {
+    max-width: none;
+    margin-left: 0;
+  }
+}

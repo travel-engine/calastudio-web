@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewPassTemplates, canManagePassTemplates } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 interface PassTemplate {
   id: string
@@ -335,9 +336,9 @@ export default function PassesPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="passes" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -347,10 +348,10 @@ export default function PassesPage() {
   const activeTemplates = templates.filter(t => t.is_active)
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
       <Sidebar active="passes" roles={roles} />
 
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+      <div className={styles.main}>
 
         {forbidden ? <Forbidden /> : <>
 
@@ -431,11 +432,7 @@ export default function PassesPage() {
             </div>
           ) : (
             <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-              <div style={{
-                display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 90px',
-                padding: '12px 24px', backgroundColor: '#f4f4f4', borderBottom: '1px solid #e2e2e2',
-                fontSize: '12px', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em'
-              }}>
+              <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 90px' }}>
                 <div>Name</div>
                 <div>Type</div>
                 <div>Credits</div>
@@ -444,10 +441,10 @@ export default function PassesPage() {
                 <div>Actions</div>
               </div>
               {templates.map((t, i) => (
-                <div key={t.id} style={{
-                  display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 90px',
-                  padding: '16px 24px', borderBottom: i < templates.length - 1 ? '1px solid #f4f4f4' : 'none',
-                  alignItems: 'center', opacity: t.is_active ? 1 : 0.5
+                <div key={t.id} className={styles.tableRow} style={{
+                  gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 90px',
+                  borderBottom: i < templates.length - 1 ? '1px solid #f4f4f4' : 'none',
+                  opacity: t.is_active ? 1 : 0.5
                 }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '14px' }}>{t.name}</div>
@@ -487,11 +484,7 @@ export default function PassesPage() {
             />
           ) : (
             <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-              <div style={{
-                display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 90px',
-                padding: '12px 24px', backgroundColor: '#f4f4f4', borderBottom: '1px solid #e2e2e2',
-                fontSize: '12px', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em'
-              }}>
+              <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 90px' }}>
                 <div>Member</div>
                 <div>Pass</div>
                 <div>Credits</div>
@@ -500,10 +493,9 @@ export default function PassesPage() {
                 <div>Actions</div>
               </div>
               {passes.map((p, i) => (
-                <div key={p.id} style={{
-                  display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 90px',
-                  padding: '16px 24px', borderBottom: i < passes.length - 1 ? '1px solid #f4f4f4' : 'none',
-                  alignItems: 'center'
+                <div key={p.id} className={styles.tableRow} style={{
+                  gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 90px',
+                  borderBottom: i < passes.length - 1 ? '1px solid #f4f4f4' : 'none'
                 }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '14px' }}>{p.user?.full_name ?? 'Unknown member'}</div>
@@ -659,7 +651,7 @@ export default function PassesPage() {
               <StatusBadge status={managingPass.status} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
               <div>
                 <div style={{ color: '#666' }}>Credits</div>
                 <div style={{ fontWeight: 600 }}>

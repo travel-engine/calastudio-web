@@ -50,3 +50,11 @@ export const canViewAuditLog = (roles: string[]) => has(roles, [ADMIN])
 
 // Studio settings — PATCH /organisations/{id} (OrganisationEndpoints.cs). Admin only.
 export const canManageSettings = (roles: string[]) => has(roles, [ADMIN])
+
+// Members directory (GET /organisations/{orgId}/members, OrganisationEndpoints.cs). The endpoint
+// itself also serves teacher_general/teacher_basic a name-only projection for the add-student
+// picker, but that's not a member directory — per 17-teacher-portal.md 17.3 ("View full member
+// profiles"), only admin/teacher_super get a real member list page.
+export const canViewMembers = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
+// CSV import (POST /organisations/{orgId}/members/import, MemberEndpoints.cs) — admin only.
+export const canImportMembers = (roles: string[]) => has(roles, [ADMIN])

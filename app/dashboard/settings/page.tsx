@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canManageSettings } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -202,9 +203,9 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="settings" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -212,10 +213,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
       <Sidebar active="settings" roles={roles} />
 
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px', maxWidth: '760px' }}>
+      <div className={styles.main} style={{ maxWidth: '760px' }}>
         {forbidden ? <Forbidden /> : <>
 
         <div style={{ marginBottom: '32px' }}>
@@ -315,7 +316,7 @@ export default function SettingsPage() {
             <Textarea value={form.description} onChange={e => update('description', e.target.value)} />
           </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Contact email">
               <Input type="email" value={form.email} onChange={e => update('email', e.target.value)} />
             </Field>

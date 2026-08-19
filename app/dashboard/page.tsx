@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
 import { canManageSessions, canViewOccurrences } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 // ── Types ─────────────────────────────────────────────────
 interface StatCardProps {
@@ -253,13 +254,13 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
 
       {/* Sidebar */}
       <Sidebar active="dashboard" roles={roles}/>
 
       {/* Main content */}
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+      <div className={styles.main}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -299,7 +300,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Two column layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '24px' }}>
+        <div className={styles.twoCol} style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '24px' }}>
 
           {/* Upcoming sessions */}
           <div>

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewAuditLog } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 interface AuditEntry {
   id: string
@@ -191,9 +192,9 @@ export default function AuditLogPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="audit-log" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -201,10 +202,10 @@ export default function AuditLogPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
       <Sidebar active="audit-log" roles={roles} />
 
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+      <div className={styles.main}>
         {forbidden ? <Forbidden /> : <>
 
         <div style={{ marginBottom: '24px' }}>
@@ -247,11 +248,7 @@ export default function AuditLogPage() {
           </div>
         ) : (
           <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-            <div style={{
-              display: 'grid', gridTemplateColumns: '1.3fr 1.6fr 1fr 1fr 100px',
-              padding: '12px 24px', backgroundColor: '#f4f4f4', borderBottom: '1px solid #e2e2e2',
-              fontSize: '12px', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em'
-            }}>
+            <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '1.3fr 1.6fr 1fr 1fr 100px' }}>
               <div>When</div>
               <div>Who</div>
               <div>Action</div>
@@ -264,9 +261,8 @@ export default function AuditLogPage() {
               const hasDetail = !!entry.changes || !!entry.reason
               return (
                 <div key={entry.id} style={{ borderBottom: i < entries.length - 1 ? '1px solid #f4f4f4' : 'none' }}>
-                  <div style={{
-                    display: 'grid', gridTemplateColumns: '1.3fr 1.6fr 1fr 1fr 100px',
-                    padding: '14px 24px', alignItems: 'center'
+                  <div className={styles.tableRow} style={{
+                    gridTemplateColumns: '1.3fr 1.6fr 1fr 1fr 100px'
                   }}>
                     <div style={{ fontSize: '13px', color: '#444' }}>
                       {new Date(entry.created_at).toLocaleString(undefined, {

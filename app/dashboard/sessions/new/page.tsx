@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import { useSearchParams } from 'next/navigation'
 import { canManageSessions } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -87,9 +88,9 @@ function SectionHeader({ title, description }: { title: string; description?: st
 export default function NewSessionPage() {
   return (
     <Suspense fallback={
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="sessions" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -360,9 +361,9 @@ function NewSessionPageContent() {
 
   if (checkingAccess) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="sessions" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -370,13 +371,13 @@ function NewSessionPageContent() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
 
       {/* Sidebar */}
       <Sidebar active="sessions"/>
 
       {/* Main */}
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px', maxWidth: '800px' }}>
+      <div className={styles.main} style={{ maxWidth: '800px' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
@@ -448,7 +449,7 @@ function NewSessionPageContent() {
             />
           </Field>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Session type">
               <Select value={form.sessionType} onChange={e => update('sessionType', e.target.value)}>
                 <option value="class">Class</option>
@@ -552,7 +553,7 @@ function NewSessionPageContent() {
           <SectionHeader title="Schedule" description="When does this session run?" />
 
           <Field label="First occurrence" hint="The date and time of the first bookable class. For a recurring session, later dates are generated from this same time.">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '16px' }}>
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 140px', gap: '16px' }}>
               <Input
                 type="date"
                 value={form.firstOccurrenceDate}
@@ -670,7 +671,7 @@ function NewSessionPageContent() {
           {/* Pricing */}
           <SectionHeader title="Pricing" description="Set your drop-in prices. You can add passes and memberships later." />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             {(form.deliveryMode === 'in_person' || form.deliveryMode === 'hybrid') && (
               <Field label="In-person price (AUD)">
                 <Input
@@ -700,7 +701,7 @@ function NewSessionPageContent() {
           {/* Settings */}
           <SectionHeader title="Settings" />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Visibility">
               <Select value={form.visibility} onChange={e => update('visibility', e.target.value)}>
                 <option value="public">Public — listed on booking page</option>
@@ -718,7 +719,7 @@ function NewSessionPageContent() {
             </Field>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Cancellation window (hours)" hint="How many hours before the session members can cancel">
               <Input
                 type="number"

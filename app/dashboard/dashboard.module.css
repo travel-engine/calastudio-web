@@ -1,0 +1,83 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f4f4f4;
+}
+
+.main {
+  margin-left: 240px;
+  flex: 1;
+  padding: 32px;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .main {
+    margin-left: 0;
+    padding: 16px;
+    padding-top: 72px;
+  }
+}
+
+/* Shared responsive table: fixed grid columns on desktop, stacked cards below 700px */
+.table {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.tableHeaderRow {
+  display: grid;
+  padding: 12px 24px;
+  background-color: #f4f4f4;
+  border-bottom: 1px solid #e2e2e2;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tableRow {
+  display: grid;
+  padding: 16px 24px;
+  align-items: center;
+}
+
+@media (max-width: 700px) {
+  .tableHeaderRow {
+    display: none;
+  }
+
+  .tableRow {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 16px;
+  }
+}
+
+/* Shared two-column layout (main content + side panel) that stacks on mobile */
+.twoCol {
+  display: grid;
+  gap: 24px;
+}
+
+@media (max-width: 900px) {
+  .twoCol {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Form field-pair grids (name/price, credits/expiry, etc.) — stack below 600px */
+.formGrid {
+  display: grid;
+}
+
+@media (max-width: 600px) {
+  .formGrid {
+    grid-template-columns: 1fr !important;
+  }
+}

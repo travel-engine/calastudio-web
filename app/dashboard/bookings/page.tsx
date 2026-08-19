@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canMarkAttended, canMarkNoShow, canAddStudent } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 interface SessionSummary {
   id: string
@@ -131,9 +132,9 @@ const secondaryButtonStyle: React.CSSProperties = {
 export default function BookingsPage() {
   return (
     <Suspense fallback={
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="bookings" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -400,9 +401,9 @@ function BookingsPageContent() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="bookings" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -413,10 +414,10 @@ function BookingsPageContent() {
   const isFreeSession = managingOccurrence?.session?.booking_access_mode === 'free'
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
       <Sidebar active="bookings" roles={roles} />
 
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+      <div className={styles.main}>
         {forbidden ? <Forbidden /> : <>
         <div style={{ marginBottom: '24px' }}>
           <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Bookings</h1>
@@ -444,11 +445,7 @@ function BookingsPageContent() {
           </div>
         ) : (
           <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-            <div style={{
-              display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 90px',
-              padding: '12px 24px', backgroundColor: '#f4f4f4', borderBottom: '1px solid #e2e2e2',
-              fontSize: '12px', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em'
-            }}>
+            <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 90px' }}>
               <div>Session</div>
               <div>When</div>
               <div>Mode</div>
@@ -456,10 +453,9 @@ function BookingsPageContent() {
               <div>Actions</div>
             </div>
             {occurrences.map((occ, i) => (
-              <div key={occ.id} style={{
-                display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 90px',
-                padding: '16px 24px', borderBottom: i < occurrences.length - 1 ? '1px solid #f4f4f4' : 'none',
-                alignItems: 'center'
+              <div key={occ.id} className={styles.tableRow} style={{
+                gridTemplateColumns: '2fr 1.5fr 1fr 1fr 90px',
+                borderBottom: i < occurrences.length - 1 ? '1px solid #f4f4f4' : 'none'
               }}>
                 <div style={{ fontWeight: 600, fontSize: '14px' }}>{occ.session?.name ?? 'Unknown session'}</div>
                 <div style={{ fontSize: '13px' }}>

@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { canViewSessions, canViewOccurrences, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings } from '@/lib/roles'
+import { canViewSessions, canViewOccurrences, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers } from '@/lib/roles'
+import styles from './sidebar.module.css'
 
 interface SidebarProps {
   active?: string
@@ -15,7 +17,7 @@ const navItems = [
   { href: '/dashboard', icon: '🏠', label: 'Dashboard', key: 'dashboard', canView: undefined },
   { href: '/dashboard/schedule', icon: '🗓', label: 'Schedule', key: 'schedule', canView: canViewOccurrences },
   { href: '/dashboard/sessions', icon: '📅', label: 'Sessions', key: 'sessions', canView: canViewSessions },
-  { href: '/dashboard/members', icon: '👥', label: 'Members', key: 'members', canView: undefined },
+  { href: '/dashboard/members', icon: '👥', label: 'Members', key: 'members', canView: canViewMembers },
   { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings', key: 'bookings', canView: canViewBookings },
   { href: '/dashboard/passes', icon: '💳', label: 'Passes', key: 'passes', canView: canViewPassTemplates },
   { href: '/dashboard/memberships', icon: '⭐', label: 'Memberships', key: 'memberships', canView: undefined },
@@ -27,6 +29,7 @@ const navItems = [
 
 export default function Sidebar({ active, roles }: SidebarProps) {
   const router = useRouter()
+  const [open, setOpen] = useState(false)
   const visible = (item: typeof navItems[0]) => !item.canView || !roles || item.canView(roles)
 
   const handleSignOut = async () => {
@@ -36,19 +39,42 @@ export default function Sidebar({ active, roles }: SidebarProps) {
   }
 
   return (
-    <div style={{
-      width: '240px',
-      backgroundColor: 'white',
-      borderRight: '1px solid #e2e2e2',
-      padding: '24px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      position: 'fixed',
-      height: '100vh',
-      overflowY: 'auto'
-    }}>
+    <>
+      {/* Mobile topbar */}
+      <div className={styles.topbar}>
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Open menu"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            fontSize: '22px',
+            cursor: 'pointer',
+            padding: '4px 8px',
+            lineHeight: 1
+          }}
+        >
+          ☰
+        </button>
+        <a href="/dashboard" style={{
+          backgroundColor: '#085041',
+          color: 'white',
+          fontWeight: 700,
+          fontSize: '14px',
+          padding: '6px 12px',
+          borderRadius: '8px',
+          textDecoration: 'none'
+        }}>
+          CalaStudio
+        </a>
+      </div>
+
+      {/* Mobile backdrop */}
+      {open && <div className={styles.overlay} onClick={() => setOpen(false)} />}
+
+      <div className={`${styles.panel} ${open ? styles.open : ''}`}>
       {/* Logo */}
-      
+
         <a href="/dashboard"
         style={{
           display: 'block',
@@ -81,7 +107,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
         </div>
 
         {navItems.slice(0, 5).filter(visible).map(item => (
-          <NavLink key={item.key} item={item} active={active === item.key} />
+          <NavLink key={item.key} item={item} active={active === item.key} onNavigate={() => setOpen(false)} />
         ))}
 
         <div style={{
@@ -98,7 +124,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
         </div>
 
         {navItems.slice(5, 8).filter(visible).map(item => (
-          <NavLink key={item.key} item={item} active={active === item.key} />
+          <NavLink key={item.key} item={item} active={active === item.key} onNavigate={() => setOpen(false)} />
         ))}
 
         <div style={{
@@ -115,7 +141,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
         </div>
 
         {navItems.slice(8).filter(visible).map(item => (
-          <NavLink key={item.key} item={item} active={active === item.key} />
+          <NavLink key={item.key} item={item} active={active === item.key} onNavigate={() => setOpen(false)} />
         ))}
       </nav>
 
@@ -137,14 +163,16 @@ export default function Sidebar({ active, roles }: SidebarProps) {
           Sign out
         </button>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
-function NavLink({ item, active }: { item: typeof navItems[0]; active: boolean }) {
+function NavLink({ item, active, onNavigate }: { item: typeof navItems[0]; active: boolean; onNavigate?: () => void }) {
   return (
-    
+
       <a href={item.href}
+      onClick={onNavigate}
       style={{
         display: 'flex',
         alignItems: 'center',

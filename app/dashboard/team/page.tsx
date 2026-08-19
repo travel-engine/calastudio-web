@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import Forbidden from '../../components/Forbidden'
 import { canViewTeam } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Teacher {
   id: string
@@ -176,9 +177,9 @@ export default function TeamPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="team" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -186,10 +187,10 @@ export default function TeamPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
       <Sidebar active="team" roles={roles} />
 
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px' }}>
+      <div className={styles.main}>
 
         {forbidden ? <Forbidden /> : <>
 
@@ -256,17 +257,8 @@ export default function TeamPage() {
             overflow: 'hidden'
           }}>
             {/* Table header */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '2fr 1fr 1fr 1fr 120px',
-              padding: '12px 24px',
-              backgroundColor: '#f4f4f4',
-              borderBottom: '1px solid #e2e2e2',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#666',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
+            <div className={styles.tableHeaderRow} style={{
+              gridTemplateColumns: '2fr 1fr 1fr 1fr 120px'
             }}>
               <div>Teacher</div>
               <div>Role</div>
@@ -278,12 +270,10 @@ export default function TeamPage() {
             {teachers.map((teacher, i) => (
               <div
                 key={teacher.id}
+                className={styles.tableRow}
                 style={{
-                  display: 'grid',
                   gridTemplateColumns: '2fr 1fr 1fr 1fr 120px',
-                  padding: '16px 24px',
-                  borderBottom: i < teachers.length - 1 ? '1px solid #f4f4f4' : 'none',
-                  alignItems: 'center'
+                  borderBottom: i < teachers.length - 1 ? '1px solid #f4f4f4' : 'none'
                 }}
               >
                 {/* Name + email */}

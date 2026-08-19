@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import { canManagePassTemplates } from '@/lib/roles'
+import styles from '@/app/dashboard/dashboard.module.css'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -315,9 +316,9 @@ export default function EditPassTemplatePage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className={styles.shell}>
         <Sidebar active="passes" />
-        <div style={{ marginLeft: '240px', flex: 1, padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ color: '#666' }}>Loading...</div>
         </div>
       </div>
@@ -325,10 +326,10 @@ export default function EditPassTemplatePage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+    <div className={styles.shell}>
       <Sidebar active="passes" roles={roles} />
 
-      <div style={{ marginLeft: '240px', flex: 1, padding: '32px', maxWidth: '800px' }}>
+      <div className={styles.main} style={{ maxWidth: '800px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
           <a href="/dashboard/passes" style={{ color: '#666', textDecoration: 'none', fontSize: '14px' }}>
             ← Passes
@@ -492,7 +493,7 @@ export default function EditPassTemplatePage() {
           </Field>
 
           {form.guestBookingsEnabled === 'true' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <Field label="Max guests per booking">
                 <Input type="number" min="1" value={form.guestMaxPerBooking} onChange={e => update('guestMaxPerBooking', e.target.value)} />
               </Field>
@@ -525,7 +526,7 @@ export default function EditPassTemplatePage() {
 
           <SectionHeader title="Pricing" description="Members see this price, in your studio's currency" />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label={`Price (${form.currency})`}>
               <Input type="number" min="0" step="0.01" value={form.price} onChange={e => update('price', e.target.value)} />
             </Field>
@@ -536,7 +537,7 @@ export default function EditPassTemplatePage() {
 
           <SectionHeader title="Sale window" description="When this pass can be purchased. Leave blank for always available." />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Valid from">
               <Input type="date" value={form.validFrom} onChange={e => update('validFrom', e.target.value)} />
             </Field>
