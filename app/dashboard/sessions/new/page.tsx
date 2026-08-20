@@ -661,7 +661,7 @@ function NewSessionPageContent() {
                 )}
                 {form.recurrenceEndMode === 'never' && (
                   <p style={{ fontSize: '12px', color: '#666' }}>
-                    Dates are generated up to 90 days ahead on a rolling basis — there's no need to set an end date for an ongoing class.
+                    Dates are generated up to 60 days ahead on a rolling basis — there's no need to set an end date for an ongoing class.
                   </p>
                 )}
               </div>

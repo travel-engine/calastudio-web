@@ -140,6 +140,9 @@ export default function EditSessionPage() {
   const [occurrenceError, setOccurrenceError] = useState('')
   const [cancellingId, setCancellingId] = useState('')
 
+  const [showShrinkConfirm, setShowShrinkConfirm] = useState(false)
+  const [shrinkImpact, setShrinkImpact] = useState<{ occurrencesAffected: number; bookingsAffected: number } | null>(null)
+
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -400,25 +403,44 @@ export default function EditSessionPage() {
     return `RRULE:FREQ=WEEKLY;BYDAY=${form.recurrenceDays.join(',')}`
   }
 
-  const handleSave = async () => {
-    if (!form.name.trim()) { setError('Session name is required'); return }
-    if (!form.firstOccurrenceDate) { setError('First occurrence date is required'); return }
+  // Shared by the initial save attempt and the resubmit-after-confirmation below — the request
+  // body is identical except for `confirm`, per UpdateSessionRequest in SessionEndpoints.cs.
+  const buildSessionPatchBody = (confirm: boolean) => {
+    const firstOccurrenceStartsAt = new Date(`${form.firstOccurrenceDate}T${form.firstOccurrenceTime}`)
+    return {
+      name: form.name,
+      description: form.description || null,
+      location_name: form.locationName || null,
+      location_address: form.locationAddress || null,
+      photo_url: form.photoUrl || null,
+      capacity_inperson: form.capacityInperson ? parseInt(form.capacityInperson) : null,
+      capacity_online: form.capacityOnline ? parseInt(form.capacityOnline) : null,
+      price_inperson: form.priceInperson ? parseFloat(form.priceInperson) : null,
+      price_online: form.priceOnline ? parseFloat(form.priceOnline) : null,
+      visibility: form.visibility,
+      booking_access_mode: form.bookingAccessMode,
+      delivery_mode: form.deliveryMode,
+      duration_minutes: parseInt(form.durationMinutes),
+      first_occurrence_starts_at: firstOccurrenceStartsAt.toISOString(),
+      is_recurring: form.isRecurring,
+      recurrence_rule: form.isRecurring && form.recurrenceDays.length > 0
+        ? `RRULE:FREQ=WEEKLY;BYDAY=${form.recurrenceDays.join(',')}`
+        : null,
+      recurrence_end_date: form.isRecurring && form.recurrenceEndMode === 'date' && form.recurrenceEndDate ? form.recurrenceEndDate : null,
+      recurrence_count: form.isRecurring && form.recurrenceEndMode === 'count' && form.recurrenceCount ? parseInt(form.recurrenceCount) : null,
+      cancellation_hours: parseInt(form.cancellationHours),
+      guest_bookings_enabled: form.guestBookingsEnabled,
+      guest_max_per_booking: parseInt(form.guestMaxPerBooking),
+      instructor_id: form.instructorId || null,
+      confirm,
+    }
+  }
+
+  const submitSessionPatch = async (confirm: boolean) => {
     setSaving(true)
     setError('')
 
-    const firstOccurrenceStartsAt = new Date(`${form.firstOccurrenceDate}T${form.firstOccurrenceTime}`)
-
     try {
-        console.log('Saving:', JSON.stringify({
-            name: form.name,
-            description: form.description || null,
-            locationName: form.locationName || null,
-            capacityInperson: form.capacityInperson ? parseInt(form.capacityInperson) : null,
-            capacityOnline: form.capacityOnline ? parseInt(form.capacityOnline) : null,
-            priceInperson: form.priceInperson ? parseFloat(form.priceInperson) : null,
-            priceOnline: form.priceOnline ? parseFloat(form.priceOnline) : null,
-            visibility: form.visibility,
-          }))
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/sessions/${sessionId}`,
         {
@@ -427,45 +449,49 @@ export default function EditSessionPage() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify({
-            name: form.name,
-            description: form.description || null,
-            location_name: form.locationName || null,
-            location_address: form.locationAddress || null,
-            photo_url: form.photoUrl || null,
-            capacity_inperson: form.capacityInperson ? parseInt(form.capacityInperson) : null,
-            capacity_online: form.capacityOnline ? parseInt(form.capacityOnline) : null,
-            price_inperson: form.priceInperson ? parseFloat(form.priceInperson) : null,
-            price_online: form.priceOnline ? parseFloat(form.priceOnline) : null,
-            visibility: form.visibility,
-            booking_access_mode: form.bookingAccessMode,
-            delivery_mode: form.deliveryMode,
-            duration_minutes: parseInt(form.durationMinutes),
-            first_occurrence_starts_at: firstOccurrenceStartsAt.toISOString(),
-            is_recurring: form.isRecurring,
-            recurrence_rule: form.isRecurring && form.recurrenceDays.length > 0
-              ? `RRULE:FREQ=WEEKLY;BYDAY=${form.recurrenceDays.join(',')}`
-              : null,
-            recurrence_end_date: form.isRecurring && form.recurrenceEndMode === 'date' && form.recurrenceEndDate ? form.recurrenceEndDate : null,
-            recurrence_count: form.isRecurring && form.recurrenceEndMode === 'count' && form.recurrenceCount ? parseInt(form.recurrenceCount) : null,
-            cancellation_hours: parseInt(form.cancellationHours),
-            guest_bookings_enabled: form.guestBookingsEnabled,
-            guest_max_per_booking: parseInt(form.guestMaxPerBooking),
-            instructor_id: form.instructorId || null,
-          })
+          body: JSON.stringify(buildSessionPatchBody(confirm))
         }
       )
 
       if (res.ok) {
         router.push('/dashboard/sessions')
-      } else {
-        setError('Failed to save. Please try again.')
+        return
       }
+
+      // Shortening recurrence_end_date/recurrence_count (or turning off is_recurring) would cancel
+      // occurrences/bookings that already exist — show the impact and let the admin confirm before
+      // resubmitting with confirm: true. Per calastudio-spec/02-session-management.md §2.8.
+      if (res.status === 409) {
+        const data = await res.json().catch(() => null)
+        if (data?.error === 'confirmation_required') {
+          setShrinkImpact({ occurrencesAffected: data.occurrences_affected, bookingsAffected: data.bookings_affected })
+          setShowShrinkConfirm(true)
+          return
+        }
+      }
+
+      setError('Failed to save. Please try again.')
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSave = () => {
+    if (!form.name.trim()) { setError('Session name is required'); return }
+    if (!form.firstOccurrenceDate) { setError('First occurrence date is required'); return }
+    submitSessionPatch(false)
+  }
+
+  const handleConfirmShrink = () => {
+    setShowShrinkConfirm(false)
+    submitSessionPatch(true)
+  }
+
+  const handleCancelShrink = () => {
+    setShowShrinkConfirm(false)
+    setShrinkImpact(null)
   }
 
   const handleDelete = async () => {
@@ -821,7 +847,7 @@ export default function EditSessionPage() {
                 )}
                 {form.recurrenceEndMode === 'never' && (
                   <p style={{ fontSize: '12px', color: '#666' }}>
-                    Dates are generated up to 90 days ahead on a rolling basis — there's no need to set an end date for an ongoing class.
+                    Dates are generated up to 60 days ahead on a rolling basis — there's no need to set an end date for an ongoing class.
                   </p>
                 )}
               </div>
@@ -958,7 +984,7 @@ export default function EditSessionPage() {
             <div>
               <h2 style={{ fontSize: '17px', fontWeight: 600 }}>Occurrences</h2>
               <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
-                Bookable dates and times for this session. Generated automatically overnight from the schedule above, up to 90 days ahead — add one manually below for a one-off extra date, or to get a date immediately without waiting for the nightly run.
+                Bookable dates and times for this session. Generated automatically overnight from the schedule above, up to 60 days ahead — add one manually below for a one-off extra date, or to get a date immediately without waiting for the nightly run.
               </p>
             </div>
             {canManageOccurrences(roles) && (
@@ -1097,6 +1123,48 @@ export default function EditSessionPage() {
                   {addingOccurrence ? 'Adding...' : 'Add occurrence'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recurrence-shrink confirmation modal */}
+      {showShrinkConfirm && shrinkImpact && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+        }}>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
+            maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>Confirm recurrence change</h2>
+            <p style={{ fontSize: '14px', color: '#444', marginBottom: '24px' }}>
+              This change will cancel {shrinkImpact.occurrencesAffected} upcoming occurrence{shrinkImpact.occurrencesAffected === 1 ? '' : 's'},
+              including {shrinkImpact.bookingsAffected} confirmed booking{shrinkImpact.bookingsAffected === 1 ? '' : 's'}.
+              Any pass credits used for those bookings will be returned automatically.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={handleCancelShrink}
+                style={{
+                  flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
+                  borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#444'
+                }}
+              >
+                Go back
+              </button>
+              <button
+                onClick={handleConfirmShrink}
+                disabled={saving}
+                style={{
+                  flex: 1, padding: '10px', backgroundColor: saving ? '#e79999' : '#8b1a1a', color: 'white',
+                  border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                  cursor: saving ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {saving ? 'Saving...' : 'Confirm and cancel occurrences'}
+              </button>
             </div>
           </div>
         </div>

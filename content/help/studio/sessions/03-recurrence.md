@@ -20,12 +20,12 @@ Currently, recurrence is weekly only — every selected day, every week. There's
 
 ## How occurrences actually get created
 
-A nightly job runs at 2am and generates every occurrence up to 90 days ahead for every active recurring session, starting from **First occurrence** and stopping at whichever comes first: your **Ends** setting or the 90-day horizon. It only ever adds — it never removes or edits a date you've already touched.
+A nightly job runs at 2am, your studio's local time, and generates every occurrence up to 60 days ahead for every active recurring session, starting from **First occurrence** and stopping at whichever comes first: your **Ends** setting or the 60-day horizon. It only ever adds — it never removes or edits a date you've already touched.
 
 Two practical consequences:
 
 - A session created today won't have any occurrences until tonight's run. If you need it bookable right away, add the first occurrence manually from the session's **Occurrences** section.
-- Because it only looks 90 days out, a recurring session with no end date always has a rolling window of dates rather than every date that will ever exist — there's no need to set an end date just to "give it enough room."
+- Because it only looks 60 days out, a recurring session with no end date always has a rolling window of dates rather than every date that will ever exist — there's no need to set an end date just to "give it enough room."
 
 ## One-off sessions
 
