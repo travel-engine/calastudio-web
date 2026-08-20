@@ -131,6 +131,8 @@ function NewSessionPageContent() {
     visibility: 'public',
     bookingAccessMode: 'open',
     cancellationHours: '12',
+    bookingWindowDays: '',
+    minAdvanceBookingHours: '',
     guestBookingsEnabled: true,
     guestMaxPerBooking: '1',
     instructorId: '',
@@ -215,6 +217,8 @@ function NewSessionPageContent() {
         visibility: 'draft',
         bookingAccessMode: s.booking_access_mode ?? 'open',
         cancellationHours: s.cancellation_hours?.toString() ?? '12',
+        bookingWindowDays: s.booking_window_days?.toString() ?? '',
+        minAdvanceBookingHours: s.min_advance_booking_hours?.toString() ?? '',
         guestBookingsEnabled: s.guest_bookings_enabled ?? true,
         guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
         instructorId: s.instructor_id ?? '',
@@ -330,6 +334,8 @@ function NewSessionPageContent() {
           visibility: form.visibility,
           booking_access_mode: form.bookingAccessMode,
           cancellation_hours: parseInt(form.cancellationHours),
+          booking_window_days: form.bookingWindowDays ? parseInt(form.bookingWindowDays) : null,
+          min_advance_booking_hours: form.minAdvanceBookingHours ? parseInt(form.minAdvanceBookingHours) : null,
           guest_bookings_enabled: form.guestBookingsEnabled,
           guest_max_per_booking: parseInt(form.guestMaxPerBooking),
           instructor_id: form.instructorId || null,
@@ -737,6 +743,28 @@ function NewSessionPageContent() {
                 <option value="2">2 guests</option>
                 <option value="3">3 guests</option>
               </Select>
+            </Field>
+          </div>
+
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Booking window (days)" hint="Max days ahead a member can book. Leave blank to use the studio default.">
+              <Input
+                type="number"
+                min="0"
+                placeholder="No override"
+                value={form.bookingWindowDays}
+                onChange={e => update('bookingWindowDays', e.target.value)}
+              />
+            </Field>
+
+            <Field label="Minimum advance booking (hours)" hint="How close to the start time a booking can still be made. Leave blank to use the studio default.">
+              <Input
+                type="number"
+                min="0"
+                placeholder="No override"
+                value={form.minAdvanceBookingHours}
+                onChange={e => update('minAdvanceBookingHours', e.target.value)}
+              />
             </Field>
           </div>
 
