@@ -74,9 +74,18 @@ export default function SettingsPage() {
     logoUrl: '',
     bannerUrl: '',
     brandColor: '#085041',
+    taxEnabled: false,
+    taxLabel: '',
+    taxRegistrationNumber: '',
   })
 
-  const update = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }))
+  const [taxRates, setTaxRates] = useState<{ id: string; rate: number; effective_from: string; effective_until: string | null; notes: string | null }[]>([])
+  const [showAddRate, setShowAddRate] = useState(false)
+  const [addRateForm, setAddRateForm] = useState({ rate: '', effectiveFrom: '', notes: '' })
+  const [addingRate, setAddingRate] = useState(false)
+  const [rateError, setRateError] = useState('')
+
+  const update = (key: string, value: string | boolean) => setForm(prev => ({ ...prev, [key]: value }))
 
   useEffect(() => {
     const load = async () => {
@@ -114,12 +123,68 @@ export default function SettingsPage() {
         logoUrl: org.logo_url ?? '',
         bannerUrl: org.banner_url ?? '',
         brandColor: org.brand_color ?? '#085041',
+        taxEnabled: org.tax_enabled ?? false,
+        taxLabel: org.tax_label ?? '',
+        taxRegistrationNumber: org.tax_registration_number ?? '',
       })
+
+      const ratesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/tax-rates`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      if (ratesRes.ok) setTaxRates(await ratesRes.json())
+
       setLoading(false)
     }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
+
+  const reloadTaxRates = async () => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/tax-rates`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (res.ok) setTaxRates(await res.json())
+  }
+
+  const openAddRate = () => {
+    setRateError('')
+    setAddRateForm({ rate: '', effectiveFrom: '', notes: '' })
+    setShowAddRate(true)
+  }
+
+  const handleAddRate = async () => {
+    if (!addRateForm.rate || !addRateForm.effectiveFrom) {
+      setRateError('Rate and effective date are both required')
+      return
+    }
+
+    setAddingRate(true)
+    setRateError('')
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/tax-rates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          rate: parseFloat(addRateForm.rate),
+          effective_from: addRateForm.effectiveFrom,
+          notes: addRateForm.notes || null,
+        })
+      })
+
+      if (res.ok) {
+        setShowAddRate(false)
+        await reloadTaxRates()
+      } else {
+        const data = await res.json().catch(() => null)
+        setRateError(data?.error ?? 'Could not add this rate.')
+      }
+    } catch {
+      setRateError('Could not add this rate.')
+    } finally {
+      setAddingRate(false)
+    }
+  }
 
   const uploadImage = async (file: File, folder: 'org-logos' | 'org-banners'): Promise<string | null> => {
     if (!file.type.startsWith('image/')) {
@@ -186,13 +251,17 @@ export default function SettingsPage() {
           logo_url: form.logoUrl || null,
           banner_url: form.bannerUrl || null,
           brand_color: form.brandColor || null,
+          tax_enabled: form.taxEnabled,
+          tax_label: form.taxLabel || null,
+          tax_registration_number: form.taxRegistrationNumber || null,
         })
       })
 
       if (res.ok) {
         setSuccess('Settings saved.')
       } else {
-        setError('Failed to save. Please try again.')
+        const data = await res.json().catch(() => null)
+        setError(data?.error ?? 'Failed to save. Please try again.')
       }
     } catch {
       setError('Something went wrong. Please try again.')
@@ -325,6 +394,66 @@ export default function SettingsPage() {
             </Field>
           </div>
 
+          <SectionHeader title="Tax (GST/VAT)" description="Configure how tax is calculated and shown on bookings" />
+
+          <Field label="Tax collection">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.taxEnabled}
+                onChange={e => update('taxEnabled', e.target.checked)}
+              />
+              Charge tax on bookings
+            </label>
+            {taxRates.length === 0 && (
+              <p style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '8px' }}>
+                Add at least one tax rate below before enabling — tax can't be turned on with no rate configured.
+              </p>
+            )}
+          </Field>
+
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Tax label" hint='Shown on pricing and receipts, e.g. "GST" or "VAT"'>
+              <Input placeholder="GST" value={form.taxLabel} onChange={e => update('taxLabel', e.target.value)} />
+            </Field>
+            <Field label="Tax registration number" hint="Shown on receipts, e.g. your ABN or VAT number">
+              <Input value={form.taxRegistrationNumber} onChange={e => update('taxRegistrationNumber', e.target.value)} />
+            </Field>
+          </div>
+
+          <Field label="Tax rate schedule" hint="The rate in effect today applies automatically. Adding a new rate closes out the previous one the day before it starts.">
+            {taxRates.length === 0 ? (
+              <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>No tax rates configured yet.</p>
+            ) : (
+              <div style={{ border: '1px solid #e2e2e2', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
+                {taxRates.map((r, i) => (
+                  <div key={r.id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 14px', borderBottom: i < taxRates.length - 1 ? '1px solid #f4f4f4' : 'none',
+                    fontSize: '13px'
+                  }}>
+                    <div>
+                      <strong>{r.rate}%</strong>
+                      <span style={{ color: '#666', marginLeft: '8px' }}>
+                        from {r.effective_from}{r.effective_until ? ` to ${r.effective_until}` : ' (current)'}
+                      </span>
+                      {r.notes && <span style={{ color: '#999', marginLeft: '8px' }}>— {r.notes}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={openAddRate}
+              style={{
+                padding: '8px 16px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '8px',
+                fontSize: '13px', fontWeight: 500, color: '#444', cursor: 'pointer'
+              }}
+            >
+              + Add rate
+            </button>
+          </Field>
+
           {error && (
             <div style={{ padding: '12px 16px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '14px', marginBottom: '24px' }}>
               {error}
@@ -352,6 +481,85 @@ export default function SettingsPage() {
         </div>
         </>}
       </div>
+
+      {/* Add tax rate modal */}
+      {showAddRate && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+        }}>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
+            maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Add tax rate</h2>
+              <button
+                onClick={() => setShowAddRate(false)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <Field label="Rate (%)">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  placeholder="10"
+                  value={addRateForm.rate}
+                  onChange={e => setAddRateForm(p => ({ ...p, rate: e.target.value }))}
+                />
+              </Field>
+              <Field label="Effective from" hint="Must be after the currently active rate's start date">
+                <Input
+                  type="date"
+                  value={addRateForm.effectiveFrom}
+                  onChange={e => setAddRateForm(p => ({ ...p, effectiveFrom: e.target.value }))}
+                />
+              </Field>
+              <Field label="Notes" hint="Optional">
+                <Input
+                  placeholder="e.g. Rate change effective July 1"
+                  value={addRateForm.notes}
+                  onChange={e => setAddRateForm(p => ({ ...p, notes: e.target.value }))}
+                />
+              </Field>
+
+              {rateError && (
+                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                  {rateError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <button
+                  onClick={() => setShowAddRate(false)}
+                  style={{
+                    flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
+                    borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#444'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddRate}
+                  disabled={addingRate}
+                  style={{
+                    flex: 1, padding: '10px', backgroundColor: addingRate ? '#9fd6b8' : '#085041', color: 'white',
+                    border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                    cursor: addingRate ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {addingRate ? 'Adding...' : 'Add rate'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
