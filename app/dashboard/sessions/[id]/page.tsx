@@ -168,6 +168,7 @@ export default function EditSessionPage() {
     cancellationHours: '12',
     bookingWindowDays: '',
     minAdvanceBookingHours: '',
+    taxRateOverride: '',
     guestBookingsEnabled: true,
     guestMaxPerBooking: '1',
     instructorId: '',
@@ -277,6 +278,7 @@ export default function EditSessionPage() {
         cancellationHours: s.cancellation_hours?.toString() ?? '12',
         bookingWindowDays: s.booking_window_days?.toString() ?? '',
         minAdvanceBookingHours: s.min_advance_booking_hours?.toString() ?? '',
+        taxRateOverride: s.tax_rate_override?.toString() ?? '',
         guestBookingsEnabled: s.guest_bookings_enabled ?? true,
         guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
         instructorId: s.instructor_id ?? '',
@@ -435,6 +437,7 @@ export default function EditSessionPage() {
       cancellation_hours: parseInt(form.cancellationHours),
       booking_window_days: form.bookingWindowDays ? parseInt(form.bookingWindowDays) : null,
       min_advance_booking_hours: form.minAdvanceBookingHours ? parseInt(form.minAdvanceBookingHours) : null,
+      tax_rate_override: form.taxRateOverride ? parseFloat(form.taxRateOverride) : null,
       guest_bookings_enabled: form.guestBookingsEnabled,
       guest_max_per_booking: parseInt(form.guestMaxPerBooking),
       instructor_id: form.instructorId || null,
@@ -888,6 +891,17 @@ export default function EditSessionPage() {
               </Field>
             )}
           </div>
+
+          <Field label="Tax rate override (%)" hint="Leave blank to use the studio's current tax rate. Enter 0 to make this session tax-exempt.">
+            <Input
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder="No override"
+              value={form.taxRateOverride}
+              onChange={e => update('taxRateOverride', e.target.value)}
+            />
+          </Field>
 
           <SectionHeader title="Settings" />
 
