@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
@@ -54,7 +54,23 @@ function SectionHeader({ title, description }: { title: string; description?: st
 }
 
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className={styles.shell}>
+        <Sidebar active="settings" />
+        <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#666' }}>Loading...</div>
+        </div>
+      </div>
+    }>
+      <SettingsPageContent />
+    </Suspense>
+  )
+}
+
+function SettingsPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
@@ -85,7 +101,21 @@ export default function SettingsPage() {
   const [addingRate, setAddingRate] = useState(false)
   const [rateError, setRateError] = useState('')
 
+  const [stripeOnboardingComplete, setStripeOnboardingComplete] = useState(false)
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null)
+  const [connectingStripe, setConnectingStripe] = useState(false)
+  const [stripeError, setStripeError] = useState('')
+  const [stripeBanner, setStripeBanner] = useState<'success' | 'failure' | null>(null)
+
   const update = (key: string, value: string | boolean) => setForm(prev => ({ ...prev, [key]: value }))
+
+  useEffect(() => {
+    const connected = searchParams.get('stripe_connected')
+    if (connected === 'true') setStripeBanner('success')
+    else if (connected === 'false') setStripeBanner('failure')
+    if (connected !== null) router.replace('/dashboard/settings')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -127,6 +157,8 @@ export default function SettingsPage() {
         taxLabel: org.tax_label ?? '',
         taxRegistrationNumber: org.tax_registration_number ?? '',
       })
+      setStripeOnboardingComplete(org.stripe_onboarding_complete ?? false)
+      setStripeAccountId(org.stripe_account_id ?? null)
 
       const ratesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/tax-rates`, {
         headers: { Authorization: `Bearer ${t}` }
@@ -144,6 +176,29 @@ export default function SettingsPage() {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (res.ok) setTaxRates(await res.json())
+  }
+
+  const handleConnectStripe = async () => {
+    setConnectingStripe(true)
+    setStripeError('')
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/stripe/connect`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      if (res.ok) {
+        const { url } = await res.json()
+        window.location.href = url
+      } else {
+        const data = await res.json().catch(() => null)
+        setStripeError(data?.error ?? 'Could not start Stripe Connect. Please try again.')
+        setConnectingStripe(false)
+      }
+    } catch {
+      setStripeError('Could not start Stripe Connect. Please try again.')
+      setConnectingStripe(false)
+    }
   }
 
   const openAddRate = () => {
@@ -393,6 +448,61 @@ export default function SettingsPage() {
               <Input value={form.phone} onChange={e => update('phone', e.target.value)} />
             </Field>
           </div>
+
+          <SectionHeader title="Payments" description="Connect Stripe so members can pay for drop-in classes and passes — money goes straight to your bank account, CalaStudio takes no commission" />
+
+          {stripeBanner === 'success' && (
+            <div style={{ padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px', color: '#085041', fontSize: '14px', marginBottom: '20px' }}>
+              Stripe connected successfully.
+            </div>
+          )}
+          {stripeBanner === 'failure' && (
+            <div style={{ padding: '12px 16px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '14px', marginBottom: '20px' }}>
+              Stripe connection failed or was cancelled. Please try again.
+            </div>
+          )}
+
+          <Field label="Stripe">
+            <div style={{
+              border: '1px solid #e2e2e2', borderRadius: '12px', padding: '20px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '44px', height: '44px', backgroundColor: '#635bff', borderRadius: '10px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
+                  fontWeight: 700, fontSize: '17px', flexShrink: 0
+                }}>S</div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '14px' }}>Stripe</div>
+                  {stripeOnboardingComplete ? (
+                    <div style={{ fontSize: '13px', color: '#085041', marginTop: '2px' }}>
+                      ✓ Connected{stripeAccountId ? ` — ${stripeAccountId}` : ''}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>Not connected</div>
+                  )}
+                </div>
+              </div>
+
+              {!stripeOnboardingComplete && (
+                <button
+                  onClick={handleConnectStripe}
+                  disabled={connectingStripe}
+                  style={{
+                    padding: '10px 20px', backgroundColor: connectingStripe ? '#9fd6b8' : '#085041', color: 'white',
+                    border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                    cursor: connectingStripe ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap'
+                  }}
+                >
+                  {connectingStripe ? 'Connecting...' : 'Connect with Stripe'}
+                </button>
+              )}
+            </div>
+            {stripeError && (
+              <p style={{ fontSize: '13px', color: '#8b1a1a', marginTop: '10px' }}>{stripeError}</p>
+            )}
+          </Field>
 
           <SectionHeader title="Tax (GST/VAT)" description="Configure how tax is calculated and shown on bookings" />
 

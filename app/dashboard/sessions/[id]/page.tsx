@@ -173,8 +173,12 @@ export default function EditSessionPage() {
     guestMaxPerBooking: '1',
     instructorId: '',
     photoUrl: '',
+    approvedPassTemplateIds: [] as string[],
+    allowDropIn: false,
   })
   const [teachers, setTeachers] = useState<{ id: string; full_name: string }[]>([])
+  const [passTemplates, setPassTemplates] = useState<{ id: string; name: string }[]>([])
+  const [pricingAccessRows, setPricingAccessRows] = useState<{ pricing_type: string; pass_template: { id: string; name: string } | null }[]>([])
 
   const update = (key: string, value: string | boolean | string[]) =>
     setForm(prev => ({ ...prev, [key]: value }))
@@ -184,6 +188,13 @@ export default function EditSessionPage() {
       ? form.recurrenceDays.filter(d => d !== day)
       : [...form.recurrenceDays, day]
     update('recurrenceDays', days)
+  }
+
+  const togglePassTemplate = (id: string) => {
+    const ids = form.approvedPassTemplateIds.includes(id)
+      ? form.approvedPassTemplateIds.filter(x => x !== id)
+      : [...form.approvedPassTemplateIds, id]
+    update('approvedPassTemplateIds', ids)
   }
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -283,6 +294,8 @@ export default function EditSessionPage() {
         guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
         instructorId: s.instructor_id ?? '',
         photoUrl: s.photo_url ?? '',
+        approvedPassTemplateIds: [],
+        allowDropIn: false,
       })
 
       if (canManageSessions(myRoles)) {
@@ -293,6 +306,30 @@ export default function EditSessionPage() {
           const data = await teachersRes.json()
           setTeachers(data.map((x: any) => ({ id: x.id, full_name: x.full_name })))
         }
+
+        const passTemplatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/pass-templates`, {
+          headers: { Authorization: `Bearer ${t}` }
+        })
+        if (passTemplatesRes.ok) {
+          const data = await passTemplatesRes.json()
+          setPassTemplates(data.map((x: any) => ({ id: x.id, name: x.name })))
+        }
+      }
+
+      const pricingAccessRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${sessionId}/pricing-access`,
+        { headers: { Authorization: `Bearer ${t}` } }
+      )
+      if (pricingAccessRes.ok) {
+        const rows = await pricingAccessRes.json()
+        setPricingAccessRows(rows)
+        setForm(prev => ({
+          ...prev,
+          approvedPassTemplateIds: rows
+            .filter((r: any) => r.pricing_type === 'pass_template')
+            .map((r: any) => r.pass_template_id),
+          allowDropIn: rows.some((r: any) => r.pricing_type === 'drop_in'),
+        }))
       }
 
       const occRes = await fetch(
@@ -463,6 +500,24 @@ export default function EditSessionPage() {
       )
 
       if (res.ok) {
+        if (form.bookingAccessMode === 'restricted') {
+          const paRes = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/sessions/${sessionId}/pricing-access`,
+            {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                pass_template_ids: form.approvedPassTemplateIds,
+                allow_drop_in: form.allowDropIn,
+              })
+            }
+          )
+          if (!paRes.ok) {
+            setError('Session saved, but the approved pricing options could not be saved. Please try again.')
+            setSaving(false)
+            return
+          }
+        }
         router.push('/dashboard/sessions')
         return
       }
@@ -921,6 +976,58 @@ export default function EditSessionPage() {
               </Select>
             </Field>
           </div>
+
+          {form.bookingAccessMode === 'restricted' && (
+            canManageSessions(roles) ? (
+              <Field label="Approved pricing options" hint="Only these passes (and optionally drop-in payment) can be used to book this session. Admin-initiated bookings bypass this list.">
+                <div style={{ border: '1px solid #e2e2e2', borderRadius: '8px', padding: '0 14px' }}>
+                  {passTemplates.length === 0 ? (
+                    <p style={{ fontSize: '13px', color: '#666', padding: '12px 0' }}>
+                      No pass templates yet — create one on the Passes page first.
+                    </p>
+                  ) : passTemplates.map((pt, i) => (
+                    <label key={pt.id} style={{
+                      display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0',
+                      borderBottom: i < passTemplates.length - 1 ? '1px solid #f4f4f4' : 'none',
+                      fontSize: '13px', cursor: 'pointer'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={form.approvedPassTemplateIds.includes(pt.id)}
+                        onChange={() => togglePassTemplate(pt.id)}
+                      />
+                      {pt.name}
+                    </label>
+                  ))}
+                  <label style={{
+                    display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0',
+                    borderTop: '1px solid #f4f4f4', fontSize: '13px', cursor: 'pointer'
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={form.allowDropIn}
+                      onChange={e => update('allowDropIn', e.target.checked)}
+                    />
+                    Allow drop-in payment
+                  </label>
+                </div>
+                {form.approvedPassTemplateIds.length === 0 && !form.allowDropIn && (
+                  <p style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '8px' }}>
+                    Select at least one option — otherwise nobody can self-book this session.
+                  </p>
+                )}
+              </Field>
+            ) : (
+              <Field label="Approved pricing options">
+                <p style={{ fontSize: '13px', color: '#666' }}>
+                  {pricingAccessRows.length === 0 ? 'No approved options configured yet.' : [
+                    ...pricingAccessRows.filter(r => r.pass_template).map(r => r.pass_template!.name),
+                    ...(pricingAccessRows.some(r => r.pricing_type === 'drop_in') ? ['Drop-in payment'] : []),
+                  ].join(', ')}
+                </p>
+              </Field>
+            )
+          )}
 
           <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Cancellation window (hours)">

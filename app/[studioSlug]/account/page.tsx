@@ -53,6 +53,16 @@ interface Pass {
   pass_template: { name: string; price: number; currency: string } | null
 }
 
+interface Payment {
+  id: string
+  payment_type: 'booking' | 'pass_purchase' | 'membership_purchase'
+  status: 'pending' | 'succeeded' | 'failed' | 'refunded' | 'partially_refunded'
+  amount: number
+  currency: string
+  refunded_amount: number
+  created_at: string
+}
+
 interface LedgerEntry {
   id: string
   movement_type: 'purchase' | 'booking_debit' | 'cancel_credit' | 'expired_forfeit' | 'promotion_credit' | 'studio_adjustment'
@@ -69,6 +79,12 @@ const movementLabels: Record<string, string> = {
   expired_forfeit: 'Expired',
   promotion_credit: 'Promotion',
   studio_adjustment: 'Studio adjustment',
+}
+
+const paymentTypeLabels: Record<string, string> = {
+  booking: 'Class booking',
+  pass_purchase: 'Pass purchase',
+  membership_purchase: 'Membership purchase',
 }
 
 const inputStyle: React.CSSProperties = {
@@ -90,6 +106,11 @@ function StatusBadge({ status }: { status: string }) {
     late_cancel: { bg: '#fdecea', color: '#8b1a1a', label: 'Late cancel' },
     no_show: { bg: '#fdecea', color: '#8b1a1a', label: 'No-show' },
     waitlisted: { bg: '#fff3cd', color: '#7a4f00', label: 'Waitlisted' },
+    pending: { bg: '#fff3cd', color: '#7a4f00', label: 'Pending' },
+    succeeded: { bg: '#e8f5ee', color: '#085041', label: 'Paid' },
+    failed: { bg: '#fdecea', color: '#8b1a1a', label: 'Failed' },
+    refunded: { bg: '#f4f4f4', color: '#666', label: 'Refunded' },
+    partially_refunded: { bg: '#f4f4f4', color: '#666', label: 'Partially refunded' },
   }
   const s = map[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
   return (
@@ -134,12 +155,15 @@ export default function MemberAccountPage() {
   const [studioNotFound, setStudioNotFound] = useState(false)
   const [portalError, setPortalError] = useState('')
 
-  const [tab, setTab] = useState<'profile' | 'bookings' | 'passes' | 'credits'>('profile')
+  const [tab, setTab] = useState<'profile' | 'bookings' | 'passes' | 'credits' | 'payments'>('profile')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [passes, setPasses] = useState<Pass[]>([])
   const [ledger, setLedger] = useState<LedgerEntry[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
   const [dataLoading, setDataLoading] = useState(false)
+  const [downloadingReceiptId, setDownloadingReceiptId] = useState('')
+  const [receiptError, setReceiptError] = useState('')
 
   const [profileForm, setProfileForm] = useState({
     full_name: '', phone: '', date_of_birth: '', emergency_contact_name: '',
@@ -197,12 +221,13 @@ export default function MemberAccountPage() {
     const loadAll = async () => {
       setDataLoading(true)
       try {
-        const [orgRes, profileRes, bookingsRes, passesRes, ledgerRes] = await Promise.all([
+        const [orgRes, profileRes, bookingsRes, passesRes, ledgerRes, paymentsRes] = await Promise.all([
           fetch(`${apiUrl}/api/organisations/${orgId}`, { headers: { Authorization: `Bearer ${accessToken}` } }),
           authedFetch('/members/me'),
           authedFetch('/members/me/bookings'),
           authedFetch('/members/me/passes'),
           authedFetch('/members/me/ledger'),
+          authedFetch('/members/me/payments'),
         ])
         if (orgRes.ok) setOrg(await orgRes.json())
         if (profileRes.ok) {
@@ -222,6 +247,7 @@ export default function MemberAccountPage() {
         if (bookingsRes.ok) setBookings(await bookingsRes.json())
         if (passesRes.ok) setPasses(await passesRes.json())
         if (ledgerRes.ok) setLedger(await ledgerRes.json())
+        if (paymentsRes.ok) setPayments(await paymentsRes.json())
       } catch {
         setPortalError("Couldn't load your account data. Please refresh and try again.")
       } finally {
@@ -266,6 +292,12 @@ export default function MemberAccountPage() {
     setAuthBusy(false)
   }
 
+  const handleAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (authMode === 'signin') handleSignIn()
+    else handleSignUp()
+  }
+
   const handleSaveProfile = async () => {
     setSavingProfile(true)
     setProfileSaved(false)
@@ -306,6 +338,28 @@ export default function MemberAccountPage() {
       setCancelError("Couldn't reach the server. Please try again.")
     } finally {
       setCancellingId('')
+    }
+  }
+
+  const handleDownloadReceipt = async (paymentId: string) => {
+    setDownloadingReceiptId(paymentId)
+    setReceiptError('')
+    try {
+      const res = await authedFetch(`/members/me/payments/${paymentId}/receipt`)
+      if (!res.ok) { setReceiptError("Couldn't download this receipt."); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `receipt-${paymentId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      setReceiptError("Couldn't reach the server. Please try again.")
+    } finally {
+      setDownloadingReceiptId('')
     }
   }
 
@@ -354,7 +408,7 @@ export default function MemberAccountPage() {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {authMode === 'signup' && (
               <div>
                 <label style={labelStyle}>Full name</label>
@@ -377,7 +431,7 @@ export default function MemberAccountPage() {
             </div>
 
             <button
-              onClick={authMode === 'signin' ? handleSignIn : handleSignUp}
+              type="submit"
               disabled={authBusy}
               style={{
                 padding: '12px', backgroundColor: authBusy ? '#9fd6b8' : brand, color: 'white', border: 'none',
@@ -399,12 +453,12 @@ export default function MemberAccountPage() {
 
             <p style={{ textAlign: 'center', fontSize: '13px', color: '#666', marginTop: '4px' }}>
               {authMode === 'signin' ? (
-                <>New here? <button onClick={() => { setAuthMode('signup'); setAuthMessage('') }} style={{ background: 'none', border: 'none', color: brand, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Create an account</button></>
+                <>New here? <button type="button" onClick={() => { setAuthMode('signup'); setAuthMessage('') }} style={{ background: 'none', border: 'none', color: brand, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Create an account</button></>
               ) : (
-                <>Already have an account? <button onClick={() => { setAuthMode('signin'); setAuthMessage('') }} style={{ background: 'none', border: 'none', color: brand, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Sign in</button></>
+                <>Already have an account? <button type="button" onClick={() => { setAuthMode('signin'); setAuthMessage('') }} style={{ background: 'none', border: 'none', color: brand, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Sign in</button></>
               )}
             </p>
-          </div>
+          </form>
         </div>
       </div>
     )
@@ -432,13 +486,13 @@ export default function MemberAccountPage() {
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '24px' }}>
         <div className={styles.tabs}>
-          {(['profile', 'bookings', 'passes', 'credits'] as const).map(t => (
+          {(['profile', 'bookings', 'passes', 'credits', 'payments'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`${styles.tabButton} ${tab === t ? styles.tabButtonActive : ''}`}
             >
-              {t === 'profile' ? 'Profile' : t === 'bookings' ? 'My bookings' : t === 'passes' ? 'My passes' : 'Credit history'}
+              {t === 'profile' ? 'Profile' : t === 'bookings' ? 'My bookings' : t === 'passes' ? 'My passes' : t === 'credits' ? 'Credit history' : 'Payments'}
             </button>
           ))}
         </div>
@@ -606,6 +660,51 @@ export default function MemberAccountPage() {
                         {entry.credits_delta >= 0 ? '+' : ''}{entry.credits_delta}
                       </div>
                       <div style={{ fontSize: '11px', color: '#999' }}>balance: {entry.credits_after}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {tab === 'payments' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {receiptError && (
+                  <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                    {receiptError}
+                  </div>
+                )}
+                {payments.length === 0 ? (
+                  <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
+                    No payments yet.
+                  </div>
+                ) : payments.map(p => (
+                  <div key={p.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+                        {paymentTypeLabels[p.payment_type] ?? p.payment_type}
+                        <span style={{ fontWeight: 400, color: '#999', marginLeft: '8px' }}>{formatMoney(p.amount, p.currency)}</span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#666' }}>{new Date(p.created_at).toLocaleString()}</div>
+                      {p.refunded_amount > 0 && (
+                        <div style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '2px' }}>
+                          {p.status === 'refunded' ? 'Fully refunded' : `Refunded ${formatMoney(p.refunded_amount, p.currency)}`}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <StatusBadge status={p.status} />
+                      {p.status === 'succeeded' && (
+                        <button
+                          onClick={() => handleDownloadReceipt(p.id)}
+                          disabled={downloadingReceiptId === p.id}
+                          style={{
+                            padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
+                            borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#444'
+                          }}
+                        >
+                          {downloadingReceiptId === p.id ? 'Downloading...' : 'Download receipt'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

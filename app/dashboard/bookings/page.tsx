@@ -60,6 +60,9 @@ interface Booking {
   booked_mode: 'in_person' | 'online'
   status: 'confirmed' | 'attended' | 'cancelled' | 'late_cancel' | 'no_show' | 'waitlisted'
   payment_type?: 'card' | 'pass' | 'membership' | 'admin_waived' | 'free'
+  payment_id?: string | null
+  amount_paid?: number | null
+  currency?: string
   booked_at?: string
   user?: Member | null
   member_name?: string
@@ -162,6 +165,12 @@ function BookingsPageContent() {
   const [manageError, setManageError] = useState('')
   const [manageBusy, setManageBusy] = useState(false)
   const [cancellingOccurrence, setCancellingOccurrence] = useState(false)
+
+  const [refundTarget, setRefundTarget] = useState<Booking | null>(null)
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refundReason, setRefundReason] = useState('')
+  const [refundBusy, setRefundBusy] = useState(false)
+  const [refundError, setRefundError] = useState('')
 
   const [showAddBooking, setShowAddBooking] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
@@ -279,6 +288,36 @@ function BookingsPageContent() {
       setManageError(data?.error ?? 'Could not cancel this booking.')
     }
     setManageBusy(false)
+  }
+
+  const openRefund = (b: Booking) => {
+    setRefundTarget(b)
+    setRefundAmount(b.amount_paid != null ? b.amount_paid.toString() : '')
+    setRefundReason('')
+    setRefundError('')
+  }
+
+  const handleIssueRefund = async () => {
+    if (!refundTarget) return
+    const amount = parseFloat(refundAmount)
+    if (!amount || amount <= 0) { setRefundError('Enter a refund amount greater than zero.'); return }
+    if (!refundReason.trim()) { setRefundError('A reason is required.'); return }
+
+    setRefundBusy(true)
+    setRefundError('')
+    const res = await authedFetch(`/bookings/${refundTarget.id}/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, reason: refundReason })
+    })
+    if (res.ok) {
+      setRefundTarget(null)
+      if (managingOccurrence) await refreshRoster(managingOccurrence.id)
+    } else {
+      const data = await res.json().catch(() => null)
+      setRefundError(data?.error ?? 'Could not issue this refund.')
+    }
+    setRefundBusy(false)
   }
 
   const handleCancelOccurrence = async () => {
@@ -735,11 +774,105 @@ function BookingsPageContent() {
                           )}
                         </>
                       )}
+                      {b.payment_type === 'card' && canManageBookings(roles) && (
+                        <button onClick={() => openRefund(b)} disabled={manageBusy} style={{
+                          padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2', borderRadius: '6px',
+                          fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
+                        }}>
+                          Refund
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Refund modal */}
+      {refundTarget && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: '24px'
+        }}>
+          <div style={{
+            backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
+            maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Issue refund</h2>
+              <button
+                onClick={() => setRefundTarget(null)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+              {refundTarget.user?.full_name ?? refundTarget.member_name ?? 'This member'} paid{' '}
+              {refundTarget.amount_paid != null
+                ? formatMoney(refundTarget.amount_paid, refundTarget.currency ?? 'AUD')
+                : 'by card'} for this booking. Partial refunds are allowed; the amount can't exceed what's left unrefunded.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Refund amount</label>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={refundAmount}
+                  onChange={e => setRefundAmount(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
+                    fontSize: '14px', outline: 'none', backgroundColor: 'white'
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Reason</label>
+                <textarea
+                  value={refundReason}
+                  onChange={e => setRefundReason(e.target.value)}
+                  placeholder="e.g. Goodwill refund for a late cancellation"
+                  style={{
+                    width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
+                    fontSize: '14px', outline: 'none', backgroundColor: 'white', minHeight: '80px', resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              {refundError && (
+                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                  {refundError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <button
+                  onClick={() => setRefundTarget(null)}
+                  style={{
+                    flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
+                    borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#444'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleIssueRefund}
+                  disabled={refundBusy}
+                  style={{
+                    flex: 1, padding: '10px', backgroundColor: refundBusy ? '#9fd6b8' : '#085041', color: 'white',
+                    border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                    cursor: refundBusy ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {refundBusy ? 'Issuing...' : 'Issue refund'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
