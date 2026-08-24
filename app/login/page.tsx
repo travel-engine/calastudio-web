@@ -12,7 +12,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const handleLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
     const supabase = createClient()
 
@@ -77,7 +78,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
               Email address
@@ -119,7 +120,7 @@ export default function LoginPage() {
           </div>
 
           <button
-            onClick={handleLogin}
+            type="submit"
             disabled={loading}
             style={{
               width: '100%',
@@ -156,7 +157,7 @@ export default function LoginPage() {
               Start free
             </Link>
           </p>
-        </div>
+        </form>
       </div>
     </div>
   )

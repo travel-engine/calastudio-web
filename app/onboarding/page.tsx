@@ -35,7 +35,7 @@ function Label({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+function Input({ style, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
@@ -46,7 +46,8 @@ function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
         borderRadius: '8px',
         fontSize: '14px',
         outline: 'none',
-        backgroundColor: 'white'
+        backgroundColor: 'white',
+        ...style
       }}
     />
   )
