@@ -53,7 +53,7 @@ export interface ConfirmedBooking {
 // mode, signs in, then pays (drop-in card, pass purchase, or an already-usable pass) or just
 // confirms for free/pass-covered sessions. Central store per calastudio-web CLAUDE.md's "booking
 // flow state goes in zustand, not prop-drilled or duplicated per step" convention.
-export type BookingStep = 'mode' | 'auth' | 'options' | 'confirming' | 'success' | 'error'
+export type BookingStep = 'mode' | 'auth' | 'agreements' | 'options' | 'confirming' | 'success' | 'error'
 
 interface BookingFlowState {
   studioSlug: string | null

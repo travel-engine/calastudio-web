@@ -47,14 +47,57 @@ export default function BookingDrawer() {
   const [purchaseBusyId, setPurchaseBusyId] = useState('')
   const [confirmingLabel, setConfirmingLabel] = useState('Confirming your booking...')
 
+  // Terms & Liability Waiver acceptance — either shown as part of first-time registration, or as a
+  // recovery step when an existing member's accepted waiver has gone stale since they last booked.
+  const [waiverInfo, setWaiverInfo] = useState<{ required: boolean; version: number; text: string | null } | null>(null)
+  const [waiverLoading, setWaiverLoading] = useState(false)
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [agreeWaiver, setAgreeWaiver] = useState(false)
+  const [agreementsContext, setAgreementsContext] = useState<'register' | 'booking'>('register')
+  const [agreementsBusy, setAgreementsBusy] = useState(false)
+  const [agreementsError, setAgreementsError] = useState('')
+  // What to retry after acceptance — a discriminant rather than a stored callback, since a callback
+  // captured at failure time would close over that render's (possibly stale) agreeTerms/agreeWaiver
+  // instead of what the member actually just checked.
+  const [pendingRetryKind, setPendingRetryKind] = useState<'register' | 'confirm-booking' | 'drop-in-payment' | null>(null)
+  const [pendingToken, setPendingToken] = useState('')
+
+  const isWaiverOrTermsError = (message: string) =>
+    message.includes('Terms & Conditions') || message.includes('Liability Waiver') || message.includes('liability waiver')
+
+  const loadWaiverInfo = async () => {
+    if (!studioSlug) return
+    setWaiverLoading(true)
+    try {
+      const res = await fetch(`${apiUrl}/api/public/${studioSlug}/liability-waiver`)
+      if (res.ok) setWaiverInfo(await res.json())
+    } finally {
+      setWaiverLoading(false)
+    }
+  }
+
   const resolveAuth = async (token: string) => {
     if (!occurrence || !studioSlug) return
     const registerRes = await fetch(`${apiUrl}/api/public/${studioSlug}/members/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ full_name: fullName || null, phone: null })
+      body: JSON.stringify({ full_name: fullName || null, phone: null, accept_terms: agreeTerms, accept_waiver: agreeWaiver })
     })
-    if (!registerRes.ok) { setError("Couldn't sign you in to this studio. Please try again."); return }
+    if (!registerRes.ok) {
+      const data = await registerRes.json().catch(() => null)
+      const message: string = data?.error ?? ''
+      if (isWaiverOrTermsError(message)) {
+        await loadWaiverInfo()
+        setAgreementsContext('register')
+        setAgreementsError(message)
+        setPendingToken(token)
+        setPendingRetryKind('register')
+        setStep('agreements')
+        return
+      }
+      setError(message || "Couldn't sign you in to this studio. Please try again.")
+      return
+    }
     const member = await registerRes.json()
 
     const orgRes = await fetch(`${apiUrl}/api/organisations/${member.organisation_id}`, {
@@ -64,6 +107,25 @@ export default function BookingDrawer() {
 
     setAuth({ accessToken: token, orgId: member.organisation_id, stripeAccountId: org?.stripe_account_id ?? null })
     setStep('options')
+  }
+
+  const handleAcceptAgreements = async () => {
+    setAgreementsError('')
+    setAgreementsBusy(true)
+    try {
+      if (agreementsContext === 'booking') {
+        const res = await fetch(`${apiUrl}/api/organisations/${orgId}/liability-waiver/accept`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
+        if (!res.ok) { setAgreementsError("Couldn't record your acceptance. Please try again."); return }
+      }
+      if (pendingRetryKind === 'register') await resolveAuth(pendingToken)
+      else if (pendingRetryKind === 'confirm-booking') await handleConfirmBooking()
+      else if (pendingRetryKind === 'drop-in-payment') await startDropInPayment()
+    } finally {
+      setAgreementsBusy(false)
+    }
   }
 
   // Whenever the drawer reaches the auth step, first check for an already-signed-in member so
@@ -157,7 +219,16 @@ export default function BookingDrawer() {
         })
         setStep('options')
       } else {
-        setError(data?.error ?? "Couldn't complete your booking. Please try again.")
+        const message: string = data?.error ?? ''
+        if (isWaiverOrTermsError(message)) {
+          await loadWaiverInfo()
+          setAgreementsContext('booking')
+          setAgreementsError('')
+          setPendingRetryKind('confirm-booking')
+          setStep('agreements')
+          return
+        }
+        setError(message || "Couldn't complete your booking. Please try again.")
       }
     } catch {
       setError("Couldn't reach the server. Please try again.")
@@ -211,7 +282,19 @@ export default function BookingDrawer() {
         body: JSON.stringify({ session_occurrence_id: occurrence.occurrence_id, booked_mode: bookedMode })
       })
       const data = await res.json().catch(() => null)
-      if (!res.ok) { setNote(data?.error ?? "Couldn't start payment. Please try again."); return }
+      if (!res.ok) {
+        const message: string = data?.error ?? ''
+        if (isWaiverOrTermsError(message)) {
+          await loadWaiverInfo()
+          setAgreementsContext('booking')
+          setAgreementsError('')
+          setPendingRetryKind('drop-in-payment')
+          setStep('agreements')
+          return
+        }
+        setNote(message || "Couldn't start payment. Please try again.")
+        return
+      }
       setDropInSecret(data.client_secret)
     } finally {
       setDropInBusy(false)
@@ -338,6 +421,69 @@ export default function BookingDrawer() {
                   )}
                 </p>
               </form>
+            </div>
+          )
+        )}
+
+        {step === 'agreements' && (
+          waiverLoading ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>Loading...</div>
+          ) : (
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>
+                {agreementsContext === 'register' ? 'Before you continue' : "This studio's waiver has changed"}
+              </h3>
+              <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
+                {agreementsContext === 'register'
+                  ? 'Please review and accept the following to finish signing up.'
+                  : 'Please review and re-accept the liability waiver to continue booking.'}
+              </p>
+
+              {waiverInfo?.text && (
+                <div style={{
+                  border: '1px solid #e2e2e2', borderRadius: '8px', padding: '14px', marginBottom: '16px',
+                  maxHeight: '160px', overflowY: 'auto', fontSize: '13px', color: '#444', whiteSpace: 'pre-wrap'
+                }}>
+                  {waiverInfo.text}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {agreementsContext === 'register' && (
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} style={{ marginTop: '2px' }} />
+                    I accept the Terms &amp; Conditions
+                  </label>
+                )}
+                {waiverInfo?.required && (
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={agreeWaiver} onChange={e => setAgreeWaiver(e.target.checked)} style={{ marginTop: '2px' }} />
+                    I accept the Liability Waiver
+                  </label>
+                )}
+              </div>
+
+              {agreementsError && (
+                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginTop: '16px' }}>
+                  {agreementsError}
+                </div>
+              )}
+
+              <button
+                onClick={handleAcceptAgreements}
+                disabled={
+                  agreementsBusy ||
+                  (agreementsContext === 'register' && !agreeTerms) ||
+                  (!!waiverInfo?.required && !agreeWaiver)
+                }
+                style={{
+                  ...confirmButtonStyle(brandColor), marginTop: '16px',
+                  opacity: agreementsBusy || (agreementsContext === 'register' && !agreeTerms) || (!!waiverInfo?.required && !agreeWaiver) ? 0.6 : 1,
+                  cursor: agreementsBusy ? 'default' : 'pointer'
+                }}
+              >
+                {agreementsBusy ? 'Please wait...' : 'Accept & continue'}
+              </button>
             </div>
           )
         )}

@@ -174,6 +174,17 @@ export default function MemberAccountPage() {
   const [cancellingId, setCancellingId] = useState('')
   const [cancelError, setCancelError] = useState('')
 
+  // Terms & Liability Waiver acceptance — only surfaced when registering with this studio for the
+  // first time fails because it hasn't been accepted yet.
+  const [needsAgreements, setNeedsAgreements] = useState(false)
+  const [waiverInfo, setWaiverInfo] = useState<{ required: boolean; version: number; text: string | null } | null>(null)
+  const [waiverLoading, setWaiverLoading] = useState(false)
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [agreeWaiver, setAgreeWaiver] = useState(false)
+  const [agreementsBusy, setAgreementsBusy] = useState(false)
+  const [agreementsError, setAgreementsError] = useState('')
+  const [pendingAuth, setPendingAuth] = useState<{ token: string; meta: { fullName?: string; phone?: string } } | null>(null)
+
   const authedFetch = useCallback((path: string, init?: RequestInit) =>
     fetch(`${apiUrl}/api/organisations/${orgId}${path}`, {
       ...init,
@@ -185,16 +196,48 @@ export default function MemberAccountPage() {
       const res = await fetch(`${apiUrl}/api/public/${studioSlug}/members/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ full_name: meta.fullName ?? '', phone: meta.phone || null })
+        body: JSON.stringify({
+          full_name: meta.fullName ?? '', phone: meta.phone || null,
+          accept_terms: agreeTerms, accept_waiver: agreeWaiver,
+        })
       })
       if (res.status === 404) { setStudioNotFound(true); return }
-      if (!res.ok) { setPortalError("Couldn't sign you in to this studio. Please try again."); return }
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        const message: string = data?.error ?? ''
+        if (message.includes('Terms & Conditions') || message.includes('Liability Waiver')) {
+          setWaiverLoading(true)
+          try {
+            const waiverRes = await fetch(`${apiUrl}/api/public/${studioSlug}/liability-waiver`)
+            if (waiverRes.ok) setWaiverInfo(await waiverRes.json())
+          } finally {
+            setWaiverLoading(false)
+          }
+          setPendingAuth({ token, meta })
+          setAgreementsError('')
+          setNeedsAgreements(true)
+          return
+        }
+        setPortalError("Couldn't sign you in to this studio. Please try again.")
+        return
+      }
       const member = await res.json()
+      setNeedsAgreements(false)
       setOrgId(member.organisation_id)
     } catch {
       setPortalError("Couldn't reach the server. Please check your connection and try again.")
     }
-  }, [apiUrl, studioSlug])
+  }, [apiUrl, studioSlug, agreeTerms, agreeWaiver])
+
+  const handleAcceptAgreements = async () => {
+    if (!pendingAuth) return
+    setAgreementsBusy(true)
+    try {
+      await resolveMembership(pendingAuth.token, pendingAuth.meta)
+    } finally {
+      setAgreementsBusy(false)
+    }
+  }
 
   // Initial auth check — resume an existing session (including one just verified via /auth/callback)
   useEffect(() => {
@@ -385,6 +428,67 @@ export default function MemberAccountPage() {
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Studio not found</h1>
           <p style={{ color: '#666', fontSize: '14px' }}>There's no studio at &quot;{studioSlug}&quot;.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Signed in, but this studio needs Terms/Waiver acceptance before registration completes ──
+  if (needsAgreements) {
+    const canContinue = agreeTerms && (!waiverInfo?.required || agreeWaiver)
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f4f4', padding: '24px' }}>
+        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '40px', width: '100%', maxWidth: '420px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Before you continue</h1>
+          <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
+            Please review and accept the following to finish signing up.
+          </p>
+
+          {waiverLoading ? (
+            <p style={{ color: '#666', fontSize: '14px' }}>Loading...</p>
+          ) : (
+            <>
+              {waiverInfo?.text && (
+                <div style={{
+                  border: '1px solid #e2e2e2', borderRadius: '8px', padding: '14px', marginBottom: '16px',
+                  maxHeight: '180px', overflowY: 'auto', fontSize: '13px', color: '#444', whiteSpace: 'pre-wrap'
+                }}>
+                  {waiverInfo.text}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} style={{ marginTop: '2px' }} />
+                  I accept the Terms &amp; Conditions
+                </label>
+                {waiverInfo?.required && (
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={agreeWaiver} onChange={e => setAgreeWaiver(e.target.checked)} style={{ marginTop: '2px' }} />
+                    I accept the Liability Waiver
+                  </label>
+                )}
+              </div>
+
+              {agreementsError && (
+                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
+                  {agreementsError}
+                </div>
+              )}
+
+              <button
+                onClick={handleAcceptAgreements}
+                disabled={agreementsBusy || !canContinue}
+                style={{
+                  width: '100%', padding: '12px', backgroundColor: agreementsBusy || !canContinue ? '#9fd6b8' : brand,
+                  color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 600,
+                  cursor: agreementsBusy || !canContinue ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {agreementsBusy ? 'Please wait...' : 'Accept & continue'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     )
