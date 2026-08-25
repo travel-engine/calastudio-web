@@ -54,6 +54,14 @@ interface MemberPass {
 // for front_desk/teacher_basic — denied member-profile visibility per §17.3 even on their own
 // roster — a redacted RosterEntry with name-only identification. `user`/`payment_type`/`booked_at`
 // are absent on the redacted shape; `member_name` is present only there.
+interface GuestInfo {
+  first_name: string | null
+  last_name: string | null
+  email: string | null
+  status: 'confirmed' | 'cancelled'
+  credits_used: number
+}
+
 interface Booking {
   id: string
   user_id: string
@@ -66,6 +74,15 @@ interface Booking {
   booked_at?: string
   user?: Member | null
   member_name?: string
+  guest_count?: number
+  // Raw jsonb text, not a parsed array — same "not an EF-mapped collection" shape as the backend's
+  // AuditEntry.Changes. Parse with parseGuests() below rather than indexing directly.
+  guests?: string | null
+}
+
+function parseGuests(booking: Booking): GuestInfo[] {
+  if (!booking.guests) return []
+  try { return JSON.parse(booking.guests) } catch { return [] }
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -286,6 +303,19 @@ function BookingsPageContent() {
     else {
       const data = await res.json().catch(() => null)
       setManageError(data?.error ?? 'Could not cancel this booking.')
+    }
+    setManageBusy(false)
+  }
+
+  const handleCancelGuest = async (bookingId: string, guestIndex: number, guestLabel: string) => {
+    if (!confirm(`Cancel ${guestLabel}'s spot? The member's own booking stays confirmed.`)) return
+    setManageBusy(true)
+    setManageError('')
+    const res = await authedFetch(`/bookings/${bookingId}/guests/${guestIndex}/cancel`, { method: 'POST' })
+    if (res.ok) await refreshRoster(managingOccurrence!.id)
+    else {
+      const data = await res.json().catch(() => null)
+      setManageError(data?.error ?? "Couldn't cancel this guest.")
     }
     setManageBusy(false)
   }
@@ -732,59 +762,89 @@ function BookingsPageContent() {
               <p style={{ fontSize: '13px', color: '#666' }}>No one's booked in yet.</p>
             ) : (
               <div>
-                {bookings.map((b, i) => (
+                {bookings.map((b, i) => {
+                  const guests = parseGuests(b)
+                  return (
                   <div key={b.id} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '10px 0', borderBottom: i < bookings.length - 1 ? '1px solid #f4f4f4' : 'none'
                   }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{b.user?.full_name ?? b.member_name ?? 'Unknown member'}</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>
-                        {b.user?.email && `${b.user.email} · `}{b.booked_mode.replace('_', ' ')}
-                        {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{b.user?.full_name ?? b.member_name ?? 'Unknown member'}</div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          {b.user?.email && `${b.user.email} · `}{b.booked_mode.replace('_', ' ')}
+                          {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
+                          {!!b.guest_count && ` · +${b.guest_count} guest${b.guest_count > 1 ? 's' : ''}`}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <BookingStatusBadge status={b.status} />
+                        {b.status === 'confirmed' && (
+                          <>
+                            {canMarkAttended(roles) && (
+                              <button onClick={() => handleMarkAttended(b.id)} disabled={manageBusy} style={{
+                                padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
+                                fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
+                              }}>
+                                Attended
+                              </button>
+                            )}
+                            {canMarkNoShow(roles) && (
+                              <button onClick={() => handleMarkNoShow(b.id)} disabled={manageBusy} style={{
+                                padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
+                                fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
+                              }}>
+                                No-show
+                              </button>
+                            )}
+                            {canManageBookings(roles) && (
+                              <button onClick={() => handleCancelBooking(b.id)} disabled={manageBusy} style={{
+                                padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #fdecea', borderRadius: '6px',
+                                fontSize: '11px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
+                              }}>
+                                Cancel
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {b.payment_type === 'card' && canManageBookings(roles) && (
+                          <button onClick={() => openRefund(b)} disabled={manageBusy} style={{
+                            padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2', borderRadius: '6px',
+                            fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
+                          }}>
+                            Refund
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <BookingStatusBadge status={b.status} />
-                      {b.status === 'confirmed' && (
-                        <>
-                          {canMarkAttended(roles) && (
-                            <button onClick={() => handleMarkAttended(b.id)} disabled={manageBusy} style={{
-                              padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
-                              fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
+
+                    {guests.length > 0 && (
+                      <div style={{ marginTop: '8px', paddingLeft: '14px', borderLeft: '2px solid #f4f4f4' }}>
+                        {guests.map((g, gi) => {
+                          const guestLabel = [g.first_name, g.last_name].filter(Boolean).join(' ') || `Guest ${gi + 1}`
+                          return (
+                            <div key={gi} style={{
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '12px'
                             }}>
-                              Attended
-                            </button>
-                          )}
-                          {canMarkNoShow(roles) && (
-                            <button onClick={() => handleMarkNoShow(b.id)} disabled={manageBusy} style={{
-                              padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
-                              fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
-                            }}>
-                              No-show
-                            </button>
-                          )}
-                          {canManageBookings(roles) && (
-                            <button onClick={() => handleCancelBooking(b.id)} disabled={manageBusy} style={{
-                              padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #fdecea', borderRadius: '6px',
-                              fontSize: '11px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
-                            }}>
-                              Cancel
-                            </button>
-                          )}
-                        </>
-                      )}
-                      {b.payment_type === 'card' && canManageBookings(roles) && (
-                        <button onClick={() => openRefund(b)} disabled={manageBusy} style={{
-                          padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2', borderRadius: '6px',
-                          fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
-                        }}>
-                          Refund
-                        </button>
-                      )}
-                    </div>
+                              <div style={{ color: g.status === 'cancelled' ? '#999' : '#666' }}>
+                                {guestLabel}{g.status === 'cancelled' && ' · Cancelled'}
+                              </div>
+                              {g.status === 'confirmed' && b.status === 'confirmed' && canManageBookings(roles) && (
+                                <button onClick={() => handleCancelGuest(b.id, gi, guestLabel)} disabled={manageBusy} style={{
+                                  padding: '3px 8px', backgroundColor: 'transparent', border: '1px solid #fdecea', borderRadius: '5px',
+                                  fontSize: '10px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
+                                }}>
+                                  Cancel
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

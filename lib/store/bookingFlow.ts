@@ -42,6 +42,8 @@ export interface BookingOptions {
   usable_pass_id: string | null
   usable_pass_name: string | null
   purchasable_pass_templates: PassTemplateOption[] | null
+  guest_bookings_enabled: boolean
+  guest_max_per_booking: number
 }
 
 export interface ConfirmedBooking {

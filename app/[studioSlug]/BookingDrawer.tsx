@@ -40,6 +40,13 @@ export default function BookingDrawer() {
 
   const [optionsLoading, setOptionsLoading] = useState(false)
   const [note, setNote] = useState('')
+  const [alreadyBooked, setAlreadyBooked] = useState(false)
+
+  // Guests — only honored by the free/pass-credit booking path (BookWithSuitablePassAsync); the
+  // backend rejects a nonzero guest_count outright on the drop-in card payment-intent endpoint.
+  // No per-guest name/email collection — each guest is just labelled "{member name} - Guest N".
+  const [guestCount, setGuestCount] = useState(0)
+  const [memberName, setMemberName] = useState('')
 
   const [dropInSecret, setDropInSecret] = useState<string | null>(null)
   const [dropInBusy, setDropInBusy] = useState(false)
@@ -100,10 +107,12 @@ export default function BookingDrawer() {
     }
     const member = await registerRes.json()
 
-    const orgRes = await fetch(`${apiUrl}/api/organisations/${member.organisation_id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const [orgRes, profileRes] = await Promise.all([
+      fetch(`${apiUrl}/api/organisations/${member.organisation_id}`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${apiUrl}/api/organisations/${member.organisation_id}/members/me`, { headers: { Authorization: `Bearer ${token}` } }),
+    ])
     const org = orgRes.ok ? await orgRes.json() : null
+    if (profileRes.ok) setMemberName((await profileRes.json()).full_name ?? '')
 
     setAuth({ accessToken: token, orgId: member.organisation_id, stripeAccountId: org?.stripe_account_id ?? null })
     setStep('options')
@@ -146,23 +155,41 @@ export default function BookingDrawer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, occurrence?.occurrence_id])
 
-  // Load booking-options once we reach the payment step for this occurrence.
+  // Load booking-options once we reach the payment step for this occurrence — and, for a signed-in
+  // member, check their own bookings first. booking-options itself doesn't know about the caller's
+  // existing bookings, so without this a member re-clicking "Book" on a session they're already
+  // confirmed into would walk straight into the payment step with no indication of that.
   useEffect(() => {
     if (step !== 'options' || !occurrence || !studioSlug) return
     let cancelled = false
     setOptionsLoading(true)
     setNote('')
-    fetch(`${apiUrl}/api/public/${studioSlug}/occurrences/${occurrence.occurrence_id}/booking-options`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
-    }).then(async res => {
+    setAlreadyBooked(false)
+    setGuestCount(0)
+    Promise.all([
+      fetch(`${apiUrl}/api/public/${studioSlug}/occurrences/${occurrence.occurrence_id}/booking-options`, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+      }),
+      accessToken && orgId
+        ? fetch(`${apiUrl}/api/organisations/${orgId}/members/me/bookings`, { headers: { Authorization: `Bearer ${accessToken}` } })
+        : Promise.resolve(null),
+    ]).then(async ([optionsRes, bookingsRes]) => {
       if (cancelled) return
-      if (!res.ok) { setError("Couldn't load pricing options for this class."); return }
-      const data = await res.json()
+      if (!optionsRes.ok) { setError("Couldn't load pricing options for this class."); return }
+
+      if (bookingsRes?.ok) {
+        const bookings = await bookingsRes.json()
+        const existing = bookings.some((b: any) =>
+          b.status === 'confirmed' && b.session_occurrence_id === occurrence.occurrence_id)
+        if (existing) { setAlreadyBooked(true); return }
+      }
+
+      const data = await optionsRes.json()
       setBookingOptions(data)
     }).finally(() => { if (!cancelled) setOptionsLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, occurrence?.occurrence_id, accessToken])
+  }, [step, occurrence?.occurrence_id, accessToken, orgId])
 
   if (!occurrence) return null
 
@@ -201,10 +228,18 @@ export default function BookingDrawer() {
     setConfirmingLabel('Confirming your booking...')
     setStep('confirming')
     try {
+      const guestLabel = memberName || 'Member'
       const res = await fetch(`${apiUrl}/api/organisations/${orgId}/members/me/bookings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ session_occurrence_id: occurrence.occurrence_id, booked_mode: bookedMode })
+        body: JSON.stringify({
+          session_occurrence_id: occurrence.occurrence_id,
+          booked_mode: bookedMode,
+          guest_count: guestCount,
+          guests: Array.from({ length: guestCount }, (_, i) => ({
+            first_name: `${guestLabel} - Guest ${i + 1}`, last_name: null, email: null,
+          })),
+        })
       })
       const data = await res.json().catch(() => null)
       if (res.ok && data?.booked) {
@@ -324,6 +359,32 @@ export default function BookingDrawer() {
   }
 
   const modeLabel = (m: 'in_person' | 'online') => m === 'online' ? 'Online' : 'In-person'
+
+  const renderGuestSelector = () => {
+    if (!bookingOptions?.guest_bookings_enabled || bookingOptions.guest_max_per_booking <= 0) return null
+
+    const spotsRemaining = bookedMode === 'online' ? occurrence!.spots_remaining_online : occurrence!.spots_remaining_inperson
+    const spotsCap = spotsRemaining === null ? bookingOptions.guest_max_per_booking : Math.max(0, spotsRemaining - 1)
+    const maxGuests = Math.min(bookingOptions.guest_max_per_booking, spotsCap)
+    if (maxGuests <= 0) return null
+
+    return (
+      <div className={styles.optionCard}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontWeight: 600, fontSize: '14px' }}>Bringing guests?</div>
+          <select
+            value={guestCount}
+            onChange={e => setGuestCount(parseInt(e.target.value))}
+            style={{ padding: '6px 10px', border: '1px solid #e2e2e2', borderRadius: '6px', fontSize: '13px' }}
+          >
+            {Array.from({ length: maxGuests + 1 }, (_, n) => (
+              <option key={n} value={n}>{n === 0 ? 'No guests' : `${n} guest${n > 1 ? 's' : ''}`}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.overlay} onClick={close}>
@@ -489,7 +550,23 @@ export default function BookingDrawer() {
         )}
 
         {step === 'options' && (
-          optionsLoading || !bookingOptions ? (
+          optionsLoading ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>Loading options...</div>
+          ) : alreadyBooked ? (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>✓</div>
+              <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>You&apos;re already booked in</div>
+              <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+                You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
+              </p>
+              <a
+                href={`/${studioSlug}/account`}
+                style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: brandColor, color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
+              >
+                View my bookings
+              </a>
+            </div>
+          ) : !bookingOptions ? (
             <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>Loading options...</div>
           ) : (
             <div>
@@ -506,7 +583,10 @@ export default function BookingDrawer() {
               {bookingOptions.is_free ? (
                 <div>
                   <p style={{ fontSize: '14px', color: '#444', marginBottom: '16px' }}>This class is free — no payment required.</p>
-                  <button onClick={handleConfirmBooking} style={confirmButtonStyle(brandColor)}>Confirm booking</button>
+                  {renderGuestSelector()}
+                  <button onClick={handleConfirmBooking} style={{ ...confirmButtonStyle(brandColor), marginTop: '12px' }}>
+                    Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
+                  </button>
                 </div>
               ) : bookingOptions.usable_pass_id ? (
                 <div>
@@ -514,7 +594,10 @@ export default function BookingDrawer() {
                     <div style={{ fontWeight: 600, fontSize: '14px' }}>Using your pass</div>
                     <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>{bookingOptions.usable_pass_name}</div>
                   </div>
-                  <button onClick={handleConfirmBooking} style={confirmButtonStyle(brandColor)}>Confirm booking</button>
+                  {renderGuestSelector()}
+                  <button onClick={handleConfirmBooking} style={{ ...confirmButtonStyle(brandColor), marginTop: '12px' }}>
+                    Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
+                  </button>
                 </div>
               ) : (
                 <div>
