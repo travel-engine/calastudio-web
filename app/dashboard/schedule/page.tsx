@@ -12,10 +12,26 @@ interface Occurrence {
   id: string
   starts_at: string
   status: 'scheduled' | 'cancelled' | 'completed'
+  capacity_inperson: number | null
+  capacity_online: number | null
+  booked_inperson: number
+  booked_online: number
   session: {
     name: string
     delivery_mode: 'in_person' | 'online' | 'hybrid'
+    capacity_inperson: number | null
+    capacity_online: number | null
   } | null
+}
+
+// Occurrence-level capacity overrides the session template's; null on both means uncapped, in
+// which case there's no denominator to show — just the raw booked count.
+function occupancy(occ: Occurrence) {
+  const capInperson = occ.capacity_inperson ?? occ.session?.capacity_inperson ?? null
+  const capOnline = occ.capacity_online ?? occ.session?.capacity_online ?? null
+  const booked = occ.booked_inperson + occ.booked_online
+  if (capInperson === null && capOnline === null) return { booked, capacity: null }
+  return { booked, capacity: (capInperson ?? 0) + (capOnline ?? 0) }
 }
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -227,10 +243,13 @@ export default function SchedulePage() {
                         <div style={{ fontSize: '13px', color: '#ccc' }}>—</div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {dayOccurrences.map(occ => (
+                          {dayOccurrences.map(occ => {
+                            const { booked, capacity } = occupancy(occ)
+                            const isFull = capacity !== null && booked >= capacity
+                            return (
                             <a
                               key={occ.id}
-                              href={`/dashboard/bookings?occurrence=${occ.id}`}
+                              href={`/dashboard/occurrences/${occ.id}`}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '10px',
                                 padding: '8px 12px', backgroundColor: '#f4f4f4', borderRadius: '8px',
@@ -241,11 +260,19 @@ export default function SchedulePage() {
                                 {new Date(occ.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                               </span>
                               <span style={{ flex: 1 }}>{occ.session?.name ?? 'Session'}</span>
+                              <span style={{
+                                fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
+                                backgroundColor: isFull ? '#fdecea' : '#e8f5ee',
+                                color: isFull ? '#8b1a1a' : '#085041'
+                              }}>
+                                {capacity === null ? booked : `${booked}/${capacity}`}
+                              </span>
                               <span style={{ fontSize: '11px', color: '#999', textTransform: 'capitalize' }}>
                                 {occ.session?.delivery_mode.replace('_', ' ')}
                               </span>
                             </a>
-                          ))}
+                            )
+                          })}
                         </div>
                       )}
                     </div>

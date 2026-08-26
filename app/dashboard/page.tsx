@@ -19,12 +19,27 @@ interface TodayOccurrence {
   id: string
   starts_at: string
   status: 'scheduled' | 'cancelled' | 'completed'
+  capacity_inperson: number | null
+  capacity_online: number | null
+  booked_inperson: number
+  booked_online: number
   session: {
     name: string
     delivery_mode: 'in_person' | 'online' | 'hybrid'
     capacity_inperson: number | null
     capacity_online: number | null
   } | null
+}
+
+// Occurrence-level capacity overrides the session template's; null on both means uncapped, in
+// which case there's no denominator to show — just the raw booked count. Same logic as the
+// Schedule page's occupancy() — kept in sync with it.
+function occupancy(occ: TodayOccurrence) {
+  const capInperson = occ.capacity_inperson ?? occ.session?.capacity_inperson ?? null
+  const capOnline = occ.capacity_online ?? occ.session?.capacity_online ?? null
+  const booked = occ.booked_inperson + occ.booked_online
+  if (capInperson === null && capOnline === null) return { booked, capacity: null }
+  return { booked, capacity: (capInperson ?? 0) + (capOnline ?? 0) }
 }
 
 interface Activity {
@@ -70,7 +85,8 @@ function SessionCard({ occurrence }: { occurrence: TodayOccurrence }) {
   const startsAt = new Date(occurrence.starts_at)
   const time = startsAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
   const session = occurrence.session
-  const capacity = session?.delivery_mode === 'online' ? session.capacity_online : session?.capacity_inperson
+  const { booked, capacity } = occupancy(occurrence)
+  const isFull = capacity !== null && booked >= capacity
 
   return (
     <div style={{
@@ -100,17 +116,26 @@ function SessionCard({ occurrence }: { occurrence: TodayOccurrence }) {
       </div>
 
       {/* Details */}
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '2px' }}>
-          {session?.name ?? 'Session'}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '2px' }}>
+            {session?.name ?? 'Session'}
+          </div>
+          <div style={{ fontSize: '13px', color: '#666' }}>
+            {session?.delivery_mode.replace('_', ' ') ?? ''}
+          </div>
         </div>
-        <div style={{ fontSize: '13px', color: '#666' }}>
-          {session?.delivery_mode.replace('_', ' ') ?? ''}{capacity ? ` · Capacity ${capacity}` : ''}
-        </div>
+        <span style={{
+          fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
+          backgroundColor: isFull ? '#fdecea' : '#e8f5ee',
+          color: isFull ? '#8b1a1a' : '#085041'
+        }}>
+          {capacity === null ? booked : `${booked}/${capacity}`}
+        </span>
       </div>
 
       {/* Actions */}
-      <a href={`/dashboard/bookings?occurrence=${occurrence.id}`} style={{
+      <a href={`/dashboard/occurrences/${occurrence.id}`} style={{
         padding: '6px 12px',
         backgroundColor: '#f4f4f4',
         borderRadius: '6px',
