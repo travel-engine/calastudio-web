@@ -1,6 +1,7 @@
 import { getArticle, getSections, sectionNames } from '@/lib/help'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import RequireAuth from '../../../RequireAuth'
 
 interface Props {
   params: Promise<{ audience: string; section: string; slug: string }>
@@ -18,7 +19,7 @@ export default async function ArticlePage({ params }: Props) {
   const sectionArticles = sections[section] ?? []
   const audienceColor = audience === 'studio' ? '#085041' : '#1B4F8A'
 
-  return (
+  const content = (
     <div style={{ minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
 
       {/* Header */}
@@ -114,4 +115,6 @@ export default async function ArticlePage({ params }: Props) {
       `}</style>
     </div>
   )
+
+  return audience === 'studio' ? <RequireAuth>{content}</RequireAuth> : content
 }

@@ -1,5 +1,6 @@
 import { getSections, sectionNames } from '@/lib/help'
 import Link from 'next/link'
+import StudioHelpGate from './StudioHelpGate'
 
 export const metadata = {
   title: 'Help Centre — CalaStudio',
@@ -53,6 +54,7 @@ export default function HelpPage() {
           color="#085041"
           audience="studio"
           sections={studioSections}
+          gated
         />
 
         <div style={{ marginBottom: '48px' }} />
@@ -81,14 +83,42 @@ export default function HelpPage() {
   )
 }
 
-function SectionGroup({ title, description, icon, color, audience, sections }: {
+function SectionGroup({ title, description, icon, color, audience, sections, gated }: {
   title: string
   description: string
   icon: string
   color: string
   audience: string
   sections: Record<string, any[]>
+  gated?: boolean
 }) {
+  const grid = (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+      {Object.entries(sections).map(([section, articles]) => (
+        <Link
+          key={section}
+          href={`/help/${audience}/${section}`}
+          style={{ display: 'block', backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textDecoration: 'none', border: '1px solid #e2e2e2' }}
+        >
+          <div style={{ fontSize: '28px', marginBottom: '10px' }}>
+            {sectionIcons[section] ?? '📄'}
+          </div>
+          <div style={{ fontWeight: 600, fontSize: '15px', color: '#1a1a1a', marginBottom: '6px' }}>
+            {sectionNames[section] ?? section}
+          </div>
+          <div style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+            {articles.length} article{articles.length !== 1 ? 's' : ''}
+          </div>
+          {articles.slice(0, 3).map((a: any) => (
+            <div key={a.slug} style={{ fontSize: '12px', color, marginBottom: '4px' }}>
+              → {a.title}
+            </div>
+          ))}
+        </Link>
+      ))}
+    </div>
+  )
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
@@ -101,30 +131,7 @@ function SectionGroup({ title, description, icon, color, audience, sections }: {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-        {Object.entries(sections).map(([section, articles]) => (
-          <Link
-            key={section}
-            href={`/help/${audience}/${section}`}
-            style={{ display: 'block', backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textDecoration: 'none', border: '1px solid #e2e2e2' }}
-          >
-            <div style={{ fontSize: '28px', marginBottom: '10px' }}>
-              {sectionIcons[section] ?? '📄'}
-            </div>
-            <div style={{ fontWeight: 600, fontSize: '15px', color: '#1a1a1a', marginBottom: '6px' }}>
-              {sectionNames[section] ?? section}
-            </div>
-            <div style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
-              {articles.length} article{articles.length !== 1 ? 's' : ''}
-            </div>
-            {articles.slice(0, 3).map((a: any) => (
-              <div key={a.slug} style={{ fontSize: '12px', color, marginBottom: '4px' }}>
-                → {a.title}
-              </div>
-            ))}
-          </Link>
-        ))}
-      </div>
+      {gated ? <StudioHelpGate>{grid}</StudioHelpGate> : grid}
     </div>
   )
 }
