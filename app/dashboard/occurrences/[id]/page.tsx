@@ -72,6 +72,41 @@ interface Booking {
   member_name?: string
   guest_count?: number
   guests?: string | null
+  cancelled_at?: string | null
+  cancelled_by_name?: string | null
+  credits_refunded?: number | null
+  credits_refunded_at?: string | null
+  credits_refunded_by_name?: string | null
+  card_refund_amount?: number | null
+  total_credits_used?: number
+  member_pass_id?: string | null
+}
+
+function formatWhen(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+  })
+}
+
+// Cancelled/late_cancel only — absent fields (front_desk/teacher_basic's redacted roster view never
+// carries them) just render nothing rather than an empty/misleading line. Up to two history lines:
+// the cancellation itself (always, if we know it happened), then a second line for the credit
+// refund only if one actually occurred — a late-cancelled pass booking with nothing refunded yet
+// gets just the first line, matching "Refund credit" still being available for it.
+function cancellationHistory(b: Booking): string[] {
+  const lines: string[] = []
+  if (b.cancelled_at) {
+    const by = b.cancelled_by_name ? ` by ${b.cancelled_by_name}` : ''
+    lines.push(`Cancelled ${formatWhen(b.cancelled_at)}${by}`)
+  }
+  if (b.credits_refunded) {
+    const when = b.credits_refunded_at ? formatWhen(b.credits_refunded_at) : ''
+    const by = b.credits_refunded_by_name ? ` by ${b.credits_refunded_by_name}` : ''
+    lines.push(`${b.credits_refunded} credit${b.credits_refunded > 1 ? 's' : ''} refunded${when ? ` ${when}` : ''}${by}`)
+  } else if (b.card_refund_amount) {
+    lines.push(`${formatMoney(b.card_refund_amount, b.currency ?? 'AUD')} refunded`)
+  }
+  return lines
 }
 
 function parseGuests(booking: Booking): GuestInfo[] {
@@ -323,6 +358,30 @@ export default function OccurrenceDetailPage() {
     else {
       const data = await res.json().catch(() => null)
       setManageError(data?.error ?? "Couldn't cancel this guest.")
+    }
+    setManageBusy(false)
+  }
+
+  const handleRefundCredit = async (b: Booking) => {
+    if (!b.member_pass_id) return
+    const credits = b.total_credits_used ?? 1
+    const name = b.user?.full_name ?? b.member_name ?? 'this member'
+    if (!confirm(`Refund ${credits} credit${credits > 1 ? 's' : ''} to ${name}'s pass? This booking's cancellation forfeited ${credits > 1 ? 'them' : 'it'} — this manually returns ${credits > 1 ? 'them' : 'it'} anyway.`)) return
+    setManageBusy(true)
+    setManageError('')
+    const res = await authedFetch(`/member-passes/${b.member_pass_id}/adjust-credits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        delta: credits,
+        reason: 'Manual refund for a cancelled booking',
+        booking_id: b.id,
+      })
+    })
+    if (res.ok) await refreshRoster(orgId, token)
+    else {
+      const data = await res.json().catch(() => null)
+      setManageError(data?.error ?? "Couldn't refund this credit.")
     }
     setManageBusy(false)
   }
@@ -902,11 +961,25 @@ export default function OccurrenceDetailPage() {
                           {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
                           {!!b.guest_count && ` · +${b.guest_count} guest${b.guest_count > 1 ? 's' : ''}`}
                         </div>
+                        {(b.status === 'cancelled' || b.status === 'late_cancel') && cancellationHistory(b).map((line, li) => (
+                          <div key={li} style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                            {line}
+                          </div>
+                        ))}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {/* confirmed/attended/no_show are all implied here — which tab the row is in, and
                             the Attended checkbox's own state, already say it; a badge would be noise. */}
                         {!['confirmed', 'attended', 'no_show'].includes(b.status) && <BookingStatusBadge status={b.status} />}
+                        {(b.status === 'cancelled' || b.status === 'late_cancel') && !b.credits_refunded
+                          && b.payment_type === 'pass' && b.member_pass_id && canManageBookings(roles) && (
+                          <button onClick={() => handleRefundCredit(b)} disabled={manageBusy} style={{
+                            padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2', borderRadius: '6px',
+                            fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
+                          }}>
+                            Refund credit
+                          </button>
+                        )}
                         {(b.status === 'confirmed' || b.status === 'attended') && canMarkAttended(roles) && (
                           <label style={{
                             display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px',
