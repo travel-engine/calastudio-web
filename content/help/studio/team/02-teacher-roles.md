@@ -10,7 +10,7 @@ Every person you invite gets one role that controls what they can see and do in 
 
 ## Sessions and the schedule
 
-| Role | Can see | Can create/edit a session | Can add/cancel occurrence dates |
+| Role | Can see | Can create/edit a session | Can add/edit/cancel an occurrence |
 |---|---|---|---|
 | **Admin** | Every session | Yes | Yes |
 | **Super teacher** | Every session | No | Yes |
@@ -20,7 +20,7 @@ Every person you invite gets one role that controls what they can see and do in 
 
 Session *templates* — name, price, capacity, delivery mode — are admin-only to create or edit, even for Super teacher. Adding the actual bookable dates (occurrences) is where Super teacher's access kicks in.
 
-A session's **instructor** is set by an admin from the session form. It's what determines which sessions a Teacher or Basic teacher can see at all — assign it, or they'll see nothing.
+A session's **instructor** is set by an admin from the session form — this is what determines which sessions a Teacher or Basic teacher can see at all, so assign it or they'll see nothing. Admin and Super teacher can also override the instructor for a single occurrence from that occurrence's **Edit** button, without changing who teaches the session everywhere else.
 
 ## The roster
 

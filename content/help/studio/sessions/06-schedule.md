@@ -10,9 +10,9 @@ order: 6
 
 ## Week view
 
-The main panel shows one week at a time, Monday to Sunday, each day listing its classes by time. Use the **‹** and **›** buttons to move to the previous or next week, and **Today** (top right) to jump straight back to the current week.
+The main panel shows one week at a time, Monday to Sunday, each day listing its classes by time along with how full they are (e.g. `5/12`) — green if there's room, red once it's full. Use the **‹** and **›** buttons to move to the previous or next week, and **Today** (top right) to jump straight back to the current week.
 
-Click any class in the list to open its roster — this takes you to the same roster you'd reach from **Bookings**, so you can mark attendance, add a student, or cancel from there.
+Click any class to open its occurrence page — the same page you'd reach from **Bookings** or **Dashboard**'s "Next up" list — where you can mark attendance, add a student, edit the occurrence, or cancel it. See **Managing bookings** for what's on that page.
 
 ## Month calendar
 

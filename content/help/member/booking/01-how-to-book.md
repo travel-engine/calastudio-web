@@ -18,8 +18,10 @@ Browse your studio's booking page to find a session you'd like to attend. You ca
 1. Click on a session to see the full details
 2. Click **Book**
 3. If you're not signed in, you'll be asked to create an account or sign in
-4. Choose how you'd like to pay — with a pass, membership, or by card
-5. Click **Confirm booking**
+4. If it's your first time, you may need to accept the studio's terms and liability waiver before continuing
+5. If the studio allows guests on this session, choose how many you're bringing
+6. Choose how you'd like to pay — with an existing pass, by buying a new pass, or as a one-off drop-in by card
+7. Click **Confirm booking**
 
 You'll receive a confirmation email within 30 seconds.
 

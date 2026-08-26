@@ -17,7 +17,7 @@ Each row shows when something happened, who did it (and their role at the time),
 | **Created** | A new record was made — a session, a pass template, a member pass |
 | **Updated** | An existing record changed |
 | **Deleted** | Something was deactivated (sessions and pass templates are never hard-deleted, just turned off) |
-| **Override** | A manual exception, like a credit adjustment or an expiry extension — these always carry a reason |
+| **Override** | A manual exception, like a credit adjustment, an expiry extension, or manually refunding a forfeited credit on a late-cancelled booking — these always carry a reason |
 | **System** | An automated change with no human actor |
 
 Click **Details** on any row with a changes indicator to see exactly what changed — each field's old value and new value side by side — and, for overrides, the reason given.

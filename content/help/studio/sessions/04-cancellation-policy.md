@@ -28,4 +28,6 @@ Leave it blank to fall back to your studio's default rather than the session hav
 
 Cancelling **inside** the window returns any pass credit used immediately. Cancelling **outside** it (a "late cancel") is governed by a single studio-wide setting for whether late-cancelled credits are forfeited — there's no dashboard control for this yet, and it isn't set per pass template or per session.
 
+A forfeited credit isn't necessarily gone for good — Admin and Super teacher can manually return it from the occurrence's **Cancelled** tab. See **Payments → Refunds**.
+
 If the studio cancels the occurrence itself, every credit is returned regardless of the window — see **Managing bookings → Cancelling a whole occurrence**.

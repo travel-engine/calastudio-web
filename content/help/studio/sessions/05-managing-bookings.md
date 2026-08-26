@@ -20,17 +20,27 @@ Useful for a one-off extra date, or to make a freshly-created session bookable i
 
 Capacity and price default to the session's settings — there's no need to re-enter them unless you want to override that occurrence specifically.
 
-## The Bookings dashboard
+## Getting to an occurrence
 
-Go to **Bookings** in the sidebar for a flat list of upcoming occurrences, soonest first. Admin, Super teacher, and Front desk see every occurrence in the studio; Teacher and Basic teacher only see occurrences for sessions they're the instructor on. Click **Manage** on any row to open its roster.
+**Dashboard**'s "Next up" list and **Schedule**'s week view both link directly to an occurrence — click any class and you're taken to its own page rather than a list. **Bookings** in the sidebar still shows a flat list of every upcoming occurrence with a **Manage** button per row, if you'd rather search or scroll through everything at once.
 
-Prefer a calendar over a list? **Schedule** shows the same occurrences as a week view with a month overview alongside it, and leads to the same roster — see **Schedule** for how it works.
+Admin, Super teacher, and Front desk see every occurrence in the studio; Teacher and Basic teacher only see occurrences for sessions they're the instructor on.
 
-What the roster itself shows also depends on role — see **Team → Teacher roles** for the full breakdown. Admin, Super teacher, and Teacher see full member detail (name, email, payment method); Basic teacher and Front desk see names only, with no contact or financial information.
+## The occurrence page
+
+At the top: the session name, date and time, and its status (Scheduled/Cancelled/Completed), followed by who's teaching it. Below that, up to three buttons depending on your role:
+
+| Button | What it does | Who can do it |
+|---|---|---|
+| **+ Add booking** / **+ Add student** | Puts a member on the roster — see below | Everyone who can see the roster |
+| **Edit** | Change the date, start/end time, capacity, or teacher for this occurrence only | Admin, Super teacher only |
+| **Cancel occurrence** | Cancels the whole class — see below | Admin, Super teacher only |
+
+**Edit** only affects this one occurrence, not the session template or any other date generated from it. Reassigning the teacher here overrides the session's own instructor for this date only; leave it as **Unassigned** to fall back to whoever the session is normally taught by.
+
+What the roster shows also depends on role — see **Team → Teacher roles** for the full breakdown. Admin, Super teacher, and Teacher see full member detail (name, email, payment method); Basic teacher and Front desk see names only, with no contact or financial information.
 
 ## Booking a member manually (Admin, Super teacher)
-
-From an occurrence's roster:
 
 1. Click **+ Add booking**
 2. Search for the member by name or email
@@ -46,22 +56,32 @@ Card and membership payment aren't available for manual bookings yet — only an
 
 Teacher and Basic teacher can't process a paid booking, but can still put a student on their own roster at no charge:
 
-1. Open the roster for one of your own occurrences and click **+ Add student**
+1. Open one of your own occurrences and click **+ Add student**
 2. Search for the member by name — Basic teacher's search doesn't show email, matching what the roster itself shows
 3. For a hybrid session, choose in-person or online
 4. Click **Add student**
 
 This always creates a free spot — no pass credit is used and no payment is recorded, regardless of the session's price. It's meant for filling a class, not for anything that should show up in revenue reporting.
 
-## Running the roster
+## The roster's three tabs
 
-Each confirmed booking supports up to three actions, depending on your role:
+**Booked**, **On waitlist**, and **Cancelled** — each labelled with a count, and **Booked** also shows occupancy against capacity (e.g. `5/12`). **On waitlist** is a placeholder for now; there's no waitlist feature yet, so it always reads `0`.
+
+### Booked
+
+Each row supports up to three actions, depending on your role:
 
 | Action | What it does | Who can do it |
 |---|---|---|
-| **Attended** | Marks the member as having shown up | Everyone who can see the roster |
+| **Attended** checkbox | Marks the member as having shown up. Tick it again to undo an accidental tap | Everyone who can see the roster |
 | **No-show** | Marks them absent. Unlike a cancellation, no credit is returned | Everyone except Front desk |
 | **Cancel** | Cancels the booking. Pass credits are returned automatically if the studio's cancellation policy allows it | Admin, Super teacher only |
+
+If someone brought guests, they're listed underneath the member's own row — see **Members → Guest bookings** for how those work and how to cancel just one guest's spot.
+
+### Cancelled
+
+Every cancelled or late-cancelled booking shows a short history: when it was cancelled and by whom, and — only if one happened — when a credit was refunded and by whom. A late-cancelled pass booking that forfeited its credit gets a **Refund credit** button (Admin, Super teacher only) to manually return it anyway; see **Payments → Refunds**.
 
 ## Cancelling a whole occurrence (Admin, Super teacher)
 

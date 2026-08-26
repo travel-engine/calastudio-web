@@ -11,22 +11,17 @@ order: 1
 Go to **My profile** to update:
 - Your name and phone number
 - Date of birth
-- Emergency contact details
-- Notification preferences
+- Emergency contact name and phone
 - Person type (adult, child, senior, student)
 
 ## Person type
 
 Your person type may affect your pricing at some studios. For example, a studio might offer a reduced rate for students or seniors. You can set your person type in your profile.
 
-## Change your password
+## Receipts
 
-Go to **My profile** → **Change password**. You'll need to enter your current password to set a new one.
+Every card payment gets its own **Download receipt** button under your payment history — there's no single combined statement, but each purchase's receipt is available individually at any time.
 
-## Download your data
+## Password, data export, and account deletion
 
-You can download a copy of all your data at any time from **My profile** → **Download my data**.
-
-## Delete your account
-
-Go to **My profile** → **Delete account**. Your booking history is anonymised but aggregate counts are preserved.
+Changing your password, exporting your data, and deleting your account aren't self-service yet — contact your studio or CalaStudio support directly for any of these.
