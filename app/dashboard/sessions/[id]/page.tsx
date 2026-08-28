@@ -31,9 +31,7 @@ function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
         borderRadius: '8px',
         fontSize: '14px',
         outline: 'none',
-        backgroundColor: props.disabled ? '#f4f4f4' : 'white',
-        color: props.disabled ? '#999' : undefined,
-        cursor: props.disabled ? 'not-allowed' : undefined,
+        backgroundColor: 'white'
       }}
     />
   )
@@ -808,7 +806,7 @@ export default function EditSessionPage() {
           <Field
             label="First occurrence"
             hint={form.isRecurring
-              ? "The weekday is fixed once a weekly class has occurrences — only the time can change here. To run it on a different day, copy the session and set the new day on the copy."
+              ? "Anchor for the weekly series. Changing only the time re-times every upcoming class; the weekday can't move once classes exist."
               : "The date and time of the bookable class."}
           >
             <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 140px', gap: '16px' }}>
@@ -816,7 +814,6 @@ export default function EditSessionPage() {
                 type="date"
                 value={form.firstOccurrenceDate}
                 onChange={e => update('firstOccurrenceDate', e.target.value)}
-                disabled={form.isRecurring}
               />
               <Input
                 type="time"
