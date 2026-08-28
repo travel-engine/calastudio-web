@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../../components/Sidebar'
-import { canManageSessions, canManageOccurrences } from '@/lib/roles'
+import { canManageSessions, canManageOccurrences, canViewAuditLog } from '@/lib/roles'
+import SessionActivity from '@/app/components/SessionActivity'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
@@ -1214,6 +1215,10 @@ export default function EditSessionPage() {
             </div>
           )}
         </div>
+
+        {canViewAuditLog(roles) && orgId && token && (
+          <SessionActivity orgId={orgId} token={token} sessionId={sessionId} />
+        )}
       </div>
 
       {/* Add occurrence modal */}
