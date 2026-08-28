@@ -720,7 +720,7 @@ export default function OccurrenceDetailPage() {
                   padding: '8px 16px', backgroundColor: '#085041', color: 'white', border: 'none',
                   borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
                 }}>
-                  + Add {canManageBookings(roles) ? 'booking' : 'student'}
+                  + Add {canManageBookings(roles) ? 'member' : 'student'}
                 </button>
               )}
               {canManageOccurrences(roles) && (
@@ -813,7 +813,7 @@ export default function OccurrenceDetailPage() {
         {showAddBooking && (
           <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: '24px', marginBottom: '20px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '14px' }}>
-              {canManageBookings(roles) ? 'Add a booking' : 'Add a student'}
+              {canManageBookings(roles) ? 'Add a member' : 'Add a student'}
             </div>
 
             {isRestricted ? (
