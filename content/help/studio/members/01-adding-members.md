@@ -30,6 +30,8 @@ Only `full_name` and `email` are required. Include a header row and any subset o
 
 `full_name, email, join_date, phone, date_of_birth, gender, person_type, emergency_contact_name, emergency_contact_phone, address`
 
+Dates (`join_date`, `date_of_birth`) must be in `YYYY-MM-DD` format. If you include `gender` it must be one of `male`, `female`, `other`, `prefer_not_to_say`; if you include `person_type` it must be one of `adult`, `child`, `senior`, `student`. Rows with any other value are marked invalid in the preview with the reason shown — casing doesn't matter, `Female` and `female` both work.
+
 If a person already exists at another studio under the same email, their name and identity are reused rather than duplicated — only the fields still blank on their existing profile get filled in from the import.
 
 Pass balances and credits are never part of an import — imported members start with none. Issue passes separately from **Passes**.

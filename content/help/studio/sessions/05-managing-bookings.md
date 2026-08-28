@@ -6,11 +6,11 @@ order: 5
 
 # Managing bookings
 
-A session defines what a class *is* — name, price, capacity, whether it repeats. An **occurrence** is one specific bookable date and time of that session. Members book occurrences, not sessions, so a session needs at least one occurrence before anyone can book into it. These are generated automatically overnight from the session's schedule — see **Recurring sessions** for exactly how — so most of the time you won't need to add one by hand.
+A session defines what a class *is* — name, price, capacity, whether it repeats. An **occurrence** is one specific bookable date and time of that session. Members book occurrences, not sessions, so a session needs at least one occurrence before anyone can book into it. These are generated from the session's schedule the moment you save it, and a nightly job keeps the window extended going forward — see **Recurring sessions** for exactly how — so most of the time you won't need to add one by hand.
 
 ## Adding an occurrence manually
 
-Useful for a one-off extra date, or to make a freshly-created session bookable immediately instead of waiting for the nightly run:
+Useful for a one-off extra date outside the session's usual pattern, or to re-add a date that was previously cancelled:
 
 1. Go to **Sessions** and open the session
 2. Scroll to **Occurrences**

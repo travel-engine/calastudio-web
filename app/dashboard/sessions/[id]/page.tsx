@@ -134,6 +134,7 @@ export default function EditSessionPage() {
   const [roles, setRoles] = useState<string[]>([])
 
   const [occurrences, setOccurrences] = useState<Occurrence[]>([])
+  const [justCreated, setJustCreated] = useState(false)
   const [showAddOccurrence, setShowAddOccurrence] = useState(false)
   const [occurrenceForm, setOccurrenceForm] = useState({ date: '', startTime: '', endTime: '' })
   const [addingOccurrence, setAddingOccurrence] = useState(false)
@@ -337,6 +338,13 @@ export default function EditSessionPage() {
         { headers: { Authorization: `Bearer ${t}` } }
       )
       if (occRes.ok) setOccurrences(await occRes.json())
+
+      // Arrived straight from "New session" — the backend generated the first occurrences during
+      // create. Show a one-time confirmation, then strip the flag so a refresh doesn't repeat it.
+      if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('created') === '1') {
+        setJustCreated(true)
+        window.history.replaceState(null, '', window.location.pathname)
+      }
 
       setLoading(false)
     }
@@ -646,6 +654,17 @@ export default function EditSessionPage() {
           </div>
         )}
 
+        {justCreated && (
+          <div style={{
+            padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px',
+            color: '#085041', fontSize: '13px', marginBottom: '16px'
+          }}>
+            {occurrences.length > 0
+              ? `Session created. ${occurrences.length} occurrence${occurrences.length === 1 ? '' : 's'} scheduled and ready to take bookings — see the list below.`
+              : 'Session created. No dates fell within the booking horizon yet — add an occurrence below to make it bookable.'}
+          </div>
+        )}
+
         <div style={{
           backgroundColor: 'white',
           borderRadius: '12px',
@@ -911,7 +930,8 @@ export default function EditSessionPage() {
                 )}
                 {form.recurrenceEndMode === 'never' && (
                   <p style={{ fontSize: '12px', color: '#666' }}>
-                    Dates are generated up to 60 days ahead on a rolling basis — there's no need to set an end date for an ongoing class.
+                    The first dates are created as soon as the session is saved, then kept extended to
+                    60 days ahead automatically — there's no need to set an end date for an ongoing class.
                   </p>
                 )}
               </div>
@@ -1133,7 +1153,7 @@ export default function EditSessionPage() {
             <div>
               <h2 style={{ fontSize: '17px', fontWeight: 600 }}>Occurrences</h2>
               <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
-                Bookable dates and times for this session. Generated automatically overnight from the schedule above, up to 60 days ahead — add one manually below for a one-off extra date, or to get a date immediately without waiting for the nightly run.
+                Bookable dates and times for this session. Created from the schedule above when the session is saved, and kept extended to 60 days ahead automatically — add one manually below for a one-off extra date outside the usual pattern.
               </p>
             </div>
             {canManageOccurrences(roles) && (
@@ -1150,7 +1170,7 @@ export default function EditSessionPage() {
           </div>
 
           {occurrences.length === 0 ? (
-            <p style={{ fontSize: '13px', color: '#666' }}>No occurrences yet. If this session was just created, the first one appears after tonight's 2am generation run — or add one now to make it bookable immediately.</p>
+            <p style={{ fontSize: '13px', color: '#666' }}>No occurrences yet — the schedule above produced no dates within the booking horizon. Add one below to make this session bookable.</p>
           ) : (
             <div>
               {occurrences.map((occ, i) => (

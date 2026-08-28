@@ -22,6 +22,6 @@ Click a day in the calendar and the week view jumps to the week containing it �
 
 ## What shows up here
 
-Only **scheduled** occurrences appear — cancelled ones don't show on the calendar or in the week list at all. If a session has no occurrences yet (a brand new session, or one waiting on tonight's generation run), its days won't be highlighted until an occurrence actually exists — see **Recurring sessions** for how occurrences get created.
+Only **scheduled** occurrences appear — cancelled ones don't show on the calendar or in the week list at all. A session's occurrences are created as soon as it's saved, so its days are highlighted straight away; if a session's days aren't showing, its schedule produced no dates within the 60-day horizon — see **Recurring sessions** for how occurrences get created.
 
 What you can see is also role-scoped the same way as everywhere else: Admin, Super teacher, and Front desk see every class in the studio; Teacher and Basic teacher only see occurrences for sessions they're the instructor on. See **Team → Teacher roles** for the full breakdown.

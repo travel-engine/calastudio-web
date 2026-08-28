@@ -20,16 +20,16 @@ Currently, recurrence is weekly only — every selected day, every week. There's
 
 ## How occurrences actually get created
 
-A nightly job runs at 2am, your studio's local time, and generates every occurrence up to 60 days ahead for every active recurring session, starting from **First occurrence** and stopping at whichever comes first: your **Ends** setting or the 60-day horizon. It only ever adds — it never removes or edits a date you've already touched.
+When you save the session, its occurrences are generated straight away — every date up to 60 days ahead, starting from **First occurrence** and stopping at whichever comes first: your **Ends** setting or the 60-day horizon. A nightly job at 2am, your studio's local time, then keeps that window rolling forward for every active session. Generation only ever adds — it never removes or edits a date you've already touched.
 
 Two practical consequences:
 
-- A session created today won't have any occurrences until tonight's run. If you need it bookable right away, add the first occurrence manually from the session's **Occurrences** section.
-- Because it only looks 60 days out, a recurring session with no end date always has a rolling window of dates rather than every date that will ever exist — there's no need to set an end date just to "give it enough room."
+- A session is bookable as soon as it's saved — no waiting for an overnight run. You'll see the created dates listed on the session's **Occurrences** section immediately.
+- Because generation only looks 60 days out, a recurring session with no end date always has a rolling window of dates rather than every date that will ever exist — there's no need to set an end date just to "give it enough room."
 
 ## One-off sessions
 
-For a single event — a workshop, a special class, a one-time event — leave recurrence set to **One-off**. **First occurrence** is the only date it needs; the same nightly job creates that single occurrence for you.
+For a single event — a workshop, a special class, a one-time event — leave recurrence set to **One-off**. **First occurrence** is the only date it needs, and that single occurrence is created for you as soon as you save.
 
 ## Editing a recurring session
 

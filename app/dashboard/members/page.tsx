@@ -78,6 +78,29 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
   )
 }
 
+// Kept in sync with the "Columns recognized" copy in the import modal and the API's
+// MemberEndpoints.cs importer. Enum values (gender, person_type) and the ISO date format
+// mirror calastudio-spec/03-member-management.md §3.3–3.4 and §CSV import.
+const SAMPLE_MEMBERS_CSV = [
+  'full_name,email,join_date,phone,date_of_birth,gender,person_type,emergency_contact_name,emergency_contact_phone,address',
+  'Jane Smith,jane.smith@example.com,2026-01-15,+61 400 000 111,1990-06-24,female,adult,John Smith,+61 400 000 222,"12 Yoga Lane, Bondi NSW 2026"',
+  'Arjun Patel,arjun.patel@example.com,,,,,,,,',
+  'Mei Chen,mei.chen@example.com,2025-11-03,,1978-02-09,prefer_not_to_say,senior,,,',
+  '',
+].join('\n')
+
+function downloadSampleMembersCsv() {
+  const blob = new Blob([SAMPLE_MEMBERS_CSV], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'calastudio-members-sample.csv'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 function ErrorBanner({ message }: { message: string }) {
   return (
     <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
@@ -328,8 +351,21 @@ export default function MembersPage() {
                 Columns recognized: full_name, email, join_date, phone, date_of_birth, gender,
                 person_type, emergency_contact_name, emergency_contact_phone, address. Only
                 full_name and email are required — include a header row so any subset works in
-                any order.
+                any order. Dates must be YYYY-MM-DD. If given, gender must be male, female, other
+                or prefer_not_to_say, and person_type must be adult, child, senior or student.
               </p>
+
+              <button
+                type="button"
+                onClick={downloadSampleMembersCsv}
+                style={{
+                  background: 'none', border: 'none', padding: 0, marginBottom: '16px',
+                  color: '#085041', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                Download sample CSV
+              </button>
 
               {importError && <ErrorBanner message={importError} />}
 
@@ -342,7 +378,7 @@ export default function MembersPage() {
                       borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer'
                     }}
                   >
-                    Choose CSV file
+                    Choose CSV file to upload
                   </button>
                   {fileName && <span style={{ marginLeft: '12px', fontSize: '13px', color: '#666' }}>{fileName}</span>}
                   <input

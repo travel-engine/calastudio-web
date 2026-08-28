@@ -384,7 +384,9 @@ function NewSessionPageContent() {
         const created = await res.json()
 
         if (form.bookingAccessMode === 'restricted') {
-          const paRes = await fetch(
+          // If this fails the session still exists — the detail screen shows the pricing-access
+          // section for the admin to retry, so the redirect below is the same either way.
+          await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${created.id}/pricing-access`,
             {
               method: 'PUT',
@@ -395,13 +397,11 @@ function NewSessionPageContent() {
               })
             }
           )
-          if (!paRes.ok) {
-            router.push(`/dashboard/sessions/${created.id}`)
-            return
-          }
         }
 
-        router.push('/dashboard/sessions')
+        // The backend generates this session's first batch of occurrences during create, so land
+        // the admin on the session itself — ?created=1 triggers the "N occurrences scheduled" banner.
+        router.push(`/dashboard/sessions/${created.id}?created=1`)
       } else {
         const data = await res.json()
         setError(data.title ?? 'Something went wrong. Please try again.')
@@ -725,7 +725,8 @@ function NewSessionPageContent() {
                 )}
                 {form.recurrenceEndMode === 'never' && (
                   <p style={{ fontSize: '12px', color: '#666' }}>
-                    Dates are generated up to 60 days ahead on a rolling basis — there's no need to set an end date for an ongoing class.
+                    The first dates are created as soon as you save this session, then kept extended to
+                    60 days ahead automatically — there's no need to set an end date for an ongoing class.
                   </p>
                 )}
               </div>
