@@ -31,7 +31,9 @@ function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
         borderRadius: '8px',
         fontSize: '14px',
         outline: 'none',
-        backgroundColor: 'white'
+        backgroundColor: props.disabled ? '#f4f4f4' : 'white',
+        color: props.disabled ? '#999' : undefined,
+        cursor: props.disabled ? 'not-allowed' : undefined,
       }}
     />
   )
@@ -517,23 +519,24 @@ export default function EditSessionPage() {
       // (§2.7–2.8). The 409 impact object lists every effect at once — cancellations, reschedules,
       // custom-length dates left alone, and dates now over capacity — so the dialog can spell them
       // all out. Resubmitting with confirm=true applies the lot.
-      if (res.status === 409) {
-        const data = await res.json().catch(() => null)
-        if (data?.error === 'confirmation_required') {
-          setUpdateImpact({
-            cancelOccurrences: data.cancel_occurrences ?? 0,
-            cancelBookings: data.cancel_bookings ?? 0,
-            rescheduleOccurrences: data.reschedule_occurrences ?? 0,
-            rescheduleBookings: data.reschedule_bookings ?? 0,
-            customLengthKept: data.custom_length_kept ?? 0,
-            overCapacityOccurrences: data.over_capacity_occurrences ?? 0,
-          })
-          setShowUpdateConfirm(true)
-          return
-        }
+      const data = await res.json().catch(() => null)
+
+      if (res.status === 409 && data?.error === 'confirmation_required') {
+        setUpdateImpact({
+          cancelOccurrences: data.cancel_occurrences ?? 0,
+          cancelBookings: data.cancel_bookings ?? 0,
+          rescheduleOccurrences: data.reschedule_occurrences ?? 0,
+          rescheduleBookings: data.reschedule_bookings ?? 0,
+          customLengthKept: data.custom_length_kept ?? 0,
+          overCapacityOccurrences: data.over_capacity_occurrences ?? 0,
+        })
+        setShowUpdateConfirm(true)
+        return
       }
 
-      setError('Failed to save. Please try again.')
+      // A 400 carries a specific reason (e.g. "the recurrence's day/frequency pattern is locked") —
+      // show it rather than a generic failure.
+      setError(typeof data?.error === 'string' ? data.error : 'Failed to save. Please try again.')
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -802,12 +805,18 @@ export default function EditSessionPage() {
 
           <SectionHeader title="Schedule" />
 
-          <Field label="First occurrence" hint="The date and time of the first bookable class. For a recurring session, later dates are generated from this same time.">
+          <Field
+            label="First occurrence"
+            hint={form.isRecurring
+              ? "The weekday is fixed once a weekly class has occurrences — only the time can change here. To run it on a different day, copy the session and set the new day on the copy."
+              : "The date and time of the bookable class."}
+          >
             <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 140px', gap: '16px' }}>
               <Input
                 type="date"
                 value={form.firstOccurrenceDate}
                 onChange={e => update('firstOccurrenceDate', e.target.value)}
+                disabled={form.isRecurring}
               />
               <Input
                 type="time"
