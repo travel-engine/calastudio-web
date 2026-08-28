@@ -69,6 +69,9 @@ export default function SchedulePage() {
   const [fetchedFrom, setFetchedFrom] = useState<string>('')
 
   const today = useMemo(() => startOfDay(new Date()), [])
+  // Captured once on mount — good enough to split "already happened" from "still to come"; the
+  // schedule doesn't need to re-tick while it's open.
+  const now = useMemo(() => new Date(), [])
   const weekStart = useMemo(() => startOfWeek(viewDate), [viewDate])
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
 
@@ -240,17 +243,19 @@ export default function SchedulePage() {
                           {dayOccurrences.map(occ => {
                             const { booked, capacity } = occupancy(occ)
                             const isFull = capacity !== null && booked >= capacity
+                            const isPast = new Date(occ.starts_at) < now
                             return (
                             <a
                               key={occ.id}
                               href={`/dashboard/occurrences/${occ.id}`}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '10px',
-                                padding: '8px 12px', backgroundColor: '#f4f4f4', borderRadius: '8px',
-                                textDecoration: 'none', color: '#1a1a1a', fontSize: '13px'
+                                padding: '8px 12px', borderRadius: '8px',
+                                backgroundColor: isPast ? '#f4f4f4' : '#e8f5ee',
+                                textDecoration: 'none', color: isPast ? '#999' : '#1a1a1a', fontSize: '13px'
                               }}
                             >
-                              <span style={{ fontWeight: 600, color: '#085041', minWidth: '68px' }}>
+                              <span style={{ fontWeight: 600, color: isPast ? '#999' : '#085041', minWidth: '68px' }}>
                                 {new Date(occ.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                               </span>
                               <span style={{ flex: 1 }}>{occ.session?.name ?? 'Session'}</span>
