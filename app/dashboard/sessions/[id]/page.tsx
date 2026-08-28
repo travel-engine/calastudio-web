@@ -143,7 +143,11 @@ export default function EditSessionPage() {
   const [cancellingId, setCancellingId] = useState('')
 
   const [showShrinkConfirm, setShowShrinkConfirm] = useState(false)
-  const [shrinkImpact, setShrinkImpact] = useState<{ occurrencesAffected: number; bookingsAffected: number } | null>(null)
+  const [shrinkImpact, setShrinkImpact] = useState<{
+    kind: 'recurrence_shrink' | 'time_change'
+    occurrencesAffected: number
+    bookingsAffected: number
+  } | null>(null)
 
   const [form, setForm] = useState({
     name: '',
@@ -506,13 +510,19 @@ export default function EditSessionPage() {
         return
       }
 
-      // Shortening recurrence_end_date/recurrence_count (or turning off is_recurring) would cancel
-      // occurrences/bookings that already exist — show the impact and let the admin confirm before
-      // resubmitting with confirm: true. Per calastudio-spec/02-session-management.md §2.8.
+      // The backend needs an explicit confirm for two different edits, distinguished by `kind`:
+      //  - recurrence_shrink: tightening recurrence_end_date/count or turning off is_recurring —
+      //    the stranded occurrences (and their bookings) are cancelled (§2.8).
+      //  - time_change: moving first_occurrence_starts_at's time-of-day — occurrences are re-timed
+      //    to the new slot and their bookings kept, with members notified (§2.7).
       if (res.status === 409) {
         const data = await res.json().catch(() => null)
         if (data?.error === 'confirmation_required') {
-          setShrinkImpact({ occurrencesAffected: data.occurrences_affected, bookingsAffected: data.bookings_affected })
+          setShrinkImpact({
+            kind: data.kind === 'time_change' ? 'time_change' : 'recurrence_shrink',
+            occurrencesAffected: data.occurrences_affected,
+            bookingsAffected: data.bookings_affected,
+          })
           setShowShrinkConfirm(true)
           return
         }
@@ -1245,11 +1255,24 @@ export default function EditSessionPage() {
             backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
             maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
           }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>Confirm recurrence change</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>
+              {shrinkImpact.kind === 'time_change' ? 'Move existing classes to the new time?' : 'Confirm recurrence change'}
+            </h2>
             <p style={{ fontSize: '14px', color: '#444', marginBottom: '24px' }}>
-              This change will cancel {shrinkImpact.occurrencesAffected} upcoming occurrence{shrinkImpact.occurrencesAffected === 1 ? '' : 's'},
-              including {shrinkImpact.bookingsAffected} confirmed booking{shrinkImpact.bookingsAffected === 1 ? '' : 's'}.
-              Any pass credits used for those bookings will be returned automatically.
+              {shrinkImpact.kind === 'time_change' ? (
+                <>
+                  {shrinkImpact.occurrencesAffected} upcoming occurrence{shrinkImpact.occurrencesAffected === 1 ? '' : 's'} will
+                  move to the new time. {shrinkImpact.bookingsAffected} confirmed booking{shrinkImpact.bookingsAffected === 1 ? '' : 's'} on
+                  {shrinkImpact.bookingsAffected === 1 ? ' it' : ' them'} {shrinkImpact.bookingsAffected === 1 ? 'is' : 'are'} kept —
+                  those members are notified of the new time. Nothing is cancelled.
+                </>
+              ) : (
+                <>
+                  This change will cancel {shrinkImpact.occurrencesAffected} upcoming occurrence{shrinkImpact.occurrencesAffected === 1 ? '' : 's'},
+                  including {shrinkImpact.bookingsAffected} confirmed booking{shrinkImpact.bookingsAffected === 1 ? '' : 's'}.
+                  Any pass credits used for those bookings will be returned automatically.
+                </>
+              )}
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
@@ -1265,12 +1288,18 @@ export default function EditSessionPage() {
                 onClick={handleConfirmShrink}
                 disabled={saving}
                 style={{
-                  flex: 1, padding: '10px', backgroundColor: saving ? '#e79999' : '#8b1a1a', color: 'white',
+                  flex: 1, padding: '10px',
+                  backgroundColor: saving
+                    ? (shrinkImpact.kind === 'time_change' ? '#9fd6b8' : '#e79999')
+                    : (shrinkImpact.kind === 'time_change' ? '#085041' : '#8b1a1a'),
+                  color: 'white',
                   border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
                   cursor: saving ? 'not-allowed' : 'pointer'
                 }}
               >
-                {saving ? 'Saving...' : 'Confirm and cancel occurrences'}
+                {saving
+                  ? 'Saving...'
+                  : shrinkImpact.kind === 'time_change' ? 'Move classes to the new time' : 'Confirm and cancel occurrences'}
               </button>
             </div>
           </div>
