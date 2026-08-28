@@ -79,7 +79,7 @@ If someone brought guests, they're listed underneath the member's own row — se
 
 ### On waitlist
 
-Shown once a class is full and members start joining the queue from the booking page. Each row shows the member's name (plus email for Admin, Super teacher, and Teacher — matching the same contact-info visibility as the Booked tab), which mode they're waiting for, their position in line, and how many spots they need if they're waiting as a group.
+Shown once a class is full and members start joining the queue from the booking page. Each row shows the member's name (plus email for Admin, Super teacher, and Teacher — matching the same contact-info visibility as the Booked tab), their position in line, and how many spots they need if they're waiting as a group.
 
 There's no manual action here — joining and leaving the waitlist is self-service from the member's own account, and promotion runs automatically when a spot frees up: one member at a time with a time-limited hold if it's well before the class, or a simultaneous first-come blast to everyone waiting if it's close to start time. A promoted member's row shows **Spot held** with the time their hold expires; if they don't claim it in time, the next person in line is offered it automatically. Right at the start of class there's a short window where a freed spot isn't offered to anyone — it's released as a walk-in instead.
 
