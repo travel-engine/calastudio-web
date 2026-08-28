@@ -630,7 +630,7 @@ function NewSessionPageContent() {
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               {[
                 { value: false, label: 'One-off' },
-                { value: true, label: 'Recurring' },
+                { value: true, label: 'Weekly' },
               ].map(opt => (
                 <button
                   key={String(opt.value)}

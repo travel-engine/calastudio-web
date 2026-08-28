@@ -267,7 +267,7 @@ export default function SessionsPage() {
                     <div style={{ fontSize: '12px', color: '#666' }}>
                       {(session as any).duration_minutes} min
                       {(session as any).location_name ? ` · ${(session as any).location_name}` : ''}
-                      {(session as any).is_recurring ? ' · Recurring' : ' · One-off'}
+                      {(session as any).is_recurring ? ' · Weekly' : ' · One-off'}
                     </div>
                   </div>
                 </div>
