@@ -160,7 +160,6 @@ export default function EditSessionPage() {
     firstOccurrenceDate: '',
     firstOccurrenceTime: '09:00',
     isRecurring: false,
-    recurrenceDays: [] as string[],
     recurrenceEndMode: 'never' as 'never' | 'date' | 'count',
     recurrenceEndDate: '',
     recurrenceCount: '10',
@@ -184,12 +183,8 @@ export default function EditSessionPage() {
   const update = (key: string, value: string | boolean | string[]) =>
     setForm(prev => ({ ...prev, [key]: value }))
 
-  const toggleDay = (day: string) => {
-    const days = form.recurrenceDays.includes(day)
-      ? form.recurrenceDays.filter(d => d !== day)
-      : [...form.recurrenceDays, day]
-    update('recurrenceDays', days)
-  }
+  const weekdayOf = (dateStr: string) =>
+    dateStr ? new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long' }) : ''
 
   const togglePassTemplate = (id: string) => {
     const ids = form.approvedPassTemplateIds.includes(id)
@@ -258,13 +253,6 @@ export default function EditSessionPage() {
       if (!res.ok) { router.push('/dashboard/sessions'); return }
       const s = await res.json()
 
-      // Parse recurrence days from RRULE
-      const days: string[] = []
-      if (s.recurrence_rule) {
-        const match = s.recurrence_rule.match(/BYDAY=([^;]+)/)
-        if (match) days.push(...match[1].split(','))
-      }
-
       setForm({
         name: s.name ?? '',
         description: s.description ?? '',
@@ -280,7 +268,6 @@ export default function EditSessionPage() {
         firstOccurrenceDate: s.first_occurrence_starts_at ? toDateInputValue(s.first_occurrence_starts_at) : '',
         firstOccurrenceTime: s.first_occurrence_starts_at ? toTimeInputValue(s.first_occurrence_starts_at) : '09:00',
         isRecurring: s.is_recurring ?? false,
-        recurrenceDays: days,
         recurrenceEndMode: (s.recurrence_end_date ? 'date' : s.recurrence_count ? 'count' : 'never') as 'never' | 'date' | 'count',
         recurrenceEndDate: s.recurrence_end_date ?? '',
         recurrenceCount: s.recurrence_count?.toString() ?? '10',
@@ -445,12 +432,6 @@ export default function EditSessionPage() {
     }
   }
 
-  const buildRRule = () => {
-    if (!form.isRecurring) return ''
-    if (form.recurrenceDays.length === 0) return 'RRULE:FREQ=WEEKLY'
-    return `RRULE:FREQ=WEEKLY;BYDAY=${form.recurrenceDays.join(',')}`
-  }
-
   // Shared by the initial save attempt and the resubmit-after-confirmation below — the request
   // body is identical except for `confirm`, per UpdateSessionRequest in SessionEndpoints.cs.
   const buildSessionPatchBody = (confirm: boolean) => {
@@ -470,9 +451,8 @@ export default function EditSessionPage() {
       duration_minutes: parseInt(form.durationMinutes),
       first_occurrence_starts_at: firstOccurrenceStartsAt.toISOString(),
       is_recurring: form.isRecurring,
-      recurrence_rule: form.isRecurring && form.recurrenceDays.length > 0
-        ? `RRULE:FREQ=WEEKLY;BYDAY=${form.recurrenceDays.join(',')}`
-        : null,
+      // Weekly recurrence repeats on the first occurrence's own weekday — bare FREQ=WEEKLY, no BYDAY.
+      recurrence_rule: form.isRecurring ? 'RRULE:FREQ=WEEKLY' : null,
       recurrence_end_date: form.isRecurring && form.recurrenceEndMode === 'date' && form.recurrenceEndDate ? form.recurrenceEndDate : null,
       recurrence_count: form.isRecurring && form.recurrenceEndMode === 'count' && form.recurrenceCount ? parseInt(form.recurrenceCount) : null,
       cancellation_hours: parseInt(form.cancellationHours),
@@ -586,16 +566,6 @@ export default function EditSessionPage() {
       setDeleting(false)
     }
   }
-
-  const days = [
-    { code: 'MO', label: 'Mon' },
-    { code: 'TU', label: 'Tue' },
-    { code: 'WE', label: 'Wed' },
-    { code: 'TH', label: 'Thu' },
-    { code: 'FR', label: 'Fri' },
-    { code: 'SA', label: 'Sat' },
-    { code: 'SU', label: 'Sun' },
-  ]
 
   if (loading) {
     return (
@@ -859,28 +829,11 @@ export default function EditSessionPage() {
             </div>
             {form.isRecurring && (
               <div>
-                <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>Repeats every week on:</p>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {days.map(day => (
-                    <button
-                      key={day.code}
-                      onClick={() => toggleDay(day.code)}
-                      style={{
-                        width: '44px',
-                        height: '44px',
-                        border: `2px solid ${form.recurrenceDays.includes(day.code) ? '#085041' : '#e2e2e2'}`,
-                        borderRadius: '8px',
-                        backgroundColor: form.recurrenceDays.includes(day.code) ? '#085041' : 'white',
-                        color: form.recurrenceDays.includes(day.code) ? 'white' : '#444',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: 600
-                      }}
-                    >
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
+                <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>
+                  {form.firstOccurrenceDate
+                    ? <>Repeats every week on <strong>{weekdayOf(form.firstOccurrenceDate)}</strong>, from the first occurrence date above.</>
+                    : 'Repeats every week on the first occurrence’s weekday — set the first occurrence date above.'}
+                </p>
 
                 <p style={{ fontSize: '13px', color: '#666', margin: '16px 0 10px' }}>Ends</p>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>

@@ -123,7 +123,6 @@ function NewSessionPageContent() {
     firstOccurrenceTime: '09:00',
     isRecurring: false,
     recurrenceRule: '',
-    recurrenceDays: [] as string[],
     recurrenceEndMode: 'never' as 'never' | 'date' | 'count',
     recurrenceEndDate: '',
     recurrenceCount: '10',
@@ -260,13 +259,6 @@ function NewSessionPageContent() {
   const update = (key: string, value: string | boolean | string[]) =>
     setForm(prev => ({ ...prev, [key]: value }))
 
-  const toggleDay = (day: string) => {
-    const days = form.recurrenceDays.includes(day)
-      ? form.recurrenceDays.filter(d => d !== day)
-      : [...form.recurrenceDays, day]
-    update('recurrenceDays', days)
-  }
-
   const togglePassTemplate = (id: string) => {
     const ids = form.approvedPassTemplateIds.includes(id)
       ? form.approvedPassTemplateIds.filter(x => x !== id)
@@ -305,11 +297,12 @@ function NewSessionPageContent() {
     }
   }
 
-  const buildRRule = () => {
-    if (!form.isRecurring) return ''
-    if (form.recurrenceDays.length === 0) return 'RRULE:FREQ=WEEKLY'
-    return `RRULE:FREQ=WEEKLY;BYDAY=${form.recurrenceDays.join(',')}`
-  }
+  // Weekly recurrence repeats on the first occurrence's own weekday — no separate day picker.
+  // A bare FREQ=WEEKLY (no BYDAY) makes the backend expand from the anchor's weekday.
+  const buildRRule = () => (form.isRecurring ? 'RRULE:FREQ=WEEKLY' : '')
+
+  const weekdayOf = (dateStr: string) =>
+    dateStr ? new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long' }) : ''
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
@@ -409,16 +402,6 @@ function NewSessionPageContent() {
       setLoading(false)
     }
   }
-
-  const days = [
-    { code: 'MO', label: 'Mon' },
-    { code: 'TU', label: 'Tue' },
-    { code: 'WE', label: 'Wed' },
-    { code: 'TH', label: 'Thu' },
-    { code: 'FR', label: 'Fri' },
-    { code: 'SA', label: 'Sat' },
-    { code: 'SU', label: 'Sun' },
-  ]
 
   if (checkingAccess) {
     return (
@@ -654,28 +637,11 @@ function NewSessionPageContent() {
 
             {form.isRecurring && (
               <div>
-                <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>Repeats every week on:</p>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {days.map(day => (
-                    <button
-                      key={day.code}
-                      onClick={() => toggleDay(day.code)}
-                      style={{
-                        width: '44px',
-                        height: '44px',
-                        border: `2px solid ${form.recurrenceDays.includes(day.code) ? '#085041' : '#e2e2e2'}`,
-                        borderRadius: '8px',
-                        backgroundColor: form.recurrenceDays.includes(day.code) ? '#085041' : 'white',
-                        color: form.recurrenceDays.includes(day.code) ? 'white' : '#444',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: 600
-                      }}
-                    >
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
+                <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>
+                  {form.firstOccurrenceDate
+                    ? <>Repeats every week on <strong>{weekdayOf(form.firstOccurrenceDate)}</strong>, from the first occurrence date above.</>
+                    : 'Repeats every week on the first occurrence’s weekday — set the first occurrence date above.'}
+                </p>
 
                 <p style={{ fontSize: '13px', color: '#666', margin: '16px 0 10px' }}>Ends</p>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>

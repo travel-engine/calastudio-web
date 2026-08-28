@@ -36,9 +36,9 @@ Each session has a single **capacity** and a single **price**, regardless of mod
 
 ## Recurrence
 
-Set a session as **recurring** to have it repeat on a schedule. Choose which days of the week it runs — for example, every Monday, Wednesday, and Friday — and optionally when it ends. See **Recurring sessions** for how that turns into actual bookable dates.
+Set a session to **Weekly** and it repeats every week on the same weekday as its **First occurrence** — optionally with an end date or class count. See **Recurring sessions** for how that turns into actual bookable dates.
 
-One-off sessions (like a special workshop) leave recurrence set to **One-off** — **First occurrence** is the only date it needs.
+One-off sessions (like a special workshop) leave the toggle on **One-off** — **First occurrence** is the only date it needs.
 
 ## Visibility
 
