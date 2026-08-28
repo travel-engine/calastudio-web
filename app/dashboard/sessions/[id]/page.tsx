@@ -142,11 +142,14 @@ export default function EditSessionPage() {
   const [occurrenceError, setOccurrenceError] = useState('')
   const [cancellingId, setCancellingId] = useState('')
 
-  const [showShrinkConfirm, setShowShrinkConfirm] = useState(false)
-  const [shrinkImpact, setShrinkImpact] = useState<{
-    kind: 'recurrence_shrink' | 'time_change'
-    occurrencesAffected: number
-    bookingsAffected: number
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false)
+  const [updateImpact, setUpdateImpact] = useState<{
+    cancelOccurrences: number
+    cancelBookings: number
+    rescheduleOccurrences: number
+    rescheduleBookings: number
+    customLengthKept: number
+    overCapacityOccurrences: number
   } | null>(null)
 
   const [form, setForm] = useState({
@@ -510,20 +513,22 @@ export default function EditSessionPage() {
         return
       }
 
-      // The backend needs an explicit confirm for two different edits, distinguished by `kind`:
-      //  - recurrence_shrink: tightening recurrence_end_date/count or turning off is_recurring —
-      //    the stranded occurrences (and their bookings) are cancelled (§2.8).
-      //  - time_change: moving first_occurrence_starts_at's time-of-day — occurrences are re-timed
-      //    to the new slot and their bookings kept, with members notified (§2.7).
+      // Some session edits change occurrences that already exist and need an explicit confirm
+      // (§2.7–2.8). The 409 impact object lists every effect at once — cancellations, reschedules,
+      // custom-length dates left alone, and dates now over capacity — so the dialog can spell them
+      // all out. Resubmitting with confirm=true applies the lot.
       if (res.status === 409) {
         const data = await res.json().catch(() => null)
         if (data?.error === 'confirmation_required') {
-          setShrinkImpact({
-            kind: data.kind === 'time_change' ? 'time_change' : 'recurrence_shrink',
-            occurrencesAffected: data.occurrences_affected,
-            bookingsAffected: data.bookings_affected,
+          setUpdateImpact({
+            cancelOccurrences: data.cancel_occurrences ?? 0,
+            cancelBookings: data.cancel_bookings ?? 0,
+            rescheduleOccurrences: data.reschedule_occurrences ?? 0,
+            rescheduleBookings: data.reschedule_bookings ?? 0,
+            customLengthKept: data.custom_length_kept ?? 0,
+            overCapacityOccurrences: data.over_capacity_occurrences ?? 0,
           })
-          setShowShrinkConfirm(true)
+          setShowUpdateConfirm(true)
           return
         }
       }
@@ -542,14 +547,14 @@ export default function EditSessionPage() {
     submitSessionPatch(false)
   }
 
-  const handleConfirmShrink = () => {
-    setShowShrinkConfirm(false)
+  const handleConfirmUpdate = () => {
+    setShowUpdateConfirm(false)
     submitSessionPatch(true)
   }
 
-  const handleCancelShrink = () => {
-    setShowShrinkConfirm(false)
-    setShrinkImpact(null)
+  const handleCancelUpdate = () => {
+    setShowUpdateConfirm(false)
+    setUpdateImpact(null)
   }
 
   const handleDelete = async () => {
@@ -1245,66 +1250,78 @@ export default function EditSessionPage() {
         </div>
       )}
 
-      {/* Recurrence-shrink confirmation modal */}
-      {showShrinkConfirm && shrinkImpact && (
-        <div style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
-        }}>
+      {/* Session-change confirmation modal */}
+      {showUpdateConfirm && updateImpact && (() => {
+        const i = updateImpact
+        const n = (x: number) => x === 1 ? '' : 's'
+        const destructive = i.cancelOccurrences > 0
+        return (
           <div style={{
-            backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
-            maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
           }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>
-              {shrinkImpact.kind === 'time_change' ? 'Move existing classes to the new time?' : 'Confirm recurrence change'}
-            </h2>
-            <p style={{ fontSize: '14px', color: '#444', marginBottom: '24px' }}>
-              {shrinkImpact.kind === 'time_change' ? (
-                <>
-                  {shrinkImpact.occurrencesAffected} upcoming occurrence{shrinkImpact.occurrencesAffected === 1 ? '' : 's'} will
-                  move to the new time. {shrinkImpact.bookingsAffected} confirmed booking{shrinkImpact.bookingsAffected === 1 ? '' : 's'} on
-                  {shrinkImpact.bookingsAffected === 1 ? ' it' : ' them'} {shrinkImpact.bookingsAffected === 1 ? 'is' : 'are'} kept —
-                  those members are notified of the new time. Nothing is cancelled.
-                </>
-              ) : (
-                <>
-                  This change will cancel {shrinkImpact.occurrencesAffected} upcoming occurrence{shrinkImpact.occurrencesAffected === 1 ? '' : 's'},
-                  including {shrinkImpact.bookingsAffected} confirmed booking{shrinkImpact.bookingsAffected === 1 ? '' : 's'}.
-                  Any pass credits used for those bookings will be returned automatically.
-                </>
-              )}
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={handleCancelShrink}
-                style={{
-                  flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                  borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#444'
-                }}
-              >
-                Go back
-              </button>
-              <button
-                onClick={handleConfirmShrink}
-                disabled={saving}
-                style={{
-                  flex: 1, padding: '10px',
-                  backgroundColor: saving
-                    ? (shrinkImpact.kind === 'time_change' ? '#9fd6b8' : '#e79999')
-                    : (shrinkImpact.kind === 'time_change' ? '#085041' : '#8b1a1a'),
-                  color: 'white',
-                  border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                  cursor: saving ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {saving
-                  ? 'Saving...'
-                  : shrinkImpact.kind === 'time_change' ? 'Move classes to the new time' : 'Confirm and cancel occurrences'}
-              </button>
+            <div style={{
+              backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
+              maxWidth: '460px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+            }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>
+                {destructive ? 'Confirm session changes' : 'Review before saving'}
+              </h2>
+              <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+                This edit affects occurrences that already exist:
+              </p>
+              <ul style={{ fontSize: '14px', color: '#444', margin: '0 0 24px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {i.cancelOccurrences > 0 && (
+                  <li>
+                    <strong>{i.cancelOccurrences}</strong> upcoming occurrence{n(i.cancelOccurrences)} will be <strong>cancelled</strong>
+                    {i.cancelBookings > 0 && <>, including {i.cancelBookings} confirmed booking{n(i.cancelBookings)}</>}.
+                    Any pass credits are returned automatically.
+                  </li>
+                )}
+                {i.rescheduleOccurrences > 0 && (
+                  <li>
+                    <strong>{i.rescheduleOccurrences}</strong> upcoming occurrence{n(i.rescheduleOccurrences)} will <strong>move</strong> to the new time/length
+                    {i.rescheduleBookings > 0 && <>; {i.rescheduleBookings} confirmed booking{n(i.rescheduleBookings)} kept and those members notified</>}.
+                  </li>
+                )}
+                {i.customLengthKept > 0 && (
+                  <li>
+                    <strong>{i.customLengthKept}</strong> occurrence{n(i.customLengthKept)} with a hand-set length will <strong>keep</strong> that length — the new duration isn’t applied to {i.customLengthKept === 1 ? 'it' : 'them'}.
+                  </li>
+                )}
+                {i.overCapacityOccurrences > 0 && (
+                  <li>
+                    <strong>{i.overCapacityOccurrences}</strong> upcoming occurrence{n(i.overCapacityOccurrences)} currently {i.overCapacityOccurrences === 1 ? 'has' : 'have'} more bookings than the new capacity. No one is removed — {i.overCapacityOccurrences === 1 ? 'it stays' : 'they stay'} over capacity until bookings drop.
+                  </li>
+                )}
+              </ul>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={handleCancelUpdate}
+                  style={{
+                    flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
+                    borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#444'
+                  }}
+                >
+                  Go back
+                </button>
+                <button
+                  onClick={handleConfirmUpdate}
+                  disabled={saving}
+                  style={{
+                    flex: 1, padding: '10px',
+                    backgroundColor: saving ? (destructive ? '#e79999' : '#9fd6b8') : (destructive ? '#8b1a1a' : '#085041'),
+                    color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+                    cursor: saving ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {saving ? 'Saving...' : destructive ? 'Confirm and save' : 'Save changes'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
