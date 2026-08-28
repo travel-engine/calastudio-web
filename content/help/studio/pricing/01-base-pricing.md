@@ -11,12 +11,10 @@ Every session has its own drop-in price — what a member pays if they book with
 ## Setting a price
 
 1. Go to **Sessions** and open a session (or create a new one)
-2. Under **Pricing**, set a price for each delivery mode the session supports:
-   - **In-person price** — for members attending at your location
-   - **Online price** — for members joining remotely
+2. Under **Pricing**, set the **drop-in price** — the standard cost of a single booking
 3. Click **Save**
 
-A hybrid session can charge different prices for in-person and online attendance. Leave a price blank to make that delivery mode free.
+Leave the price blank to make the session free to drop in.
 
 ## Currency
 

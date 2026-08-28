@@ -19,7 +19,7 @@ Sessions are the core of CalaStudio. Every class, workshop, or event you run is 
 | Field | Notes |
 |-------|-------|
 | Session name | Must be unique in your studio |
-| Delivery mode | In-person, online, or hybrid |
+| Delivery mode | In-person or online |
 | Duration | How long the session runs |
 | First occurrence | The date and time of the very first class. For a recurring session, every later date is generated from this one — see **Recurring sessions** |
 
@@ -31,7 +31,8 @@ Assign a teacher as the session's instructor and it determines what they can see
 
 - **In-person** — members attend at your physical location
 - **Online** — members join via a link (Zoom, Google Meet, etc.)
-- **Hybrid** — some members in-person, some online. Each has its own capacity.
+
+Each session has a single **capacity** and a single **price**, regardless of mode.
 
 ## Recurrence
 

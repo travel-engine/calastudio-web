@@ -11,10 +11,9 @@ import styles from '@/app/dashboard/dashboard.module.css'
 interface SessionDetail {
   id: string
   name: string
-  delivery_mode: 'in_person' | 'online' | 'hybrid'
+  delivery_mode: 'in_person' | 'online'
   location_name: string | null
-  capacity_inperson: number | null
-  capacity_online: number | null
+  capacity: number | null
   booking_access_mode: 'open' | 'free' | 'restricted'
   instructor_id: string | null
 }
@@ -24,8 +23,7 @@ interface OccurrenceDetail {
   starts_at: string
   ends_at: string
   status: 'scheduled' | 'cancelled' | 'completed'
-  capacity_inperson: number | null
-  capacity_online: number | null
+  capacity: number | null
   instructor_id: string | null
   instructor_name: string | null
   session: SessionDetail | null
@@ -90,7 +88,7 @@ interface WaitlistRosterEntry {
   user_id: string
   member_name: string
   email: string | null
-  preferred_mode: 'in_person' | 'online' | 'either'
+  preferred_mode: 'in_person' | 'online'
   position: number
   spots_needed: number
   intended_guest_count: number
@@ -155,13 +153,11 @@ function toTimeInputValue(iso: string) {
 // Booked is computed from the already-fetched roster (confirmed/attended only, guests included)
 // rather than a separate backend field — same occupancy semantics as the Schedule/Dashboard pages.
 function occupancy(occurrence: OccurrenceDetail, bookings: Booking[]) {
-  const capInperson = occurrence.capacity_inperson ?? occurrence.session?.capacity_inperson ?? null
-  const capOnline = occurrence.capacity_online ?? occurrence.session?.capacity_online ?? null
+  const capacity = occurrence.capacity ?? occurrence.session?.capacity ?? null
   const booked = bookings
     .filter(b => b.status === 'confirmed' || b.status === 'attended')
     .reduce((sum, b) => sum + 1 + (b.guest_count ?? 0), 0)
-  if (capInperson === null && capOnline === null) return { booked, capacity: null as number | null }
-  return { booked, capacity: (capInperson ?? 0) + (capOnline ?? 0) }
+  return { booked, capacity: capacity as number | null }
 }
 
 function OccurrenceStatusBadge({ status }: { status: string }) {
@@ -270,7 +266,7 @@ export default function OccurrenceDetailPage() {
   const [cancellingOccurrence, setCancellingOccurrence] = useState(false)
 
   const [showEdit, setShowEdit] = useState(false)
-  const [editForm, setEditForm] = useState({ date: '', startTime: '', endTime: '', capacityInperson: '', capacityOnline: '', instructorId: '' })
+  const [editForm, setEditForm] = useState({ date: '', startTime: '', endTime: '', capacity: '', instructorId: '' })
   const [editBusy, setEditBusy] = useState(false)
   const [editError, setEditError] = useState('')
   const [teachers, setTeachers] = useState<Teacher[]>([])
@@ -288,7 +284,7 @@ export default function OccurrenceDetailPage() {
   const [memberSearch, setMemberSearch] = useState('')
   const [memberPasses, setMemberPasses] = useState<MemberPass[]>([])
   const [passesLoading, setPassesLoading] = useState(false)
-  const [addForm, setAddForm] = useState({ userId: '', bookedMode: 'in_person' as 'in_person' | 'online', paymentType: 'pass' as 'pass' | 'admin_waived', memberPassId: '' })
+  const [addForm, setAddForm] = useState({ userId: '', paymentType: 'pass' as 'pass' | 'admin_waived', memberPassId: '' })
   const [addingBooking, setAddingBooking] = useState(false)
   const [addBookingError, setAddBookingError] = useState('')
 
@@ -489,8 +485,7 @@ export default function OccurrenceDetailPage() {
       date: toDateInputValue(occurrence.starts_at),
       startTime: toTimeInputValue(occurrence.starts_at),
       endTime: toTimeInputValue(occurrence.ends_at),
-      capacityInperson: (occurrence.capacity_inperson ?? occurrence.session?.capacity_inperson ?? '')?.toString() ?? '',
-      capacityOnline: (occurrence.capacity_online ?? occurrence.session?.capacity_online ?? '')?.toString() ?? '',
+      capacity: (occurrence.capacity ?? occurrence.session?.capacity ?? '')?.toString() ?? '',
       instructorId: occurrence.instructor_id ?? occurrence.session?.instructor_id ?? '',
     })
     setShowEdit(true)
@@ -521,8 +516,7 @@ export default function OccurrenceDetailPage() {
       body: JSON.stringify({
         starts_at: startsAt.toISOString(),
         ends_at: endsAt.toISOString(),
-        capacity_inperson: editForm.capacityInperson === '' ? null : parseInt(editForm.capacityInperson),
-        capacity_online: editForm.capacityOnline === '' ? null : parseInt(editForm.capacityOnline),
+        capacity: editForm.capacity === '' ? null : parseInt(editForm.capacity),
         instructor_id: editForm.instructorId === '' ? null : editForm.instructorId,
         clear_instructor_id: editForm.instructorId === '',
       })
@@ -541,7 +535,6 @@ export default function OccurrenceDetailPage() {
     setAddBookingError('')
     setAddForm({
       userId: '',
-      bookedMode: occurrence?.session?.delivery_mode === 'online' ? 'online' : 'in_person',
       paymentType: 'pass',
       memberPassId: ''
     })
@@ -595,7 +588,6 @@ export default function OccurrenceDetailPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               user_id: addForm.userId,
-              booked_mode: addForm.bookedMode,
             })
           })
         : await authedFetch('/bookings', {
@@ -604,7 +596,6 @@ export default function OccurrenceDetailPage() {
             body: JSON.stringify({
               user_id: addForm.userId,
               session_occurrence_id: occurrence.id,
-              booked_mode: addForm.bookedMode,
               payment_type: paymentType,
               member_pass_id: paymentType === 'pass' ? addForm.memberPassId : null,
             })
@@ -770,14 +761,9 @@ export default function OccurrenceDetailPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={labelStyle}>Capacity (in-person)</label>
-                  <input type="number" min="0" placeholder="Unlimited" value={editForm.capacityInperson}
-                    onChange={e => setEditForm(p => ({ ...p, capacityInperson: e.target.value }))} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Capacity (online)</label>
-                  <input type="number" min="0" placeholder="Unlimited" value={editForm.capacityOnline}
-                    onChange={e => setEditForm(p => ({ ...p, capacityOnline: e.target.value }))} style={inputStyle} />
+                  <label style={labelStyle}>Capacity</label>
+                  <input type="number" min="0" placeholder="Unlimited" value={editForm.capacity}
+                    onChange={e => setEditForm(p => ({ ...p, capacity: e.target.value }))} style={inputStyle} />
                 </div>
               </div>
 
@@ -887,20 +873,6 @@ export default function OccurrenceDetailPage() {
                     </>
                   )}
                 </div>
-
-                {session?.delivery_mode === 'hybrid' && (
-                  <div>
-                    <label style={labelStyle}>Attending</label>
-                    <select
-                      value={addForm.bookedMode}
-                      onChange={e => setAddForm(p => ({ ...p, bookedMode: e.target.value as 'in_person' | 'online' }))}
-                      style={inputStyle}
-                    >
-                      <option value="in_person">In-person</option>
-                      <option value="online">Online</option>
-                    </select>
-                  </div>
-                )}
 
                 {!canManageBookings(roles) ? (
                   <p style={{ fontSize: '13px', color: '#666' }}>Added at no charge — payment isn't part of this action.</p>

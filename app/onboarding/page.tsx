@@ -243,7 +243,6 @@ function Step2({ data, onChange, onNext, onBack }: {
         <Select value={data.deliveryMode} onChange={e => onChange('deliveryMode', e.target.value)}>
           <option value="in_person">In-person</option>
           <option value="online">Online</option>
-          <option value="hybrid">Hybrid (in-person + online)</option>
         </Select>
       </Field>
 
@@ -292,7 +291,7 @@ function Step2({ data, onChange, onNext, onBack }: {
         </Field>
       </div>
 
-      {data.deliveryMode === 'in_person' || data.deliveryMode === 'hybrid' ? (
+      {data.deliveryMode === 'in_person' ? (
         <Field label="Location name">
           <Input
             placeholder="e.g. Studio 1, Bondi Beach"

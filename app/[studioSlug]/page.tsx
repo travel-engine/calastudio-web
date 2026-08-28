@@ -33,13 +33,13 @@ function formatMoney(amount: number, currency: string) {
 }
 
 function deliveryModeLabel(mode: string) {
-  return mode === 'online' ? 'Online' : mode === 'hybrid' ? 'In-person & online' : 'In-person'
+  return mode === 'online' ? 'Online' : 'In-person'
 }
 
 function spotsLabel(occ: BookableOccurrence) {
   if (occ.is_cancelled) return { text: 'Cancelled', tone: 'full' as const }
-  if (occ.spots_remaining_inperson === null && occ.spots_remaining_online === null) return { text: '', tone: 'normal' as const }
-  const total = (occ.spots_remaining_inperson ?? 0) + (occ.spots_remaining_online ?? 0)
+  if (occ.spots_remaining === null) return { text: '', tone: 'normal' as const }
+  const total = occ.spots_remaining
   if (total <= 0) return { text: 'Full', tone: 'full' as const }
   if (total <= 3) return { text: `Only ${total} left`, tone: 'low' as const }
   return { text: `${total} spots left`, tone: 'normal' as const }
@@ -141,7 +141,7 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
                   // instead of the normal booking steps (04-booking-flow.md §4.4). Only a cancelled
                   // occurrence is genuinely unbookable.
                   const bookable = !occ.is_cancelled
-                  const prices = [occ.price_inperson, occ.price_online].filter((p): p is number => p != null)
+                  const prices = occ.price != null ? [occ.price] : []
 
                   return (
                     <div key={occ.occurrence_id} className={styles.card}>

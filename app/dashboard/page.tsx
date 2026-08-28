@@ -19,15 +19,12 @@ interface TodayOccurrence {
   id: string
   starts_at: string
   status: 'scheduled' | 'cancelled' | 'completed'
-  capacity_inperson: number | null
-  capacity_online: number | null
-  booked_inperson: number
-  booked_online: number
+  capacity: number | null
+  booked: number
   session: {
     name: string
-    delivery_mode: 'in_person' | 'online' | 'hybrid'
-    capacity_inperson: number | null
-    capacity_online: number | null
+    delivery_mode: 'in_person' | 'online'
+    capacity: number | null
   } | null
 }
 
@@ -35,11 +32,8 @@ interface TodayOccurrence {
 // which case there's no denominator to show — just the raw booked count. Same logic as the
 // Schedule page's occupancy() — kept in sync with it.
 function occupancy(occ: TodayOccurrence) {
-  const capInperson = occ.capacity_inperson ?? occ.session?.capacity_inperson ?? null
-  const capOnline = occ.capacity_online ?? occ.session?.capacity_online ?? null
-  const booked = occ.booked_inperson + occ.booked_online
-  if (capInperson === null && capOnline === null) return { booked, capacity: null }
-  return { booked, capacity: (capInperson ?? 0) + (capOnline ?? 0) }
+  const capacity = occ.capacity ?? occ.session?.capacity ?? null
+  return { booked: occ.booked, capacity }
 }
 
 interface Activity {

@@ -12,11 +12,9 @@ interface SessionSummary {
   id: string
   name: string
   session_type: string
-  delivery_mode: 'in_person' | 'online' | 'hybrid'
-  capacity_inperson: number | null
-  capacity_online: number | null
-  price_inperson: number | null
-  price_online: number | null
+  delivery_mode: 'in_person' | 'online'
+  capacity: number | null
+  price: number | null
   currency: string
   booking_access_mode: 'open' | 'free' | 'restricted'
 }
@@ -26,10 +24,8 @@ interface Occurrence {
   session_id: string
   starts_at: string
   ends_at: string
-  capacity_inperson: number | null
-  capacity_online: number | null
-  price_inperson: number | null
-  price_online: number | null
+  capacity: number | null
+  price: number | null
   status: 'scheduled' | 'cancelled' | 'completed'
   session: SessionSummary | null
 }
@@ -195,7 +191,7 @@ function BookingsPageContent() {
   const [memberSearch, setMemberSearch] = useState('')
   const [memberPasses, setMemberPasses] = useState<MemberPass[]>([])
   const [passesLoading, setPassesLoading] = useState(false)
-  const [addForm, setAddForm] = useState({ userId: '', bookedMode: 'in_person' as 'in_person' | 'online', paymentType: 'pass' as 'pass' | 'admin_waived', memberPassId: '' })
+  const [addForm, setAddForm] = useState({ userId: '', paymentType: 'pass' as 'pass' | 'admin_waived', memberPassId: '' })
   const [addingBooking, setAddingBooking] = useState(false)
   const [addBookingError, setAddBookingError] = useState('')
 
@@ -375,7 +371,6 @@ function BookingsPageContent() {
     setAddBookingError('')
     setAddForm({
       userId: '',
-      bookedMode: managingOccurrence?.session?.delivery_mode === 'online' ? 'online' : 'in_person',
       paymentType: 'pass',
       memberPassId: ''
     })
@@ -432,7 +427,6 @@ function BookingsPageContent() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               user_id: addForm.userId,
-              booked_mode: addForm.bookedMode,
             })
           })
         : await authedFetch('/bookings', {
@@ -441,7 +435,6 @@ function BookingsPageContent() {
             body: JSON.stringify({
               user_id: addForm.userId,
               session_occurrence_id: managingOccurrence.id,
-              booked_mode: addForm.bookedMode,
               payment_type: paymentType,
               member_pass_id: paymentType === 'pass' ? addForm.memberPassId : null,
             })
@@ -668,20 +661,6 @@ function BookingsPageContent() {
                         </>
                       )}
                     </div>
-
-                    {managingOccurrence.session?.delivery_mode === 'hybrid' && (
-                      <div>
-                        <label style={labelStyle}>Attending</label>
-                        <select
-                          value={addForm.bookedMode}
-                          onChange={e => setAddForm(p => ({ ...p, bookedMode: e.target.value as 'in_person' | 'online' }))}
-                          style={inputStyle}
-                        >
-                          <option value="in_person">In-person</option>
-                          <option value="online">Online</option>
-                        </select>
-                      </div>
-                    )}
 
                     {!canManageBookings(roles) ? (
                       <p style={{ fontSize: '13px', color: '#666' }}>Added at no charge — payment isn't part of this action.</p>

@@ -14,7 +14,7 @@ Enter your studio name and your first name. Your country, currency, and timezone
 
 ## Step 2 — First session
 
-Create your first session. Give it a name, set a day and time, and choose whether it's in-person, online, or hybrid. Everything can be changed later.
+Create your first session. Give it a name, set a day and time, and choose whether it's in-person or online. Everything can be changed later.
 
 **Tip:** Don't overthink this step. The goal is to have one session on your booking page so it doesn't look empty when you share the link.
 

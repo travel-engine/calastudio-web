@@ -44,11 +44,10 @@ What the roster shows also depends on role — see **Team → Teacher roles** fo
 
 1. Click **+ Add booking**
 2. Search for the member by name or email
-3. For a hybrid session, choose whether they're attending in-person or online
-4. Choose how they're paying:
+3. Choose how they're paying:
    - **Use a pass** — pick from the member's usable passes; a credit is debited immediately
    - **Comp (no charge)** — no payment, no credit used
-5. Click **Confirm booking**
+4. Click **Confirm booking**
 
 Card and membership payment aren't available for manual bookings yet — only an existing pass or a comp. If the session is set to **Free**, no payment step is shown at all. **Restricted** sessions (specific passes/memberships only) can't be manually booked yet either.
 
@@ -58,8 +57,7 @@ Teacher and Basic teacher can't process a paid booking, but can still put a stud
 
 1. Open one of your own occurrences and click **+ Add student**
 2. Search for the member by name — Basic teacher's search doesn't show email, matching what the roster itself shows
-3. For a hybrid session, choose in-person or online
-4. Click **Add student**
+3. Click **Add student**
 
 This always creates a free spot — no pass credit is used and no payment is recorded, regardless of the session's price. It's meant for filling a class, not for anything that should show up in revenue reporting.
 

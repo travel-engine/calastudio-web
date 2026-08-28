@@ -380,7 +380,7 @@ export default function NewPassTemplatePage() {
 
           <Field label="Delivery modes">
             <div style={{ display: 'flex', gap: '8px' }}>
-              {['in_person', 'online', 'hybrid'].map(m => (
+              {['in_person', 'online'].map(m => (
                 <button
                   key={m}
                   type="button"

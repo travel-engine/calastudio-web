@@ -152,10 +152,9 @@ export default function EditSessionPage() {
     deliveryMode: 'in_person',
     locationName: '',
     locationAddress: '',
-    capacityInperson: '12',
-    capacityOnline: '',
-    priceInperson: '',
-    priceOnline: '',
+    onlineInstructions: '',
+    capacity: '12',
+    price: '',
     currency: 'AUD',
     durationMinutes: '60',
     firstOccurrenceDate: '',
@@ -273,10 +272,9 @@ export default function EditSessionPage() {
         deliveryMode: s.delivery_mode ?? 'in_person',
         locationName: s.location_name ?? '',
         locationAddress: s.location_address ?? '',
-        capacityInperson: s.capacity_inperson?.toString() ?? '12',
-        capacityOnline: s.capacity_online?.toString() ?? '',
-        priceInperson: s.price_inperson?.toString() ?? '',
-        priceOnline: s.price_online?.toString() ?? '',
+        onlineInstructions: s.online_instructions ?? '',
+        capacity: s.capacity?.toString() ?? '12',
+        price: s.price?.toString() ?? '',
         currency: s.currency ?? 'AUD',
         durationMinutes: s.duration_minutes?.toString() ?? '60',
         firstOccurrenceDate: s.first_occurrence_starts_at ? toDateInputValue(s.first_occurrence_starts_at) : '',
@@ -403,10 +401,8 @@ export default function EditSessionPage() {
           starts_at: startsAt.toISOString(),
           ends_at: endsAt.toISOString(),
           instructor_id: null,
-          capacity_inperson: null,
-          capacity_online: null,
-          price_inperson: null,
-          price_online: null,
+          capacity: null,
+          price: null,
           cancellation_hours: null,
           notes: null,
         })
@@ -464,11 +460,10 @@ export default function EditSessionPage() {
       description: form.description || null,
       location_name: form.locationName || null,
       location_address: form.locationAddress || null,
+      online_instructions: form.deliveryMode === 'online' ? (form.onlineInstructions || null) : null,
       photo_url: form.photoUrl || null,
-      capacity_inperson: form.capacityInperson ? parseInt(form.capacityInperson) : null,
-      capacity_online: form.capacityOnline ? parseInt(form.capacityOnline) : null,
-      price_inperson: form.priceInperson ? parseFloat(form.priceInperson) : null,
-      price_online: form.priceOnline ? parseFloat(form.priceOnline) : null,
+      capacity: form.capacity ? parseInt(form.capacity) : null,
+      price: form.price ? parseFloat(form.price) : null,
       visibility: form.visibility,
       booking_access_mode: form.bookingAccessMode,
       delivery_mode: form.deliveryMode,
@@ -759,7 +754,6 @@ export default function EditSessionPage() {
               {[
                 { value: 'in_person', label: '📍 In-person' },
                 { value: 'online', label: '💻 Online' },
-                { value: 'hybrid', label: '🔀 Hybrid' },
               ].map(opt => (
                 <button
                   key={opt.value}
@@ -782,7 +776,7 @@ export default function EditSessionPage() {
             </div>
           </Field>
 
-          {(form.deliveryMode === 'in_person' || form.deliveryMode === 'hybrid') && (
+          {form.deliveryMode === 'in_person' && (
             <>
               <Field label="Location name">
                 <Input
@@ -798,28 +792,28 @@ export default function EditSessionPage() {
                   onChange={e => update('locationAddress', e.target.value)}
                 />
               </Field>
-              <Field label="In-person capacity">
-                <Input
-                  type="number"
-                  min="1"
-                  value={form.capacityInperson}
-                  onChange={e => update('capacityInperson', e.target.value)}
-                />
-              </Field>
             </>
           )}
 
-          {(form.deliveryMode === 'online' || form.deliveryMode === 'hybrid') && (
-            <Field label="Online capacity" hint="Leave blank for unlimited">
-              <Input
-                type="number"
-                min="1"
-                placeholder="Unlimited"
-                value={form.capacityOnline}
-                onChange={e => update('capacityOnline', e.target.value)}
+          {form.deliveryMode === 'online' && (
+            <Field label="Online instructions" hint="Shown to members when they book. Optional.">
+              <Textarea
+                placeholder="Please have a mat and 2kg weights ready. The meeting link is emailed 15 minutes before class."
+                value={form.onlineInstructions}
+                onChange={e => update('onlineInstructions', e.target.value)}
               />
             </Field>
           )}
+
+          <Field label="Capacity" hint="Leave blank for unlimited">
+            <Input
+              type="number"
+              min="1"
+              placeholder={form.deliveryMode === 'online' ? 'Unlimited' : '12'}
+              value={form.capacity}
+              onChange={e => update('capacity', e.target.value)}
+            />
+          </Field>
 
           <SectionHeader title="Schedule" />
 
@@ -942,30 +936,16 @@ export default function EditSessionPage() {
           <SectionHeader title="Pricing" />
 
           <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            {(form.deliveryMode === 'in_person' || form.deliveryMode === 'hybrid') && (
-              <Field label="In-person price (AUD)">
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.50"
-                  placeholder="25.00"
-                  value={form.priceInperson}
-                  onChange={e => update('priceInperson', e.target.value)}
-                />
-              </Field>
-            )}
-            {(form.deliveryMode === 'online' || form.deliveryMode === 'hybrid') && (
-              <Field label="Online price (AUD)">
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.50"
-                  placeholder="20.00"
-                  value={form.priceOnline}
-                  onChange={e => update('priceOnline', e.target.value)}
-                />
-              </Field>
-            )}
+            <Field label="Drop-in price (AUD)">
+              <Input
+                type="number"
+                min="0"
+                step="0.50"
+                placeholder="25.00"
+                value={form.price}
+                onChange={e => update('price', e.target.value)}
+              />
+            </Field>
           </div>
 
           <Field label="Tax rate override (%)" hint="Leave blank to use the studio's current tax rate. Enter 0 to make this session tax-exempt.">

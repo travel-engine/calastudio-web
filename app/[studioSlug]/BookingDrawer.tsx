@@ -27,7 +27,7 @@ export default function BookingDrawer() {
   const {
     studioSlug, occurrence, brandColor, step, bookedMode, accessToken, orgId, stripeAccountId,
     bookingOptions, confirmedBooking, errorMessage, joiningWaitlist, joinedWaitlistEntry,
-    close, setStep, setBookedMode, setAuth, setBookingOptions, setConfirmedBooking, setError,
+    close, setStep, setAuth, setBookingOptions, setConfirmedBooking, setError,
     goToWaitlist, setJoinedWaitlist,
   } = useBookingFlow()
 
@@ -76,7 +76,7 @@ export default function BookingDrawer() {
   const isWaiverOrTermsError = (message: string) =>
     message.includes('Terms & Conditions') || message.includes('Liability Waiver') || message.includes('liability waiver')
 
-  // Booking-options doesn't itself know about capacity (only occurrence.spots_remaining_* does, a
+  // Booking-options doesn't itself know about capacity (only occurrence.spots_remaining does, a
   // page-load-time snapshot) — so a normal booking attempt can still lose the capacity race between
   // reaching the options step and submitting. BookingService.cs surfaces exactly these two messages
   // for that case; catching them here routes into the same join-waitlist flow instead of a dead end.
@@ -246,7 +246,6 @@ export default function BookingDrawer() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({
           session_occurrence_id: occurrence.occurrence_id,
-          booked_mode: bookedMode,
           guest_count: guestCount,
           guests: Array.from({ length: guestCount }, (_, i) => ({
             first_name: `${guestLabel} - Guest ${i + 1}`, last_name: null, email: null,
@@ -291,7 +290,7 @@ export default function BookingDrawer() {
       const res = await fetch(`${apiUrl}/api/organisations/${orgId}/occurrences/${occurrence.occurrence_id}/waitlist/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ preferred_mode: bookedMode, guest_count: guestCount })
+        body: JSON.stringify({ guest_count: guestCount })
       })
       const data = await res.json().catch(() => null)
       if (res.ok) {
@@ -357,7 +356,7 @@ export default function BookingDrawer() {
       const res = await fetch(`${apiUrl}/api/organisations/${orgId}/members/me/bookings/payment-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ session_occurrence_id: occurrence.occurrence_id, booked_mode: bookedMode })
+        body: JSON.stringify({ session_occurrence_id: occurrence.occurrence_id })
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) {
@@ -407,7 +406,7 @@ export default function BookingDrawer() {
   const renderGuestSelector = () => {
     if (!bookingOptions?.guest_bookings_enabled || bookingOptions.guest_max_per_booking <= 0) return null
 
-    const spotsRemaining = bookedMode === 'online' ? occurrence!.spots_remaining_online : occurrence!.spots_remaining_inperson
+    const spotsRemaining = occurrence!.spots_remaining
     const spotsCap = spotsRemaining === null ? bookingOptions.guest_max_per_booking : Math.max(0, spotsRemaining - 1)
     const maxGuests = Math.min(bookingOptions.guest_max_per_booking, spotsCap)
     if (maxGuests <= 0) return null
@@ -440,35 +439,6 @@ export default function BookingDrawer() {
           </div>
           <button onClick={close} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
         </div>
-
-        {step === 'mode' && (
-          <div>
-            <p style={{ fontSize: '14px', color: '#444', marginBottom: '16px' }}>This class is offered both in-person and online. How would you like to attend?</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {(['in_person', 'online'] as const).map(m => {
-                const spots = m === 'in_person' ? occurrence.spots_remaining_inperson : occurrence.spots_remaining_online
-                const price = m === 'in_person' ? occurrence.price_inperson : occurrence.price_online
-                const full = spots !== null && spots <= 0
-                return (
-                  <button
-                    key={m}
-                    onClick={() => { setBookedMode(m); setStep('auth') }}
-                    style={{
-                      textAlign: 'left', padding: '14px 16px', border: '1px solid #e2e2e2', borderRadius: '10px',
-                      backgroundColor: 'white', cursor: 'pointer'
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{modeLabel(m)}</div>
-                    <div style={{ fontSize: '12px', color: full ? '#7a4f00' : '#666', marginTop: '2px' }}>
-                      {full ? 'Full — join the waitlist' : spots !== null ? `${spots} spots left` : 'Open'}
-                      {price != null ? ` · from ${formatMoney(price, occurrence.currency)}` : ''}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
 
         {step === 'auth' && (
           checkingAuth ? (
@@ -660,10 +630,7 @@ export default function BookingDrawer() {
                             <div>
                               <div style={{ fontWeight: 600, fontSize: '14px' }}>Pay drop-in</div>
                               <div style={{ fontSize: '13px', color: '#666' }}>
-                                {formatMoney(
-                                  (bookedMode === 'online' ? bookingOptions.base_price_online : bookingOptions.base_price_inperson) ?? 0,
-                                  bookingOptions.currency
-                                )}
+                                {formatMoney(bookingOptions.base_price ?? 0, bookingOptions.currency)}
                               </div>
                             </div>
                             {!dropInSecret && (
@@ -744,8 +711,7 @@ export default function BookingDrawer() {
           ) : (
             <div>
               <p style={{ fontSize: '14px', color: '#444', marginBottom: '16px' }}>
-                {bookedMode && <>This class is full for <strong>{modeLabel(bookedMode)}</strong>. </>}
-                Join the waitlist and we&apos;ll email you the moment a spot opens up.
+                This class is full. Join the waitlist and we&apos;ll email you the moment a spot opens up.
               </p>
 
               {bookingOptions && bookingOptions.guest_bookings_enabled && bookingOptions.guest_max_per_booking > 0 && (

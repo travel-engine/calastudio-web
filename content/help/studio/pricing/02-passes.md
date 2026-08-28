@@ -25,7 +25,7 @@ The template is active immediately and available to issue.
 
 | Setting | What it does |
 |---|---|
-| **Session/delivery restrictions** | Limit the pass to specific session types (class/workshop) or delivery modes (in-person/online/hybrid). Leave blank to allow everything. |
+| **Session/delivery restrictions** | Limit the pass to specific session types (class/workshop) or delivery modes (in-person/online). Leave blank to allow everything. |
 | **Allow freeze** | Lets a member pause the pass's expiry clock, up to a max number of days. |
 | **Credit return on cancel** | Reserved for a future per-pass override. Today, whether a cancellation returns its credit is decided studio-wide by your cancellation policy, not per pass template — see **Sessions → Cancellation policy**. |
 | **Multi-pass priority** | When a member holds more than one usable pass, which one gets debited first — soonest to expire, oldest purchased, or let the member choose. |

@@ -65,7 +65,7 @@ interface Payment {
 
 interface WaitlistEntry {
   id: string
-  preferred_mode: 'in_person' | 'online' | 'either'
+  preferred_mode: 'in_person' | 'online'
   position: number
   spots_needed: number
   intended_guest_count: number
@@ -190,7 +190,6 @@ export default function MemberAccountPage() {
   const [leavingWaitlistId, setLeavingWaitlistId] = useState('')
   const [claimingWaitlistId, setClaimingWaitlistId] = useState('')
   const [waitlistActionError, setWaitlistActionError] = useState('')
-  const [claimRequestedMode, setClaimRequestedMode] = useState<Record<string, 'in_person' | 'online'>>({})
 
   const [profileForm, setProfileForm] = useState({
     full_name: '', phone: '', date_of_birth: '', emergency_contact_name: '',
@@ -436,10 +435,6 @@ export default function MemberAccountPage() {
   // and this account tab has no per-guest name capture UI, so each guest just gets a generic label,
   // same spirit as BookingDrawer's "{member} - Guest N" default.
   const handleClaimWaitlist = async (entry: WaitlistEntry) => {
-    if (entry.preferred_mode === 'either' && !claimRequestedMode[entry.id]) {
-      setWaitlistActionError('Choose in-person or online before claiming your spot.')
-      return
-    }
     setClaimingWaitlistId(entry.id)
     setWaitlistActionError('')
     try {
@@ -448,7 +443,6 @@ export default function MemberAccountPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token: entry.token,
-          requested_mode: entry.preferred_mode === 'either' ? claimRequestedMode[entry.id] : null,
           guests: Array.from({ length: entry.intended_guest_count }, (_, i) => ({
             first_name: `Guest ${i + 1}`, last_name: null, email: null,
           })),
@@ -851,17 +845,6 @@ export default function MemberAccountPage() {
 
                       {w.status === 'promoted' && !holdExpired && (
                         <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f4f4f4', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          {w.preferred_mode === 'either' && (
-                            <select
-                              value={claimRequestedMode[w.id] ?? ''}
-                              onChange={e => setClaimRequestedMode(prev => ({ ...prev, [w.id]: e.target.value as 'in_person' | 'online' }))}
-                              style={{ padding: '8px 10px', border: '1px solid #e2e2e2', borderRadius: '6px', fontSize: '13px' }}
-                            >
-                              <option value="">Choose mode...</option>
-                              <option value="in_person">In-person</option>
-                              <option value="online">Online</option>
-                            </select>
-                          )}
                           <button
                             onClick={() => handleClaimWaitlist(w)}
                             disabled={claimingWaitlistId === w.id}

@@ -14,10 +14,8 @@ interface Session {
   session_type: string
   delivery_mode: string
   duration_minutes: number
-  capacity_inperson: number | null
-  capacity_online: number | null
-  price_inperson: number | null
-  price_online: number | null
+  capacity: number | null
+  price: number | null
   visibility: string
   is_recurring: boolean
   location_name: string | null
@@ -31,7 +29,6 @@ function Badge({ text }: { text: string | null | undefined; color?: string }) {
     const colors: Record<string, { bg: string; text: string }> = {
       in_person: { bg: '#e8f5ee', text: '#085041' },
       online: { bg: '#e8eef8', text: '#1B4F8A' },
-      hybrid: { bg: '#f0ecf8', text: '#4B2D8A' },
       public: { bg: '#e8f5ee', text: '#085041' },
       private: { bg: '#fff3cd', text: '#7a4f00' },
       draft: { bg: '#f4f4f4', text: '#666' },
@@ -277,12 +274,10 @@ export default function SessionsPage() {
                 <div><Badge text={session.session_type} /></div>
                 <div><Badge text={session.delivery_mode} /></div>
                 <div style={{ fontSize: '14px', color: '#444' }}>
-                  {(session as any).capacityInperson ?? (session as any).capacity_inperson ?? (session as any).capacityOnline ?? (session as any).capacity_online ?? '∞'}
+                  {session.capacity ?? '∞'}
                 </div>
                 <div style={{ fontSize: '14px', color: '#444' }}>
-                  {((session as any).priceInperson ?? (session as any).price_inperson)
-                    ? `$${(session as any).priceInperson ?? (session as any).price_inperson}`
-                    : 'Free'}
+                  {session.price ? `$${session.price}` : 'Free'}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
 

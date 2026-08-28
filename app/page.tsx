@@ -163,7 +163,7 @@ export default function Home() {
           <FeatureRow
             icon="📅"
             title="Sessions that fit how you teach"
-            body="In-person, online, or hybrid. One-off or recurring, with a real calendar and roster underneath — not just a list of class names."
+            body="In-person or online. One-off or recurring, with a real calendar and roster underneath — not just a list of class names."
           />
           <FeatureRow
             icon="🎟"

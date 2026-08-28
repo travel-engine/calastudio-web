@@ -1,32 +1,27 @@
 ---
 title: Delivery modes
-description: In-person, online, and hybrid sessions explained
+description: In-person and online sessions explained
 order: 2
 ---
 
 # Delivery modes
 
-Every session runs in one of three delivery modes, set when you create or edit it.
+Every session runs in one of two delivery modes, set when you create or edit it.
 
 ## In-person
 
 Members attend at a physical location.
 
 - **Location name** and **address** are shown on the booking page and in confirmation emails
-- **In-person capacity** caps how many members can book — leave it to control class size
+- **Capacity** caps how many members can book — set it to control class size
 
 ## Online
 
 Members join remotely via a link.
 
-- **Online capacity** is optional — leave it blank for unlimited spots
+- **Capacity** is optional — leave it blank for unlimited spots
+- **Online instructions** are shown to members when they book — use them for anything to have ready
 - Add a **meeting URL**; you control whether it's visible to members before they book or only after (**Meeting URL visible** setting) — useful if you'd rather members book first and get the link in their confirmation
-
-## Hybrid
-
-A single session that supports both — some members attend in person, others join online.
-
-- Set capacity and price independently for each mode — the in-person and online caps are tracked separately, not as one shared total
 
 ## Changing delivery mode later
 
