@@ -14,6 +14,7 @@ interface Occurrence {
   status: 'scheduled' | 'cancelled' | 'completed'
   capacity: number | null
   booked: number
+  instructor_name: string | null
   session: {
     name: string
     delivery_mode: 'in_person' | 'online'
@@ -258,7 +259,12 @@ export default function SchedulePage() {
                               <span style={{ fontWeight: 600, color: isPast ? '#999' : '#085041', minWidth: '68px' }}>
                                 {new Date(occ.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                               </span>
-                              <span style={{ flex: 1 }}>{occ.session?.name ?? 'Session'}</span>
+                              <span style={{ flex: 1, minWidth: 0 }}>
+                                {occ.session?.name ?? 'Session'}
+                                <span style={{ color: isPast ? '#bbb' : '#999' }}>
+                                  {' · '}{occ.instructor_name ?? 'Unassigned'}
+                                </span>
+                              </span>
                               <span style={{
                                 fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
                                 backgroundColor: isFull ? '#fdecea' : '#e8f5ee',
