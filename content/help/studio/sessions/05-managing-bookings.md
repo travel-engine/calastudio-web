@@ -65,7 +65,7 @@ This always creates a free spot — no pass credit is used and no payment is rec
 
 ## The roster's three tabs
 
-**Booked**, **On waitlist**, and **Cancelled** — each labelled with a count, and **Booked** also shows occupancy against capacity (e.g. `5/12`). **On waitlist** is a placeholder for now; there's no waitlist feature yet, so it always reads `0`.
+**Booked**, **On waitlist**, and **Cancelled** — each labelled with a count, and **Booked** also shows occupancy against capacity (e.g. `5/12`).
 
 ### Booked
 
@@ -78,6 +78,12 @@ Each row supports up to three actions, depending on your role:
 | **Cancel** | Cancels the booking. Pass credits are returned automatically if the studio's cancellation policy allows it | Admin, Super teacher only |
 
 If someone brought guests, they're listed underneath the member's own row — see **Members → Guest bookings** for how those work and how to cancel just one guest's spot.
+
+### On waitlist
+
+Shown once a class is full and members start joining the queue from the booking page. Each row shows the member's name (plus email for Admin, Super teacher, and Teacher — matching the same contact-info visibility as the Booked tab), which mode they're waiting for, their position in line, and how many spots they need if they're waiting as a group.
+
+There's no manual action here — joining and leaving the waitlist is self-service from the member's own account, and promotion runs automatically when a spot frees up: one member at a time with a time-limited hold if it's well before the class, or a simultaneous first-come blast to everyone waiting if it's close to start time. A promoted member's row shows **Spot held** with the time their hold expires; if they don't claim it in time, the next person in line is offered it automatically. Right at the start of class there's a short window where a freed spot isn't offered to anyone — it's released as a walk-in instead.
 
 ### Cancelled
 

@@ -63,6 +63,24 @@ interface Payment {
   created_at: string
 }
 
+interface WaitlistEntry {
+  id: string
+  preferred_mode: 'in_person' | 'online' | 'either'
+  position: number
+  spots_needed: number
+  intended_guest_count: number
+  token: string | null
+  token_expires_at: string | null
+  status: 'waiting' | 'promoted' | 'booked' | 'expired' | 'removed'
+  joined_at: string
+  promoted_at: string | null
+  session_occurrence: {
+    starts_at: string
+    ends_at: string
+    session: { name: string; session_type: string; delivery_mode: string } | null
+  } | null
+}
+
 interface LedgerEntry {
   id: string
   movement_type: 'purchase' | 'booking_debit' | 'cancel_credit' | 'expired_forfeit' | 'promotion_credit' | 'studio_adjustment'
@@ -111,6 +129,10 @@ function StatusBadge({ status }: { status: string }) {
     failed: { bg: '#fdecea', color: '#8b1a1a', label: 'Failed' },
     refunded: { bg: '#f4f4f4', color: '#666', label: 'Refunded' },
     partially_refunded: { bg: '#f4f4f4', color: '#666', label: 'Partially refunded' },
+    waiting: { bg: '#fff3cd', color: '#7a4f00', label: 'Waiting' },
+    promoted: { bg: '#e8f5ee', color: '#085041', label: 'Spot ready' },
+    booked: { bg: '#e8f5ee', color: '#085041', label: 'Booked' },
+    removed: { bg: '#f4f4f4', color: '#666', label: 'Left' },
   }
   const s = map[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
   return (
@@ -155,15 +177,20 @@ export default function MemberAccountPage() {
   const [studioNotFound, setStudioNotFound] = useState(false)
   const [portalError, setPortalError] = useState('')
 
-  const [tab, setTab] = useState<'profile' | 'bookings' | 'passes' | 'credits' | 'payments'>('profile')
+  const [tab, setTab] = useState<'profile' | 'bookings' | 'waitlist' | 'passes' | 'credits' | 'payments'>('profile')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([])
   const [passes, setPasses] = useState<Pass[]>([])
   const [ledger, setLedger] = useState<LedgerEntry[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [dataLoading, setDataLoading] = useState(false)
   const [downloadingReceiptId, setDownloadingReceiptId] = useState('')
   const [receiptError, setReceiptError] = useState('')
+  const [leavingWaitlistId, setLeavingWaitlistId] = useState('')
+  const [claimingWaitlistId, setClaimingWaitlistId] = useState('')
+  const [waitlistActionError, setWaitlistActionError] = useState('')
+  const [claimRequestedMode, setClaimRequestedMode] = useState<Record<string, 'in_person' | 'online'>>({})
 
   const [profileForm, setProfileForm] = useState({
     full_name: '', phone: '', date_of_birth: '', emergency_contact_name: '',
@@ -264,10 +291,11 @@ export default function MemberAccountPage() {
     const loadAll = async () => {
       setDataLoading(true)
       try {
-        const [orgRes, profileRes, bookingsRes, passesRes, ledgerRes, paymentsRes] = await Promise.all([
+        const [orgRes, profileRes, bookingsRes, waitlistRes, passesRes, ledgerRes, paymentsRes] = await Promise.all([
           fetch(`${apiUrl}/api/organisations/${orgId}`, { headers: { Authorization: `Bearer ${accessToken}` } }),
           authedFetch('/members/me'),
           authedFetch('/members/me/bookings'),
+          authedFetch('/members/me/waitlist'),
           authedFetch('/members/me/passes'),
           authedFetch('/members/me/ledger'),
           authedFetch('/members/me/payments'),
@@ -288,6 +316,7 @@ export default function MemberAccountPage() {
           })
         }
         if (bookingsRes.ok) setBookings(await bookingsRes.json())
+        if (waitlistRes.ok) setWaitlist(await waitlistRes.json())
         if (passesRes.ok) setPasses(await passesRes.json())
         if (ledgerRes.ok) setLedger(await ledgerRes.json())
         if (paymentsRes.ok) setPayments(await paymentsRes.json())
@@ -381,6 +410,65 @@ export default function MemberAccountPage() {
       setCancelError("Couldn't reach the server. Please try again.")
     } finally {
       setCancellingId('')
+    }
+  }
+
+  const handleLeaveWaitlist = async (id: string) => {
+    setLeavingWaitlistId(id)
+    setWaitlistActionError('')
+    try {
+      const res = await authedFetch(`/waitlist/${id}/leave`, { method: 'POST' })
+      if (res.ok) {
+        const updated = await res.json()
+        setWaitlist(prev => prev.map(w => w.id === id ? updated : w))
+      } else {
+        const body = await res.json().catch(() => null)
+        setWaitlistActionError(body?.error ?? "Couldn't leave the waitlist.")
+      }
+    } catch {
+      setWaitlistActionError("Couldn't reach the server. Please try again.")
+    } finally {
+      setLeavingWaitlistId('')
+    }
+  }
+
+  // Guests aren't re-collected here — the group size was fixed at join time (intended_guest_count)
+  // and this account tab has no per-guest name capture UI, so each guest just gets a generic label,
+  // same spirit as BookingDrawer's "{member} - Guest N" default.
+  const handleClaimWaitlist = async (entry: WaitlistEntry) => {
+    if (entry.preferred_mode === 'either' && !claimRequestedMode[entry.id]) {
+      setWaitlistActionError('Choose in-person or online before claiming your spot.')
+      return
+    }
+    setClaimingWaitlistId(entry.id)
+    setWaitlistActionError('')
+    try {
+      const res = await authedFetch(`/waitlist/${entry.id}/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: entry.token,
+          requested_mode: entry.preferred_mode === 'either' ? claimRequestedMode[entry.id] : null,
+          guests: Array.from({ length: entry.intended_guest_count }, (_, i) => ({
+            first_name: `Guest ${i + 1}`, last_name: null, email: null,
+          })),
+        })
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.booked) {
+        const [wlRes, bkRes] = await Promise.all([authedFetch('/members/me/waitlist'), authedFetch('/members/me/bookings')])
+        if (wlRes.ok) setWaitlist(await wlRes.json())
+        if (bkRes.ok) setBookings(await bkRes.json())
+        setTab('bookings')
+      } else if (res.ok && !data?.booked) {
+        setWaitlistActionError("You'll need an eligible pass to claim this spot — buy one from the booking page, then come back and claim again before your hold expires.")
+      } else {
+        setWaitlistActionError(data?.error ?? "Couldn't claim this spot.")
+      }
+    } catch {
+      setWaitlistActionError("Couldn't reach the server. Please try again.")
+    } finally {
+      setClaimingWaitlistId('')
     }
   }
 
@@ -590,13 +678,13 @@ export default function MemberAccountPage() {
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '24px' }}>
         <div className={styles.tabs}>
-          {(['profile', 'bookings', 'passes', 'credits', 'payments'] as const).map(t => (
+          {(['profile', 'bookings', 'waitlist', 'passes', 'credits', 'payments'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`${styles.tabButton} ${tab === t ? styles.tabButtonActive : ''}`}
             >
-              {t === 'profile' ? 'Profile' : t === 'bookings' ? 'My bookings' : t === 'passes' ? 'My passes' : t === 'credits' ? 'Credit history' : 'Payments'}
+              {t === 'profile' ? 'Profile' : t === 'bookings' ? 'My bookings' : t === 'waitlist' ? 'My waitlist' : t === 'passes' ? 'My passes' : t === 'credits' ? 'Credit history' : 'Payments'}
             </button>
           ))}
         </div>
@@ -719,6 +807,91 @@ export default function MemberAccountPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {tab === 'waitlist' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {waitlistActionError && (
+                  <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                    {waitlistActionError}
+                  </div>
+                )}
+                {waitlist.length === 0 ? (
+                  <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
+                    You&apos;re not on any waitlists.
+                  </div>
+                ) : waitlist.map(w => {
+                  const isActive = w.status === 'waiting' || w.status === 'promoted'
+                  const holdExpired = w.status === 'promoted' && (!w.token_expires_at || new Date(w.token_expires_at) <= new Date())
+                  return (
+                    <div key={w.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', opacity: isActive ? 1 : 0.7 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+                            {w.session_occurrence?.session?.name ?? 'Session'}
+                          </div>
+                          <div style={{ fontSize: '13px', color: '#666' }}>
+                            {w.session_occurrence ? formatDateTime(w.session_occurrence.starts_at) : '—'}
+                            {w.intended_guest_count > 0 ? ` · ${w.intended_guest_count + 1} spots` : ''}
+                          </div>
+                          {w.status === 'waiting' && (
+                            <div style={{ fontSize: '13px', color: '#7a4f00', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
+                          )}
+                          {w.status === 'promoted' && !holdExpired && (
+                            <div style={{ fontSize: '13px', color: '#085041', marginTop: '4px', fontWeight: 600 }}>
+                              Your spot is ready — claim by {w.token_expires_at ? formatDateTime(w.token_expires_at) : 'soon'}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <StatusBadge status={holdExpired ? 'expired' : w.status} />
+                        </div>
+                      </div>
+
+                      {w.status === 'promoted' && !holdExpired && (
+                        <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f4f4f4', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          {w.preferred_mode === 'either' && (
+                            <select
+                              value={claimRequestedMode[w.id] ?? ''}
+                              onChange={e => setClaimRequestedMode(prev => ({ ...prev, [w.id]: e.target.value as 'in_person' | 'online' }))}
+                              style={{ padding: '8px 10px', border: '1px solid #e2e2e2', borderRadius: '6px', fontSize: '13px' }}
+                            >
+                              <option value="">Choose mode...</option>
+                              <option value="in_person">In-person</option>
+                              <option value="online">Online</option>
+                            </select>
+                          )}
+                          <button
+                            onClick={() => handleClaimWaitlist(w)}
+                            disabled={claimingWaitlistId === w.id}
+                            style={{
+                              padding: '8px 16px', backgroundColor: claimingWaitlistId === w.id ? '#9fd6b8' : brand, color: 'white',
+                              border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: claimingWaitlistId === w.id ? 'default' : 'pointer'
+                            }}
+                          >
+                            {claimingWaitlistId === w.id ? 'Claiming...' : 'Claim my spot'}
+                          </button>
+                        </div>
+                      )}
+
+                      {isActive && (
+                        <div style={{ marginTop: w.status === 'promoted' && !holdExpired ? '10px' : '14px' }}>
+                          <button
+                            onClick={() => handleLeaveWaitlist(w.id)}
+                            disabled={leavingWaitlistId === w.id}
+                            style={{
+                              padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
+                              borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#8b1a1a'
+                            }}
+                          >
+                            {leavingWaitlistId === w.id ? 'Leaving...' : 'Leave waitlist'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
 

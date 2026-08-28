@@ -26,8 +26,9 @@ function formatMoney(amount: number, currency: string) {
 export default function BookingDrawer() {
   const {
     studioSlug, occurrence, brandColor, step, bookedMode, accessToken, orgId, stripeAccountId,
-    bookingOptions, confirmedBooking, errorMessage,
+    bookingOptions, confirmedBooking, errorMessage, joiningWaitlist, joinedWaitlistEntry,
     close, setStep, setBookedMode, setAuth, setBookingOptions, setConfirmedBooking, setError,
+    goToWaitlist, setJoinedWaitlist,
   } = useBookingFlow()
 
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -47,6 +48,9 @@ export default function BookingDrawer() {
   // No per-guest name/email collection — each guest is just labelled "{member name} - Guest N".
   const [guestCount, setGuestCount] = useState(0)
   const [memberName, setMemberName] = useState('')
+
+  const [waitlistBusy, setWaitlistBusy] = useState(false)
+  const [waitlistError, setWaitlistError] = useState('')
 
   const [dropInSecret, setDropInSecret] = useState<string | null>(null)
   const [dropInBusy, setDropInBusy] = useState(false)
@@ -71,6 +75,13 @@ export default function BookingDrawer() {
 
   const isWaiverOrTermsError = (message: string) =>
     message.includes('Terms & Conditions') || message.includes('Liability Waiver') || message.includes('liability waiver')
+
+  // Booking-options doesn't itself know about capacity (only occurrence.spots_remaining_* does, a
+  // page-load-time snapshot) — so a normal booking attempt can still lose the capacity race between
+  // reaching the options step and submitting. BookingService.cs surfaces exactly these two messages
+  // for that case; catching them here routes into the same join-waitlist flow instead of a dead end.
+  const isCapacityFullError = (message: string) =>
+    message.includes('This session is full') || message.includes("enough spots left")
 
   const loadWaiverInfo = async () => {
     if (!studioSlug) return
@@ -115,7 +126,7 @@ export default function BookingDrawer() {
     if (profileRes.ok) setMemberName((await profileRes.json()).full_name ?? '')
 
     setAuth({ accessToken: token, orgId: member.organisation_id, stripeAccountId: org?.stripe_account_id ?? null })
-    setStep('options')
+    setStep(joiningWaitlist ? 'waitlist' : 'options')
   }
 
   const handleAcceptAgreements = async () => {
@@ -160,10 +171,11 @@ export default function BookingDrawer() {
   // existing bookings, so without this a member re-clicking "Book" on a session they're already
   // confirmed into would walk straight into the payment step with no indication of that.
   useEffect(() => {
-    if (step !== 'options' || !occurrence || !studioSlug) return
+    if ((step !== 'options' && step !== 'waitlist') || !occurrence || !studioSlug) return
     let cancelled = false
     setOptionsLoading(true)
     setNote('')
+    setWaitlistError('')
     setAlreadyBooked(false)
     setGuestCount(0)
     Promise.all([
@@ -263,10 +275,41 @@ export default function BookingDrawer() {
           setStep('agreements')
           return
         }
+        if (isCapacityFullError(message)) { goToWaitlist(); return }
         setError(message || "Couldn't complete your booking. Please try again.")
       }
     } catch {
       setError("Couldn't reach the server. Please try again.")
+    }
+  }
+
+  const handleJoinWaitlist = async () => {
+    if (!occurrence || !bookedMode) return
+    setWaitlistBusy(true)
+    setWaitlistError('')
+    try {
+      const res = await fetch(`${apiUrl}/api/organisations/${orgId}/occurrences/${occurrence.occurrence_id}/waitlist/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ preferred_mode: bookedMode, guest_count: guestCount })
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok) {
+        setJoinedWaitlist({ id: data.id, position: data.position })
+        return
+      }
+      const message: string = data?.error ?? ''
+      if (message.includes("There's room in this session")) {
+        // Lost the (rare) other direction of the race — a spot opened up between page load and this
+        // request. Send them back through the normal options step, which re-fetches fresh pricing.
+        setStep('options')
+        return
+      }
+      setWaitlistError(message || "Couldn't join the waitlist. Please try again.")
+    } catch {
+      setWaitlistError("Couldn't reach the server. Please try again.")
+    } finally {
+      setWaitlistBusy(false)
     }
   }
 
@@ -327,6 +370,7 @@ export default function BookingDrawer() {
           setStep('agreements')
           return
         }
+        if (isCapacityFullError(message)) { goToWaitlist(); return }
         setNote(message || "Couldn't start payment. Please try again.")
         return
       }
@@ -408,16 +452,15 @@ export default function BookingDrawer() {
                 return (
                   <button
                     key={m}
-                    disabled={full}
                     onClick={() => { setBookedMode(m); setStep('auth') }}
                     style={{
                       textAlign: 'left', padding: '14px 16px', border: '1px solid #e2e2e2', borderRadius: '10px',
-                      backgroundColor: full ? '#f4f4f4' : 'white', cursor: full ? 'not-allowed' : 'pointer'
+                      backgroundColor: 'white', cursor: 'pointer'
                     }}
                   >
                     <div style={{ fontWeight: 600, fontSize: '14px' }}>{modeLabel(m)}</div>
-                    <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-                      {full ? 'Full' : spots !== null ? `${spots} spots left` : 'Open'}
+                    <div style={{ fontSize: '12px', color: full ? '#7a4f00' : '#666', marginTop: '2px' }}>
+                      {full ? 'Full — join the waitlist' : spots !== null ? `${spots} spots left` : 'Open'}
                       {price != null ? ` · from ${formatMoney(price, occurrence.currency)}` : ''}
                     </div>
                   </button>
@@ -681,6 +724,82 @@ export default function BookingDrawer() {
           )
         )}
 
+        {step === 'waitlist' && (
+          optionsLoading ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>Loading...</div>
+          ) : alreadyBooked ? (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>✓</div>
+              <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>You&apos;re already booked in</div>
+              <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+                You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
+              </p>
+              <a
+                href={`/${studioSlug}/account`}
+                style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: brandColor, color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
+              >
+                View my bookings
+              </a>
+            </div>
+          ) : (
+            <div>
+              <p style={{ fontSize: '14px', color: '#444', marginBottom: '16px' }}>
+                {bookedMode && <>This class is full for <strong>{modeLabel(bookedMode)}</strong>. </>}
+                Join the waitlist and we&apos;ll email you the moment a spot opens up.
+              </p>
+
+              {bookingOptions && bookingOptions.guest_bookings_enabled && bookingOptions.guest_max_per_booking > 0 && (
+                <div className={styles.optionCard}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>Waiting as a group?</div>
+                    <select
+                      value={guestCount}
+                      onChange={e => setGuestCount(parseInt(e.target.value))}
+                      style={{ padding: '6px 10px', border: '1px solid #e2e2e2', borderRadius: '6px', fontSize: '13px' }}
+                    >
+                      {Array.from({ length: bookingOptions.guest_max_per_booking + 1 }, (_, n) => (
+                        <option key={n} value={n}>{n === 0 ? 'Just me' : `Me + ${n} guest${n > 1 ? 's' : ''}`}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {guestCount > 0 && (
+                    <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                      You&apos;ll only be promoted once {guestCount + 1} spots open up together.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {waitlistError && (
+                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', margin: '16px 0' }}>
+                  {waitlistError}
+                </div>
+              )}
+
+              <button onClick={handleJoinWaitlist} disabled={waitlistBusy} style={{ ...confirmButtonStyle(brandColor), marginTop: '16px', opacity: waitlistBusy ? 0.7 : 1 }}>
+                {waitlistBusy ? 'Joining...' : `Join the waitlist${guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}`}
+              </button>
+            </div>
+          )
+        )}
+
+        {step === 'waitlist-joined' && joinedWaitlistEntry && (
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>✓</div>
+            <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>You&apos;re on the waitlist</div>
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+              You&apos;re #{joinedWaitlistEntry.position} in line for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
+              We&apos;ll email you if a spot opens up — no payment is taken until then.
+            </p>
+            <a
+              href={`/${studioSlug}/account`}
+              style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: brandColor, color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
+            >
+              View my waitlist
+            </a>
+          </div>
+        )}
+
         {step === 'confirming' && (
           <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>{confirmingLabel}</div>
         )}
@@ -706,7 +825,9 @@ export default function BookingDrawer() {
             <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
               {errorMessage}
             </div>
-            <button onClick={() => setStep('options')} style={confirmButtonStyle(brandColor)}>Back to options</button>
+            <button onClick={() => setStep(joiningWaitlist ? 'waitlist' : 'options')} style={confirmButtonStyle(brandColor)}>
+              {joiningWaitlist ? 'Back to waitlist' : 'Back to options'}
+            </button>
           </div>
         )}
       </div>

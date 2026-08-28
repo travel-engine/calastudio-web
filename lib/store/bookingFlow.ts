@@ -51,11 +51,29 @@ export interface ConfirmedBooking {
   status: string
 }
 
+export interface JoinedWaitlistEntry {
+  id: string
+  position: number
+}
+
 // Multi-step booking flow state, shared by the drawer and its step components — a member picks a
 // mode, signs in, then pays (drop-in card, pass purchase, or an already-usable pass) or just
 // confirms for free/pass-covered sessions. Central store per calastudio-web CLAUDE.md's "booking
 // flow state goes in zustand, not prop-drilled or duplicated per step" convention.
-export type BookingStep = 'mode' | 'auth' | 'agreements' | 'options' | 'confirming' | 'success' | 'error'
+//
+// 'waitlist' / 'waitlist-joined' cover 04-booking-flow.md §4.4: reached either proactively (the
+// chosen mode was already full when the drawer opened — see joiningWaitlist below) or reactively,
+// when a normal booking attempt loses a last-minute capacity race (BookingDrawer catches "This
+// session is full." from the confirm/drop-in calls and redirects here instead of a dead-end error).
+export type BookingStep = 'mode' | 'auth' | 'agreements' | 'options' | 'waitlist' | 'waitlist-joined' | 'confirming' | 'success' | 'error'
+
+// A occurrence's spots_remaining_* is null for unlimited capacity (never full) and otherwise the
+// live count as of the page's last render — good enough to decide which flow to open with; the
+// actual join/booking calls re-check for real server-side.
+function isModeFull(occurrence: BookableOccurrence, mode: 'in_person' | 'online') {
+  const spots = mode === 'online' ? occurrence.spots_remaining_online : occurrence.spots_remaining_inperson
+  return spots !== null && spots <= 0
+}
 
 interface BookingFlowState {
   studioSlug: string | null
@@ -74,6 +92,11 @@ interface BookingFlowState {
   confirmedBooking: ConfirmedBooking | null
   errorMessage: string
 
+  // Whether the currently-chosen mode was already full when selected — decides whether the drawer
+  // routes into the join-waitlist step instead of the normal options/payment steps.
+  joiningWaitlist: boolean
+  joinedWaitlistEntry: JoinedWaitlistEntry | null
+
   openOccurrence: (studioSlug: string, occurrence: BookableOccurrence, brandColor?: string) => void
   close: () => void
   setStep: (step: BookingStep) => void
@@ -82,6 +105,8 @@ interface BookingFlowState {
   setBookingOptions: (options: BookingOptions) => void
   setConfirmedBooking: (booking: ConfirmedBooking) => void
   setError: (message: string) => void
+  goToWaitlist: () => void
+  setJoinedWaitlist: (entry: JoinedWaitlistEntry) => void
 }
 
 const DEFAULT_BRAND_COLOR = '#085041'
@@ -98,26 +123,39 @@ const initialFlowState = {
   bookingOptions: null as BookingOptions | null,
   confirmedBooking: null as ConfirmedBooking | null,
   errorMessage: '',
+  joiningWaitlist: false,
+  joinedWaitlistEntry: null as JoinedWaitlistEntry | null,
 }
 
 export const useBookingFlow = create<BookingFlowState>((set) => ({
   ...initialFlowState,
 
-  openOccurrence: (studioSlug, occurrence, brandColor) => set({
-    ...initialFlowState,
-    studioSlug,
-    occurrence,
-    brandColor: brandColor || DEFAULT_BRAND_COLOR,
-    step: occurrence.delivery_mode === 'hybrid' ? 'mode' : 'auth',
-    bookedMode: occurrence.delivery_mode === 'hybrid' ? null : occurrence.delivery_mode,
-  }),
+  openOccurrence: (studioSlug, occurrence, brandColor) => {
+    const singleMode = occurrence.delivery_mode === 'hybrid' ? null : occurrence.delivery_mode
+    set({
+      ...initialFlowState,
+      studioSlug,
+      occurrence,
+      brandColor: brandColor || DEFAULT_BRAND_COLOR,
+      step: singleMode === null ? 'mode' : 'auth',
+      bookedMode: singleMode,
+      joiningWaitlist: singleMode !== null && isModeFull(occurrence, singleMode),
+    })
+  },
 
   close: () => set({ ...initialFlowState }),
 
   setStep: (step) => set({ step }),
-  setBookedMode: (bookedMode) => set({ bookedMode }),
+  setBookedMode: (bookedMode) => set((state) => ({
+    bookedMode,
+    joiningWaitlist: state.occurrence !== null && isModeFull(state.occurrence, bookedMode),
+  })),
   setAuth: ({ accessToken, orgId, stripeAccountId }) => set({ accessToken, orgId, stripeAccountId }),
   setBookingOptions: (bookingOptions) => set({ bookingOptions }),
   setConfirmedBooking: (confirmedBooking) => set({ confirmedBooking, step: 'success' }),
   setError: (errorMessage) => set({ errorMessage, step: 'error' }),
+  // Reactive fallback — a normal booking attempt just lost the capacity race, so treat it the same
+  // as if the mode had been full from the start rather than dead-ending on a raw error.
+  goToWaitlist: () => set({ joiningWaitlist: true, step: 'waitlist' }),
+  setJoinedWaitlist: (joinedWaitlistEntry) => set({ joinedWaitlistEntry, step: 'waitlist-joined' }),
 }))

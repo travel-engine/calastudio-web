@@ -137,7 +137,10 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
               <div className={styles.cardList}>
                 {dayOccurrences.map(occ => {
                   const spots = spotsLabel(occ)
-                  const bookable = spots.tone !== 'full'
+                  // A full occurrence still opens the drawer — it routes into "join the waitlist"
+                  // instead of the normal booking steps (04-booking-flow.md §4.4). Only a cancelled
+                  // occurrence is genuinely unbookable.
+                  const bookable = !occ.is_cancelled
                   const prices = [occ.price_inperson, occ.price_online].filter((p): p is number => p != null)
 
                   return (
@@ -180,7 +183,7 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
                           studioSlug={studioSlug}
                           occurrence={occ}
                           disabled={!bookable}
-                          label={occ.is_cancelled ? 'Cancelled' : !bookable ? 'Full' : 'Book'}
+                          label={occ.is_cancelled ? 'Cancelled' : spots.tone === 'full' ? 'Join waitlist' : 'Book'}
                           brandColor={brandColor}
                         />
                       </div>

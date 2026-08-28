@@ -82,6 +82,26 @@ interface Booking {
   member_pass_id?: string | null
 }
 
+// Matches WaitlistEndpoints.cs's WaitlistRosterEntry projection — already redacted server-side
+// (email is null unless the caller is admin/teacher_super/teacher_general; the member's claim
+// token is never included at all), so no further role-gating is needed on this data in the UI.
+interface WaitlistRosterEntry {
+  id: string
+  user_id: string
+  member_name: string
+  email: string | null
+  preferred_mode: 'in_person' | 'online' | 'either'
+  position: number
+  spots_needed: number
+  intended_guest_count: number
+  promotion_mode: 'standard' | 'fast_track' | 'dead_zone' | null
+  is_fast_track: boolean
+  status: 'waiting' | 'promoted' | 'booked' | 'expired' | 'removed'
+  joined_at: string
+  promoted_at: string | null
+  hold_expires_at: string | null
+}
+
 function formatWhen(iso: string) {
   return new Date(iso).toLocaleString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
@@ -182,6 +202,26 @@ function BookingStatusBadge({ status }: { status: string }) {
   )
 }
 
+const waitlistStatusLabels: Record<string, { bg: string; color: string; label: string }> = {
+  waiting: { bg: '#fff3cd', color: '#7a4f00', label: 'Waiting' },
+  promoted: { bg: '#e8f5ee', color: '#085041', label: 'Spot held' },
+  booked: { bg: '#e8f5ee', color: '#085041', label: 'Booked' },
+  expired: { bg: '#f4f4f4', color: '#666', label: 'Expired' },
+  removed: { bg: '#f4f4f4', color: '#666', label: 'Left' },
+}
+
+function WaitlistStatusBadge({ status }: { status: string }) {
+  const s = waitlistStatusLabels[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
+  return (
+    <span style={{
+      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
+      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
+    }}>
+      {s.label}
+    </span>
+  )
+}
+
 const paymentTypeLabels: Record<string, string> = {
   card: 'Card',
   pass: 'Pass',
@@ -220,6 +260,7 @@ export default function OccurrenceDetailPage() {
 
   const [occurrence, setOccurrence] = useState<OccurrenceDetail | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [waitlist, setWaitlist] = useState<WaitlistRosterEntry[]>([])
   const [bookingsLoading, setBookingsLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [tab, setTab] = useState<Tab>('booked')
@@ -267,10 +308,16 @@ export default function OccurrenceDetailPage() {
 
   const refreshRoster = useCallback(async (org: string, t: string) => {
     setBookingsLoading(true)
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org}/occurrences/${occurrenceId}/bookings`, {
-      headers: { Authorization: `Bearer ${t}` }
-    })
-    if (res.ok) setBookings(await res.json())
+    const [bookingsRes, waitlistRes] = await Promise.all([
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org}/occurrences/${occurrenceId}/bookings`, {
+        headers: { Authorization: `Bearer ${t}` }
+      }),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org}/occurrences/${occurrenceId}/waitlist`, {
+        headers: { Authorization: `Bearer ${t}` }
+      }),
+    ])
+    if (bookingsRes.ok) setBookings(await bookingsRes.json())
+    if (waitlistRes.ok) setWaitlist(await waitlistRes.json())
     setBookingsLoading(false)
   }, [occurrenceId])
 
@@ -621,9 +668,8 @@ export default function OccurrenceDetailPage() {
   const { booked, capacity } = occupancy(occurrence, bookings)
 
   const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show')
-  const waitlistRows = bookings.filter(b => b.status === 'waitlisted')
   const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel')
-  const rowsForTab = tab === 'booked' ? bookedRows : tab === 'waitlist' ? waitlistRows : cancelledRows
+  const rowsForTab = tab === 'booked' ? bookedRows : cancelledRows
 
   return (
     <div className={styles.shell}>
@@ -932,7 +978,7 @@ export default function OccurrenceDetailPage() {
               Booked ({capacity === null ? booked : `${booked}/${capacity}`})
             </button>
             <button style={tabStyle(tab === 'waitlist')} onClick={() => setTab('waitlist')}>
-              On waitlist ({waitlistRows.length})
+              On waitlist ({waitlist.length})
             </button>
             <button style={tabStyle(tab === 'cancelled')} onClick={() => setTab('cancelled')}>
               Cancelled ({cancelledRows.length})
@@ -941,9 +987,39 @@ export default function OccurrenceDetailPage() {
 
           {bookingsLoading ? (
             <p style={{ fontSize: '13px', color: '#666' }}>Loading...</p>
+          ) : tab === 'waitlist' ? (
+            waitlist.length === 0 ? (
+              <p style={{ fontSize: '13px', color: '#666' }}>No one on the waitlist.</p>
+            ) : (
+              <div>
+                {waitlist.map((w, i) => (
+                  <div key={w.id} style={{
+                    padding: '10px 0', borderBottom: i < waitlist.length - 1 ? '1px solid #f4f4f4' : 'none'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{w.member_name || 'Unknown member'}</div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          {w.email && `${w.email} · `}{w.preferred_mode.replace('_', ' ')}
+                          {w.intended_guest_count > 0 && ` · +${w.intended_guest_count} guest${w.intended_guest_count > 1 ? 's' : ''}`}
+                          {w.status === 'waiting' && ` · #${w.position} in line`}
+                        </div>
+                        {w.status === 'promoted' && (
+                          <div style={{ fontSize: '12px', color: '#7a4f00', marginTop: '2px' }}>
+                            {w.is_fast_track ? 'Fast-track blast' : 'Holding a spot'}
+                            {w.hold_expires_at && ` · expires ${formatWhen(w.hold_expires_at)}`}
+                          </div>
+                        )}
+                      </div>
+                      <WaitlistStatusBadge status={w.status} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           ) : rowsForTab.length === 0 ? (
             <p style={{ fontSize: '13px', color: '#666' }}>
-              {tab === 'booked' ? "No one's booked in yet." : tab === 'waitlist' ? 'No one on the waitlist.' : 'No cancellations.'}
+              {tab === 'booked' ? "No one's booked in yet." : 'No cancellations.'}
             </p>
           ) : (
             <div>
