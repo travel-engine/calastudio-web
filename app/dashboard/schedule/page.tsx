@@ -327,6 +327,7 @@ export default function SchedulePage() {
                 const hasClasses = (occurrencesByDay[dateKey(day)] ?? []).length > 0
                 const isToday = isSameDay(day, today)
                 const isSelected = isSameDay(day, viewDate)
+                const isPastDay = day < today
                 return (
                   <button
                     key={dateKey(day)}
@@ -336,8 +337,8 @@ export default function SchedulePage() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       borderRadius: '6px',
                       border: isSelected ? '2px solid #085041' : isToday ? '1px solid #085041' : '1px solid transparent',
-                      backgroundColor: hasClasses ? '#e8f5ee' : 'transparent',
-                      color: !inMonth ? '#ccc' : hasClasses ? '#085041' : '#444',
+                      backgroundColor: hasClasses ? (isPastDay ? '#f4f4f4' : '#e8f5ee') : 'transparent',
+                      color: !inMonth ? '#ccc' : hasClasses ? (isPastDay ? '#999' : '#085041') : isPastDay ? '#bbb' : '#444',
                       fontSize: '12px',
                       fontWeight: hasClasses ? 600 : 400,
                       cursor: 'pointer'
@@ -349,9 +350,15 @@ export default function SchedulePage() {
               })}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '16px', fontSize: '11px', color: '#666' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: '#e8f5ee', display: 'inline-block' }} />
-              Has classes
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px', fontSize: '11px', color: '#666' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: '#e8f5ee', display: 'inline-block' }} />
+                Upcoming
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: '#f4f4f4', display: 'inline-block' }} />
+                Past
+              </span>
             </div>
           </div>
         </div>
