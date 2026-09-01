@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useBookingFlow, type PassTemplateOption } from '@/lib/store/bookingFlow'
 import StripePaymentForm from './StripePaymentForm'
+import { formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from './booking.module.css'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -15,7 +16,7 @@ const inputStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = { display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return formatDateTimeWithWeekday(iso)
 }
 
 function formatMoney(amount: number, currency: string) {

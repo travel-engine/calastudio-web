@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canMarkAttended, canMarkNoShow, canAddStudent } from '@/lib/roles'
+import { formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface SessionSummary {
@@ -521,9 +522,7 @@ function BookingsPageContent() {
               }}>
                 <div style={{ fontWeight: 600, fontSize: '14px' }}>{occ.session?.name ?? 'Unknown session'}</div>
                 <div style={{ fontSize: '13px' }}>
-                  {new Date(occ.starts_at).toLocaleString(undefined, {
-                    weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-                  })}
+                  {formatDateTimeWithWeekday(occ.starts_at)}
                 </div>
                 <div style={{ fontSize: '13px', textTransform: 'capitalize' }}>{occ.session?.delivery_mode.replace('_', ' ')}</div>
                 <div><OccurrenceStatusBadge status={occ.status} /></div>
@@ -556,9 +555,7 @@ function BookingsPageContent() {
               <div>
                 <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{managingOccurrence.session?.name}</h2>
                 <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
-                  {new Date(managingOccurrence.starts_at).toLocaleString(undefined, {
-                    weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-                  })}
+                  {formatDateTimeWithWeekday(managingOccurrence.starts_at)}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

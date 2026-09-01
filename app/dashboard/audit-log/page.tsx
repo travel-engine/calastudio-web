@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewAuditLog } from '@/lib/roles'
+import { formatDateTime } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface AuditEntry {
@@ -265,9 +266,7 @@ export default function AuditLogPage() {
                     gridTemplateColumns: '1.3fr 1.6fr 1fr 1fr 100px'
                   }}>
                     <div style={{ fontSize: '13px', color: '#444' }}>
-                      {new Date(entry.created_at).toLocaleString(undefined, {
-                        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-                      })}
+                      {formatDateTime(entry.created_at)}
                     </div>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: 600 }}>{entry.actor_name ?? 'System'}</div>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
 import { canManageSessions, canViewOccurrences } from '@/lib/roles'
+import { formatDate, formatDateWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 // ── Types ─────────────────────────────────────────────────
@@ -72,7 +73,7 @@ function dayLabel(date: Date) {
 
   if (target.getTime() === today.getTime()) return 'Today'
   if (target.getTime() === tomorrow.getTime()) return 'Tomorrow'
-  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+  return formatDateWithWeekday(date)
 }
 
 function SessionCard({ occurrence }: { occurrence: TodayOccurrence }) {
@@ -280,7 +281,7 @@ export default function DashboardPage() {
               Good morning 👋
             </h1>
             <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-              {new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              {`${new Date().toLocaleDateString(undefined, { weekday: 'long' })} ${formatDate(new Date())}`}
             </p>
           </div>
           {canManageSessions(roles) && (

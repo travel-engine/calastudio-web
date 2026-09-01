@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from './account.module.css'
 
 interface OrgInfo {
@@ -151,7 +152,7 @@ function formatMoney(amount: number, currency: string) {
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return formatDateTimeWithWeekday(iso)
 }
 
 export default function MemberAccountPage() {
@@ -892,7 +893,7 @@ export default function MemberAccountPage() {
                         {p.pass_template && <span style={{ fontWeight: 400, color: '#999', marginLeft: '8px' }}>{formatMoney(p.pass_template.price, p.pass_template.currency)}</span>}
                       </div>
                       <div style={{ fontSize: '13px', color: '#666' }}>
-                        {p.credits_remaining === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · Expires {new Date(p.expires_at).toLocaleDateString()}
+                        {p.credits_remaining === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · Expires {formatDate(p.expires_at)}
                       </div>
                     </div>
                     <StatusBadge status={p.status} />
@@ -912,7 +913,7 @@ export default function MemberAccountPage() {
                   }}>
                     <div>
                       <div style={{ fontSize: '14px', fontWeight: 500 }}>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
-                      <div style={{ fontSize: '12px', color: '#999' }}>{new Date(entry.created_at).toLocaleString()}</div>
+                      <div style={{ fontSize: '12px', color: '#999' }}>{formatDateTime(entry.created_at)}</div>
                       {entry.notes && <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>{entry.notes}</div>}
                     </div>
                     <div style={{ textAlign: 'right' }}>
@@ -944,7 +945,7 @@ export default function MemberAccountPage() {
                         {paymentTypeLabels[p.payment_type] ?? p.payment_type}
                         <span style={{ fontWeight: 400, color: '#999', marginLeft: '8px' }}>{formatMoney(p.amount, p.currency)}</span>
                       </div>
-                      <div style={{ fontSize: '13px', color: '#666' }}>{new Date(p.created_at).toLocaleString()}</div>
+                      <div style={{ fontSize: '13px', color: '#666' }}>{formatDateTime(p.created_at)}</div>
                       {p.refunded_amount > 0 && (
                         <div style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '2px' }}>
                           {p.status === 'refunded' ? 'Fully refunded' : `Refunded ${formatMoney(p.refunded_amount, p.currency)}`}

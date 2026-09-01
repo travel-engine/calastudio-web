@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../../components/Sidebar'
 import { canManageSessions, canManageOccurrences, canViewAuditLog } from '@/lib/roles'
+import { formatDateTimeWithWeekday } from '@/lib/dates'
 import SessionActivity from '@/app/components/SessionActivity'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -1135,9 +1136,7 @@ export default function EditSessionPage() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ fontSize: '13px' }}>
-                      {new Date(occ.starts_at).toLocaleString(undefined, {
-                        weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-                      })}
+                      {formatDateTimeWithWeekday(occ.starts_at)}
                       {' – '}
                       {new Date(occ.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                     </div>

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canMarkNoShow, canAddStudent } from '@/lib/roles'
+import { formatDateTime, formatDateWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface SessionDetail {
@@ -101,9 +102,7 @@ interface WaitlistRosterEntry {
 }
 
 function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
-  })
+  return formatDateTime(iso)
 }
 
 // Cancelled/late_cancel only — absent fields (front_desk/teacher_basic's redacted roster view never
@@ -687,7 +686,7 @@ export default function OccurrenceDetailPage() {
             <div>
               <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{session?.name ?? 'Session'}</h1>
               <div style={{ fontSize: '13px', color: '#666', marginTop: '6px' }}>
-                {new Date(occurrence.starts_at).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                {formatDateWithWeekday(occurrence.starts_at)}
                 {' • '}
                 {new Date(occurrence.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                 {' – '}

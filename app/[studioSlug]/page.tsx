@@ -4,6 +4,7 @@ import BookButton from './BookButton'
 import BookingDrawer from './BookingDrawer'
 import styles from './booking.module.css'
 import type { BookableOccurrence } from '@/lib/store/bookingFlow'
+import { formatDateWithWeekday } from '@/lib/dates'
 
 export const revalidate = 60
 
@@ -19,7 +20,7 @@ function formatDayLabel(iso: string) {
   tomorrow.setDate(today.getDate() + 1)
   if (d.toDateString() === today.toDateString()) return 'Today'
   if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
-  return d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+  return formatDateWithWeekday(d)
 }
 
 function formatTimeRange(startsAt: string, endsAt: string) {

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewOccurrences } from '@/lib/roles'
+import { formatDate } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Occurrence {
@@ -204,9 +205,9 @@ export default function SchedulePage() {
                 ‹
               </button>
               <div style={{ fontSize: '15px', fontWeight: 600 }}>
-                {weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                {formatDate(weekStart)}
                 {' – '}
-                {addDays(weekStart, 6).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                {formatDate(addDays(weekStart, 6))}
               </div>
               <button
                 onClick={() => setViewDate(addDays(viewDate, 7))}
@@ -233,7 +234,7 @@ export default function SchedulePage() {
                         {day.toLocaleDateString(undefined, { weekday: 'short' })}
                       </div>
                       <div style={{ fontSize: '12px', color: '#999' }}>
-                        {day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        {formatDate(day)}
                       </div>
                     </div>
                     <div>

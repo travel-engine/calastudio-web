@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewMembers, canManageMemberPasses } from '@/lib/roles'
+import { formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface MemberDetail {
@@ -142,12 +143,6 @@ const labelStyle: React.CSSProperties = { display: 'block', fontSize: '13px', fo
 const th: React.CSSProperties = { textAlign: 'left', fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 0 8px' }
 const td: React.CSSProperties = { fontSize: '13px', color: '#444', padding: '9px 0', borderTop: '1px solid #f4f4f4' }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-}
-function fmtDateTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
-}
 function fmtMoney(amount: number, currency: string) {
   try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount) }
   catch { return `${currency} ${amount.toFixed(2)}` }
@@ -367,8 +362,8 @@ export default function MemberDetailPage() {
               <thead>
                 <tr>
                   <th style={th}>Name</th>
-                  <th style={{ ...th, textAlign: 'right', width: '90px' }}>Credits left</th>
-                  <th style={{ ...th, width: '110px' }}>Expires</th>
+                  <th style={{ ...th, textAlign: 'center', width: '90px' }}>Credits left</th>
+                  <th style={{ ...th, textAlign: 'center', width: '120px' }}>Expires</th>
                   <th style={{ ...th, width: '80px' }}>Status</th>
                 </tr>
               </thead>
@@ -388,8 +383,8 @@ export default function MemberDetailPage() {
                           {p.pass_template?.name ?? 'Pass'}
                           {p.notes ? <span style={{ fontWeight: 400, color: '#999' }}> · {p.notes}</span> : null}
                         </td>
-                        <td style={{ ...td, textAlign: 'right' }}>{p.credits_total === null ? '∞' : p.credits_remaining}</td>
-                        <td style={td}>{fmtDate(p.expires_at)}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{p.credits_total === null ? '∞' : p.credits_remaining}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{fmtDate(p.expires_at)}</td>
                         <td style={td}><Badge status={p.status} /></td>
                       </tr>
                       {open && (

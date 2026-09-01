@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { formatDateTime } from '@/lib/dates'
 
 // Scoped, read-only view of the org-wide activity log (app/dashboard/audit-log), pre-filtered to a
 // single session — the "Audit History" surface called for in calastudio-spec/08-dashboard-reporting.md
@@ -203,9 +204,7 @@ export default function SessionActivity({
                   padding: '10px 16px', alignItems: 'center', fontSize: '13px',
                 }}>
                   <div style={{ color: '#444' }}>
-                    {new Date(entry.created_at).toLocaleString(undefined, {
-                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                    })}
+                    {formatDateTime(entry.created_at)}
                   </div>
                   <div>
                     <div style={{ fontWeight: 600 }}>{entry.actor_name ?? 'System'}</div>

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewPassTemplates, canManagePassTemplates } from '@/lib/roles'
+import { formatDateTime } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface PassTemplate {
@@ -743,7 +744,7 @@ export default function PassesPage() {
                       <div>
                         <div>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
                         {entry.notes && <div style={{ fontSize: '12px', color: '#666' }}>{entry.notes}</div>}
-                        <div style={{ fontSize: '11px', color: '#999' }}>{new Date(entry.created_at).toLocaleString()}</div>
+                        <div style={{ fontSize: '11px', color: '#999' }}>{formatDateTime(entry.created_at)}</div>
                       </div>
                       <div style={{ textAlign: 'right', fontWeight: 600, color: entry.credits_delta < 0 ? '#8b1a1a' : '#085041' }}>
                         {entry.credits_delta > 0 ? `+${entry.credits_delta}` : entry.credits_delta}
