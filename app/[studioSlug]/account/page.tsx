@@ -700,7 +700,7 @@ export default function MemberAccountPage() {
                   <div>
                     <div style={{ fontSize: '13px', color: '#666' }}>{profile.email}</div>
                     <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-                      Member since {new Date(profile.join_date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })} · {profile.total_sessions_attended} session{profile.total_sessions_attended !== 1 ? 's' : ''} attended
+                      Member since {formatDate(profile.join_date)} · {profile.total_sessions_attended} session{profile.total_sessions_attended !== 1 ? 's' : ''} attended
                     </div>
                   </div>
                 </div>
