@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canMarkNoShow, canAddStudent } from '@/lib/roles'
-import { formatDateTime, formatDateWithWeekday } from '@/lib/dates'
+import { formatDate, formatDateTime, formatDateWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface SessionDetail {
@@ -46,6 +46,7 @@ interface MemberPass {
   id: string
   credits_remaining: number | null
   credits_total: number | null
+  expires_at: string
   status: 'active' | 'low' | 'frozen' | 'expired' | 'exhausted'
   pass_template_id: string
   pass_template: {
@@ -965,7 +966,7 @@ export default function OccurrenceDetailPage() {
                             <option value="">Select a pass...</option>
                             {usablePasses.map(p => (
                               <option key={p.id} value={p.id}>
-                                {p.pass_template?.name ?? 'Pass'} — {p.credits_remaining === null ? 'unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`}
+                                {p.pass_template?.name ?? 'Pass'} — {p.credits_remaining === null ? 'unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · expires {formatDate(p.expires_at)}
                               </option>
                             ))}
                           </select>
