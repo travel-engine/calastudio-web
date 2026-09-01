@@ -330,13 +330,14 @@ export default function MembersPage() {
               <div>Email</div>
             </div>
             {filtered.map((m, i) => (
-              <div key={m.id} className={styles.tableRow} style={{
+              <a key={m.id} href={`/dashboard/members/${m.id}`} className={styles.tableRow} style={{
                 gridTemplateColumns: '2fr 2fr',
-                borderBottom: i < filtered.length - 1 ? '1px solid #f4f4f4' : 'none'
+                borderBottom: i < filtered.length - 1 ? '1px solid #f4f4f4' : 'none',
+                textDecoration: 'none', color: 'inherit', cursor: 'pointer'
               }}>
                 <div style={{ fontWeight: 600, fontSize: '14px' }}>{m.full_name}</div>
                 <div style={{ fontSize: '13px', color: '#666' }}>{m.email}</div>
-              </div>
+              </a>
             ))}
           </div>
         )}
