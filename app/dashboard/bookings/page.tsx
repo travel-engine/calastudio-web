@@ -604,12 +604,12 @@ function BookingsPageContent() {
                   {canManageBookings(roles) ? 'Add a booking' : 'Add a student'}
                 </div>
 
-                {isRestricted ? (
-                  <p style={{ fontSize: '13px', color: '#666' }}>
-                    This session is restricted to specific passes or memberships, which isn't supported for manual booking yet.
-                  </p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {isRestricted && (
+                      <p style={{ fontSize: '12px', color: '#7a4f00', backgroundColor: '#fff3cd', borderRadius: '8px', padding: '8px 10px', margin: 0 }}>
+                        This session is restricted for self-booking — adding a member here bypasses the approved-pass list.
+                      </p>
+                    )}
                     <div>
                       <label style={labelStyle}>Member</label>
                       {selectedMember ? (
@@ -727,7 +727,6 @@ function BookingsPageContent() {
                       </button>
                     </div>
                   </div>
-                )}
               </div>
             )}
 

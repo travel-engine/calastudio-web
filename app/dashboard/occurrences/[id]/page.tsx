@@ -656,6 +656,8 @@ export default function OccurrenceDetailPage() {
   const session = occurrence.session
   const isRestricted = session?.booking_access_mode === 'restricted'
   const isFreeSession = session?.booking_access_mode === 'free'
+  // Restricted only limits *self-service* booking to the approved pass templates — an admin/teacher
+  // adding someone manually bypasses that list (BookingService.ValidateBookableAsync, §4.8).
   const { booked, capacity } = occupancy(occurrence, bookings)
 
   const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show')
@@ -816,12 +818,12 @@ export default function OccurrenceDetailPage() {
               {canManageBookings(roles) ? 'Add a member' : 'Add a student'}
             </div>
 
-            {isRestricted ? (
-              <p style={{ fontSize: '13px', color: '#666' }}>
-                This session is restricted to specific passes or memberships, which isn't supported for manual booking yet.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {isRestricted && (
+                  <p style={{ fontSize: '12px', color: '#7a4f00', backgroundColor: '#fff3cd', borderRadius: '8px', padding: '8px 10px', margin: 0 }}>
+                    This session is restricted for self-booking — adding a member here bypasses the approved-pass list.
+                  </p>
+                )}
                 <div>
                   <label style={labelStyle}>Member</label>
                   {selectedMember ? (
@@ -938,8 +940,7 @@ export default function OccurrenceDetailPage() {
                     {addingBooking ? 'Adding...' : (canManageBookings(roles) ? 'Confirm booking' : 'Add student')}
                   </button>
                 </div>
-              </div>
-            )}
+            </div>
           </div>
         )}
 
