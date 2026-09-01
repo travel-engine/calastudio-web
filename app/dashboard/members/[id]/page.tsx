@@ -438,9 +438,13 @@ export default function MemberDetailPage() {
               </thead>
               <tbody>
                 {orders.slice(0, 15).map(o => (
-                  <tr key={o.id}>
+                  <tr
+                    key={o.id}
+                    onClick={() => router.push(`/dashboard/orders/${o.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <td style={td}>{fmtDate(o.created_at)}</td>
-                    <td style={{ ...td, fontWeight: 600 }}>{o.product_name}</td>
+                    <td style={{ ...td, fontWeight: 600, color: '#085041' }}>{o.product_name}</td>
                     <td style={td}>{orderTypeLabels[o.type] ?? o.type}</td>
                     <td style={{ ...td, textAlign: 'right' }}>{fmtMoney(o.amount, o.currency)}</td>
                     <td style={td}><Badge status={o.status} /></td>
