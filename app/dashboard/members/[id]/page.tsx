@@ -124,7 +124,9 @@ export default function MemberDetailPage() {
   const [member, setMember] = useState<Member | null>(null)
   const [passes, setPasses] = useState<MemberPass[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
-  const [ledger, setLedger] = useState<LedgerEntry[]>([])
+  // Credit history is per-pass — fetched lazily when a pass row is expanded.
+  const [expandedPassId, setExpandedPassId] = useState<string | null>(null)
+  const [passLedgers, setPassLedgers] = useState<Record<string, LedgerEntry[]>>({})
 
   const [showIssue, setShowIssue] = useState(false)
   const [templates, setTemplates] = useState<PassTemplate[]>([])
@@ -140,13 +142,22 @@ export default function MemberDetailPage() {
     }), [orgId, token])
 
   const reloadPasses = useCallback(async () => {
-    const [p, l] = await Promise.all([
-      authedFetch(`/members/${memberId}/passes`),
-      authedFetch(`/members/${memberId}/ledger`),
-    ])
+    const p = await authedFetch(`/members/${memberId}/passes`)
     if (p.ok) setPasses(await p.json())
-    if (l.ok) setLedger(await l.json())
+    setPassLedgers({}) // drop cached histories so an expand re-fetches
   }, [authedFetch, memberId])
+
+  const togglePassHistory = useCallback(async (passId: string) => {
+    if (expandedPassId === passId) { setExpandedPassId(null); return }
+    setExpandedPassId(passId)
+    if (!passLedgers[passId]) {
+      const res = await authedFetch(`/member-passes/${passId}/ledger`)
+      if (res.ok) {
+        const rows: LedgerEntry[] = await res.json()
+        setPassLedgers(prev => ({ ...prev, [passId]: rows }))
+      }
+    }
+  }, [authedFetch, expandedPassId, passLedgers])
 
   useEffect(() => {
     const load = async () => {
@@ -172,11 +183,10 @@ export default function MemberDetailPage() {
 
       const base = `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}`
       const h = { Authorization: `Bearer ${t}` }
-      const [membersRes, passesRes, bookingsRes, ledgerRes] = await Promise.all([
+      const [membersRes, passesRes, bookingsRes] = await Promise.all([
         fetch(`${base}/members`, { headers: h }),
         fetch(`${base}/members/${memberId}/passes`, { headers: h }),
         fetch(`${base}/members/${memberId}/bookings`, { headers: h }),
-        fetch(`${base}/members/${memberId}/ledger`, { headers: h }),
       ])
       if (membersRes.ok) {
         const all: Member[] = await membersRes.json()
@@ -184,7 +194,6 @@ export default function MemberDetailPage() {
       }
       if (passesRes.ok) setPasses(await passesRes.json())
       if (bookingsRes.ok) setBookings(await bookingsRes.json())
-      if (ledgerRes.ok) setLedger(await ledgerRes.json())
       setLoading(false)
     }
     load()
@@ -271,22 +280,60 @@ export default function MemberDetailPage() {
             <p style={{ fontSize: '13px', color: '#666' }}>No passes.</p>
           ) : (
             <div>
-              {passes.map((p, i) => (
-                <div key={p.id} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px 0', borderBottom: i < passes.length - 1 ? '1px solid #f4f4f4' : 'none',
-                }}>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{p.pass_template?.name ?? 'Pass'}</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>
-                      {p.credits_total === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`}
-                      {' · '}{fmtDate(p.effective_from)} – {fmtDate(p.expires_at)}
-                      {p.notes ? ` · ${p.notes}` : ''}
+              {passes.map((p, i) => {
+                const isCredit = p.credits_total !== null
+                const open = expandedPassId === p.id
+                const entries = passLedgers[p.id]
+                return (
+                  <div key={p.id} style={{ borderBottom: i < passes.length - 1 ? '1px solid #f4f4f4' : 'none' }}>
+                    <div
+                      onClick={isCredit ? () => togglePassHistory(p.id) : undefined}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '10px 0', cursor: isCredit ? 'pointer' : 'default',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                          {isCredit && <span style={{ color: '#999', marginRight: '6px' }}>{open ? '▾' : '▸'}</span>}
+                          {p.pass_template?.name ?? 'Pass'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#666' }}>
+                          {p.credits_total === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`}
+                          {' · '}{fmtDate(p.effective_from)} – {fmtDate(p.expires_at)}
+                          {p.notes ? ` · ${p.notes}` : ''}
+                        </div>
+                      </div>
+                      <StatusBadge status={p.status} />
                     </div>
+
+                    {open && (
+                      <div style={{ padding: '4px 0 14px 18px' }}>
+                        {!entries ? (
+                          <p style={{ fontSize: '12px', color: '#999' }}>Loading history…</p>
+                        ) : entries.length === 0 ? (
+                          <p style={{ fontSize: '12px', color: '#999' }}>No credit movements.</p>
+                        ) : (
+                          entries.map((e, j) => (
+                            <div key={e.id} style={{
+                              display: 'grid', gridTemplateColumns: '150px 1fr 60px 60px', gap: '8px', alignItems: 'center',
+                              padding: '6px 0', fontSize: '12px',
+                              borderBottom: j < entries.length - 1 ? '1px solid #f7f7f7' : 'none',
+                            }}>
+                              <div style={{ color: '#444' }}>{fmtDateTime(e.created_at)}</div>
+                              <div style={{ color: '#666' }}>{movementLabels[e.movement_type] ?? e.movement_type}{e.notes ? ` — ${e.notes}` : ''}</div>
+                              <div style={{ textAlign: 'right', fontWeight: 600, color: e.credits_delta < 0 ? '#8b1a1a' : '#085041' }}>
+                                {e.credits_delta > 0 ? '+' : ''}{e.credits_delta}
+                              </div>
+                              <div style={{ textAlign: 'right', color: '#999' }}>{e.credits_after}</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <StatusBadge status={p.status} />
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </Card>
@@ -316,28 +363,6 @@ export default function MemberDetailPage() {
           )}
         </Card>
 
-        <Card title="Credit history">
-          {ledger.length === 0 ? (
-            <p style={{ fontSize: '13px', color: '#666' }}>No credit movements.</p>
-          ) : (
-            <div>
-              {ledger.slice(0, 25).map((e, i) => (
-                <div key={e.id} style={{
-                  display: 'grid', gridTemplateColumns: '150px 1fr 70px 70px', gap: '8px', alignItems: 'center',
-                  padding: '8px 0', fontSize: '12px',
-                  borderBottom: i < Math.min(ledger.length, 25) - 1 ? '1px solid #f4f4f4' : 'none',
-                }}>
-                  <div style={{ color: '#444' }}>{fmtDateTime(e.created_at)}</div>
-                  <div style={{ color: '#666' }}>{movementLabels[e.movement_type] ?? e.movement_type}{e.notes ? ` — ${e.notes}` : ''}</div>
-                  <div style={{ textAlign: 'right', fontWeight: 600, color: e.credits_delta < 0 ? '#8b1a1a' : '#085041' }}>
-                    {e.credits_delta > 0 ? '+' : ''}{e.credits_delta}
-                  </div>
-                  <div style={{ textAlign: 'right', color: '#999' }}>{e.credits_after}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
         </>}
       </div>
 
