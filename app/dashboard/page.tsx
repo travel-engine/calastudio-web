@@ -83,7 +83,7 @@ function SessionCard({ occurrence }: { occurrence: TodayOccurrence }) {
   const isFull = capacity !== null && booked >= capacity
 
   return (
-    <div style={{
+    <a href={`/dashboard/occurrences/${occurrence.id}`} style={{
       backgroundColor: 'white',
       borderRadius: '12px',
       padding: '20px 24px',
@@ -91,7 +91,9 @@ function SessionCard({ occurrence }: { occurrence: TodayOccurrence }) {
       display: 'flex',
       alignItems: 'center',
       gap: '16px',
-      marginBottom: '12px'
+      marginBottom: '12px',
+      textDecoration: 'none',
+      color: 'inherit'
     }}>
       {/* Time */}
       <div style={{
@@ -128,20 +130,10 @@ function SessionCard({ occurrence }: { occurrence: TodayOccurrence }) {
         </span>
       </div>
 
-      {/* Actions */}
-      <a href={`/dashboard/occurrences/${occurrence.id}`} style={{
-        padding: '6px 12px',
-        backgroundColor: '#f4f4f4',
-        borderRadius: '6px',
-        fontSize: '13px',
-        color: '#444',
-        fontWeight: 500,
-        whiteSpace: 'nowrap',
-        textDecoration: 'none'
-      }}>
-        Manage roster
-      </a>
-    </div>
+      <span style={{ fontSize: '13px', color: '#999', fontWeight: 500, whiteSpace: 'nowrap' }}>
+        Manage roster ›
+      </span>
+    </a>
   )
 }
 
