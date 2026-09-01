@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
@@ -12,6 +12,7 @@ import styles from '@/app/dashboard/dashboard.module.css'
 interface SessionDetail {
   id: string
   name: string
+  session_type: string
   delivery_mode: 'in_person' | 'online'
   location_name: string | null
   capacity: number | null
@@ -46,7 +47,12 @@ interface MemberPass {
   credits_remaining: number | null
   credits_total: number | null
   status: 'active' | 'low' | 'frozen' | 'expired' | 'exhausted'
-  pass_template: { name: string } | null
+  pass_template_id: string
+  pass_template: {
+    name: string
+    session_type_restriction: string[] | null
+    delivery_mode_restriction: string[] | null
+  } | null
 }
 
 interface GuestInfo {
@@ -283,6 +289,8 @@ export default function OccurrenceDetailPage() {
   const [memberSearch, setMemberSearch] = useState('')
   const [memberPasses, setMemberPasses] = useState<MemberPass[]>([])
   const [passesLoading, setPassesLoading] = useState(false)
+  // Approved pass-template ids for a restricted session (null = not restricted, or not loaded yet).
+  const [approvedPassTemplateIds, setApprovedPassTemplateIds] = useState<string[] | null>(null)
   const [addForm, setAddForm] = useState({ userId: '', paymentType: 'pass' as 'pass' | 'admin_waived', memberPassId: '' })
   const [addingBooking, setAddingBooking] = useState(false)
   const [addBookingError, setAddBookingError] = useState('')
@@ -292,6 +300,49 @@ export default function OccurrenceDetailPage() {
       ...init,
       headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${token}` }
     }), [orgId, token])
+
+  // A restricted session only accepts the specific pass templates on its approved-options list
+  // (session_pricing_access) — a pass issued for another session must not be offered here. Open
+  // sessions instead honour each pass template's own session-type / delivery-mode restriction.
+  // The backend enforces both on booking; this just keeps the "Which pass" picker from listing
+  // choices that would be rejected.
+  const sessionId = occurrence?.session?.id
+  const sessionAccessMode = occurrence?.session?.booking_access_mode
+  useEffect(() => {
+    if (!sessionId || !orgId || !token) return
+    if (sessionAccessMode !== 'restricted') { setApprovedPassTemplateIds(null); return }
+    let cancelled = false
+    ;(async () => {
+      const res = await authedFetch(`/sessions/${sessionId}/pricing-access`)
+      if (cancelled || !res.ok) return
+      const rows = await res.json()
+      setApprovedPassTemplateIds(
+        rows.filter((r: { pricing_type: string }) => r.pricing_type === 'pass_template')
+          .map((r: { pass_template_id: string }) => r.pass_template_id)
+      )
+    })()
+    return () => { cancelled = true }
+  }, [sessionId, sessionAccessMode, orgId, token, authedFetch])
+
+  const passUsableForSession = useCallback((p: MemberPass): boolean => {
+    if (p.status !== 'active' && p.status !== 'low') return false
+    const s = occurrence?.session
+    if (!s) return true
+    if (s.booking_access_mode === 'restricted') {
+      // Don't hide anything until the approved list has loaded.
+      if (approvedPassTemplateIds === null) return true
+      return approvedPassTemplateIds.includes(p.pass_template_id)
+    }
+    const t = p.pass_template
+    if (t?.session_type_restriction?.length && !t.session_type_restriction.includes(s.session_type)) return false
+    if (t?.delivery_mode_restriction?.length && !t.delivery_mode_restriction.includes(s.delivery_mode)) return false
+    return true
+  }, [occurrence?.session, approvedPassTemplateIds])
+
+  const usablePasses = useMemo(
+    () => memberPasses.filter(passUsableForSession),
+    [memberPasses, passUsableForSession]
+  )
 
   const loadOccurrence = useCallback(async (org: string, t: string) => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org}/occurrences/${occurrenceId}`, {
@@ -554,6 +605,7 @@ export default function OccurrenceDetailPage() {
     const res = await authedFetch(`/members/${memberId}/passes`)
     if (res.ok) {
       const all: MemberPass[] = await res.json()
+      // Session eligibility is applied in `usablePasses`; store everything still live here.
       setMemberPasses(all.filter(p => p.status === 'active' || p.status === 'low'))
     }
     setPassesLoading(false)
@@ -898,8 +950,12 @@ export default function OccurrenceDetailPage() {
                         <label style={labelStyle}>Which pass</label>
                         {passesLoading ? (
                           <p style={{ fontSize: '13px', color: '#666' }}>Loading passes...</p>
-                        ) : memberPasses.length === 0 ? (
-                          <p style={{ fontSize: '13px', color: '#666' }}>This member has no usable passes.</p>
+                        ) : usablePasses.length === 0 ? (
+                          <p style={{ fontSize: '13px', color: '#666' }}>
+                            {memberPasses.length > 0
+                              ? 'None of this member’s passes are valid for this session.'
+                              : 'This member has no usable passes.'}
+                          </p>
                         ) : (
                           <select
                             value={addForm.memberPassId}
@@ -907,7 +963,7 @@ export default function OccurrenceDetailPage() {
                             style={inputStyle}
                           >
                             <option value="">Select a pass...</option>
-                            {memberPasses.map(p => (
+                            {usablePasses.map(p => (
                               <option key={p.id} value={p.id}>
                                 {p.pass_template?.name ?? 'Pass'} — {p.credits_remaining === null ? 'unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`}
                               </option>
