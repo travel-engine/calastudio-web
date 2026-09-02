@@ -185,7 +185,6 @@ export default function MemberDetailPage() {
   const [issueForm, setIssueForm] = useState({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
   const [issuing, setIssuing] = useState(false)
   const [issueError, setIssueError] = useState('')
-  const [issued, setIssued] = useState(false)
 
   const authedFetch = useCallback((path: string, init?: RequestInit) =>
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}${path}`, {
@@ -254,7 +253,6 @@ export default function MemberDetailPage() {
   const openIssue = async () => {
     setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
     setIssueError('')
-    setIssued(false)
     setShowIssue(true)
     const res = await authedFetch('/pass-templates')
     if (res.ok) setTemplates((await res.json() as PassTemplate[]).filter(t => t.is_active))
@@ -278,7 +276,7 @@ export default function MemberDetailPage() {
         }),
       })
       if (res.ok) {
-        setIssued(true)
+        setShowIssue(false)
         setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
         await reloadPasses()
       } else {
@@ -518,11 +516,6 @@ export default function MemberDetailPage() {
               <button onClick={() => setShowIssue(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>×</button>
             </div>
 
-            {issued && (
-              <div style={{ padding: '10px 12px', backgroundColor: '#e8f5ee', borderRadius: '8px', color: '#085041', fontSize: '13px', marginBottom: '16px' }}>
-                Pass added. Add another below, or close.
-              </div>
-            )}
             {issueError && (
               <div style={{ padding: '10px 12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
                 {issueError}
