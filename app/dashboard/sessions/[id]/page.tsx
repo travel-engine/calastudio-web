@@ -7,7 +7,7 @@ import Sidebar from '../../../components/Sidebar'
 import { canManageSessions, canCreateOccurrence, canManageOccurrences, canViewAuditLog } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
-import SessionActivity from '@/app/components/SessionActivity'
+import EntityActivity from '@/app/components/EntityActivity'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
@@ -1171,7 +1171,7 @@ export default function EditSessionPage() {
         </div>
 
         {canViewAuditLog(roles) && orgId && token && (
-          <SessionActivity orgId={orgId} token={token} sessionId={sessionId} />
+          <EntityActivity orgId={orgId} token={token} entityType="session" entityId={sessionId} noun="session" />
         )}
       </div>
 

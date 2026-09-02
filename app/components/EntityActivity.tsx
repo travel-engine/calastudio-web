@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { formatDateTime } from '@/lib/dates'
 
-// Scoped, read-only view of the org-wide activity log (app/dashboard/audit-log), pre-filtered to a
-// single session — the "Audit History" surface called for in calastudio-spec/08-dashboard-reporting.md
-// §8.10. This v1 shows only rows logged directly against the session entity (its creation with the
-// occurrence-generation summary, every field edit, and the nightly generation summaries); occurrence,
-// booking and waitlist rows will fold in once audit_log carries a denormalised session_id.
+// Scoped, read-only view of the org-wide activity log (app/dashboard/audit-log), pre-filtered to one
+// entity by (entity_type, entity_id) — the "Audit History" surface called for in
+// calastudio-spec/08-dashboard-reporting.md §8.10. Used on the session detail screen
+// (entity_type=session) and the occurrence detail screen (entity_type=session_occurrence). Shows
+// only rows logged directly against that entity; related booking / waitlist rows fold in once
+// audit_log carries the links to query them by.
 
 interface AuditEntry {
   id: string
@@ -38,8 +39,8 @@ const roleLabels: Record<string, string> = {
   member: 'Member',
 }
 
-// Prettier labels for the session fields that show up in a diff; anything not listed falls back to
-// the raw key with underscores turned into spaces.
+// Prettier labels for the session / occurrence fields that show up in a diff; anything not listed
+// falls back to the raw key with underscores turned into spaces.
 const fieldLabels: Record<string, string> = {
   name: 'Name',
   description: 'Description',
@@ -58,6 +59,7 @@ const fieldLabels: Record<string, string> = {
   visibility: 'Visibility',
   booking_access_mode: 'Booking access',
   cancellation_hours: 'Cancellation window (h)',
+  cancellation_hours_override: 'Cancellation window (h)',
   booking_window_days: 'Booking window (days)',
   min_advance_booking_hours: 'Min advance booking (h)',
   tax_rate_override: 'Tax rate override',
@@ -65,6 +67,10 @@ const fieldLabels: Record<string, string> = {
   guest_max_per_booking: 'Max guests per booking',
   instructor_id: 'Instructor',
   occurrences_generated: 'Occurrences',
+  // occurrence fields
+  starts_at: 'Starts at',
+  ends_at: 'Ends at',
+  status: 'Status',
 }
 
 function fieldLabel(key: string) {
@@ -128,27 +134,27 @@ function ChangesDetail({ changes }: { changes: string }) {
   )
 }
 
-export default function SessionActivity({
-  orgId, token, sessionId,
-}: { orgId: string; token: string; sessionId: string }) {
+export default function EntityActivity({
+  orgId, token, entityType, entityId, noun,
+}: { orgId: string; token: string; entityType: string; entityId: string; noun: string }) {
   const [entries, setEntries] = useState<AuditEntry[] | null>(null)
   const [open, setOpen] = useState(false)
   const [expandedId, setExpandedId] = useState('')
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({
-      entity_type: 'session', entity_id: sessionId, limit: '25',
+      entity_type: entityType, entity_id: entityId, limit: '25',
     })
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/audit-log?${params}`,
       { headers: { Authorization: `Bearer ${token}` } },
     )
     setEntries(res.ok ? await res.json() : [])
-  }, [orgId, token, sessionId])
+  }, [orgId, token, entityType, entityId])
 
   useEffect(() => {
-    if (orgId && token && sessionId) load()
-  }, [orgId, token, sessionId, load])
+    if (orgId && token && entityId) load()
+  }, [orgId, token, entityId, load])
 
   const count = entries?.length ?? 0
 
@@ -170,7 +176,7 @@ export default function SessionActivity({
             {entries === null
               ? 'Loading…'
               : count === 0
-                ? 'Nothing logged for this session yet.'
+                ? `Nothing logged for this ${noun} yet.`
                 : `${count} change${count === 1 ? '' : 's'} recorded — who changed what, and when.`}
           </p>
         </div>
@@ -251,7 +257,7 @@ export default function SessionActivity({
 
       {open && count > 0 && (
         <p style={{ fontSize: '12px', color: '#999', marginTop: '12px' }}>
-          Occurrence, booking and waitlist changes for this session aren&apos;t shown here yet — see the
+          Related booking and waitlist changes aren&apos;t folded in here yet — see the
           full <a href="/dashboard/audit-log" style={{ color: '#085041', fontWeight: 500 }}>Activity log</a>.
         </p>
       )}

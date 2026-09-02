@@ -8,6 +8,7 @@ import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent, canAddMember, canViewMembers } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
+import EntityActivity from '@/app/components/EntityActivity'
 import { formatDate, formatDateTime, formatDateWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -1201,6 +1202,8 @@ export default function OccurrenceDetailPage() {
             </div>
           )}
         </div>
+
+        <EntityActivity orgId={orgId} token={token} entityType="session_occurrence" entityId={occurrence.id} noun="occurrence" />
       </div>
 
       {/* Refund modal */}
