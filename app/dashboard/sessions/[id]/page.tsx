@@ -8,6 +8,7 @@ import { canManageSessions, canCreateOccurrence, canManageOccurrences, canViewAu
 import { displayName } from '@/lib/names'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
 import EntityActivity from '@/app/components/EntityActivity'
+import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
@@ -142,7 +143,7 @@ export default function EditSessionPage() {
   const [occurrenceForm, setOccurrenceForm] = useState({ date: '', startTime: '', endTime: '' })
   const [addingOccurrence, setAddingOccurrence] = useState(false)
   const [occurrenceError, setOccurrenceError] = useState('')
-  const [cancellingId, setCancellingId] = useState('')
+  const [cancelOccurrenceId, setCancelOccurrenceId] = useState('')
 
   const [showUpdateConfirm, setShowUpdateConfirm] = useState(false)
   const [updateImpact, setUpdateImpact] = useState<{
@@ -418,27 +419,9 @@ export default function EditSessionPage() {
     }
   }
 
-  const handleCancelOccurrence = async (occurrenceId: string) => {
-    if (!confirm('Cancel this occurrence? Every confirmed booking will be cancelled and any pass credits used will be returned.')) return
-
-    setCancellingId(occurrenceId)
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/occurrences/${occurrenceId}/cancel`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ reason: null })
-        }
-      )
-      if (res.ok) {
-        await reloadOccurrences()
-      } else {
-        alert('Could not cancel this occurrence.')
-      }
-    } finally {
-      setCancellingId('')
-    }
+  const handleOccurrenceCancelled = async () => {
+    setCancelOccurrenceId('')
+    await reloadOccurrences()
   }
 
   // Shared by the initial save attempt and the resubmit-after-confirmation below — the request
@@ -1152,15 +1135,13 @@ export default function EditSessionPage() {
                     </a>
                     {occ.status === 'scheduled' && canManageOccurrences(roles) && (
                       <button
-                        onClick={() => handleCancelOccurrence(occ.id)}
-                        disabled={cancellingId === occ.id}
+                        onClick={() => setCancelOccurrenceId(occ.id)}
                         style={{
                           padding: '6px 12px', backgroundColor: 'transparent', border: '1px solid #fdecea',
-                          borderRadius: '6px', fontSize: '12px', color: '#8b1a1a',
-                          cursor: cancellingId === occ.id ? 'not-allowed' : 'pointer', fontWeight: 500
+                          borderRadius: '6px', fontSize: '12px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
                         }}
                       >
-                        {cancellingId === occ.id ? 'Cancelling...' : 'Cancel'}
+                        Cancel
                       </button>
                     )}
                   </div>
@@ -1174,6 +1155,16 @@ export default function EditSessionPage() {
           <EntityActivity orgId={orgId} token={token} entityType="session" entityId={sessionId} noun="session" />
         )}
       </div>
+
+      {cancelOccurrenceId && (
+        <CancelOccurrenceModal
+          occurrenceId={cancelOccurrenceId}
+          orgId={orgId}
+          token={token}
+          onClose={() => setCancelOccurrenceId('')}
+          onCancelled={handleOccurrenceCancelled}
+        />
+      )}
 
       {/* Add occurrence modal */}
       {showAddOccurrence && (

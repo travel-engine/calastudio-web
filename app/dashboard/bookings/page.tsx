@@ -8,6 +8,7 @@ import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canMarkAttended, canAddStudent, canAddMember } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
+import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
 import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -194,7 +195,7 @@ function BookingsPageContent() {
   const [bookingsLoading, setBookingsLoading] = useState(false)
   const [manageError, setManageError] = useState('')
   const [manageBusy, setManageBusy] = useState(false)
-  const [cancellingOccurrence, setCancellingOccurrence] = useState(false)
+  const [showCancelOccurrence, setShowCancelOccurrence] = useState(false)
 
   const [refundTarget, setRefundTarget] = useState<Booking | null>(null)
   const [refundAmount, setRefundAmount] = useState('')
@@ -399,25 +400,13 @@ function BookingsPageContent() {
     setRefundBusy(false)
   }
 
-  const handleCancelOccurrence = async () => {
+  const handleOccurrenceCancelled = async (updatedRaw: unknown) => {
     if (!managingOccurrence) return
-    if (!confirm('Cancel this whole occurrence? Every confirmed booking will be cancelled and any pass credits used will be returned.')) return
-
-    setCancellingOccurrence(true)
-    const res = await authedFetch(`/occurrences/${managingOccurrence.id}/cancel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: null })
-    })
-    if (res.ok) {
-      const updated = await res.json()
-      setManagingOccurrence(updated)
-      setOccurrences(prev => prev.map(o => o.id === updated.id ? { ...o, status: updated.status } : o))
-      await refreshRoster(managingOccurrence.id)
-    } else {
-      setManageError('Could not cancel this occurrence.')
-    }
-    setCancellingOccurrence(false)
+    const updated = updatedRaw as Occurrence
+    setManagingOccurrence(updated)
+    setOccurrences(prev => prev.map(o => o.id === updated.id ? { ...o, status: updated.status } : o))
+    setShowCancelOccurrence(false)
+    await refreshRoster(managingOccurrence.id)
   }
 
   const openAddBooking = async () => {
@@ -637,11 +626,11 @@ function BookingsPageContent() {
                   + Add {canManageBookings(roles) ? 'booking' : 'student'}
                 </button>
                 {canManageBookings(roles) && (
-                  <button onClick={handleCancelOccurrence} disabled={cancellingOccurrence} style={{
+                  <button onClick={() => setShowCancelOccurrence(true)} style={{
                     padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #fdecea',
                     borderRadius: '8px', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
                   }}>
-                    {cancellingOccurrence ? 'Cancelling...' : 'Cancel occurrence'}
+                    Cancel occurrence
                   </button>
                 )}
               </div>
@@ -817,6 +806,16 @@ function BookingsPageContent() {
                   setMemberSearch('')
                   selectMember(m.id)
                 }}
+              />
+            )}
+
+            {showCancelOccurrence && managingOccurrence && (
+              <CancelOccurrenceModal
+                occurrenceId={managingOccurrence.id}
+                orgId={orgId}
+                token={token}
+                onClose={() => setShowCancelOccurrence(false)}
+                onCancelled={handleOccurrenceCancelled}
               />
             )}
 

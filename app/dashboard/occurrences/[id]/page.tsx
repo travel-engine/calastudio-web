@@ -8,6 +8,7 @@ import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent, canAddMember, canViewMembers } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
+import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
 import EntityActivity from '@/app/components/EntityActivity'
 import { formatDate, formatDateTime, formatDateWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
@@ -281,7 +282,7 @@ export default function OccurrenceDetailPage() {
 
   const [manageError, setManageError] = useState('')
   const [manageBusy, setManageBusy] = useState(false)
-  const [cancellingOccurrence, setCancellingOccurrence] = useState(false)
+  const [showCancelOccurrence, setShowCancelOccurrence] = useState(false)
 
   const [showEdit, setShowEdit] = useState(false)
   const [editForm, setEditForm] = useState({ date: '', startTime: '', endTime: '', capacity: '', instructorId: '' })
@@ -515,23 +516,10 @@ export default function OccurrenceDetailPage() {
     setRefundBusy(false)
   }
 
-  const handleCancelOccurrence = async () => {
-    if (!occurrence) return
-    if (!confirm('Cancel this whole occurrence? Every confirmed booking will be cancelled and any pass credits used will be returned.')) return
-
-    setCancellingOccurrence(true)
-    const res = await authedFetch(`/occurrences/${occurrence.id}/cancel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: null })
-    })
-    if (res.ok) {
-      setOccurrence(await res.json())
-      await refreshRoster(orgId, token)
-    } else {
-      setManageError('Could not cancel this occurrence.')
-    }
-    setCancellingOccurrence(false)
+  const handleOccurrenceCancelled = async (updated: unknown) => {
+    setOccurrence(updated as OccurrenceDetail)
+    setShowCancelOccurrence(false)
+    await refreshRoster(orgId, token)
   }
 
   const openEdit = async () => {
@@ -788,11 +776,11 @@ export default function OccurrenceDetailPage() {
                 </button>
               )}
               {canManageOccurrences(roles) && (
-                <button onClick={handleCancelOccurrence} disabled={cancellingOccurrence} style={{
+                <button onClick={() => setShowCancelOccurrence(true)} style={{
                   padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #fdecea',
                   borderRadius: '8px', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
                 }}>
-                  {cancellingOccurrence ? 'Cancelling...' : 'Cancel occurrence'}
+                  Cancel occurrence
                 </button>
               )}
             </div>
@@ -1038,6 +1026,16 @@ export default function OccurrenceDetailPage() {
               setMemberSearch('')
               selectMember(m.id)
             }}
+          />
+        )}
+
+        {showCancelOccurrence && (
+          <CancelOccurrenceModal
+            occurrenceId={occurrence.id}
+            orgId={orgId}
+            token={token}
+            onClose={() => setShowCancelOccurrence(false)}
+            onCancelled={handleOccurrenceCancelled}
           />
         )}
 
