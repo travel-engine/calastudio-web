@@ -28,6 +28,20 @@ const actionStyles: Record<string, { bg: string; color: string; label: string }>
   delete: { bg: '#fdecea', color: '#8b1a1a', label: 'Deleted' },
   override: { bg: '#fff3cd', color: '#7a4f00', label: 'Override' },
   system: { bg: '#f4f4f4', color: '#666', label: 'System' },
+  cancelled: { bg: '#fdecea', color: '#8b1a1a', label: 'Cancelled' },
+  completed: { bg: '#f4f4f4', color: '#666', label: 'Completed' },
+}
+
+// A status change to cancelled/completed reads better as its own badge than a generic "Updated".
+function effectiveAction(entry: AuditEntry): string {
+  if ((entry.action === 'update' || entry.action === 'override') && entry.changes) {
+    try {
+      const parsed = JSON.parse(entry.changes) as Record<string, { new: unknown }>
+      const status = String(parsed.status?.new ?? '').toLowerCase()
+      if (status === 'cancelled' || status === 'completed') return status
+    } catch { /* fall through */ }
+  }
+  return entry.action
 }
 
 const roleLabels: Record<string, string> = {
@@ -220,7 +234,7 @@ export default function EntityActivity({
                       </div>
                     )}
                   </div>
-                  <div><ActionBadge action={entry.action} /></div>
+                  <div><ActionBadge action={effectiveAction(entry)} /></div>
                   <div>
                     {hasDetail && (
                       <button
