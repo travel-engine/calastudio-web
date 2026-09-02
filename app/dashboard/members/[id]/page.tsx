@@ -422,7 +422,14 @@ export default function MemberDetailPage() {
         </Card>
 
         {/* Recent orders */}
-        <Card title="Recent orders">
+        <Card
+          title="Recent orders"
+          action={orders.length > 0 && (
+            <a href={`/dashboard/members/${memberId}/orders`} style={{ fontSize: '13px', fontWeight: 500, color: '#085041' }}>
+              All orders
+            </a>
+          )}
+        >
           {orders.length === 0 ? (
             <p style={{ fontSize: '13px', color: '#666' }}>No orders.</p>
           ) : (
