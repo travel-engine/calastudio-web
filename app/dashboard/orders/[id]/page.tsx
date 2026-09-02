@@ -55,14 +55,16 @@ const orderTypeLabels: Record<string, string> = {
 }
 
 // pass.bookings[].status comes through as the raw C# enum name (PascalCase), unlike the
-// snake_case enums elsewhere — normalise both forms.
+// snake_case enums elsewhere — normalise both forms. no-show carries no label (see
+// bookingStatusLabel): an un-attended booking simply isn't marked attended.
 const bookingStatusLabels: Record<string, string> = {
   confirmed: 'Confirmed', attended: 'Attended', cancelled: 'Cancelled',
-  latecancel: 'Late cancel', late_cancel: 'Late cancel',
-  noshow: 'No-show', no_show: 'No-show', waitlisted: 'Waitlisted',
+  latecancel: 'Late cancel', late_cancel: 'Late cancel', waitlisted: 'Waitlisted',
 }
 function bookingStatusLabel(s: string) {
-  return bookingStatusLabels[s.toLowerCase()] ?? s
+  const key = s.toLowerCase()
+  if (key === 'noshow' || key === 'no_show') return ''
+  return bookingStatusLabels[key] ?? s
 }
 
 function StatusBadge({ status }: { status: string }) {

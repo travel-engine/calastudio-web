@@ -120,12 +120,12 @@ const bookingStatusLabels: Record<string, { bg: string; color: string; label: st
   attended: { bg: '#e8eef8', color: '#1B4F8A', label: 'Attended' },
   cancelled: { bg: '#f4f4f4', color: '#666', label: 'Cancelled' },
   late_cancel: { bg: '#fff3cd', color: '#7a4f00', label: 'Late cancel' },
-  no_show: { bg: '#fdecea', color: '#8b1a1a', label: 'No-show' },
   waitlisted: { bg: '#f0ecf8', color: '#4B2D8A', label: 'Waitlisted' },
 }
 
 function BookingStatusBadge({ status }: { status: string }) {
-  const s = bookingStatusLabels[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
+  const s = bookingStatusLabels[status]
+  if (!s) return null // no_show and any unknown status carry no badge
   return (
     <span style={{
       display: 'inline-block', padding: '3px 10px', borderRadius: '99px',

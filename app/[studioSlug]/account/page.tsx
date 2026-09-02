@@ -123,7 +123,6 @@ function StatusBadge({ status }: { status: string }) {
     attended: { bg: '#e8eef8', color: '#1B4F8A', label: 'Attended' },
     cancelled: { bg: '#f4f4f4', color: '#666', label: 'Cancelled' },
     late_cancel: { bg: '#fdecea', color: '#8b1a1a', label: 'Late cancel' },
-    no_show: { bg: '#fdecea', color: '#8b1a1a', label: 'No-show' },
     waitlisted: { bg: '#fff3cd', color: '#7a4f00', label: 'Waitlisted' },
     pending: { bg: '#fff3cd', color: '#7a4f00', label: 'Pending' },
     succeeded: { bg: '#e8f5ee', color: '#085041', label: 'Paid' },
@@ -135,7 +134,8 @@ function StatusBadge({ status }: { status: string }) {
     booked: { bg: '#e8f5ee', color: '#085041', label: 'Booked' },
     removed: { bg: '#f4f4f4', color: '#666', label: 'Left' },
   }
-  const s = map[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
+  const s = map[status]
+  if (!s) return null // no_show and any unknown status carry no badge
   return (
     <span style={{
       display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
