@@ -86,6 +86,7 @@ interface LedgerEntry {
   movement_type: string
   credits_delta: number
   credits_after: number
+  booking_id: string | null
   notes: string | null
   created_at: string
 }
@@ -179,6 +180,8 @@ export default function MemberDetailPage() {
   const [showMoreInfo, setShowMoreInfo] = useState(false)
   const [expandedPassId, setExpandedPassId] = useState<string | null>(null)
   const [passLedgers, setPassLedgers] = useState<Record<string, LedgerEntry[]>>({})
+  // booking_id -> "02-Sep-2026, 6:00 AM" for ledger rows tied to a booking.
+  const [bookingWhen, setBookingWhen] = useState<Record<string, string>>({})
 
   const [showIssue, setShowIssue] = useState(false)
   const [templates, setTemplates] = useState<PassTemplate[]>([])
@@ -206,9 +209,25 @@ export default function MemberDetailPage() {
       if (res.ok) {
         const rows: LedgerEntry[] = await res.json()
         setPassLedgers(prev => ({ ...prev, [passId]: rows }))
+
+        // Resolve the occurrence date/time for each booking-linked row — the ledger only carries
+        // booking_id. Lazy, and only for ids not already resolved.
+        const ids = [...new Set(rows.map(r => r.booking_id).filter((x): x is string => !!x))]
+          .filter(id => !bookingWhen[id])
+        if (ids.length) {
+          const results = await Promise.all(ids.map(id =>
+            authedFetch(`/bookings/${id}`).then(r => (r.ok ? r.json() : null)).catch(() => null)
+          ))
+          const next: Record<string, string> = {}
+          results.forEach((b, i) => {
+            const startsAt = b?.session_occurrence?.starts_at
+            if (startsAt) next[ids[i]] = fmtDateTime(startsAt)
+          })
+          if (Object.keys(next).length) setBookingWhen(prev => ({ ...prev, ...next }))
+        }
       }
     }
-  }, [authedFetch, expandedPassId, passLedgers])
+  }, [authedFetch, expandedPassId, passLedgers, bookingWhen])
 
   useEffect(() => {
     const load = async () => {
@@ -414,7 +433,11 @@ export default function MemberDetailPage() {
                                   borderBottom: j < entries.length - 1 ? '1px solid #f7f7f7' : 'none',
                                 }}>
                                   <div style={{ color: '#444' }}>{fmtDateTime(e.created_at)}</div>
-                                  <div style={{ color: '#666' }}>{movementLabels[e.movement_type] ?? e.movement_type}{e.notes ? ` — ${e.notes}` : ''}</div>
+                                  <div style={{ color: '#666' }}>
+                                    {movementLabels[e.movement_type] ?? e.movement_type}
+                                    {e.booking_id && bookingWhen[e.booking_id] ? ` (${bookingWhen[e.booking_id]})` : ''}
+                                    {e.notes ? ` — ${e.notes}` : ''}
+                                  </div>
                                   <div style={{ textAlign: 'right', fontWeight: 600, color: e.credits_delta < 0 ? '#8b1a1a' : '#085041' }}>
                                     {e.credits_delta > 0 ? '+' : ''}{e.credits_delta}
                                   </div>
