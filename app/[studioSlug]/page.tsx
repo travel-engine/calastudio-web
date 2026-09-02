@@ -161,6 +161,11 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
                           {occ.location_name && (
                             <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{occ.location_name}</div>
                           )}
+                          {occ.is_cancelled && occ.cancellation_reason && (
+                            <div style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '2px' }}>
+                              Cancelled — {occ.cancellation_reason}
+                            </div>
+                          )}
                         </div>
                       </div>
 

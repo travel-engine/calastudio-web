@@ -13,6 +13,7 @@ interface Occurrence {
   id: string
   starts_at: string
   status: 'scheduled' | 'cancelled' | 'completed'
+  cancellation_reason: string | null
   capacity: number | null
   booked: number
   instructor_name: string | null
@@ -67,6 +68,7 @@ export default function SchedulePage() {
   const [forbidden, setForbidden] = useState(false)
 
   const [viewDate, setViewDate] = useState(() => startOfDay(new Date()))
+  const [showCancelled, setShowCancelled] = useState(false)
   const [occurrences, setOccurrences] = useState<Occurrence[]>([])
   const [fetchedFrom, setFetchedFrom] = useState<string>('')
 
@@ -141,16 +143,22 @@ export default function SchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gridStart, loading, forbidden, orgId])
 
+  const cancelledCount = useMemo(
+    () => occurrences.filter(o => o.status === 'cancelled').length,
+    [occurrences],
+  )
+
   const occurrencesByDay = useMemo(() => {
     const map: Record<string, Occurrence[]> = {}
     for (const occ of occurrences) {
+      if (occ.status === 'cancelled' && !showCancelled) continue
       const key = dateKey(new Date(occ.starts_at))
       if (!map[key]) map[key] = []
       map[key].push(occ)
     }
     for (const key in map) map[key].sort((a, b) => a.starts_at.localeCompare(b.starts_at))
     return map
-  }, [occurrences])
+  }, [occurrences, showCancelled])
 
   if (loading) {
     return (
@@ -177,15 +185,23 @@ export default function SchedulePage() {
               Every upcoming class, by week
             </p>
           </div>
-          <button
-            onClick={() => setViewDate(today)}
-            style={{
-              padding: '8px 16px', backgroundColor: 'white', border: '1px solid #e2e2e2',
-              borderRadius: '8px', fontSize: '13px', color: '#444', cursor: 'pointer', fontWeight: 500
-            }}
-          >
-            Today
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {cancelledCount > 0 && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#666', cursor: 'pointer' }}>
+                <input type="checkbox" checked={showCancelled} onChange={e => setShowCancelled(e.target.checked)} />
+                Show cancelled ({cancelledCount})
+              </label>
+            )}
+            <button
+              onClick={() => setViewDate(today)}
+              style={{
+                padding: '8px 16px', backgroundColor: 'white', border: '1px solid #e2e2e2',
+                borderRadius: '8px', fontSize: '13px', color: '#444', cursor: 'pointer', fontWeight: 500
+              }}
+            >
+              Today
+            </button>
+          </div>
         </div>
 
         <div className={styles.twoCol} style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', alignItems: 'start' }}>
@@ -264,11 +280,16 @@ export default function SchedulePage() {
                               }}>
                                 {new Date(occ.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                               </span>
-                              <span style={{ flex: 1, minWidth: 0, textDecoration: isCancelled ? 'line-through' : 'none' }}>
-                                {occ.session?.name ?? 'Session'}
-                                <span style={{ color: isCancelled || isPast ? '#bbb' : '#999' }}>
-                                  {' · '}{occ.instructor_name ?? 'Unassigned'}
+                              <span style={{ flex: 1, minWidth: 0 }}>
+                                <span style={{ textDecoration: isCancelled ? 'line-through' : 'none' }}>
+                                  {occ.session?.name ?? 'Session'}
+                                  <span style={{ color: isCancelled || isPast ? '#bbb' : '#999' }}>
+                                    {' · '}{occ.instructor_name ?? 'Unassigned'}
+                                  </span>
                                 </span>
+                                {isCancelled && occ.cancellation_reason && (
+                                  <span style={{ color: '#8b1a1a' }}> — {occ.cancellation_reason}</span>
+                                )}
                               </span>
                               {isCancelled ? (
                                 <span style={{

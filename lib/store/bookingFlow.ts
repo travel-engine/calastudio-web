@@ -15,6 +15,7 @@ export interface BookableOccurrence {
   currency: string
   spots_remaining: number | null
   is_cancelled: boolean
+  cancellation_reason?: string | null
 }
 
 export interface PassTemplateOption {
