@@ -285,6 +285,7 @@ export default function OccurrenceDetailPage() {
   const [showCancelOccurrence, setShowCancelOccurrence] = useState(false)
 
   const [showEdit, setShowEdit] = useState(false)
+  const [activityKey, setActivityKey] = useState(0)
   const [editForm, setEditForm] = useState({ date: '', startTime: '', endTime: '', capacity: '', instructorId: '' })
   const [editBusy, setEditBusy] = useState(false)
   const [editError, setEditError] = useState('')
@@ -519,6 +520,7 @@ export default function OccurrenceDetailPage() {
   const handleOccurrenceCancelled = async (updated: unknown) => {
     setOccurrence(updated as OccurrenceDetail)
     setShowCancelOccurrence(false)
+    setActivityKey(k => k + 1)
     await refreshRoster(orgId, token)
   }
 
@@ -568,6 +570,7 @@ export default function OccurrenceDetailPage() {
     if (res.ok) {
       setOccurrence(await res.json())
       setShowEdit(false)
+      setActivityKey(k => k + 1)
     } else {
       const data = await res.json().catch(() => null)
       setEditError(data?.error ?? 'Could not update this occurrence.')
@@ -1201,7 +1204,7 @@ export default function OccurrenceDetailPage() {
           )}
         </div>
 
-        <EntityActivity orgId={orgId} token={token} entityType="session_occurrence" entityId={occurrence.id} noun="occurrence" />
+        <EntityActivity orgId={orgId} token={token} entityType="session_occurrence" entityId={occurrence.id} noun="occurrence" refreshKey={activityKey} />
       </div>
 
       {/* Refund modal */}

@@ -163,8 +163,8 @@ function ChangesDetail({ changes }: { changes: string }) {
 }
 
 export default function EntityActivity({
-  orgId, token, entityType, entityId, noun,
-}: { orgId: string; token: string; entityType: string; entityId: string; noun: string }) {
+  orgId, token, entityType, entityId, noun, refreshKey = 0,
+}: { orgId: string; token: string; entityType: string; entityId: string; noun: string; refreshKey?: number }) {
   const [entries, setEntries] = useState<AuditEntry[] | null>(null)
   const [open, setOpen] = useState(false)
   const [expandedId, setExpandedId] = useState('')
@@ -180,9 +180,10 @@ export default function EntityActivity({
     setEntries(res.ok ? await res.json() : [])
   }, [orgId, token, entityType, entityId])
 
+  // refreshKey lets the parent re-pull after it mutates the entity (edit, cancel).
   useEffect(() => {
     if (orgId && token && entityId) load()
-  }, [orgId, token, entityId, load])
+  }, [orgId, token, entityId, load, refreshKey])
 
   const count = entries?.length ?? 0
 
