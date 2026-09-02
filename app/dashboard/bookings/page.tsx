@@ -151,6 +151,11 @@ const secondaryButtonStyle: React.CSSProperties = {
   padding: '10px 16px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
   borderRadius: '8px', fontSize: '13px', cursor: 'pointer', color: '#444', fontWeight: 500
 }
+const paymentChoiceRow = (active: boolean): React.CSSProperties => ({
+  display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer',
+  border: `1px solid ${active ? '#085041' : '#e2e2e2'}`, borderRadius: '8px',
+  backgroundColor: active ? '#f2f9f5' : 'white',
+})
 
 export default function BookingsPage() {
   return (
@@ -200,7 +205,8 @@ function BookingsPageContent() {
   const [passesLoading, setPassesLoading] = useState(false)
   // Approved pass-template ids for a restricted session (null = not restricted, or not loaded yet).
   const [approvedPassTemplateIds, setApprovedPassTemplateIds] = useState<string[] | null>(null)
-  const [addForm, setAddForm] = useState({ userId: '', paymentType: 'pass' as 'pass' | 'admin_waived', memberPassId: '' })
+  // `choice` is '' (nothing picked), a member-pass id (pay with that pass), or 'comp' (admin-waived).
+  const [addForm, setAddForm] = useState({ userId: '', choice: '', compNote: '' })
   const [addingBooking, setAddingBooking] = useState(false)
   const [addBookingError, setAddBookingError] = useState('')
 
@@ -419,11 +425,7 @@ function BookingsPageContent() {
 
   const openAddBooking = async () => {
     setAddBookingError('')
-    setAddForm({
-      userId: '',
-      paymentType: 'pass',
-      memberPassId: ''
-    })
+    setAddForm({ userId: '', choice: '', compNote: '' })
     setMemberPasses([])
     setMemberSearch('')
     setShowAddBooking(true)
@@ -434,7 +436,7 @@ function BookingsPageContent() {
   }
 
   const selectMember = async (memberId: string) => {
-    setAddForm(p => ({ ...p, userId: memberId, memberPassId: '' }))
+    setAddForm(p => ({ ...p, userId: memberId, choice: '', compNote: '' }))
     if (!canManageBookings(roles)) return // add-student is always free — no need to look up passes
 
     setPassesLoading(true)
@@ -453,24 +455,21 @@ function BookingsPageContent() {
 
     // admin/teacher_super get the paid path (POST /bookings); teacher_general/teacher_basic only
     // ever get the no-payment "add student" path (POST .../add-student) — the payment section
-    // above is hidden for them, so addForm.paymentType is never meaningful in that case.
+    // above is hidden for them, so addForm.choice is never meaningful in that case.
     const useAddStudent = !canManageBookings(roles)
+    const isFree = managingOccurrence.session?.booking_access_mode === 'free'
 
-    if (!useAddStudent) {
-      const isFree = managingOccurrence.session?.booking_access_mode === 'free'
-      const paymentType = isFree ? 'free' : addForm.paymentType
-      if (paymentType === 'pass' && !addForm.memberPassId) {
-        setAddBookingError('Select which pass to use')
-        return
-      }
+    if (!useAddStudent && !isFree && !addForm.choice) {
+      setAddBookingError('Choose how this booking is paid for')
+      return
     }
 
     setAddingBooking(true)
     setAddBookingError('')
 
     try {
-      const isFree = managingOccurrence.session?.booking_access_mode === 'free'
-      const paymentType = isFree ? 'free' : addForm.paymentType
+      const paymentType = isFree ? 'free' : addForm.choice === 'comp' ? 'admin_waived' : 'pass'
+      const memberPassId = paymentType === 'pass' ? addForm.choice : null
 
       const res = useAddStudent
         ? await authedFetch(`/occurrences/${managingOccurrence.id}/add-student`, {
@@ -487,7 +486,8 @@ function BookingsPageContent() {
               user_id: addForm.userId,
               session_occurrence_id: managingOccurrence.id,
               payment_type: paymentType,
-              member_pass_id: paymentType === 'pass' ? addForm.memberPassId : null,
+              member_pass_id: memberPassId,
+              // TODO: send addForm.compNote once the backend has a comp-note field on the booking.
             })
           })
 
@@ -669,7 +669,7 @@ function BookingsPageContent() {
                             {selectedMember.email && <div style={{ fontSize: '12px', color: '#666' }}>{selectedMember.email}</div>}
                           </div>
                           <button
-                            onClick={() => { setAddForm(p => ({ ...p, userId: '', memberPassId: '' })); setMemberPasses([]) }}
+                            onClick={() => { setAddForm(p => ({ ...p, userId: '', choice: '', compNote: '' })); setMemberPasses([]) }}
                             style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#666' }}
                           >
                             ×
@@ -713,49 +713,60 @@ function BookingsPageContent() {
                       <p style={{ fontSize: '13px', color: '#666' }}>Added at no charge — payment isn't part of this action.</p>
                     ) : isFreeSession ? (
                       <p style={{ fontSize: '13px', color: '#666' }}>This session is free — no payment required.</p>
-                    ) : (
-                      <>
-                        <div>
-                          <label style={labelStyle}>Payment</label>
-                          <select
-                            value={addForm.paymentType}
-                            onChange={e => setAddForm(p => ({ ...p, paymentType: e.target.value as 'pass' | 'admin_waived', memberPassId: '' }))}
-                            style={inputStyle}
-                          >
-                            <option value="pass">Use a pass</option>
-                            <option value="admin_waived">Comp (no charge)</option>
-                          </select>
-                        </div>
-
-                        {addForm.paymentType === 'pass' && addForm.userId && (
-                          <div>
-                            <label style={labelStyle}>Which pass</label>
-                            {passesLoading ? (
-                              <p style={{ fontSize: '13px', color: '#666' }}>Loading passes...</p>
-                            ) : usablePasses.length === 0 ? (
-                              <p style={{ fontSize: '13px', color: '#666' }}>
+                    ) : addForm.userId ? (
+                      <div>
+                        <label style={labelStyle}>Payment</label>
+                        {passesLoading ? (
+                          <p style={{ fontSize: '13px', color: '#666' }}>Loading passes...</p>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {usablePasses.map(p => (
+                              <label key={p.id} style={paymentChoiceRow(addForm.choice === p.id)}>
+                                <input
+                                  type="radio"
+                                  name="add-payment"
+                                  checked={addForm.choice === p.id}
+                                  onChange={() => setAddForm(f => ({ ...f, choice: p.id }))}
+                                />
+                                <span style={{ fontSize: '13px' }}>
+                                  {p.pass_template?.name ?? 'Pass'}
+                                  <span style={{ color: '#666' }}>
+                                    {' · '}{p.credits_remaining === null ? 'unlimited' : `${p.credits_remaining}/${p.credits_total} credits`}
+                                    {' · expires '}{formatDate(p.expires_at)}
+                                  </span>
+                                </span>
+                              </label>
+                            ))}
+                            {usablePasses.length === 0 && (
+                              <p style={{ fontSize: '12px', color: '#999', margin: '2px 0' }}>
                                 {memberPasses.length > 0
-                                  ? 'None of this member’s passes are valid for this session.'
-                                  : 'This member has no usable passes.'}
+                                  ? 'No pass valid for this session — comp it below.'
+                                  : 'This member has no usable passes — comp it below.'}
                               </p>
-                            ) : (
-                              <select
-                                value={addForm.memberPassId}
-                                onChange={e => setAddForm(p => ({ ...p, memberPassId: e.target.value }))}
-                                style={inputStyle}
-                              >
-                                <option value="">Select a pass...</option>
-                                {usablePasses.map(p => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.pass_template?.name ?? 'Pass'} — {p.credits_remaining === null ? 'unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · expires {formatDate(p.expires_at)}
-                                  </option>
-                                ))}
-                              </select>
+                            )}
+
+                            <label style={paymentChoiceRow(addForm.choice === 'comp')}>
+                              <input
+                                type="radio"
+                                name="add-payment"
+                                checked={addForm.choice === 'comp'}
+                                onChange={() => setAddForm(f => ({ ...f, choice: 'comp' }))}
+                              />
+                              <span style={{ fontSize: '13px' }}>Comp (no charge)</span>
+                            </label>
+                            {addForm.choice === 'comp' && (
+                              <input
+                                type="text"
+                                placeholder="Reason (optional) — e.g. makeup class, staff comp"
+                                value={addForm.compNote}
+                                onChange={e => setAddForm(f => ({ ...f, compNote: e.target.value }))}
+                                style={{ ...inputStyle, marginLeft: '26px', width: 'calc(100% - 26px)' }}
+                              />
                             )}
                           </div>
                         )}
-                      </>
-                    )}
+                      </div>
+                    ) : null}
 
                     {addBookingError && (
                       <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
