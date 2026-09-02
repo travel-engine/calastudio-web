@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewMembers, canImportMembers } from '@/lib/roles'
+import { canViewMembers, canImportMembers, canAddMember } from '@/lib/roles'
 import { displayName } from '@/lib/names'
+import AddMemberModal from '@/app/components/AddMemberModal'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Member {
@@ -125,6 +126,7 @@ export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [search, setSearch] = useState('')
 
+  const [showAddMember, setShowAddMember] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [csvText, setCsvText] = useState('')
   const [fileName, setFileName] = useState('')
@@ -269,17 +271,30 @@ export default function MembersPage() {
               {members.length} member{members.length !== 1 ? 's' : ''} in your studio
             </p>
           </div>
-          {canImportMembers(roles) && (
-            <button
-              onClick={openImportModal}
-              style={{
-                padding: '10px 20px', backgroundColor: '#085041', color: 'white', border: 'none',
-                borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-              }}
-            >
-              Import CSV
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {canAddMember(roles) && (
+              <button
+                onClick={() => setShowAddMember(true)}
+                style={{
+                  padding: '10px 20px', backgroundColor: '#085041', color: 'white', border: 'none',
+                  borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                + Add member
+              </button>
+            )}
+            {canImportMembers(roles) && (
+              <button
+                onClick={openImportModal}
+                style={{
+                  padding: '10px 20px', backgroundColor: 'white', color: '#1a1a1a', border: '1px solid #d2d2d2',
+                  borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                Import CSV
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search */}
@@ -305,19 +320,32 @@ export default function MembersPage() {
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>👥</div>
             <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No members yet</h3>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
-              Members show up here once they book, or you can import an existing list.
+              Members show up here once they book, or you can add someone directly or import an existing list.
             </p>
-            {canImportMembers(roles) && (
-              <button
-                onClick={openImportModal}
-                style={{
-                  display: 'inline-block', padding: '10px 24px', backgroundColor: '#085041', color: 'white',
-                  border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-                }}
-              >
-                Import CSV
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              {canAddMember(roles) && (
+                <button
+                  onClick={() => setShowAddMember(true)}
+                  style={{
+                    padding: '10px 24px', backgroundColor: '#085041', color: 'white',
+                    border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+                  }}
+                >
+                  + Add member
+                </button>
+              )}
+              {canImportMembers(roles) && (
+                <button
+                  onClick={openImportModal}
+                  style={{
+                    padding: '10px 24px', backgroundColor: 'white', color: '#1a1a1a', border: '1px solid #d2d2d2',
+                    borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
+                  }}
+                >
+                  Import CSV
+                </button>
+              )}
+            </div>
           </div>
         ) : filtered.length === 0 ? (
           <div style={{
@@ -346,6 +374,15 @@ export default function MembersPage() {
         )}
         </>}
       </div>
+
+      {showAddMember && (
+        <AddMemberModal
+          orgId={orgId}
+          token={token}
+          onClose={() => setShowAddMember(false)}
+          onCreated={m => { setShowAddMember(false); router.push(`/dashboard/members/${m.id}`) }}
+        />
+      )}
 
       {showImportModal && (
         <ModalShell title="Import members from CSV" onClose={() => setShowImportModal(false)}>

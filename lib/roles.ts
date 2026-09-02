@@ -58,3 +58,7 @@ export const canManageSettings = (roles: string[]) => has(roles, [ADMIN])
 export const canViewMembers = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
 // CSV import (POST /organisations/{orgId}/members/import, MemberEndpoints.cs) — admin only.
 export const canImportMembers = (roles: string[]) => has(roles, [ADMIN])
+// "Add new member" quick-add (POST /organisations/{orgId}/members, MemberEndpoints.cs) —
+// admin/teacher_super/teacher_general; the add-student search modal it also lives in is reachable
+// by teacher_general, who needs a way to add someone not yet in the system rather than dead-ending.
+export const canAddMember = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL])

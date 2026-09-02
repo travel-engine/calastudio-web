@@ -5,8 +5,9 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent } from '@/lib/roles'
+import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent, canAddMember } from '@/lib/roles'
 import { displayName } from '@/lib/names'
+import AddMemberModal from '@/app/components/AddMemberModal'
 import { formatDate, formatDateTime, formatDateWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -295,6 +296,7 @@ export default function OccurrenceDetailPage() {
   const [refundError, setRefundError] = useState('')
 
   const [showAddBooking, setShowAddBooking] = useState(false)
+  const [showAddMember, setShowAddMember] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [memberSearch, setMemberSearch] = useState('')
@@ -926,6 +928,17 @@ export default function OccurrenceDetailPage() {
                           ))
                         )}
                       </div>
+                      {canAddMember(roles) && (
+                        <button
+                          onClick={() => setShowAddMember(true)}
+                          style={{
+                            marginTop: '8px', background: 'none', border: 'none', padding: 0,
+                            color: '#085041', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
+                          }}
+                        >
+                          + Add a new member
+                        </button>
+                      )}
                     </>
                   )}
                 </div>
@@ -1011,6 +1024,20 @@ export default function OccurrenceDetailPage() {
                 </div>
             </div>
           </div>
+        )}
+
+        {showAddMember && (
+          <AddMemberModal
+            orgId={orgId}
+            token={token}
+            onClose={() => setShowAddMember(false)}
+            onCreated={m => {
+              setShowAddMember(false)
+              setMembers(prev => [...prev, { id: m.id, first_name: m.first_name, last_name: m.last_name }])
+              setMemberSearch('')
+              selectMember(m.id)
+            }}
+          />
         )}
 
         {/* Tabs + roster */}
