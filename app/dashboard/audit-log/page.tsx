@@ -45,6 +45,27 @@ const actionStyles: Record<string, { bg: string; color: string; label: string }>
   delete: { bg: '#fdecea', color: '#8b1a1a', label: 'Deleted' },
   override: { bg: '#fff3cd', color: '#7a4f00', label: 'Override' },
   system: { bg: '#f4f4f4', color: '#666', label: 'System' },
+  cancelled: { bg: '#fdecea', color: '#8b1a1a', label: 'Cancelled' },
+  completed: { bg: '#f4f4f4', color: '#666', label: 'Completed' },
+}
+
+// OccurrenceStatus serialises into audit `changes` as its raw enum ordinal (0/1/2) — map that and
+// the string form to something readable.
+const statusLabels: Record<string, string> = {
+  '0': 'Scheduled', '1': 'Cancelled', '2': 'Completed',
+  scheduled: 'Scheduled', cancelled: 'Cancelled', completed: 'Completed',
+}
+
+// A status change to cancelled/completed reads better as its own badge than a generic "Updated".
+function effectiveAction(entry: AuditEntry): string {
+  if ((entry.action === 'update' || entry.action === 'override') && entry.changes) {
+    try {
+      const parsed = JSON.parse(entry.changes) as Record<string, { new: unknown }>
+      const status = (statusLabels[String(parsed.status?.new ?? '').toLowerCase()] ?? '').toLowerCase()
+      if (status === 'cancelled' || status === 'completed') return status
+    } catch { /* fall through */ }
+  }
+  return entry.action
 }
 
 function ActionBadge({ action }: { action: string }) {
@@ -68,9 +89,10 @@ const roleLabels: Record<string, string> = {
   member: 'Member',
 }
 
-function formatFieldValue(v: unknown) {
+function formatFieldValue(field: string, v: unknown) {
   if (v === null || v === undefined) return '—'
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  if (field === 'status' && v !== '') return statusLabels[String(v).toLowerCase()] ?? String(v)
   return String(v)
 }
 
@@ -95,9 +117,9 @@ function ChangesDiff({ changes }: { changes: string }) {
           backgroundColor: i % 2 === 0 ? '#fafafa' : 'white'
         }}>
           <div style={{ fontWeight: 600, color: '#444' }}>{field}</div>
-          <div style={{ color: '#8b1a1a', wordBreak: 'break-word' }}>{formatFieldValue(oldVal)}</div>
+          <div style={{ color: '#8b1a1a', wordBreak: 'break-word' }}>{formatFieldValue(field, oldVal)}</div>
           <div style={{ textAlign: 'center', color: '#999' }}>→</div>
-          <div style={{ color: '#085041', wordBreak: 'break-word' }}>{formatFieldValue(newVal)}</div>
+          <div style={{ color: '#085041', wordBreak: 'break-word' }}>{formatFieldValue(field, newVal)}</div>
         </div>
       ))}
     </div>
@@ -301,7 +323,7 @@ export default function AuditLogPage() {
                         <div style={{ fontSize: '11px', color: '#666' }}>{roleLabels[entry.actor_role] ?? entry.actor_role}</div>
                       )}
                     </div>
-                    <div><ActionBadge action={entry.action} /></div>
+                    <div><ActionBadge action={effectiveAction(entry)} /></div>
                     <div style={{ fontSize: '13px', color: '#444' }}>
                       {entityTypeLabels[entry.entity_type] ?? entry.entity_type}
                     </div>

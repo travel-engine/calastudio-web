@@ -32,12 +32,19 @@ const actionStyles: Record<string, { bg: string; color: string; label: string }>
   completed: { bg: '#f4f4f4', color: '#666', label: 'Completed' },
 }
 
+// OccurrenceStatus serialises into audit `changes` as its raw enum ordinal (0/1/2). Map both that
+// and the string form to something a person can read.
+const statusLabels: Record<string, string> = {
+  '0': 'Scheduled', '1': 'Cancelled', '2': 'Completed',
+  scheduled: 'Scheduled', cancelled: 'Cancelled', completed: 'Completed',
+}
+
 // A status change to cancelled/completed reads better as its own badge than a generic "Updated".
 function effectiveAction(entry: AuditEntry): string {
   if ((entry.action === 'update' || entry.action === 'override') && entry.changes) {
     try {
       const parsed = JSON.parse(entry.changes) as Record<string, { new: unknown }>
-      const status = String(parsed.status?.new ?? '').toLowerCase()
+      const status = (statusLabels[String(parsed.status?.new ?? '').toLowerCase()] ?? '').toLowerCase()
       if (status === 'cancelled' || status === 'completed') return status
     } catch { /* fall through */ }
   }
@@ -97,6 +104,13 @@ function formatValue(v: unknown) {
   return String(v)
 }
 
+function formatFieldValue(field: string, v: unknown) {
+  if (field === 'status' && v != null && v !== '') {
+    return statusLabels[String(v).toLowerCase()] ?? formatValue(v)
+  }
+  return formatValue(v)
+}
+
 function ActionBadge({ action }: { action: string }) {
   const s = actionStyles[action] ?? { bg: '#f4f4f4', color: '#666', label: action }
   return (
@@ -139,9 +153,9 @@ function ChangesDetail({ changes }: { changes: string }) {
           backgroundColor: i % 2 === 0 ? '#fafafa' : 'white',
         }}>
           <div style={{ fontWeight: 600, color: '#444' }}>{fieldLabel(field)}</div>
-          <div style={{ color: '#8b1a1a', wordBreak: 'break-word' }}>{formatValue(oldVal)}</div>
+          <div style={{ color: '#8b1a1a', wordBreak: 'break-word' }}>{formatFieldValue(field, oldVal)}</div>
           <div style={{ textAlign: 'center', color: '#999' }}>→</div>
-          <div style={{ color: '#085041', wordBreak: 'break-word' }}>{formatValue(newVal)}</div>
+          <div style={{ color: '#085041', wordBreak: 'break-word' }}>{formatFieldValue(field, newVal)}</div>
         </div>
       ))}
     </div>
