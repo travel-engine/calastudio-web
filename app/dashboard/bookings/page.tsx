@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewBookings, canManageBookings, canMarkAttended, canMarkNoShow, canAddStudent } from '@/lib/roles'
+import { canViewBookings, canManageBookings, canMarkAttended, canAddStudent } from '@/lib/roles'
 import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -336,15 +336,6 @@ function BookingsPageContent() {
     const res = await authedFetch(`/bookings/${bookingId}/attend`, { method: 'POST' })
     if (res.ok) await refreshRoster(managingOccurrence!.id)
     else setManageError('Could not mark this booking attended.')
-    setManageBusy(false)
-  }
-
-  const handleMarkNoShow = async (bookingId: string) => {
-    setManageBusy(true)
-    setManageError('')
-    const res = await authedFetch(`/bookings/${bookingId}/no-show`, { method: 'POST' })
-    if (res.ok) await refreshRoster(managingOccurrence!.id)
-    else setManageError('Could not mark this booking as a no-show.')
     setManageBusy(false)
   }
 
@@ -840,14 +831,6 @@ function BookingsPageContent() {
                                 fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
                               }}>
                                 Attended
-                              </button>
-                            )}
-                            {canMarkNoShow(roles) && (
-                              <button onClick={() => handleMarkNoShow(b.id)} disabled={manageBusy} style={{
-                                padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
-                                fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
-                              }}>
-                                No-show
                               </button>
                             )}
                             {canManageBookings(roles) && (

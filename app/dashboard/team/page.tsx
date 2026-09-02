@@ -430,7 +430,7 @@ export default function TeamPage() {
                   {inviteForm.role === 'teacher_super' && 'Can view every session, add or cancel dates, process paid bookings, and issue or adjust passes. Cannot create/edit session templates, invite teachers, or change studio settings.'}
                   {inviteForm.role === 'teacher_general' && 'Can view their own sessions and full roster, add students at no charge, and mark attendance. Cannot edit session details or process payments.'}
                   {inviteForm.role === 'teacher_basic' && 'Can add students to their own sessions and mark attendance only. Sees member names on the roster, not contact or financial details.'}
-                  {inviteForm.role === 'front_desk' && 'Can view the full schedule and check members in. Sees member names only, no contact/financial details, and cannot mark no-shows or add students.'}
+                  {inviteForm.role === 'front_desk' && 'Can view the full schedule and check members in. Sees member names only, no contact/financial details, and cannot add students.'}
                 </p>
               </div>
 

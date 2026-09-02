@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canMarkNoShow, canAddStudent } from '@/lib/roles'
+import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent } from '@/lib/roles'
 import { formatDate, formatDateTime, formatDateWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -426,15 +426,6 @@ export default function OccurrenceDetailPage() {
     const res = await authedFetch(`/bookings/${bookingId}/unattend`, { method: 'POST' })
     if (res.ok) await refreshRoster(orgId, token)
     else setManageError('Could not undo attended for this booking.')
-    setManageBusy(false)
-  }
-
-  const handleMarkNoShow = async (bookingId: string) => {
-    setManageBusy(true)
-    setManageError('')
-    const res = await authedFetch(`/bookings/${bookingId}/no-show`, { method: 'POST' })
-    if (res.ok) await refreshRoster(orgId, token)
-    else setManageError('Could not mark this booking as a no-show.')
     setManageBusy(false)
   }
 
@@ -1123,25 +1114,13 @@ export default function OccurrenceDetailPage() {
                             Attended
                           </label>
                         )}
-                        {b.status === 'confirmed' && (
-                          <>
-                            {canMarkNoShow(roles) && (
-                              <button onClick={() => handleMarkNoShow(b.id)} disabled={manageBusy} style={{
-                                padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
-                                fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
-                              }}>
-                                No-show
-                              </button>
-                            )}
-                            {canManageBookings(roles) && (
-                              <button onClick={() => handleCancelBooking(b.id)} disabled={manageBusy} style={{
-                                padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #fdecea', borderRadius: '6px',
-                                fontSize: '11px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
-                              }}>
-                                Cancel
-                              </button>
-                            )}
-                          </>
+                        {b.status === 'confirmed' && canManageBookings(roles) && (
+                          <button onClick={() => handleCancelBooking(b.id)} disabled={manageBusy} style={{
+                            padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #fdecea', borderRadius: '6px',
+                            fontSize: '11px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
+                          }}>
+                            Cancel
+                          </button>
                         )}
                         {b.payment_type === 'card' && canManageBookings(roles) && (
                           <button onClick={() => openRefund(b)} disabled={manageBusy} style={{
