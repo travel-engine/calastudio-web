@@ -144,7 +144,6 @@ export default function SchedulePage() {
   const occurrencesByDay = useMemo(() => {
     const map: Record<string, Occurrence[]> = {}
     for (const occ of occurrences) {
-      if (occ.status !== 'scheduled') continue
       const key = dateKey(new Date(occ.starts_at))
       if (!map[key]) map[key] = []
       map[key].push(occ)
@@ -246,6 +245,7 @@ export default function SchedulePage() {
                             const { booked, capacity } = occupancy(occ)
                             const isFull = capacity !== null && booked >= capacity
                             const isPast = new Date(occ.starts_at) < now
+                            const isCancelled = occ.status === 'cancelled'
                             return (
                             <a
                               key={occ.id}
@@ -253,26 +253,39 @@ export default function SchedulePage() {
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '10px',
                                 padding: '8px 12px', borderRadius: '8px',
-                                backgroundColor: isPast ? '#f4f4f4' : '#e8f5ee',
-                                textDecoration: 'none', color: isPast ? '#999' : '#1a1a1a', fontSize: '13px'
+                                backgroundColor: isCancelled ? '#f7f7f7' : isPast ? '#f4f4f4' : '#e8f5ee',
+                                textDecoration: 'none', color: isCancelled || isPast ? '#999' : '#1a1a1a', fontSize: '13px'
                               }}
                             >
-                              <span style={{ fontWeight: 600, color: isPast ? '#999' : '#085041', minWidth: '68px' }}>
+                              <span style={{
+                                fontWeight: 600, minWidth: '68px',
+                                color: isCancelled || isPast ? '#999' : '#085041',
+                                textDecoration: isCancelled ? 'line-through' : 'none'
+                              }}>
                                 {new Date(occ.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
                               </span>
-                              <span style={{ flex: 1, minWidth: 0 }}>
+                              <span style={{ flex: 1, minWidth: 0, textDecoration: isCancelled ? 'line-through' : 'none' }}>
                                 {occ.session?.name ?? 'Session'}
-                                <span style={{ color: isPast ? '#bbb' : '#999' }}>
+                                <span style={{ color: isCancelled || isPast ? '#bbb' : '#999' }}>
                                   {' · '}{occ.instructor_name ?? 'Unassigned'}
                                 </span>
                               </span>
-                              <span style={{
-                                fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
-                                backgroundColor: isFull ? '#fdecea' : '#e8f5ee',
-                                color: isFull ? '#8b1a1a' : '#085041'
-                              }}>
-                                {capacity === null ? booked : `${booked}/${capacity}`}
-                              </span>
+                              {isCancelled ? (
+                                <span style={{
+                                  fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
+                                  backgroundColor: '#fdecea', color: '#8b1a1a'
+                                }}>
+                                  Cancelled
+                                </span>
+                              ) : (
+                                <span style={{
+                                  fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
+                                  backgroundColor: isFull ? '#fdecea' : '#e8f5ee',
+                                  color: isFull ? '#8b1a1a' : '#085041'
+                                }}>
+                                  {capacity === null ? booked : `${booked}/${capacity}`}
+                                </span>
+                              )}
                               <span style={{ fontSize: '11px', color: '#999', textTransform: 'capitalize' }}>
                                 {occ.session?.delivery_mode.replace('_', ' ')}
                               </span>
