@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent, canAddMember } from '@/lib/roles'
+import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent, canAddMember, canViewMembers } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
 import { formatDate, formatDateTime, formatDateWithWeekday } from '@/lib/dates'
@@ -1100,7 +1100,15 @@ export default function OccurrenceDetailPage() {
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{displayName(b.user) || b.member_name || 'Unknown member'}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                          {canViewMembers(roles) && b.user_id ? (
+                            <a href={`/dashboard/members/${b.user_id}`} style={{ color: '#085041', textDecoration: 'none' }}>
+                              {displayName(b.user) || b.member_name || 'Unknown member'}
+                            </a>
+                          ) : (
+                            displayName(b.user) || b.member_name || 'Unknown member'
+                          )}
+                        </div>
                         <div style={{ fontSize: '12px', color: '#666' }}>
                           {b.user?.email && `${b.user.email} · `}{b.booked_mode.replace('_', ' ')}
                           {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
