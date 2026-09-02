@@ -78,6 +78,8 @@ interface Booking {
   user?: Member | null
   member_name?: string
   guest_count?: number
+  comp_reason?: string | null
+  comp_added_by_name?: string | null
   // Raw jsonb text, not a parsed array — same "not an EF-mapped collection" shape as the backend's
   // AuditEntry.Changes. Parse with parseGuests() below rather than indexing directly.
   guests?: string | null
@@ -459,9 +461,15 @@ function BookingsPageContent() {
     const useAddStudent = !canManageBookings(roles)
     const isFree = managingOccurrence.session?.booking_access_mode === 'free'
 
-    if (!useAddStudent && !isFree && !addForm.choice) {
-      setAddBookingError('Choose how this booking is paid for')
-      return
+    if (!useAddStudent && !isFree) {
+      if (!addForm.choice) {
+        setAddBookingError('Choose how this booking is paid for')
+        return
+      }
+      if (addForm.choice === 'comp' && !addForm.compNote.trim()) {
+        setAddBookingError('Add a reason for the comp')
+        return
+      }
     }
 
     setAddingBooking(true)
@@ -487,7 +495,7 @@ function BookingsPageContent() {
               session_occurrence_id: managingOccurrence.id,
               payment_type: paymentType,
               member_pass_id: memberPassId,
-              // TODO: send addForm.compNote once the backend has a comp-note field on the booking.
+              reason: paymentType === 'admin_waived' ? addForm.compNote.trim() : null,
             })
           })
 
@@ -757,7 +765,7 @@ function BookingsPageContent() {
                             {addForm.choice === 'comp' && (
                               <input
                                 type="text"
-                                placeholder="Reason (optional) — e.g. makeup class, staff comp"
+                                placeholder="Reason for the comp — e.g. makeup class, staff comp"
                                 value={addForm.compNote}
                                 onChange={e => setAddForm(f => ({ ...f, compNote: e.target.value }))}
                                 style={{ ...inputStyle, marginLeft: '26px', width: 'calc(100% - 26px)' }}
@@ -816,6 +824,11 @@ function BookingsPageContent() {
                           {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
                           {!!b.guest_count && ` · +${b.guest_count} guest${b.guest_count > 1 ? 's' : ''}`}
                         </div>
+                        {b.payment_type === 'admin_waived' && b.comp_reason && (
+                          <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                            Comp: {b.comp_reason}{b.comp_added_by_name ? ` — ${b.comp_added_by_name}` : ''}
+                          </div>
+                        )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <BookingStatusBadge status={b.status} />

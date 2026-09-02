@@ -80,6 +80,8 @@ interface Booking {
   guests?: string | null
   cancelled_at?: string | null
   cancelled_by_name?: string | null
+  comp_reason?: string | null
+  comp_added_by_name?: string | null
   credits_refunded?: number | null
   credits_refunded_at?: string | null
   credits_refunded_by_name?: string | null
@@ -621,9 +623,15 @@ export default function OccurrenceDetailPage() {
     const useAddStudent = !canManageBookings(roles)
     const isFree = occurrence.session?.booking_access_mode === 'free'
 
-    if (!useAddStudent && !isFree && !addForm.choice) {
-      setAddBookingError('Choose how this booking is paid for')
-      return
+    if (!useAddStudent && !isFree) {
+      if (!addForm.choice) {
+        setAddBookingError('Choose how this booking is paid for')
+        return
+      }
+      if (addForm.choice === 'comp' && !addForm.compNote.trim()) {
+        setAddBookingError('Add a reason for the comp')
+        return
+      }
     }
 
     setAddingBooking(true)
@@ -649,7 +657,7 @@ export default function OccurrenceDetailPage() {
               session_occurrence_id: occurrence.id,
               payment_type: paymentType,
               member_pass_id: memberPassId,
-              // TODO: send addForm.compNote once the backend has a comp-note field on the booking.
+              reason: paymentType === 'admin_waived' ? addForm.compNote.trim() : null,
             })
           })
 
@@ -976,7 +984,7 @@ export default function OccurrenceDetailPage() {
                         {addForm.choice === 'comp' && (
                           <input
                             type="text"
-                            placeholder="Reason (optional) — e.g. makeup class, staff comp"
+                            placeholder="Reason for the comp — e.g. makeup class, staff comp"
                             value={addForm.compNote}
                             onChange={e => setAddForm(f => ({ ...f, compNote: e.target.value }))}
                             style={{ ...inputStyle, marginLeft: '26px', width: 'calc(100% - 26px)' }}
@@ -1077,6 +1085,11 @@ export default function OccurrenceDetailPage() {
                           {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
                           {!!b.guest_count && ` · +${b.guest_count} guest${b.guest_count > 1 ? 's' : ''}`}
                         </div>
+                        {b.payment_type === 'admin_waived' && b.comp_reason && (
+                          <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                            Comp: {b.comp_reason}{b.comp_added_by_name ? ` — ${b.comp_added_by_name}` : ''}
+                          </div>
+                        )}
                         {(b.status === 'cancelled' || b.status === 'late_cancel') && cancellationHistory(b).map((line, li) => (
                           <div key={li} style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
                             {line}
