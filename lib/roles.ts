@@ -20,7 +20,13 @@ export const canManageSessions = (roles: string[]) => has(roles, [ADMIN])
 
 // Session occurrences (SessionOccurrenceEndpoints.cs) — same ownership-scoping note as sessions above
 export const canViewOccurrences = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK, TEACHER_GENERAL, TEACHER_BASIC])
-export const canManageOccurrences = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
+// POST /occurrences (create a one-off occurrence) — admin/teacher_super only.
+export const canCreateOccurrence = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
+// PATCH /occurrences/{id} + POST /occurrences/{id}/cancel — also teacher_general, but ownership-
+// scoped server-side (RequireSessionOwnership) to occurrences on sessions they instruct. The client
+// only decides whether to show the Edit / Cancel buttons; a teacher_general only ever reaches an
+// occurrence detail page for their own occurrences anyway (the GET is ownership-scoped too).
+export const canManageOccurrences = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL])
 
 // Team (TeacherEndpoints.cs)
 export const canViewTeam = (roles: string[]) => has(roles, [ADMIN])

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../../components/Sidebar'
-import { canManageSessions, canManageOccurrences, canViewAuditLog } from '@/lib/roles'
+import { canManageSessions, canCreateOccurrence, canManageOccurrences, canViewAuditLog } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
 import SessionActivity from '@/app/components/SessionActivity'
@@ -1113,7 +1113,7 @@ export default function EditSessionPage() {
                 Bookable dates and times for this session. Created from the schedule above when the session is saved, and kept extended to 60 days ahead automatically — add one manually below for a one-off extra date outside the usual pattern.
               </p>
             </div>
-            {canManageOccurrences(roles) && (
+            {canCreateOccurrence(roles) && (
               <button
                 onClick={openAddOccurrence}
                 style={{
