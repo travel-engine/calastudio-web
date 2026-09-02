@@ -36,8 +36,19 @@ interface PassTemplate {
   name: string
   pass_type: 'credit' | 'unlimited'
   credit_count: number | null
+  price: number
+  currency: string
   is_active: boolean
 }
+
+const paymentMethodOptions: { value: string; label: string }[] = [
+  { value: '', label: 'No payment recorded (comp / promo)' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'bank_transfer', label: 'Bank transfer' },
+  { value: 'credit_card', label: 'Credit card' },
+  { value: 'debit_card', label: 'Debit card' },
+  { value: 'gift', label: 'Gift card' },
+]
 
 interface MemberPass {
   id: string
@@ -171,7 +182,7 @@ export default function MemberDetailPage() {
 
   const [showIssue, setShowIssue] = useState(false)
   const [templates, setTemplates] = useState<PassTemplate[]>([])
-  const [issueForm, setIssueForm] = useState({ passTemplateId: '', effectiveFrom: '', notes: '' })
+  const [issueForm, setIssueForm] = useState({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
   const [issuing, setIssuing] = useState(false)
   const [issueError, setIssueError] = useState('')
   const [issued, setIssued] = useState(false)
@@ -241,7 +252,7 @@ export default function MemberDetailPage() {
   }, [router, memberId])
 
   const openIssue = async () => {
-    setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '' })
+    setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
     setIssueError('')
     setIssued(false)
     setShowIssue(true)
@@ -263,11 +274,12 @@ export default function MemberDetailPage() {
           effective_from: issueForm.effectiveFrom || null,
           auto_renew_enabled: false,
           notes: issueForm.notes || null,
+          payment_method: issueForm.paymentMethod || null,
         }),
       })
       if (res.ok) {
         setIssued(true)
-        setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '' })
+        setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
         await reloadPasses()
       } else {
         const data = await res.json().catch(() => null)
@@ -549,10 +561,33 @@ export default function MemberDetailPage() {
               </div>
 
               <div>
+                <label style={labelStyle}>Payment</label>
+                <select
+                  value={issueForm.paymentMethod}
+                  onChange={e => setIssueForm(f => ({ ...f, paymentMethod: e.target.value }))}
+                  style={inputStyle}
+                >
+                  {paymentMethodOptions.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                {issueForm.paymentMethod && (() => {
+                  const t = templates.find(x => x.id === issueForm.passTemplateId)
+                  return (
+                    <p style={{ fontSize: '12px', color: '#666', marginTop: '6px' }}>
+                      {t
+                        ? `Records a ${fmtMoney(t.price, t.currency)} payment in this member's order history.`
+                        : 'Records a payment for the pass price in this member’s order history.'}
+                    </p>
+                  )
+                })()}
+              </div>
+
+              <div>
                 <label style={labelStyle}>Notes (optional)</label>
                 <input
                   type="text"
-                  placeholder="e.g. paid by bank transfer, comp for referral"
+                  placeholder="e.g. comp for referral, family member"
                   value={issueForm.notes}
                   onChange={e => setIssueForm(f => ({ ...f, notes: e.target.value }))}
                   style={inputStyle}
