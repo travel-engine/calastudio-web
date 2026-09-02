@@ -17,12 +17,12 @@ export function formatDate(input: DateInput): string {
   return `${String(d.getDate()).padStart(2, '0')}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`
 }
 
-/** 05-Sep-2026, 9:00 AM */
+/** 05-Sep-2026 9:00 AM */
 export function formatDateTime(input: DateInput): string {
   const d = toDate(input)
   if (!d) return ''
   const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-  return `${formatDate(d)}, ${time}`
+  return `${formatDate(d)} ${time}`
 }
 
 /** Sat 05-Sep-2026 */
@@ -32,10 +32,10 @@ export function formatDateWithWeekday(input: DateInput): string {
   return `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${formatDate(d)}`
 }
 
-/** Sat 05-Sep-2026, 9:00 AM */
+/** Sat 05-Sep-2026 9:00 AM */
 export function formatDateTimeWithWeekday(input: DateInput): string {
   const d = toDate(input)
   if (!d) return ''
   const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-  return `${formatDateWithWeekday(d)}, ${time}`
+  return `${formatDateWithWeekday(d)} ${time}`
 }
