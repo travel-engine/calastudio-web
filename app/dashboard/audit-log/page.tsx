@@ -22,6 +22,12 @@ interface AuditEntry {
   created_at: string
 }
 
+interface AuditActor {
+  actor_id: string
+  actor_name: string | null
+  actor_role: string | null
+}
+
 const entityTypeLabels: Record<string, string> = {
   session: 'Session',
   session_occurrence: 'Occurrence',
@@ -114,6 +120,8 @@ export default function AuditLogPage() {
   const [forbidden, setForbidden] = useState(false)
 
   const [entries, setEntries] = useState<AuditEntry[]>([])
+  const [actors, setActors] = useState<AuditActor[]>([])
+  const [actorId, setActorId] = useState('')
   const [entityType, setEntityType] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -124,6 +132,7 @@ export default function AuditLogPage() {
 
   const fetchEntries = useCallback(async (org: string, t: string, currentOffset: number, append: boolean) => {
     const params = new URLSearchParams()
+    if (actorId) params.set('actor_id', actorId)
     if (entityType) params.set('entity_type', entityType)
     if (from) params.set('from', new Date(from).toISOString())
     if (to) params.set('to', new Date(to + 'T23:59:59').toISOString())
@@ -138,7 +147,7 @@ export default function AuditLogPage() {
       setEntries(prev => append ? [...prev, ...data] : data)
       setHasMore(data.length === PAGE_SIZE)
     }
-  }, [entityType, from, to])
+  }, [actorId, entityType, from, to])
 
   useEffect(() => {
     const load = async () => {
@@ -168,6 +177,18 @@ export default function AuditLogPage() {
         return
       }
 
+      const actorsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/audit-log/actors`, {
+        headers: { Authorization: `Bearer ${t}` }
+      })
+      if (actorsRes.ok) {
+        // The same person can appear once per role they've acted under — collapse to one row per
+        // actor for the filter (it filters by actor_id regardless of role).
+        const raw: AuditActor[] = await actorsRes.json()
+        const byId = new Map<string, AuditActor>()
+        for (const a of raw) if (!byId.has(a.actor_id)) byId.set(a.actor_id, a)
+        setActors([...byId.values()])
+      }
+
       await fetchEntries(org.id, t, 0, false)
       setLoading(false)
     }
@@ -181,7 +202,7 @@ export default function AuditLogPage() {
     setOffset(0)
     fetchEntries(orgId, token, 0, false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityType, from, to])
+  }, [actorId, entityType, from, to])
 
   const loadMore = async () => {
     setLoadingMore(true)
@@ -218,6 +239,12 @@ export default function AuditLogPage() {
 
         {/* Filters */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <select value={actorId} onChange={e => setActorId(e.target.value)} style={inputStyle}>
+            <option value="">All actors</option>
+            {actors.map(a => (
+              <option key={a.actor_id} value={a.actor_id}>{a.actor_name ?? 'Unknown'}</option>
+            ))}
+          </select>
           <select value={entityType} onChange={e => setEntityType(e.target.value)} style={inputStyle}>
             <option value="">All types</option>
             {Object.entries(entityTypeLabels).map(([value, label]) => (
@@ -226,9 +253,9 @@ export default function AuditLogPage() {
           </select>
           <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={inputStyle} title="From date" />
           <input type="date" value={to} onChange={e => setTo(e.target.value)} style={inputStyle} title="To date" />
-          {(entityType || from || to) && (
+          {(actorId || entityType || from || to) && (
             <button
-              onClick={() => { setEntityType(''); setFrom(''); setTo('') }}
+              onClick={() => { setActorId(''); setEntityType(''); setFrom(''); setTo('') }}
               style={{ ...inputStyle, backgroundColor: 'transparent', cursor: 'pointer', color: '#666' }}
             >
               Clear filters
@@ -244,7 +271,7 @@ export default function AuditLogPage() {
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🕘</div>
             <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No activity found</h3>
             <p style={{ color: '#666', fontSize: '14px' }}>
-              {entityType || from || to ? 'Try widening your filters.' : "Nothing's been logged yet."}
+              {actorId || entityType || from || to ? 'Try widening your filters.' : "Nothing's been logged yet."}
             </p>
           </div>
         ) : (
