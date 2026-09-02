@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import { useSearchParams } from 'next/navigation'
 import { canManageSessions } from '@/lib/roles'
+import { displayName } from '@/lib/names'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
@@ -139,7 +140,7 @@ function NewSessionPageContent() {
     approvedPassTemplateIds: [] as string[],
     allowDropIn: false,
   })
-  const [teachers, setTeachers] = useState<{ id: string; full_name: string }[]>([])
+  const [teachers, setTeachers] = useState<{ id: string; name: string }[]>([])
   const [passTemplates, setPassTemplates] = useState<{ id: string; name: string }[]>([])
   const searchParams = useSearchParams()
   const copyId = searchParams.get('copy')
@@ -169,7 +170,7 @@ function NewSessionPageContent() {
       })
       if (teachersRes.ok) {
         const data = await teachersRes.json()
-        setTeachers(data.map((t: any) => ({ id: t.id, full_name: t.full_name })))
+        setTeachers(data.map((t: any) => ({ id: t.id, name: displayName(t) })))
       }
 
       const passTemplatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/pass-templates`, {
@@ -517,7 +518,7 @@ function NewSessionPageContent() {
             <Select value={form.instructorId} onChange={e => update('instructorId', e.target.value)}>
               <option value="">Unassigned</option>
               {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.full_name}</option>
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </Select>
           </Field>

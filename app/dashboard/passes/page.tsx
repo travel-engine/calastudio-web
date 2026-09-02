@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewPassTemplates, canManagePassTemplates } from '@/lib/roles'
+import { displayName } from '@/lib/names'
 import { formatDateTime } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -25,7 +26,8 @@ interface PassTemplate {
 
 interface Member {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
   email: string
 }
 
@@ -331,7 +333,7 @@ export default function PassesPage() {
   const filteredMembers = members.filter(m => {
     const q = memberSearch.trim().toLowerCase()
     if (!q) return true
-    return m.full_name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
+    return displayName(m).toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
   })
   const selectedMember = members.find(m => m.id === issueForm.userId)
 
@@ -499,7 +501,7 @@ export default function PassesPage() {
                   borderBottom: i < passes.length - 1 ? '1px solid #f4f4f4' : 'none'
                 }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{p.user?.full_name ?? 'Unknown member'}</div>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{displayName(p.user) || 'Unknown member'}</div>
                     <div style={{ fontSize: '12px', color: '#666' }}>{p.user?.email}</div>
                   </div>
                   <div style={{ fontSize: '13px' }}>{p.pass_template?.name ?? '—'}</div>
@@ -536,7 +538,7 @@ export default function PassesPage() {
                   padding: '10px 14px', border: '1px solid #085041', borderRadius: '8px', backgroundColor: '#e8f5ee'
                 }}>
                   <div>
-                    <div style={{ fontSize: '14px', fontWeight: 600 }}>{selectedMember.full_name}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600 }}>{displayName(selectedMember)}</div>
                     <div style={{ fontSize: '12px', color: '#666' }}>{selectedMember.email}</div>
                   </div>
                   <button
@@ -570,7 +572,7 @@ export default function PassesPage() {
                             border: 'none', borderBottom: '1px solid #f4f4f4', backgroundColor: 'white', cursor: 'pointer'
                           }}
                         >
-                          <div style={{ fontSize: '13px', fontWeight: 600 }}>{m.full_name}</div>
+                          <div style={{ fontSize: '13px', fontWeight: 600 }}>{displayName(m)}</div>
                           <div style={{ fontSize: '12px', color: '#666' }}>{m.email}</div>
                         </button>
                       ))
@@ -645,7 +647,7 @@ export default function PassesPage() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: 700 }}>{managingPass.user?.full_name}</div>
+                <div style={{ fontSize: '16px', fontWeight: 700 }}>{displayName(managingPass.user)}</div>
                 <div style={{ fontSize: '13px', color: '#666' }}>{managingPass.user?.email}</div>
                 <div style={{ fontSize: '13px', marginTop: '8px' }}>{managingPass.pass_template?.name}</div>
               </div>

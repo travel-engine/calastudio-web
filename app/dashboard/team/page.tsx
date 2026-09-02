@@ -6,11 +6,13 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import Forbidden from '../../components/Forbidden'
 import { canViewTeam } from '@/lib/roles'
+import { displayName } from '@/lib/names'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Teacher {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
   email: string
   role: string
   profile: {
@@ -90,7 +92,8 @@ export default function TeamPage() {
   const [forbidden, setForbidden] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteForm, setInviteForm] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     role: 'teacher_general'
   })
@@ -137,8 +140,8 @@ export default function TeamPage() {
   }, [router])
 
   const handleInvite = async () => {
-    if (!inviteForm.full_name || !inviteForm.email) {
-      setInviteError('Name and email are required')
+    if (!inviteForm.first_name.trim() || !inviteForm.last_name.trim() || !inviteForm.email) {
+      setInviteError('First name, last name and email are required')
       return
     }
     setInviting(true)
@@ -160,8 +163,8 @@ export default function TeamPage() {
     const data = await res.json()
 
     if (res.ok) {
-      setInviteSuccess(`${inviteForm.full_name} has been added to your team.`)
-      setInviteForm({ full_name: '', email: '', role: 'teacher_general' })
+      setInviteSuccess(`${displayName(inviteForm)} has been added to your team.`)
+      setInviteForm({ first_name: '', last_name: '', email: '', role: 'teacher_general' })
 
       // Reload teachers
       const teachersRes = await fetch(
@@ -279,11 +282,11 @@ export default function TeamPage() {
                 {/* Name + email */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <Avatar
-                    name={teacher.full_name}
+                    name={displayName(teacher)}
                     photoUrl={teacher.profile?.photo_url}
                   />
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{teacher.full_name}</div>
+                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{displayName(teacher)}</div>
                     <div style={{ fontSize: '12px', color: '#666' }}>{teacher.email}</div>
                   </div>
                 </div>
@@ -361,24 +364,37 @@ export default function TeamPage() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
-                  Full name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Sarah Jones"
-                  value={inviteForm.full_name}
-                  onChange={e => setInviteForm(p => ({ ...p, full_name: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    border: '1px solid #e2e2e2',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                />
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
+                    First name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sarah"
+                    value={inviteForm.first_name}
+                    onChange={e => setInviteForm(p => ({ ...p, first_name: e.target.value }))}
+                    style={{
+                      width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2',
+                      borderRadius: '8px', fontSize: '14px', outline: 'none'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
+                    Last name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Jones"
+                    value={inviteForm.last_name}
+                    onChange={e => setInviteForm(p => ({ ...p, last_name: e.target.value }))}
+                    style={{
+                      width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2',
+                      borderRadius: '8px', fontSize: '14px', outline: 'none'
+                    }}
+                  />
+                </div>
               </div>
 
               <div>

@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../../components/Sidebar'
+import { displayName } from '@/lib/names'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface TeacherData {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
   email: string
   roles: string[]
   profile: {
@@ -162,7 +164,7 @@ export default function EditTeacherPage() {
       setTeacher(data)
 
       setForm({
-        display_name: data.profile?.display_name ?? data.full_name,
+        display_name: data.profile?.display_name ?? displayName(data),
         tagline: data.profile?.tagline ?? '',
         bio: data.profile?.bio ?? '',
         specialties: data.profile?.specialties?.join(', ') ?? '',
@@ -319,7 +321,7 @@ export default function EditTeacherPage() {
             <a href="/dashboard/team" style={{ color: '#666', textDecoration: 'none', fontSize: '14px' }}>
               ← Team
             </a>
-            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{teacher.full_name}</h1>
+            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{displayName(teacher)}</h1>
           </div>
           {form.is_page_published && teacher.profile && (
             <a href={`/teachers/${teacher.profile.slug}`} target="_blank" style={{ padding: '8px 16px', border: '1px solid #085041', borderRadius: '8px', color: '#085041', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>

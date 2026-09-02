@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent } from '@/lib/roles'
+import { displayName } from '@/lib/names'
 import { formatDate, formatDateTime, formatDateWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -33,12 +34,14 @@ interface OccurrenceDetail {
 
 interface Teacher {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
 }
 
 interface Member {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
   email?: string
 }
 
@@ -458,7 +461,7 @@ export default function OccurrenceDetailPage() {
   const handleRefundCredit = async (b: Booking) => {
     if (!b.member_pass_id) return
     const credits = b.total_credits_used ?? 1
-    const name = b.user?.full_name ?? b.member_name ?? 'this member'
+    const name = displayName(b.user) || b.member_name || 'this member'
     if (!confirm(`Refund ${credits} credit${credits > 1 ? 's' : ''} to ${name}'s pass? This booking's cancellation forfeited ${credits > 1 ? 'them' : 'it'} — this manually returns ${credits > 1 ? 'them' : 'it'} anyway.`)) return
     setManageBusy(true)
     setManageError('')
@@ -669,7 +672,7 @@ export default function OccurrenceDetailPage() {
   const filteredMembers = members.filter(m => {
     const q = memberSearch.trim().toLowerCase()
     if (!q) return true
-    return m.full_name.toLowerCase().includes(q) || (m.email?.toLowerCase().includes(q) ?? false)
+    return displayName(m).toLowerCase().includes(q) || (m.email?.toLowerCase().includes(q) ?? false)
   })
   const selectedMember = members.find(m => m.id === addForm.userId)
 
@@ -832,7 +835,7 @@ export default function OccurrenceDetailPage() {
                   >
                     <option value="">Unassigned</option>
                     {teachers.map(t => (
-                      <option key={t.id} value={t.id}>{t.full_name}</option>
+                      <option key={t.id} value={t.id}>{displayName(t)}</option>
                     ))}
                   </select>
                 )}
@@ -883,7 +886,7 @@ export default function OccurrenceDetailPage() {
                       padding: '10px 14px', border: '1px solid #085041', borderRadius: '8px', backgroundColor: '#e8f5ee'
                     }}>
                       <div>
-                        <div style={{ fontSize: '14px', fontWeight: 600 }}>{selectedMember.full_name}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 600 }}>{displayName(selectedMember)}</div>
                         {selectedMember.email && <div style={{ fontSize: '12px', color: '#666' }}>{selectedMember.email}</div>}
                       </div>
                       <button
@@ -917,7 +920,7 @@ export default function OccurrenceDetailPage() {
                                 border: 'none', borderBottom: '1px solid #f4f4f4', backgroundColor: 'white', cursor: 'pointer'
                               }}
                             >
-                              <div style={{ fontSize: '13px', fontWeight: 600 }}>{m.full_name}</div>
+                              <div style={{ fontSize: '13px', fontWeight: 600 }}>{displayName(m)}</div>
                               {m.email && <div style={{ fontSize: '12px', color: '#666' }}>{m.email}</div>}
                             </button>
                           ))
@@ -1070,7 +1073,7 @@ export default function OccurrenceDetailPage() {
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{b.user?.full_name ?? b.member_name ?? 'Unknown member'}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{displayName(b.user) || b.member_name || 'Unknown member'}</div>
                         <div style={{ fontSize: '12px', color: '#666' }}>
                           {b.user?.email && `${b.user.email} · `}{b.booked_mode.replace('_', ' ')}
                           {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
@@ -1186,7 +1189,7 @@ export default function OccurrenceDetailPage() {
             </div>
 
             <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
-              {refundTarget.user?.full_name ?? refundTarget.member_name ?? 'This member'} paid{' '}
+              {displayName(refundTarget.user) || refundTarget.member_name || 'This member'} paid{' '}
               {refundTarget.amount_paid != null
                 ? formatMoney(refundTarget.amount_paid, refundTarget.currency ?? 'AUD')
                 : 'by card'} for this booking. Partial refunds are allowed; the amount can't exceed what's left unrefunded.

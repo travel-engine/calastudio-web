@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canMarkAttended, canAddStudent } from '@/lib/roles'
+import { displayName } from '@/lib/names'
 import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -35,7 +36,8 @@ interface Occurrence {
 // projection for them (17.3 denies contact info), full detail for admin/teacher_super.
 interface Member {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
   email?: string
 }
 
@@ -507,7 +509,7 @@ function BookingsPageContent() {
   const filteredMembers = members.filter(m => {
     const q = memberSearch.trim().toLowerCase()
     if (!q) return true
-    return m.full_name.toLowerCase().includes(q) || (m.email?.toLowerCase().includes(q) ?? false)
+    return displayName(m).toLowerCase().includes(q) || (m.email?.toLowerCase().includes(q) ?? false)
   })
   const selectedMember = members.find(m => m.id === addForm.userId)
 
@@ -664,7 +666,7 @@ function BookingsPageContent() {
                           padding: '10px 14px', border: '1px solid #085041', borderRadius: '8px', backgroundColor: '#e8f5ee'
                         }}>
                           <div>
-                            <div style={{ fontSize: '14px', fontWeight: 600 }}>{selectedMember.full_name}</div>
+                            <div style={{ fontSize: '14px', fontWeight: 600 }}>{displayName(selectedMember)}</div>
                             {selectedMember.email && <div style={{ fontSize: '12px', color: '#666' }}>{selectedMember.email}</div>}
                           </div>
                           <button
@@ -698,7 +700,7 @@ function BookingsPageContent() {
                                     border: 'none', borderBottom: '1px solid #f4f4f4', backgroundColor: 'white', cursor: 'pointer'
                                   }}
                                 >
-                                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{m.full_name}</div>
+                                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{displayName(m)}</div>
                                   {m.email && <div style={{ fontSize: '12px', color: '#666' }}>{m.email}</div>}
                                 </button>
                               ))
@@ -809,7 +811,7 @@ function BookingsPageContent() {
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{b.user?.full_name ?? b.member_name ?? 'Unknown member'}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{displayName(b.user) || b.member_name || 'Unknown member'}</div>
                         <div style={{ fontSize: '12px', color: '#666' }}>
                           {b.user?.email && `${b.user.email} · `}{b.booked_mode.replace('_', ' ')}
                           {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
@@ -908,7 +910,7 @@ function BookingsPageContent() {
             </div>
 
             <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
-              {refundTarget.user?.full_name ?? refundTarget.member_name ?? 'This member'} paid{' '}
+              {displayName(refundTarget.user) || refundTarget.member_name || 'This member'} paid{' '}
               {refundTarget.amount_paid != null
                 ? formatMoney(refundTarget.amount_paid, refundTarget.currency ?? 'AUD')
                 : 'by card'} for this booking. Partial refunds are allowed; the amount can't exceed what's left unrefunded.

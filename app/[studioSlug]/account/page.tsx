@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { splitName } from '@/lib/names'
 import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from './account.module.css'
 
@@ -15,7 +16,8 @@ interface OrgInfo {
 
 interface Profile {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
   email: string
   phone: string | null
   date_of_birth: string | null
@@ -193,7 +195,7 @@ export default function MemberAccountPage() {
   const [waitlistActionError, setWaitlistActionError] = useState('')
 
   const [profileForm, setProfileForm] = useState({
-    full_name: '', phone: '', date_of_birth: '', emergency_contact_name: '',
+    first_name: '', last_name: '', phone: '', date_of_birth: '', emergency_contact_name: '',
     emergency_contact_phone: '', address: '', person_type: '', gender: ''
   })
   const [savingProfile, setSavingProfile] = useState(false)
@@ -224,7 +226,7 @@ export default function MemberAccountPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          full_name: meta.fullName ?? '', phone: meta.phone || null,
+          ...splitName(meta.fullName ?? ''), phone: meta.phone || null,
           accept_terms: agreeTerms, accept_waiver: agreeWaiver,
         })
       })
@@ -305,7 +307,8 @@ export default function MemberAccountPage() {
           const p: Profile = await profileRes.json()
           setProfile(p)
           setProfileForm({
-            full_name: p.full_name ?? '',
+            first_name: p.first_name ?? '',
+            last_name: p.last_name ?? '',
             phone: p.phone ?? '',
             date_of_birth: p.date_of_birth ?? '',
             emergency_contact_name: p.emergency_contact_name ?? '',
@@ -378,7 +381,8 @@ export default function MemberAccountPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          full_name: profileForm.full_name,
+          first_name: profileForm.first_name,
+          last_name: profileForm.last_name,
           phone: profileForm.phone || null,
           date_of_birth: profileForm.date_of_birth || null,
           emergency_contact_name: profileForm.emergency_contact_name || null,
@@ -707,8 +711,12 @@ export default function MemberAccountPage() {
 
                 <div className={styles.formGrid} style={{ marginBottom: '16px' }}>
                   <div>
-                    <label style={labelStyle}>Full name</label>
-                    <input type="text" value={profileForm.full_name} onChange={e => setProfileForm(p => ({ ...p, full_name: e.target.value }))} style={inputStyle} />
+                    <label style={labelStyle}>First name</label>
+                    <input type="text" value={profileForm.first_name} onChange={e => setProfileForm(p => ({ ...p, first_name: e.target.value }))} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Last name</label>
+                    <input type="text" value={profileForm.last_name} onChange={e => setProfileForm(p => ({ ...p, last_name: e.target.value }))} style={inputStyle} />
                   </div>
                   <div>
                     <label style={labelStyle}>Phone</label>

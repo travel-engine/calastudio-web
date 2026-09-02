@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewMembers } from '@/lib/roles'
+import { displayName } from '@/lib/names'
 import { formatDate } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -86,7 +87,7 @@ export default function MemberOrdersPage() {
         fetch(`${base}/members/${memberId}`, { headers: h }),
         fetch(`${base}/members/${memberId}/payments`, { headers: h }),
       ])
-      if (detailRes.ok) setMemberName((await detailRes.json()).full_name ?? '')
+      if (detailRes.ok) setMemberName(displayName(await detailRes.json()))
       if (ordersRes.ok) setOrders(await ordersRes.json())
       setLoading(false)
     }

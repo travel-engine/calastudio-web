@@ -6,12 +6,14 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewMembers, canManageMemberPasses } from '@/lib/roles'
+import { displayName } from '@/lib/names'
 import { formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface MemberDetail {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
   email: string
   phone: string | null
   avatar_url: string | null
@@ -302,7 +304,7 @@ export default function MemberDetailPage() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
           <a href="/dashboard/members" style={{ color: '#666', textDecoration: 'none', fontSize: '20px', lineHeight: 1 }}>←</a>
-          <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{member?.full_name ?? 'Member'}</h1>
+          <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{(member && displayName(member)) || 'Member'}</h1>
         </div>
 
         {/* Profile */}
@@ -314,7 +316,7 @@ export default function MemberDetailPage() {
               <div style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: '#e2e2e2', flexShrink: 0 }} />
             )}
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '15px', fontWeight: 600 }}>{member?.full_name}</div>
+              <div style={{ fontSize: '15px', fontWeight: 600 }}>{member && displayName(member)}</div>
               <div style={{ fontSize: '13px', color: '#666' }}>
                 {member?.email}{member?.phone ? ` · ${member.phone}` : ''}
               </div>
@@ -500,7 +502,7 @@ export default function MemberDetailPage() {
             maxWidth: '460px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Add a pass for {member?.full_name ?? 'this member'}</h2>
+              <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Add a pass for {(member && displayName(member)) || 'this member'}</h2>
               <button onClick={() => setShowIssue(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>×</button>
             </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useBookingFlow, type PassTemplateOption } from '@/lib/store/bookingFlow'
+import { displayName, splitName } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from './booking.module.css'
@@ -100,7 +101,7 @@ export default function BookingDrawer() {
     const registerRes = await fetch(`${apiUrl}/api/public/${studioSlug}/members/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ full_name: fullName || null, phone: null, accept_terms: agreeTerms, accept_waiver: agreeWaiver })
+      body: JSON.stringify({ ...splitName(fullName), phone: null, accept_terms: agreeTerms, accept_waiver: agreeWaiver })
     })
     if (!registerRes.ok) {
       const data = await registerRes.json().catch(() => null)
@@ -124,7 +125,7 @@ export default function BookingDrawer() {
       fetch(`${apiUrl}/api/organisations/${member.organisation_id}/members/me`, { headers: { Authorization: `Bearer ${token}` } }),
     ])
     const org = orgRes.ok ? await orgRes.json() : null
-    if (profileRes.ok) setMemberName((await profileRes.json()).full_name ?? '')
+    if (profileRes.ok) setMemberName(displayName(await profileRes.json()))
 
     setAuth({ accessToken: token, orgId: member.organisation_id, stripeAccountId: org?.stripe_account_id ?? null })
     setStep(joiningWaitlist ? 'waitlist' : 'options')

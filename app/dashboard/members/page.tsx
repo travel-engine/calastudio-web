@@ -6,17 +6,20 @@ import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewMembers, canImportMembers } from '@/lib/roles'
+import { displayName } from '@/lib/names'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Member {
   id: string
-  full_name: string
+  first_name: string
+  last_name: string
   email: string
 }
 
 interface ImportRow {
   row_number: number
-  full_name: string
+  first_name: string
+  last_name: string
   email: string | null
   join_date: string | null
   phone: string | null
@@ -82,10 +85,10 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 // MemberEndpoints.cs importer. Enum values (gender, person_type) and the ISO date format
 // mirror calastudio-spec/03-member-management.md §3.3–3.4 and §CSV import.
 const SAMPLE_MEMBERS_CSV = [
-  'full_name,email,join_date,phone,date_of_birth,gender,person_type,emergency_contact_name,emergency_contact_phone,address',
-  'Jane Smith,jane.smith@example.com,2026-01-15,+61 400 000 111,1990-06-24,female,adult,John Smith,+61 400 000 222,"12 Yoga Lane, Bondi NSW 2026"',
-  'Arjun Patel,arjun.patel@example.com,,,,,,,,',
-  'Mei Chen,mei.chen@example.com,2025-11-03,,1978-02-09,prefer_not_to_say,senior,,,',
+  'first_name,last_name,email,join_date,phone,date_of_birth,gender,person_type,emergency_contact_name,emergency_contact_phone,address',
+  'Jane,Smith,jane.smith@example.com,2026-01-15,+61 400 000 111,1990-06-24,female,adult,John Smith,+61 400 000 222,"12 Yoga Lane, Bondi NSW 2026"',
+  'Arjun,Patel,arjun.patel@example.com,,,,,,,,',
+  'Mei,Chen,mei.chen@example.com,2025-11-03,,1978-02-09,prefer_not_to_say,senior,,,',
   '',
 ].join('\n')
 
@@ -236,7 +239,7 @@ export default function MembersPage() {
 
   const filtered = members.filter(m =>
     !search.trim() ||
-    m.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    displayName(m).toLowerCase().includes(search.toLowerCase()) ||
     m.email.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -335,7 +338,7 @@ export default function MembersPage() {
                 borderBottom: i < filtered.length - 1 ? '1px solid #f4f4f4' : 'none',
                 textDecoration: 'none', color: 'inherit', cursor: 'pointer'
               }}>
-                <div style={{ fontWeight: 600, fontSize: '14px' }}>{m.full_name}</div>
+                <div style={{ fontWeight: 600, fontSize: '14px' }}>{displayName(m)}</div>
                 <div style={{ fontSize: '13px', color: '#666' }}>{m.email}</div>
               </a>
             ))}
@@ -349,11 +352,12 @@ export default function MembersPage() {
           {!preview ? (
             <>
               <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
-                Columns recognized: full_name, email, join_date, phone, date_of_birth, gender,
-                person_type, emergency_contact_name, emergency_contact_phone, address. Only
-                full_name and email are required — include a header row so any subset works in
-                any order. Dates must be YYYY-MM-DD. If given, gender must be male, female, other
-                or prefer_not_to_say, and person_type must be adult, child, senior or student.
+                Columns recognized: first_name, last_name, email, join_date, phone, date_of_birth,
+                gender, person_type, emergency_contact_name, emergency_contact_phone, address.
+                Only first_name and email are required — a single full_name column is also accepted
+                and split automatically. Include a header row so any subset works in any order.
+                Dates must be YYYY-MM-DD. If given, gender must be male, female, other or
+                prefer_not_to_say, and person_type must be adult, child, senior or student.
               </p>
 
               <button
@@ -396,7 +400,7 @@ export default function MembersPage() {
                 <textarea
                   value={csvText}
                   onChange={e => { setCsvText(e.target.value); setFileName('') }}
-                  placeholder={'full_name,email,join_date\nJane Smith,jane@example.com,2026-01-15'}
+                  placeholder={'first_name,last_name,email,join_date\nJane,Smith,jane@example.com,2026-01-15'}
                   style={{
                     width: '100%', minHeight: '140px', padding: '10px 14px', border: '1px solid #e2e2e2',
                     borderRadius: '8px', fontSize: '13px', fontFamily: 'monospace', outline: 'none', resize: 'vertical'
@@ -450,7 +454,7 @@ export default function MembersPage() {
                     padding: '10px 16px', borderBottom: '1px solid #f4f4f4', alignItems: 'center', fontSize: '13px'
                   }}>
                     <div style={{ color: '#999' }}>{row.row_number}</div>
-                    <div>{row.full_name || '—'}</div>
+                    <div>{displayName(row) || '—'}</div>
                     <div style={{ color: '#666', wordBreak: 'break-word' }}>{row.email || '—'}</div>
                     <div><StatusBadge status={row.status} /></div>
                     <div style={{ color: '#999', fontSize: '12px' }}>{row.reason ?? '—'}</div>
