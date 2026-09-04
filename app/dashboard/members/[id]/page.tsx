@@ -8,7 +8,8 @@ import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
 import { canViewMembers, canManageMemberPasses, canResendMemberWelcome } from '@/lib/roles'
 import { displayName } from '@/lib/names'
-import { formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/lib/dates'
+import { formatDate as fmtDate, formatDateTime as fmtDateTime, formatRelativeShort } from '@/lib/dates'
+import { memberActivity, memberActivityLabel } from '@/lib/members'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface MemberDetail {
@@ -27,6 +28,8 @@ interface MemberDetail {
   roles: string[]
   join_date: string
   join_source: string
+  last_seen_at: string | null
+  auth_provisioned_at: string | null
   total_sessions_attended: number
   health_notes: string | null
   notes: string | null
@@ -387,6 +390,19 @@ export default function MemberDetailPage() {
               <div style={{ fontSize: '13px', color: '#666' }}>
                 {member?.email}{member?.phone ? ` · ${member.phone}` : ''}
               </div>
+              {member && (() => {
+                const activity = memberActivity(member.auth_provisioned_at, member.last_seen_at)
+                return (
+                  <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>
+                    Last active:{' '}
+                    <span style={{ color: activity.kind === 'seen' ? '#444' : '#999', fontWeight: 500 }}>
+                      {activity.kind === 'seen'
+                        ? `${formatRelativeShort(activity.at)} · ${fmtDateTime(activity.at)}`
+                        : memberActivityLabel(activity)}
+                    </span>
+                  </div>
+                )
+              })()}
               <button
                 onClick={() => setShowMoreInfo(v => !v)}
                 style={{ background: 'none', border: 'none', padding: 0, marginTop: '4px', color: '#085041', fontSize: '13px', fontWeight: 500, cursor: 'pointer', textDecoration: 'underline' }}

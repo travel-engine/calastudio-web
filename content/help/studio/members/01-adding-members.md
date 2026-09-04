@@ -12,7 +12,9 @@ order: 1
 
 Most members join themselves: they sign up when booking a session from your studio's public booking page. There's nothing for you to do — they show up in this list automatically once they register.
 
-You can also add people yourself — **+ Add member** for one, or **Import CSV** for a whole list (below). Anyone you add or import gets an email inviting them to set a password so they can sign in to book and manage their passes. Until they set it, they're in your list but haven't accessed their account yet. The single **+ Add member** form lets you skip that email for walk-ins who won't use online booking.
+You can also add people yourself — **+ Add member** for one, or **Import CSV** for a whole list (below). Anyone you add or import gets an email inviting them to set a password so they can sign in to book and manage their passes. The single **+ Add member** form lets you skip that email for walk-ins who won't use online booking.
+
+The **Last active** column on the Members list tells you where each person is up to: *Invite pending* (email not sent yet), *Not signed in yet* (invited, hasn't set a password), or when they were last active in the portal. It's also on each member's profile.
 
 ## Importing an existing list
 

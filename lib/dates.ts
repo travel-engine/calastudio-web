@@ -39,3 +39,18 @@ export function formatDateTimeWithWeekday(input: DateInput): string {
   const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
   return `${formatDateWithWeekday(d)} ${time}`
 }
+
+/** Compact "time since": "just now", "5m ago", "3h ago", "2d ago", then falls back to 05-Sep-2026 */
+export function formatRelativeShort(input: DateInput): string {
+  const d = toDate(input)
+  if (!d) return ''
+  const secs = Math.floor((Date.now() - d.getTime()) / 1000)
+  if (secs < 60) return 'just now'
+  const mins = Math.floor(secs / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 7) return `${days}d ago`
+  return formatDate(d)
+}

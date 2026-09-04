@@ -7,6 +7,8 @@ import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewMembers, canImportMembers, canAddMember } from '@/lib/roles'
 import { displayName } from '@/lib/names'
+import { formatRelativeShort } from '@/lib/dates'
+import { memberActivity, memberActivityLabel } from '@/lib/members'
 import AddMemberModal from '@/app/components/AddMemberModal'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -15,6 +17,8 @@ interface Member {
   first_name: string
   last_name: string
   email: string
+  last_seen_at: string | null
+  auth_provisioned_at: string | null
 }
 
 interface ImportRow {
@@ -356,20 +360,27 @@ export default function MembersPage() {
           </div>
         ) : (
           <div className={styles.table}>
-            <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '2fr 2fr' }}>
+            <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '2fr 2fr 140px' }}>
               <div>Name</div>
               <div>Email</div>
+              <div>Last active</div>
             </div>
-            {filtered.map((m, i) => (
-              <a key={m.id} href={`/dashboard/members/${m.id}`} className={styles.tableRow} style={{
-                gridTemplateColumns: '2fr 2fr',
-                borderBottom: i < filtered.length - 1 ? '1px solid #f4f4f4' : 'none',
-                textDecoration: 'none', color: 'inherit', cursor: 'pointer'
-              }}>
-                <div style={{ fontWeight: 600, fontSize: '14px' }}>{displayName(m)}</div>
-                <div style={{ fontSize: '13px', color: '#666' }}>{m.email}</div>
-              </a>
-            ))}
+            {filtered.map((m, i) => {
+              const activity = memberActivity(m.auth_provisioned_at, m.last_seen_at)
+              return (
+                <a key={m.id} href={`/dashboard/members/${m.id}`} className={styles.tableRow} style={{
+                  gridTemplateColumns: '2fr 2fr 140px',
+                  borderBottom: i < filtered.length - 1 ? '1px solid #f4f4f4' : 'none',
+                  textDecoration: 'none', color: 'inherit', cursor: 'pointer'
+                }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px' }}>{displayName(m)}</div>
+                  <div style={{ fontSize: '13px', color: '#666' }}>{m.email}</div>
+                  <div style={{ fontSize: '13px', color: activity.kind === 'seen' ? '#444' : '#999' }}>
+                    {activity.kind === 'seen' ? formatRelativeShort(activity.at) : memberActivityLabel(activity)}
+                  </div>
+                </a>
+              )
+            })}
           </div>
         )}
         </>}
