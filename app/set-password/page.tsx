@@ -1,16 +1,21 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import type { EmailOtpType } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-// Landing page for the Supabase invite / recovery link sent to studio-added members and invited
-// teachers (backend: teacher-member-invite-emails). Supabase's `detectSessionInUrl` picks the
-// session up from the URL fragment on load — for an invite that's a normal SIGNED_IN, for a
-// recovery it's PASSWORD_RECOVERY; either way we end up with a session, show a set-password form,
-// then POST /api/account/link so the person's pre-existing membership/passes are folded onto the
-// new auth user. The link response's roles decide where they land.
+// Landing page for the invite / recovery link sent to studio-added members and invited teachers
+// (backend: teacher-member-invite-emails). The email link is
+//   {APP_URL}/set-password?token_hash=…&type=recovery&email=…
+// — the raw OTP params, NOT a Supabase verify URL. We read them on load but do NOT verify then:
+// verifyOtp consumes the single-use token, so an email link scanner that just fetches the page
+// would burn it. verifyOtp runs only when the user submits the form (a real click). After that:
+// updateUser({ password }) → POST /api/account/link → route by the returned memberships.
+//
+// A session already present on load (the dashboard /forgot-password flow lands here via
+// /auth/callback, which exchanges its own code) skips verifyOtp and goes straight to updateUser.
 
 const STAFF_ROLES = ['admin', 'teacher_super', 'teacher_general', 'teacher_basic', 'front_desk']
 
@@ -27,16 +32,43 @@ export default function SetPasswordPage() {
   const [message, setMessage] = useState('')
   const [phase, setPhase] = useState<'checking' | 'no-session' | 'form' | 'done'>('checking')
   const [doneNote, setDoneNote] = useState('')
+  const [linkError, setLinkError] = useState<{ code: string; description: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const router = useRouter()
   const settledRef = useRef(false)
+  // OTP params from the emailed link, captured on load but only verified on submit.
+  const pendingOtpRef = useRef<{ tokenHash: string; type: EmailOtpType } | null>(null)
+  const verifiedRef = useRef(false)
 
   useEffect(() => {
-    const supabase = createClient()
+    const qs = new URLSearchParams(window.location.search)
 
-    // onAuthStateChange fires INITIAL_SESSION once Supabase has finished parsing any token in the
-    // URL, plus SIGNED_IN / PASSWORD_RECOVERY for the invite/recovery cases. Any of them with a
-    // session means we're good; INITIAL_SESSION with none means the link was missing/expired.
+    // A stale/rejected link can still redirect here with an error on the query string.
+    if (qs.get('error') || qs.get('error_code')) {
+      setLinkError({
+        code: qs.get('error_code') || qs.get('error') || '',
+        description: decodeURIComponent((qs.get('error_description') || '').replace(/\+/g, ' ')),
+      })
+      settledRef.current = true
+      setPhase('no-session')
+      window.history.replaceState(null, '', window.location.pathname)
+      return
+    }
+
+    // Normal path: raw OTP params on the query string. Stash them; verifyOtp runs on submit only.
+    const tokenHash = qs.get('token_hash')
+    const type = qs.get('type')
+    if (tokenHash && type) {
+      pendingOtpRef.current = { tokenHash, type: type as EmailOtpType }
+      settledRef.current = true
+      setPhase('form')
+      window.history.replaceState(null, '', window.location.pathname)
+      return
+    }
+
+    // No token in the URL — only valid if a session already exists (dashboard /forgot-password
+    // via /auth/callback). onAuthStateChange fires INITIAL_SESSION once that's resolved.
+    const supabase = createClient()
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (settledRef.current) return
       if (session) {
@@ -102,6 +134,25 @@ export default function SetPasswordPage() {
 
     setBusy(true)
     const supabase = createClient()
+
+    // Establish the session from the emailed token — only here (a real click), and only once, so a
+    // link scanner that merely loads the page can't consume the single-use token. On a retry after
+    // a later step failed, the session already exists; don't re-verify a spent token.
+    if (!verifiedRef.current && pendingOtpRef.current) {
+      const { tokenHash, type } = pendingOtpRef.current
+      const { error: otpError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+      if (otpError) {
+        setMessage(
+          /expired|invalid|not found/i.test(otpError.message)
+            ? 'This link has expired or has already been used. Ask your studio to send a fresh one.'
+            : otpError.message
+        )
+        setBusy(false)
+        return
+      }
+      verifiedRef.current = true
+    }
+
     const { data, error } = await supabase.auth.updateUser({ password })
 
     if (error || !data.user) {
@@ -172,8 +223,17 @@ export default function SetPasswordPage() {
               fontSize: '14px',
               textAlign: 'center'
             }}>
-              This link is invalid or has expired. Ask your studio to resend the invite, or request a new link.
+              {linkError?.code === 'otp_expired'
+                ? 'This link has expired or has already been used. A password link only works once and for a limited time — ask your studio to send a fresh one.'
+                : linkError?.description
+                  ? linkError.description
+                  : 'Open this page from the link in your welcome or password-reset email. If your link has expired, request a new one below.'}
             </div>
+            {linkError?.code && linkError.code !== 'otp_expired' && (
+              <p style={{ textAlign: 'center', fontSize: '12px', color: '#999' }}>
+                Reference: {linkError.code}
+              </p>
+            )}
             <p style={{ textAlign: 'center', fontSize: '14px', color: '#666' }}>
               <Link href="/forgot-password" style={{ color: '#085041', fontWeight: 500 }}>
                 Email me a new link
