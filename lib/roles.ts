@@ -31,6 +31,8 @@ export const canManageOccurrences = (roles: string[]) => has(roles, [ADMIN, TEAC
 // Team (TeacherEndpoints.cs)
 export const canViewTeam = (roles: string[]) => has(roles, [ADMIN])
 export const canManageTeam = (roles: string[]) => has(roles, [ADMIN])
+// POST /organisations/{orgId}/teachers/{userId}/resend-invite (TeacherEndpoints.cs) — admin only.
+export const canResendTeacherInvite = (roles: string[]) => has(roles, [ADMIN])
 
 // Pass templates (PassTemplateEndpoints.cs)
 export const canViewPassTemplates = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
@@ -62,6 +64,8 @@ export const canManageSettings = (roles: string[]) => has(roles, [ADMIN])
 // picker, but that's not a member directory — per 17-teacher-portal.md 17.3 ("View full member
 // profiles"), only admin/teacher_super get a real member list page.
 export const canViewMembers = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
+// POST /organisations/{orgId}/members/{memberId}/resend-welcome (MemberEndpoints.cs) — admin/teacher_super.
+export const canResendMemberWelcome = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
 // CSV import (POST /organisations/{orgId}/members/import, MemberEndpoints.cs) — admin only.
 export const canImportMembers = (roles: string[]) => has(roles, [ADMIN])
 // "Add new member" quick-add (POST /organisations/{orgId}/members, MemberEndpoints.cs) —

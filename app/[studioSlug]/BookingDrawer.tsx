@@ -238,6 +238,20 @@ export default function BookingDrawer() {
     setAuthBusy(false)
   }
 
+  const handleForgotPassword = async () => {
+    if (authBusy) return
+    if (!email.trim()) { setAuthMessage('Enter your email address first, then tap "Forgot password?".'); return }
+    setAuthBusy(true)
+    setAuthMessage('')
+    const supabase = createClient()
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
+    })
+    // Same neutral wording regardless of whether the address is registered — don't leak that.
+    setAuthMessage(error ? error.message : `Check your email — if an account exists for ${email}, a reset link is on its way.`)
+    setAuthBusy(false)
+  }
+
   const handleConfirmBooking = async () => {
     setConfirmingLabel('Confirming your booking...')
     setStep('confirming')
@@ -466,6 +480,20 @@ export default function BookingDrawer() {
                 <div>
                   <label style={labelStyle}>Password</label>
                   <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
+                  {authMode === 'signin' && (
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={authBusy}
+                      style={{
+                        background: 'none', border: 'none', padding: 0, marginTop: '6px',
+                        color: brandColor, fontSize: '12px', fontWeight: 600,
+                        cursor: authBusy ? 'default' : 'pointer',
+                      }}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
                 </div>
 
                 <button
