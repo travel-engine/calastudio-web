@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewMembers, canManageMemberPasses } from '@/lib/roles'
+import Toast from '@/app/components/Toast'
+import { canViewMembers, canManageMemberPasses, canResendMemberWelcome } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import { formatDate as fmtDate, formatDateTime as fmtDateTime } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
@@ -183,6 +184,9 @@ export default function MemberDetailPage() {
   // booking_id -> "02-Sep-2026, 6:00 AM" for ledger rows tied to a booking.
   const [bookingWhen, setBookingWhen] = useState<Record<string, string>>({})
 
+  const [toast, setToast] = useState('')
+  const [resendingWelcome, setResendingWelcome] = useState(false)
+
   const [showIssue, setShowIssue] = useState(false)
   const [templates, setTemplates] = useState<PassTemplate[]>([])
   const [issueForm, setIssueForm] = useState({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
@@ -269,6 +273,25 @@ export default function MemberDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, memberId])
 
+  const handleResendWelcome = async () => {
+    if (resendingWelcome) return
+    setResendingWelcome(true)
+    try {
+      const res = await authedFetch(`/members/${memberId}/resend-welcome`, { method: 'POST' })
+      if (res.ok) {
+        setToast(`Welcome email re-sent${member ? ` to ${member.email}` : ''}.`)
+      } else if (res.status === 404) {
+        setToast('This person is no longer an active member.')
+      } else {
+        setToast('Could not resend the welcome email. Please try again.')
+      }
+    } catch {
+      setToast('Could not reach the server. Please try again.')
+    } finally {
+      setResendingWelcome(false)
+    }
+  }
+
   const openIssue = async () => {
     setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
     setIssueError('')
@@ -337,7 +360,22 @@ export default function MemberDetailPage() {
         </div>
 
         {/* Profile */}
-        <Card title="Profile">
+        <Card
+          title="Profile"
+          action={canResendMemberWelcome(roles) && member && (
+            <button
+              onClick={handleResendWelcome}
+              disabled={resendingWelcome}
+              style={{
+                padding: '7px 14px', backgroundColor: 'transparent', color: '#444',
+                border: '1px solid #e2e2e2', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
+                cursor: resendingWelcome ? 'default' : 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              {resendingWelcome ? 'Sending…' : 'Resend welcome email'}
+            </button>
+          )}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {member?.avatar_url ? (
               <img src={member.avatar_url} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
@@ -625,6 +663,8 @@ export default function MemberDetailPage() {
           </div>
         </div>
       )}
+
+      <Toast message={toast} onDismiss={() => setToast('')} />
     </div>
   )
 }

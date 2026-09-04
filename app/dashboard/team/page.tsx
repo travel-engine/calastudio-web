@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../components/Sidebar'
 import Forbidden from '../../components/Forbidden'
-import { canViewTeam } from '@/lib/roles'
+import Toast from '../../components/Toast'
+import { canViewTeam, canResendTeacherInvite } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -100,6 +101,8 @@ export default function TeamPage() {
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState('')
   const [inviteSuccess, setInviteSuccess] = useState('')
+  const [resendingId, setResendingId] = useState<string | null>(null)
+  const [toast, setToast] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -176,6 +179,28 @@ export default function TeamPage() {
       setInviteError(data.error ?? 'Something went wrong')
     }
     setInviting(false)
+  }
+
+  const handleResendInvite = async (teacher: Teacher) => {
+    if (resendingId) return
+    setResendingId(teacher.id)
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/teachers/${teacher.id}/resend-invite`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (res.ok) {
+        setToast(`Invite re-sent to ${teacher.email}.`)
+      } else if (res.status === 404) {
+        setToast(`${displayName(teacher)} is no longer an active teacher.`)
+      } else {
+        setToast('Could not resend the invite. Please try again.')
+      }
+    } catch {
+      setToast('Could not reach the server. Please try again.')
+    } finally {
+      setResendingId(null)
+    }
   }
 
   if (loading) {
@@ -261,7 +286,7 @@ export default function TeamPage() {
           }}>
             {/* Table header */}
             <div className={styles.tableHeaderRow} style={{
-              gridTemplateColumns: '2fr 1fr 1fr 1fr 120px'
+              gridTemplateColumns: '2fr 1fr 1fr 1fr 200px'
             }}>
               <div>Teacher</div>
               <div>Role</div>
@@ -275,7 +300,7 @@ export default function TeamPage() {
                 key={teacher.id}
                 className={styles.tableRow}
                 style={{
-                  gridTemplateColumns: '2fr 1fr 1fr 1fr 120px',
+                  gridTemplateColumns: '2fr 1fr 1fr 1fr 200px',
                   borderBottom: i < teachers.length - 1 ? '1px solid #f4f4f4' : 'none'
                 }}
               >
@@ -309,9 +334,8 @@ export default function TeamPage() {
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  
-                    <a href={`/dashboard/team/${teacher.id}`}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <a href={`/dashboard/team/${teacher.id}`}
                     style={{
                       padding: '6px 12px',
                       backgroundColor: '#f4f4f4',
@@ -326,6 +350,25 @@ export default function TeamPage() {
                   >
                     Edit
                   </a>
+                  {canResendTeacherInvite(roles) && (
+                    <button
+                      onClick={() => handleResendInvite(teacher)}
+                      disabled={resendingId === teacher.id}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: 'transparent',
+                        border: '1px solid #e2e2e2',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        cursor: resendingId === teacher.id ? 'default' : 'pointer',
+                        color: '#444',
+                        fontWeight: 500,
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {resendingId === teacher.id ? 'Sending…' : 'Resend invite'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -512,6 +555,8 @@ export default function TeamPage() {
           </div>
         </div>
       )}
+
+      <Toast message={toast} onDismiss={() => setToast('')} />
     </div>
   )
 }

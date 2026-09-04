@@ -15,7 +15,11 @@ Add your team members so they can manage their own sessions and students.
 3. Enter their name, email address, and select a role
 4. Click **Add to team**
 
-They'll appear in your team list immediately. When they sign up with the same email address, they'll have access to your studio.
+They appear in your team list straight away and get an invitation email with a link to set a password. Once they set it, they're taken directly to their teacher dashboard — there's no separate sign-up step.
+
+## Resend an invitation
+
+If a teacher didn't receive the email, or their link has expired, open **Team** and click **Resend invite** on their row. That issues a fresh link and sends the email again.
 
 ## Teacher roles
 
