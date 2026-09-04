@@ -365,7 +365,8 @@ export default function MemberDetailPage() {
         {/* Profile */}
         <Card
           title="Profile"
-          action={canResendMemberWelcome(roles) && member && (
+          action={canResendMemberWelcome(roles) && member &&
+            memberActivity(member.auth_provisioned_at, member.last_seen_at).kind !== 'seen' && (
             <button
               onClick={handleResendWelcome}
               disabled={resendingWelcome}
