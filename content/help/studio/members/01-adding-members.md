@@ -12,6 +12,8 @@ order: 1
 
 Most members join themselves: they sign up when booking a session from your studio's public booking page. There's nothing for you to do — they show up in this list automatically once they register.
 
+You can also add people yourself — **+ Add member** for one, or **Import CSV** for a whole list (below). Anyone you add or import gets an email inviting them to set a password so they can sign in to book and manage their passes. Until they set it, they're in your list but haven't accessed their account yet. The single **+ Add member** form lets you skip that email for walk-ins who won't use online booking.
+
 ## Importing an existing list
 
 If you're moving from another system, use **Import CSV** (Admin only) to bring your existing member list in rather than re-entering it by hand.
@@ -35,3 +37,7 @@ Dates (`join_date`, `date_of_birth`) must be in `YYYY-MM-DD` format. If you incl
 If a person already exists at another studio under the same email, their name and identity are reused rather than duplicated — only the fields still blank on their existing profile get filled in from the import.
 
 Pass balances and credits are never part of an import — imported members start with none. Issue passes separately from **Passes**.
+
+## Resending the welcome email
+
+If someone you added or imported didn't receive their invitation, or the link has expired, open their profile from the **Members** list and click **Resend welcome email**. That sends a fresh set-password link.
