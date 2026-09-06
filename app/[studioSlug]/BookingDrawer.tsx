@@ -20,6 +20,22 @@ function formatDateTime(iso: string) {
   return formatDateTimeWithWeekday(iso)
 }
 
+function timeOnly(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+
+function durationMinutes(startIso: string, endIso: string) {
+  const mins = Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000)
+  return mins > 0 ? mins : null
+}
+
+function spotsLabel(remaining: number | null) {
+  if (remaining === null) return null
+  if (remaining <= 0) return { text: 'Full', tone: 'full' as const }
+  if (remaining <= 3) return { text: `Only ${remaining} left`, tone: 'low' as const }
+  return { text: `${remaining} spots left`, tone: 'normal' as const }
+}
+
 function formatMoney(amount: number, currency: string) {
   try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount) }
   catch { return `${currency} ${amount.toFixed(2)}` }
@@ -448,13 +464,53 @@ export default function BookingDrawer() {
   return (
     <div className={styles.overlay} onClick={close}>
       <div className={styles.drawer} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '17px' }}>{occurrence.session_name}</div>
-            <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>{formatDateTime(occurrence.starts_at)}</div>
-          </div>
-          <button onClick={close} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
-        </div>
+        {(() => {
+          const durationMins = durationMinutes(occurrence.starts_at, occurrence.ends_at)
+          const spots = spotsLabel(occurrence.spots_remaining)
+          return (
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ fontWeight: 700, fontSize: '17px', lineHeight: 1.3, minWidth: 0 }}>{occurrence.session_name}</div>
+                <button onClick={close} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#666', lineHeight: 1, flexShrink: 0 }}>×</button>
+              </div>
+
+              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#555' }}>
+                <div>
+                  {formatDateTime(occurrence.starts_at)} – {timeOnly(occurrence.ends_at)}
+                  {durationMins ? ` · ${durationMins} min` : ''}
+                </div>
+                <div>{occurrence.delivery_mode === 'online' ? 'Online' : (occurrence.location_name || 'In person')}</div>
+                {occurrence.instructor_name && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                    {occurrence.instructor_photo_url && (
+                      <img
+                        src={occurrence.instructor_photo_url}
+                        alt=""
+                        style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                      />
+                    )}
+                    <span>with {occurrence.instructor_name}</span>
+                  </div>
+                )}
+                {spots && (
+                  <div style={{
+                    fontWeight: 500,
+                    color: spots.tone === 'full' ? '#8b1a1a' : spots.tone === 'low' ? '#7a4f00' : '#777',
+                  }}>
+                    {spots.text}
+                  </div>
+                )}
+                {occurrence.is_cancelled && (
+                  <div style={{ color: '#8b1a1a', fontWeight: 600 }}>
+                    This class has been cancelled{occurrence.cancellation_reason ? ` — ${occurrence.cancellation_reason}` : ''}.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ borderBottom: '1px solid #eee', marginTop: '16px' }} />
+            </div>
+          )
+        })()}
 
         {step === 'auth' && (
           checkingAuth ? (
