@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { useBookingFlow, type PassTemplateOption } from '@/lib/store/bookingFlow'
 import { displayName, splitName } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
-import { formatDateTimeWithWeekday } from '@/lib/dates'
+import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from './booking.module.css'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -34,6 +34,30 @@ function spotsLabel(remaining: number | null) {
   if (remaining <= 0) return { text: 'Full', tone: 'full' as const }
   if (remaining <= 3) return { text: `Only ${remaining} left`, tone: 'low' as const }
   return { text: `${remaining} spots left`, tone: 'normal' as const }
+}
+
+function passCreditText(pt: PassTemplateOption) {
+  if (pt.pass_type === 'unlimited') return 'Unlimited'
+  if (pt.pass_type === 'credit' && pt.credit_count != null) {
+    return `${pt.credit_count} class${pt.credit_count === 1 ? '' : 'es'}`
+  }
+  return null // shape without pass detail (e.g. the booking endpoint's fallback list)
+}
+
+function passExpiryText(pt: PassTemplateOption) {
+  const v = pt.expiry_rolling_value
+  if (pt.expiry_type === 'fixed_date') return pt.expiry_fixed_date ? `valid until ${formatDate(pt.expiry_fixed_date)}` : null
+  if (pt.expiry_type === 'rolling_days' && v) return `valid ${v} day${v === 1 ? '' : 's'}`
+  if (pt.expiry_type === 'rolling_months' && v) return `valid ${v} month${v === 1 ? '' : 's'}`
+  return null
+}
+
+function creditsLine(memberCost: number, guestCost: number, guestCount: number) {
+  const guests = guestCount * guestCost
+  const total = memberCost + guests
+  if (total <= 0) return null
+  if (guestCount <= 0) return `Uses ${total} credit${total === 1 ? '' : 's'}`
+  return `Uses ${total} credits — ${memberCost} for you + ${guests} for guest${guestCount === 1 ? '' : 's'}`
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -435,6 +459,14 @@ export default function BookingDrawer() {
 
   const modeLabel = (m: 'in_person' | 'online') => m === 'online' ? 'Online' : 'In-person'
 
+  // Credits a booking costs — matches what BookingService debits. 0 for free / drop-in paths.
+  const creditsCost = bookingOptions
+    ? bookingOptions.member_credits_cost + guestCount * bookingOptions.guest_credits_cost
+    : 0
+  const passCreditsShort = !!bookingOptions?.usable_pass_id
+    && bookingOptions.usable_pass_credits_remaining != null
+    && creditsCost > bookingOptions.usable_pass_credits_remaining
+
   const renderGuestSelector = () => {
     if (!bookingOptions?.guest_bookings_enabled || bookingOptions.guest_max_per_booking <= 0) return null
 
@@ -442,6 +474,8 @@ export default function BookingDrawer() {
     const spotsCap = spotsRemaining === null ? bookingOptions.guest_max_per_booking : Math.max(0, spotsRemaining - 1)
     const maxGuests = Math.min(bookingOptions.guest_max_per_booking, spotsCap)
     if (maxGuests <= 0) return null
+
+    const credits = creditsLine(bookingOptions.member_credits_cost, bookingOptions.guest_credits_cost, guestCount)
 
     return (
       <div className={styles.optionCard}>
@@ -457,6 +491,13 @@ export default function BookingDrawer() {
             ))}
           </select>
         </div>
+        {credits && (
+          <div style={{ fontSize: '12px', color: passCreditsShort ? '#8b1a1a' : '#666', marginTop: '8px' }}>
+            {credits}
+            {passCreditsShort && bookingOptions.usable_pass_credits_remaining != null &&
+              ` — only ${bookingOptions.usable_pass_credits_remaining} left on your pass`}
+          </div>
+        )}
       </div>
     )
   }
@@ -469,6 +510,13 @@ export default function BookingDrawer() {
           const spots = spotsLabel(occurrence.spots_remaining)
           return (
             <div style={{ marginBottom: '20px' }}>
+              {occurrence.photo_url && (
+                <img
+                  src={occurrence.photo_url}
+                  alt=""
+                  style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 10, display: 'block', marginBottom: '14px' }}
+                />
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                 <div style={{ fontWeight: 700, fontSize: '17px', lineHeight: 1.3, minWidth: 0 }}>{occurrence.session_name}</div>
                 <button onClick={close} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#666', lineHeight: 1, flexShrink: 0 }}>×</button>
@@ -479,7 +527,12 @@ export default function BookingDrawer() {
                   {formatDateTime(occurrence.starts_at)} – {timeOnly(occurrence.ends_at)}
                   {durationMins ? ` · ${durationMins} min` : ''}
                 </div>
-                <div>{occurrence.delivery_mode === 'online' ? 'Online' : (occurrence.location_name || 'In person')}</div>
+                <div>
+                  {occurrence.delivery_mode === 'online' ? 'Online' : (occurrence.location_name || 'In person')}
+                  {occurrence.delivery_mode !== 'online' && occurrence.location_address && (
+                    <span style={{ color: '#999' }}> · {occurrence.location_address}</span>
+                  )}
+                </div>
                 {occurrence.instructor_name && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
                     {occurrence.instructor_photo_url && (
@@ -506,6 +559,15 @@ export default function BookingDrawer() {
                   </div>
                 )}
               </div>
+
+              {occurrence.description && (
+                <p style={{
+                  marginTop: '12px', marginBottom: 0, fontSize: '13px', color: '#555', lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap', maxHeight: 108, overflowY: 'auto',
+                }}>
+                  {occurrence.description}
+                </p>
+              )}
 
               <div style={{ borderBottom: '1px solid #eee', marginTop: '16px' }} />
             </div>
@@ -691,10 +753,23 @@ export default function BookingDrawer() {
                 <div>
                   <div className={styles.optionCard}>
                     <div style={{ fontWeight: 600, fontSize: '14px' }}>Using your pass</div>
-                    <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>{bookingOptions.usable_pass_name}</div>
+                    <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>
+                      {bookingOptions.usable_pass_name}
+                      {bookingOptions.usable_pass_credits_remaining != null &&
+                        ` · ${bookingOptions.usable_pass_credits_remaining} credit${bookingOptions.usable_pass_credits_remaining === 1 ? '' : 's'} left`}
+                    </div>
                   </div>
                   {renderGuestSelector()}
-                  <button onClick={handleConfirmBooking} style={{ ...confirmButtonStyle(brandColor), marginTop: '12px' }}>
+                  {passCreditsShort && (
+                    <div style={{ padding: '10px 12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginTop: '12px' }}>
+                      This booking needs {creditsCost} credits but only {bookingOptions.usable_pass_credits_remaining} are left on your pass. Reduce guests or buy another pass.
+                    </div>
+                  )}
+                  <button
+                    onClick={handleConfirmBooking}
+                    disabled={passCreditsShort}
+                    style={{ ...confirmButtonStyle(brandColor), marginTop: '12px', opacity: passCreditsShort ? 0.6 : 1, cursor: passCreditsShort ? 'default' : 'pointer' }}
+                  >
                     Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
                   </button>
                 </div>
@@ -741,15 +816,19 @@ export default function BookingDrawer() {
                         </div>
                       )}
 
-                      {bookingOptions.purchasable_pass_templates?.map((pt: PassTemplateOption) => (
+                      {bookingOptions.purchasable_pass_templates?.map((pt: PassTemplateOption) => {
+                        const detail = [passCreditText(pt), passExpiryText(pt)].filter(Boolean).join(' · ')
+                        return (
                         <div key={pt.id} className={styles.optionCard}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                            <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 600, fontSize: '14px' }}>{pt.name}</div>
-                              <div style={{ fontSize: '13px', color: '#666' }}>{formatMoney(pt.price, pt.currency)}</div>
+                              {detail && <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>{detail}</div>}
+                              {pt.description && <div style={{ fontSize: '12px', color: '#999', marginTop: '4px', lineHeight: 1.4 }}>{pt.description}</div>}
+                              <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{formatMoney(pt.price, pt.currency)}</div>
                             </div>
                             {purchaseSecret?.templateId !== pt.id && (
-                              <button onClick={() => startPassPurchase(pt.id)} disabled={purchaseBusyId === pt.id} style={smallButtonStyle(brandColor)}>
+                              <button onClick={() => startPassPurchase(pt.id)} disabled={purchaseBusyId === pt.id} style={{ ...smallButtonStyle(brandColor), flexShrink: 0 }}>
                                 {purchaseBusyId === pt.id ? 'Starting...' : 'Buy now'}
                               </button>
                             )}
@@ -768,7 +847,7 @@ export default function BookingDrawer() {
                             </div>
                           )}
                         </div>
-                      ))}
+                      )})}
                     </>
                   )}
                 </div>

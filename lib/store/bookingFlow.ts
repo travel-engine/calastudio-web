@@ -6,11 +6,14 @@ export interface BookableOccurrence {
   session_name: string
   session_type: string
   delivery_mode: 'in_person' | 'online'
+  photo_url: string | null
+  description: string | null
   starts_at: string
   ends_at: string
   instructor_name: string | null
   instructor_photo_url: string | null
   location_name: string | null
+  location_address: string | null
   price: number | null
   currency: string
   spots_remaining: number | null
@@ -21,8 +24,14 @@ export interface BookableOccurrence {
 export interface PassTemplateOption {
   id: string
   name: string
+  description: string | null
   price: number
   currency: string
+  pass_type: 'credit' | 'unlimited'
+  credit_count: number | null
+  expiry_type: 'fixed_date' | 'rolling_days' | 'rolling_months'
+  expiry_rolling_value: number | null
+  expiry_fixed_date: string | null
 }
 
 export interface BookingOptions {
@@ -39,7 +48,10 @@ export interface BookingOptions {
   is_active_member: boolean
   usable_pass_id: string | null
   usable_pass_name: string | null
+  usable_pass_credits_remaining: number | null
   purchasable_pass_templates: PassTemplateOption[] | null
+  member_credits_cost: number
+  guest_credits_cost: number
   guest_bookings_enabled: boolean
   guest_max_per_booking: number
 }
