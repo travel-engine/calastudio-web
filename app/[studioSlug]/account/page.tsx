@@ -213,7 +213,7 @@ export default function MemberAccountPage() {
   const [studioNotFound, setStudioNotFound] = useState(false)
   const [portalError, setPortalError] = useState('')
 
-  const [tab, setTab] = useState<'upcoming' | 'past' | 'waitlist' | 'passes' | 'payments' | 'policies' | 'profile'>('upcoming')
+  const [tab, setTab] = useState<'upcoming' | 'past' | 'passes' | 'payments' | 'policies' | 'profile'>('upcoming')
   // Credit history isn't its own tab — it's the movement list you expand under an individual pass.
   const [expandedPassId, setExpandedPassId] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -571,6 +571,67 @@ export default function MemberAccountPage() {
       new Date(b.session_occurrence?.starts_at ?? b.booked_at).getTime() -
       new Date(a.session_occurrence?.starts_at ?? a.booked_at).getTime())
 
+  // Waitlisted "bookings" live in the Upcoming list too — no separate tab.
+  const activeWaitlist = waitlist
+    .filter(w => w.status === 'waiting' || w.status === 'promoted')
+    .sort((a, b) =>
+      new Date(a.session_occurrence?.starts_at ?? 0).getTime() -
+      new Date(b.session_occurrence?.starts_at ?? 0).getTime())
+
+  const renderWaitlistRow = (w: WaitlistEntry) => {
+    const holdExpired = w.status === 'promoted' && (!w.token_expires_at || new Date(w.token_expires_at) <= new Date())
+    const occ = w.session_occurrence
+    return (
+      <div key={w.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+              {occ?.session?.name ?? 'Session'}
+            </div>
+            <div style={{ fontSize: '13px', color: '#666' }}>
+              {occ ? `${formatDateTime(occ.starts_at)} · ${timeRange(occ.starts_at, occ.ends_at)}` : '—'}
+              {w.preferred_mode === 'online' ? ' · Online' : ' · In person'}
+              {w.intended_guest_count > 0 ? ` · ${w.intended_guest_count + 1} spots` : ''}
+            </div>
+            {w.status === 'waiting' && (
+              <div style={{ fontSize: '13px', color: '#7a4f00', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
+            )}
+            {w.status === 'promoted' && !holdExpired && (
+              <div style={{ fontSize: '13px', color: '#085041', marginTop: '4px', fontWeight: 600 }}>
+                A spot opened — claim by {w.token_expires_at ? formatDateTime(w.token_expires_at) : 'soon'}
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <StatusBadge status={holdExpired ? 'expired' : w.status === 'waiting' ? 'waitlisted' : w.status} />
+            {w.status === 'promoted' && !holdExpired && (
+              <button
+                onClick={() => handleClaimWaitlist(w)}
+                disabled={claimingWaitlistId === w.id}
+                style={{
+                  padding: '6px 14px', backgroundColor: claimingWaitlistId === w.id ? '#9fd6b8' : brand, color: 'white',
+                  border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: claimingWaitlistId === w.id ? 'default' : 'pointer'
+                }}
+              >
+                {claimingWaitlistId === w.id ? 'Claiming…' : 'Claim my spot'}
+              </button>
+            )}
+            <button
+              onClick={() => handleLeaveWaitlist(w.id)}
+              disabled={leavingWaitlistId === w.id}
+              style={{
+                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
+                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#8b1a1a'
+              }}
+            >
+              {leavingWaitlistId === w.id ? 'Leaving…' : 'Leave waitlist'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const renderBookingRow = (b: Booking, upcoming: boolean) => {
     const occ = b.session_occurrence
     const sess = occ?.session
@@ -841,13 +902,13 @@ export default function MemberAccountPage() {
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '24px' }}>
         <div className={styles.tabs}>
-          {(['upcoming', 'past', 'waitlist', 'passes', 'payments', 'policies', 'profile'] as const).map(t => (
+          {(['upcoming', 'past', 'passes', 'payments', 'policies', 'profile'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`${styles.tabButton} ${tab === t ? styles.tabButtonActive : ''}`}
             >
-              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'waitlist' ? 'My waitlist' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Payments' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
+              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Payments' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
             </button>
           ))}
         </div>
@@ -942,9 +1003,19 @@ export default function MemberAccountPage() {
                     {cancelError}
                   </div>
                 )}
-                {upcomingBookings.length === 0
+                {waitlistActionError && (
+                  <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                    {waitlistActionError}
+                  </div>
+                )}
+                {upcomingBookings.length === 0 && activeWaitlist.length === 0
                   ? emptyPanel('No upcoming bookings.')
-                  : upcomingBookings.map(b => renderBookingRow(b, true))}
+                  : (
+                    <>
+                      {upcomingBookings.map(b => renderBookingRow(b, true))}
+                      {activeWaitlist.map(renderWaitlistRow)}
+                    </>
+                  )}
               </div>
             )}
 
@@ -956,79 +1027,6 @@ export default function MemberAccountPage() {
               </div>
             )}
 
-            {tab === 'waitlist' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {waitlistActionError && (
-                  <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
-                    {waitlistActionError}
-                  </div>
-                )}
-                {waitlist.length === 0 ? (
-                  <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
-                    You&apos;re not on any waitlists.
-                  </div>
-                ) : waitlist.map(w => {
-                  const isActive = w.status === 'waiting' || w.status === 'promoted'
-                  const holdExpired = w.status === 'promoted' && (!w.token_expires_at || new Date(w.token_expires_at) <= new Date())
-                  return (
-                    <div key={w.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', opacity: isActive ? 1 : 0.7 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
-                            {w.session_occurrence?.session?.name ?? 'Session'}
-                          </div>
-                          <div style={{ fontSize: '13px', color: '#666' }}>
-                            {w.session_occurrence ? formatDateTime(w.session_occurrence.starts_at) : '—'}
-                            {w.intended_guest_count > 0 ? ` · ${w.intended_guest_count + 1} spots` : ''}
-                          </div>
-                          {w.status === 'waiting' && (
-                            <div style={{ fontSize: '13px', color: '#7a4f00', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
-                          )}
-                          {w.status === 'promoted' && !holdExpired && (
-                            <div style={{ fontSize: '13px', color: '#085041', marginTop: '4px', fontWeight: 600 }}>
-                              Your spot is ready — claim by {w.token_expires_at ? formatDateTime(w.token_expires_at) : 'soon'}
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <StatusBadge status={holdExpired ? 'expired' : w.status} />
-                        </div>
-                      </div>
-
-                      {w.status === 'promoted' && !holdExpired && (
-                        <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f4f4f4', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          <button
-                            onClick={() => handleClaimWaitlist(w)}
-                            disabled={claimingWaitlistId === w.id}
-                            style={{
-                              padding: '8px 16px', backgroundColor: claimingWaitlistId === w.id ? '#9fd6b8' : brand, color: 'white',
-                              border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: claimingWaitlistId === w.id ? 'default' : 'pointer'
-                            }}
-                          >
-                            {claimingWaitlistId === w.id ? 'Claiming...' : 'Claim my spot'}
-                          </button>
-                        </div>
-                      )}
-
-                      {isActive && (
-                        <div style={{ marginTop: w.status === 'promoted' && !holdExpired ? '10px' : '14px' }}>
-                          <button
-                            onClick={() => handleLeaveWaitlist(w.id)}
-                            disabled={leavingWaitlistId === w.id}
-                            style={{
-                              padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                              borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#8b1a1a'
-                            }}
-                          >
-                            {leavingWaitlistId === w.id ? 'Leaving...' : 'Leave waitlist'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
 
             {tab === 'passes' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
