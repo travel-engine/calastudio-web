@@ -211,9 +211,17 @@ export default function BookingDrawer() {
           return
         }
       }
-      if (pendingRetryKind === 'register') await resolveAuth(pendingToken)
-      else if (pendingRetryKind === 'confirm-booking') await handleConfirmBooking()
-      else if (pendingRetryKind === 'drop-in-payment') await startDropInPayment()
+      if (pendingRetryKind === 'register') {
+        await resolveAuth(pendingToken)
+      } else if (pendingRetryKind === 'confirm-booking') {
+        // handleConfirmBooking drives its own step (confirming → success/error/options).
+        await handleConfirmBooking()
+      } else if (pendingRetryKind === 'drop-in-payment') {
+        // startDropInPayment only sets the client secret — bring the drawer back to the options
+        // step so its inline Stripe form renders instead of leaving the agreements screen up.
+        setStep('options')
+        await startDropInPayment()
+      }
     } finally {
       setAgreementsBusy(false)
     }
