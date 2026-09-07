@@ -569,7 +569,7 @@ export default function BookingDrawer() {
                 <img
                   src={occurrence.photo_url}
                   alt=""
-                  style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 10, display: 'block', marginBottom: '14px' }}
+                  style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 10, display: 'block', marginBottom: '14px', backgroundColor: '#f4f4f4' }}
                 />
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
