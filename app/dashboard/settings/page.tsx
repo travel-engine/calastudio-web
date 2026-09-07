@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
+import BannerCropModal from './BannerCropModal'
 import { canManageSettings } from '@/lib/roles'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -83,7 +84,7 @@ function SettingsPageContent() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [orgId, setOrgId] = useState('')
@@ -330,14 +331,16 @@ function SettingsPageContent() {
     setUploadingLogo(false)
   }
 
-  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // The banner isn't uploaded straight away — the file goes into the crop modal, which uploads the
+  // framed 3:1 version and hands back its URL.
+  const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    e.target.value = '' // let the same file be re-picked
     if (!file) return
     setError('')
-    setUploadingBanner(true)
-    const url = await uploadImage(file, 'org-banners')
-    if (url) update('bannerUrl', url)
-    setUploadingBanner(false)
+    if (!file.type.startsWith('image/')) { setError('Please select an image file'); return }
+    if (file.size > 10 * 1024 * 1024) { setError('Image must be under 10MB'); return }
+    setBannerFile(file)
   }
 
   const handleSave = async () => {
@@ -477,10 +480,10 @@ function SettingsPageContent() {
             </div>
           </Field>
 
-          <Field label="Banner" hint="Wide image shown at the top of your booking page. 1200×400px or similar works best.">
+          <Field label="Banner" hint="Wide image at the top of your booking page, shown at 3:1. After you pick a file you'll frame it — drag to position, slider to zoom.">
             <div>
               <div style={{
-                width: '100%', height: '140px', borderRadius: '12px', backgroundColor: '#f4f4f4',
+                width: '100%', aspectRatio: '3 / 1', maxHeight: '200px', borderRadius: '12px', backgroundColor: '#f4f4f4',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
                 border: '1px solid #e2e2e2', marginBottom: '12px'
               }}>
@@ -493,10 +496,10 @@ function SettingsPageContent() {
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <label style={{
                   padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px',
-                  fontSize: '13px', fontWeight: 500, color: '#444', cursor: uploadingBanner ? 'not-allowed' : 'pointer'
+                  fontSize: '13px', fontWeight: 500, color: '#444', cursor: 'pointer'
                 }}>
-                  {uploadingBanner ? 'Uploading...' : form.bannerUrl ? 'Replace banner' : 'Upload banner'}
-                  <input type="file" accept="image/*" onChange={handleBannerUpload} disabled={uploadingBanner} style={{ display: 'none' }} />
+                  {form.bannerUrl ? 'Replace banner' : 'Upload banner'}
+                  <input type="file" accept="image/*" onChange={handleBannerFile} style={{ display: 'none' }} />
                 </label>
                 {form.bannerUrl && (
                   <button
@@ -828,6 +831,15 @@ function SettingsPageContent() {
         </div>
         </>}
       </div>
+
+      {bannerFile && orgId && (
+        <BannerCropModal
+          file={bannerFile}
+          orgId={orgId}
+          onCancel={() => setBannerFile(null)}
+          onDone={url => { update('bannerUrl', url); setBannerFile(null); setSuccess('Banner updated — remember to Save changes.') }}
+        />
+      )}
 
       {/* Add tax rate modal */}
       {showAddRate && (

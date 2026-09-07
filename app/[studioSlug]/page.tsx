@@ -102,7 +102,7 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
   return (
     <div className={styles.page}>
       {org.banner_url && (
-        <div style={{ width: '100%', height: '180px', overflow: 'hidden' }}>
+        <div style={{ width: '100%', aspectRatio: '3 / 1', maxHeight: '320px', overflow: 'hidden' }}>
           <img src={org.banner_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       )}
