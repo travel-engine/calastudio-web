@@ -102,7 +102,16 @@ function SettingsPageContent() {
     bookingWindowDays: '',
     minAdvanceBookingHours: '',
     lateCancelCreditsForfeited: true,
+    liabilityWaiverRequired: true,
   })
+
+  // The waiver text is edited and saved on its own — PATCH /liability-waiver, separate from the
+  // main settings save, because every edit bumps the version and re-prompts every member to accept.
+  const [waiverText, setWaiverText] = useState('')
+  const [initialWaiverText, setInitialWaiverText] = useState('')
+  const [waiverVersion, setWaiverVersion] = useState<number | null>(null)
+  const [savingWaiver, setSavingWaiver] = useState(false)
+  const [waiverMsg, setWaiverMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   const [taxRates, setTaxRates] = useState<{ id: string; rate: number; effective_from: string; effective_until: string | null; notes: string | null }[]>([])
   const [showAddRate, setShowAddRate] = useState(false)
@@ -174,7 +183,11 @@ function SettingsPageContent() {
         bookingWindowDays: org.booking_window_days != null ? String(org.booking_window_days) : '',
         minAdvanceBookingHours: org.min_advance_booking_hours != null ? String(org.min_advance_booking_hours) : '',
         lateCancelCreditsForfeited: org.late_cancel_credits_forfeited ?? true,
+        liabilityWaiverRequired: org.liability_waiver_required ?? true,
       })
+      setWaiverText(org.liability_waiver_text ?? '')
+      setInitialWaiverText(org.liability_waiver_text ?? '')
+      setWaiverVersion(org.liability_waiver_version ?? null)
       setStripeOnboardingComplete(org.stripe_onboarding_complete ?? false)
       setStripeAccountId(org.stripe_account_id ?? null)
 
@@ -336,6 +349,7 @@ function SettingsPageContent() {
           booking_window_days: form.bookingWindowDays !== '' ? parseInt(form.bookingWindowDays, 10) : null,
           min_advance_booking_hours: form.minAdvanceBookingHours !== '' ? parseInt(form.minAdvanceBookingHours, 10) : null,
           late_cancel_credits_forfeited: form.lateCancelCreditsForfeited,
+          liability_waiver_required: form.liabilityWaiverRequired,
         })
       })
 
@@ -349,6 +363,32 @@ function SettingsPageContent() {
       setError('Something went wrong. Please try again.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSaveWaiver = async () => {
+    if (!waiverText.trim()) { setWaiverMsg({ ok: false, text: 'Waiver text cannot be empty.' }); return }
+    setSavingWaiver(true)
+    setWaiverMsg(null)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/liability-waiver`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: waiverText }),
+      })
+      if (res.ok) {
+        const org = await res.json().catch(() => null)
+        setInitialWaiverText(waiverText)
+        setWaiverVersion(org?.liability_waiver_version ?? (waiverVersion != null ? waiverVersion + 1 : null))
+        setWaiverMsg({ ok: true, text: 'Waiver saved. Members will be asked to accept the new version before their next booking.' })
+      } else {
+        const data = await res.json().catch(() => null)
+        setWaiverMsg({ ok: false, text: data?.error ?? 'Could not save the waiver. Please try again.' })
+      }
+    } catch {
+      setWaiverMsg({ ok: false, text: 'Could not save the waiver. Please try again.' })
+    } finally {
+      setSavingWaiver(false)
     }
   }
 
@@ -518,6 +558,65 @@ function SettingsPageContent() {
               />
               Forfeit the pass credit when a member cancels after the window closes
             </label>
+          </Field>
+
+          <SectionHeader title="Legal" description="Your studio's own liability waiver. The platform Terms & Conditions are CalaStudio's, identical for every studio, and aren't editable here." />
+
+          <Field label="Require a liability waiver" hint="Turn this off if your studio doesn't run physical activity. Members then only accept the platform Terms & Conditions.">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.liabilityWaiverRequired}
+                onChange={e => update('liabilityWaiverRequired', e.target.checked)}
+              />
+              Members must accept this waiver before their first booking
+            </label>
+          </Field>
+
+          <Field
+            label="Liability waiver text"
+            hint="House rules, risk acknowledgement, medical declaration, photo/video consent — whatever a member agrees to when they join. This is a starting template; review it for your studio and jurisdiction."
+          >
+            {waiverVersion != null && (
+              <p style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>Current version: {waiverVersion}</p>
+            )}
+            <textarea
+              value={waiverText}
+              onChange={e => setWaiverText(e.target.value)}
+              style={{
+                width: '100%', padding: '12px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
+                fontSize: '13px', lineHeight: 1.6, outline: 'none', backgroundColor: 'white',
+                minHeight: '220px', resize: 'vertical', fontFamily: 'inherit',
+              }}
+            />
+            <p style={{ fontSize: '12px', color: '#7a4f00', marginTop: '8px' }}>
+              Saving new wording publishes the next version. Every member is asked to accept it again before their next booking.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
+              <button
+                onClick={handleSaveWaiver}
+                disabled={savingWaiver || waiverText === initialWaiverText || !waiverText.trim()}
+                style={{
+                  padding: '9px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                  border: '1px solid #d2d2d2', color: '#1a1a1a',
+                  backgroundColor: (savingWaiver || waiverText === initialWaiverText || !waiverText.trim()) ? '#f4f4f4' : 'white',
+                  cursor: (savingWaiver || waiverText === initialWaiverText || !waiverText.trim()) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {savingWaiver ? 'Saving...' : 'Save waiver text'}
+              </button>
+              {waiverText !== initialWaiverText && !savingWaiver && (
+                <button
+                  onClick={() => { setWaiverText(initialWaiverText); setWaiverMsg(null) }}
+                  style={{ background: 'none', border: 'none', fontSize: '13px', color: '#666', cursor: 'pointer' }}
+                >
+                  Discard changes
+                </button>
+              )}
+              {waiverMsg && (
+                <span style={{ fontSize: '13px', color: waiverMsg.ok ? '#085041' : '#8b1a1a' }}>{waiverMsg.text}</span>
+              )}
+            </div>
           </Field>
 
           <SectionHeader title="Payments" description="Connect Stripe so members can pay for drop-in classes and passes — money goes straight to your bank account, CalaStudio takes no commission" />
