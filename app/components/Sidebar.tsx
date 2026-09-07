@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { canViewSessions, canViewOccurrences, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers } from '@/lib/roles'
+import { canViewSessions, canViewOccurrences, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
 import styles from './sidebar.module.css'
 
 interface SidebarProps {
@@ -21,7 +21,7 @@ const navItems = [
   { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings', key: 'bookings', canView: canViewBookings },
   { href: '/dashboard/passes', icon: '💳', label: 'Passes', key: 'passes', canView: canViewPassTemplates },
   { href: '/dashboard/memberships', icon: '⭐', label: 'Memberships', key: 'memberships', canView: undefined },
-  { href: '/dashboard/reports', icon: '📊', label: 'Reports', key: 'reports', canView: undefined },
+  { href: '/dashboard/reports', icon: '📊', label: 'Reports', key: 'reports', canView: canViewReports },
   { href: '/dashboard/team', icon: '👤', label: 'Team', key: 'team', canView: canViewTeam },
   { href: '/dashboard/audit-log', icon: '🕘', label: 'Activity log', key: 'audit-log', canView: canViewAuditLog },
   { href: '/dashboard/settings', icon: '⚙️', label: 'Settings', key: 'settings', canView: canManageSettings },

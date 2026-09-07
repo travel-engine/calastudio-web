@@ -59,6 +59,12 @@ export const canViewAuditLog = (roles: string[]) => has(roles, [ADMIN])
 // Studio settings — PATCH /organisations/{id} (OrganisationEndpoints.cs). Admin only.
 export const canManageSettings = (roles: string[]) => has(roles, [ADMIN])
 
+// Reports (ReportEndpoints.cs). Every report is admin-only except Attendance (§8.12), which also
+// serves teacher_super scoped to their own sessions — so the page shows for either role and only
+// the tabs a role can actually load are rendered.
+export const canViewReports = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
+export const canViewAllReports = (roles: string[]) => has(roles, [ADMIN])
+
 // Members directory (GET /organisations/{orgId}/members, OrganisationEndpoints.cs). The endpoint
 // itself also serves teacher_general/teacher_basic a name-only projection for the add-student
 // picker, but that's not a member directory — per 17-teacher-portal.md 17.3 ("View full member
