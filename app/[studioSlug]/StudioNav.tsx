@@ -96,6 +96,15 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
             Schedule
           </Link>
           <Link
+            href={`/${studioSlug}/teachers`}
+            style={{
+              fontSize: '13px', fontWeight: 600, textDecoration: 'none',
+              color: pathname.startsWith(`/${studioSlug}/teachers`) ? '#1a1a1a' : '#666',
+            }}
+          >
+            Teachers
+          </Link>
+          <Link
             href={`/${studioSlug}/pricing`}
             style={{
               fontSize: '13px', fontWeight: 600, textDecoration: 'none',

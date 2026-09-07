@@ -1,0 +1,100 @@
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import styles from '../booking.module.css'
+
+export const revalidate = 60
+
+interface Props {
+  params: Promise<{ studioSlug: string }>
+}
+
+interface TeacherCard {
+  slug: string
+  display_name: string
+  tagline: string | null
+  bio: string | null
+  photo_url: string | null
+  specialties: string[] | null
+  is_page_published: boolean
+}
+
+function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
+  const inner = (
+    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', minWidth: 0 }}>
+      {t.photo_url ? (
+        <img src={t.photo_url} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+      ) : (
+        <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: '#f0f0f0', flexShrink: 0 }} />
+      )}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: '15px' }}>{t.display_name}</div>
+        {t.tagline && <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>{t.tagline}</div>}
+        {t.specialties && t.specialties.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+            {t.specialties.slice(0, 4).map(s => (
+              <span key={s} style={{ fontSize: '11px', fontWeight: 500, color: '#444', backgroundColor: '#f0f0f0', borderRadius: '999px', padding: '2px 8px' }}>{s}</span>
+            ))}
+          </div>
+        )}
+        {t.bio && (
+          <p style={{
+            fontSize: '13px', color: '#666', marginTop: '10px', marginBottom: 0,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {t.bio}
+          </p>
+        )}
+        {t.is_page_published && (
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#085041', marginTop: '10px' }}>View profile →</div>
+        )}
+      </div>
+    </div>
+  )
+
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: 'white', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    textDecoration: 'none', color: 'inherit', display: 'block',
+  }
+
+  return t.is_page_published
+    ? <Link href={`/${studioSlug}/teachers/${t.slug}`} style={cardStyle}>{inner}</Link>
+    : <div style={cardStyle}>{inner}</div>
+}
+
+export default async function TeachersDirectoryPage({ params }: Props) {
+  const { studioSlug } = await params
+  const base = process.env.NEXT_PUBLIC_API_URL
+
+  const [orgRes, teachersRes] = await Promise.all([
+    fetch(`${base}/api/public/${studioSlug}`, { next: { revalidate: 60 } }),
+    fetch(`${base}/api/public/${studioSlug}/teachers`, { next: { revalidate: 60 } }),
+  ])
+  if (orgRes.status === 404) notFound()
+  if (!orgRes.ok || !teachersRes.ok) throw new Error('Failed to load teachers')
+
+  const org: { name: string } = await orgRes.json()
+  const teachers: TeacherCard[] = await teachersRes.json()
+
+  return (
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
+          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Teachers</h1>
+          <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>Meet the team at {org.name}.</p>
+        </div>
+      </header>
+
+      <div className={styles.content}>
+        {teachers.length === 0 ? (
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            This studio hasn&apos;t added any teacher bios yet.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+            {teachers.map(t => <Card key={t.slug} t={t} studioSlug={studioSlug} />)}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
