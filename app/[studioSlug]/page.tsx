@@ -151,7 +151,9 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
                   return (
                     <div key={occ.occurrence_id} className={styles.card}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
-                        {occ.instructor_photo_url ? (
+                        {occ.photo_url ? (
+                          <img src={occ.photo_url} alt="" style={{ width: 52, height: 52, borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
+                        ) : occ.instructor_photo_url ? (
                           <img src={occ.instructor_photo_url} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                         ) : (
                           <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#f4f4f4', flexShrink: 0 }} />
