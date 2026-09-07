@@ -879,7 +879,20 @@ export default function MemberAccountPage() {
   // ── Signed in: portal ──────────────────────────────────────
   return (
     <div style={{ minHeight: 'calc(100vh - 57px)', backgroundColor: '#f4f4f4' }}>
-      <div style={{ maxWidth: '760px', margin: '0 auto', padding: '24px' }}>
+      <div className={styles.layout}>
+        <nav className={styles.nav}>
+          {(['upcoming', 'past', 'passes', 'payments', 'policies', 'profile'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`${styles.navItem} ${tab === t ? styles.navItemActive : ''}`}
+            >
+              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Order history' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
+            </button>
+          ))}
+        </nav>
+
+        <div className={styles.body}>
         {profile && (
           <div style={{ display: 'flex', gap: '28px', marginBottom: '22px', flexWrap: 'wrap' }}>
             {[
@@ -894,17 +907,6 @@ export default function MemberAccountPage() {
             ))}
           </div>
         )}
-        <div className={styles.tabs}>
-          {(['upcoming', 'past', 'passes', 'payments', 'policies', 'profile'] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`${styles.tabButton} ${tab === t ? styles.tabButtonActive : ''}`}
-            >
-              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Order history' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
-            </button>
-          ))}
-        </div>
 
         {portalError && (
           <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
@@ -1183,6 +1185,7 @@ export default function MemberAccountPage() {
             )}
           </>
         )}
+        </div>
       </div>
 
       {invoicePayment && (() => {
