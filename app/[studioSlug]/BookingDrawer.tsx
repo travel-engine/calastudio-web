@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useBookingFlow, type PassTemplateOption } from '@/lib/store/bookingFlow'
 import { displayName, splitName } from '@/lib/names'
@@ -114,9 +114,25 @@ export default function BookingDrawer() {
   // instead of what the member actually just checked.
   const [pendingRetryKind, setPendingRetryKind] = useState<'register' | 'confirm-booking' | 'drop-in-payment' | null>(null)
   const [pendingToken, setPendingToken] = useState('')
+  // How many times the member has hit "Accept & continue" for this occurrence. A ref, not state, so
+  // it's readable synchronously inside the awaited retry chain. Once they've accepted and the
+  // retried action *still* comes back with a waiver/terms error, we stop re-showing the screen
+  // (which the member can't do anything more about) and surface the real message instead — see
+  // BookingService's IsActive-less member lookup vs the accept endpoint's IsActiveMemberAsync gate,
+  // which can disagree and produce an unbreakable loop.
+  const agreementsAttemptsRef = useRef(0)
 
   const isWaiverOrTermsError = (message: string) =>
     message.includes('Terms & Conditions') || message.includes('Liability Waiver') || message.includes('liability waiver')
+
+  // Call at the top of each isWaiverOrTermsError branch: true means "already accepted once and it
+  // still failed — don't loop", and it has already routed to the error step with the real message.
+  const agreementsLoopExhausted = (message: string) => {
+    if (agreementsAttemptsRef.current < 1) return false
+    setError(message ||
+      "We couldn't confirm your agreement acceptance with the studio. Please contact them to finish your booking.")
+    return true
+  }
 
   // Booking-options doesn't itself know about capacity (only occurrence.spots_remaining does, a
   // page-load-time snapshot) — so a normal booking attempt can still lose the capacity race between
@@ -147,6 +163,7 @@ export default function BookingDrawer() {
       const data = await registerRes.json().catch(() => null)
       const message: string = data?.error ?? ''
       if (isWaiverOrTermsError(message)) {
+        if (agreementsLoopExhausted(message)) return
         await loadWaiverInfo()
         setAgreementsContext('register')
         setAgreementsError(message)
@@ -172,6 +189,8 @@ export default function BookingDrawer() {
   }
 
   const handleAcceptAgreements = async () => {
+    const attempt = agreementsAttemptsRef.current + 1
+    agreementsAttemptsRef.current = attempt
     setAgreementsError('')
     setAgreementsBusy(true)
     try {
@@ -180,7 +199,13 @@ export default function BookingDrawer() {
           method: 'POST',
           headers: { Authorization: `Bearer ${accessToken}` }
         })
-        if (!res.ok) { setAgreementsError("Couldn't record your acceptance. Please try again."); return }
+        if (!res.ok) {
+          const body = await res.json().catch(() => null)
+          const msg = body?.error || "Couldn't record your acceptance."
+          if (attempt >= 2) { setError(`${msg} Please contact the studio to finish your booking.`); return }
+          setAgreementsError(`${msg} Please try again.`)
+          return
+        }
       }
       if (pendingRetryKind === 'register') await resolveAuth(pendingToken)
       else if (pendingRetryKind === 'confirm-booking') await handleConfirmBooking()
@@ -189,6 +214,9 @@ export default function BookingDrawer() {
       setAgreementsBusy(false)
     }
   }
+
+  // New occurrence → fresh agreements attempt budget.
+  useEffect(() => { agreementsAttemptsRef.current = 0 }, [occurrence?.occurrence_id])
 
   // Whenever the drawer reaches the auth step, first check for an already-signed-in member so
   // returning visitors skip straight past the sign-in form.
@@ -323,6 +351,7 @@ export default function BookingDrawer() {
       } else {
         const message: string = data?.error ?? ''
         if (isWaiverOrTermsError(message)) {
+          if (agreementsLoopExhausted(message)) return
           await loadWaiverInfo()
           setAgreementsContext('booking')
           setAgreementsError('')
@@ -418,6 +447,7 @@ export default function BookingDrawer() {
       if (!res.ok) {
         const message: string = data?.error ?? ''
         if (isWaiverOrTermsError(message)) {
+          if (agreementsLoopExhausted(message)) return
           await loadWaiverInfo()
           setAgreementsContext('booking')
           setAgreementsError('')
