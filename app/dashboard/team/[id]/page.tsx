@@ -385,7 +385,7 @@ export default function EditTeacherPage() {
           </Field>
 
           {/* Photos */}
-          <Field label="Photos" hint="The first photo is shown on the teacher's public pages; the rest are extra gallery images.">
+          <Field label="Photos" hint="The first photo is the one shown on the teacher's public pages. (A multi-photo gallery is coming soon — for now only the first is saved.)">
 
             {/* Photo grid */}
             {form.photos.length > 0 && (
