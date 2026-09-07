@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import styles from '../booking.module.css'
+import { initials } from '@/lib/names'
 
 export const revalidate = 60
 
@@ -24,7 +25,12 @@ function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
       {t.photo_url ? (
         <img src={t.photo_url} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
       ) : (
-        <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: '#f0f0f0', flexShrink: 0 }} />
+        <div style={{
+          width: 64, height: 64, borderRadius: '50%', backgroundColor: '#085041', color: 'white', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700,
+        }}>
+          {initials(t.display_name)}
+        </div>
       )}
       <div style={{ minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: '15px' }}>{t.display_name}</div>

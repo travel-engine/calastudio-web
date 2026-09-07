@@ -114,6 +114,7 @@ export default function EditTeacherPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [orgId, setOrgId] = useState('')
+  const [orgSlug, setOrgSlug] = useState('')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [teacher, setTeacher] = useState<TeacherData | null>(null)
@@ -149,6 +150,7 @@ export default function EditTeacherPage() {
       if (!orgRes.ok) { router.push('/onboarding'); return }
       const org = await orgRes.json()
       setOrgId(org.id)
+      setOrgSlug(org.slug ?? '')
 
       const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
         headers: { Authorization: `Bearer ${t}` }
@@ -175,7 +177,11 @@ export default function EditTeacherPage() {
         is_page_published: data.profile?.is_page_published ?? false,
         show_on_studio_page: data.profile?.show_on_studio_page ?? true,
         roles: data.roles ?? [],
-        photos: data.profile?.photos ?? [],
+        // The profile stores a single photo_url; older data may still have a photos[] array.
+        // Keep photo_url first — it's the one the public pages render.
+        photos: data.profile?.photo_url
+          ? [data.profile.photo_url, ...(data.profile.photos ?? []).filter(u => u !== data.profile!.photo_url)]
+          : (data.profile?.photos ?? []),
         newPhotoUrl: '',
       })
 
@@ -272,6 +278,8 @@ export default function EditTeacherPage() {
             website_url: form.website_url || null,
             is_page_published: form.is_page_published,
             show_on_studio_page: form.show_on_studio_page,
+            // The profile model holds a single photo — the first one is what shows publicly.
+            photo_url: form.photos[0] || null,
             photos: form.photos.length > 0 ? form.photos : null,
           })
         }
@@ -323,8 +331,8 @@ export default function EditTeacherPage() {
             </a>
             <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{displayName(teacher)}</h1>
           </div>
-          {form.is_page_published && teacher.profile && (
-            <a href={`/teachers/${teacher.profile.slug}`} target="_blank" style={{ padding: '8px 16px', border: '1px solid #085041', borderRadius: '8px', color: '#085041', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
+          {form.is_page_published && teacher.profile && orgSlug && (
+            <a href={`/${orgSlug}/teachers/${teacher.profile.slug}`} target="_blank" style={{ padding: '8px 16px', border: '1px solid #085041', borderRadius: '8px', color: '#085041', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
               View landing page
             </a>
           )}
@@ -377,7 +385,7 @@ export default function EditTeacherPage() {
           </Field>
 
           {/* Photos */}
-          <Field label="Photos" hint="Add photos to display on the teacher's landing page.">
+          <Field label="Photos" hint="The first photo is shown on the teacher's public pages; the rest are extra gallery images.">
 
             {/* Photo grid */}
             {form.photos.length > 0 && (

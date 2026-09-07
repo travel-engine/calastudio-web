@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import styles from '../../booking.module.css'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
+import { initials } from '@/lib/names'
 
 export const revalidate = 60
 
@@ -78,7 +79,12 @@ export default async function TeacherLandingPage({ params }: Props) {
           {p.photo_url ? (
             <img src={p.photo_url} alt="" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
           ) : (
-            <div style={{ width: 96, height: 96, borderRadius: '50%', backgroundColor: '#f0f0f0', flexShrink: 0 }} />
+            <div style={{
+              width: 96, height: 96, borderRadius: '50%', backgroundColor: '#085041', color: 'white', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', fontWeight: 700,
+            }}>
+              {initials(p.display_name)}
+            </div>
           )}
           <div style={{ minWidth: 0 }}>
             <Link href={`/${studioSlug}/teachers`} style={{ fontSize: '12px', color: '#085041', fontWeight: 600, textDecoration: 'none' }}>← All teachers</Link>

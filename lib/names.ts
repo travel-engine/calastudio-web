@@ -13,6 +13,19 @@ export function displayName(p: PersonName | null | undefined): string {
   return [p.first_name, p.last_name].filter(Boolean).join(' ').trim()
 }
 
+/** Up to two uppercase initials from a display name, for avatar fallbacks. "" when nothing usable. */
+export function initials(name: string | null | undefined): string {
+  if (!name) return ''
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(w => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
 /** Split a single free-text name on the first space — for form inputs that still collect one field. */
 export function splitName(full: string): { first_name: string; last_name: string } {
   const trimmed = full.trim()
