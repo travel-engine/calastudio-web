@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { useMemberSchedule } from './memberSchedule'
 
 export interface BookableOccurrence {
   occurrence_id: string
@@ -167,7 +168,17 @@ export const useBookingFlow = create<BookingFlowState>((set) => ({
   setStep: (step) => set({ step }),
   setAuth: ({ accessToken, orgId }) => set({ accessToken, orgId }),
   setBookingOptions: (bookingOptions) => set({ bookingOptions }),
-  setConfirmedBooking: (confirmedBooking) => set({ confirmedBooking, step: 'success' }),
+  setConfirmedBooking: (confirmedBooking) => set((s) => {
+    // Keep the schedule page's card in sync so it flips to "Booked" behind the drawer.
+    if (s.occurrence) {
+      useMemberSchedule.getState().addBooking(s.occurrence.occurrence_id, {
+        bookingId: confirmedBooking.id,
+        status: confirmedBooking.status,
+        canCancel: true, // just booked — within the cancellation window
+      })
+    }
+    return { confirmedBooking, step: 'success' }
+  }),
   setError: (errorMessage) => set({ errorMessage, step: 'error' }),
   // Reactive fallback — a normal booking attempt just lost the capacity race, so treat it the same
   // as if the occurrence had been full from the start rather than dead-ending on a raw error.

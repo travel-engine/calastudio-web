@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import FilterBar from './FilterBar'
 import BookButton from './BookButton'
 import BookingDrawer from './BookingDrawer'
+import MemberScheduleLoader from './MemberScheduleLoader'
 import styles from './booking.module.css'
 import type { BookableOccurrence } from '@/lib/store/bookingFlow'
 import { formatDateWithWeekday } from '@/lib/dates'
@@ -47,6 +48,7 @@ function spotsLabel(occ: BookableOccurrence) {
 }
 
 interface PublicOrgInfo {
+  id: string
   slug: string
   name: string
   description: string | null
@@ -207,6 +209,7 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
       </div>
 
       <BookingDrawer />
+      <MemberScheduleLoader studioSlug={studioSlug} orgId={org.id} queryString={qs} />
     </div>
   )
 }
