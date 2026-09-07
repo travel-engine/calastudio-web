@@ -87,6 +87,7 @@ interface WaitlistEntry {
 
 interface LedgerEntry {
   id: string
+  member_pass_id: string
   movement_type: 'purchase' | 'booking_debit' | 'cancel_credit' | 'expired_forfeit' | 'promotion_credit' | 'studio_adjustment'
   credits_delta: number
   credits_after: number
@@ -181,7 +182,9 @@ export default function MemberAccountPage() {
   const [studioNotFound, setStudioNotFound] = useState(false)
   const [portalError, setPortalError] = useState('')
 
-  const [tab, setTab] = useState<'profile' | 'bookings' | 'waitlist' | 'passes' | 'credits' | 'payments'>('profile')
+  const [tab, setTab] = useState<'bookings' | 'waitlist' | 'passes' | 'payments' | 'profile'>('bookings')
+  // Credit history isn't its own tab — it's the movement list you expand under an individual pass.
+  const [expandedPassId, setExpandedPassId] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([])
@@ -717,13 +720,13 @@ export default function MemberAccountPage() {
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '24px' }}>
         <div className={styles.tabs}>
-          {(['profile', 'bookings', 'waitlist', 'passes', 'credits', 'payments'] as const).map(t => (
+          {(['bookings', 'waitlist', 'passes', 'payments', 'profile'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`${styles.tabButton} ${tab === t ? styles.tabButtonActive : ''}`}
             >
-              {t === 'profile' ? 'Profile' : t === 'bookings' ? 'My bookings' : t === 'waitlist' ? 'My waitlist' : t === 'passes' ? 'My passes' : t === 'credits' ? 'Credit history' : 'Payments'}
+              {t === 'bookings' ? 'My bookings' : t === 'waitlist' ? 'My waitlist' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Payments' : 'Profile'}
             </button>
           ))}
         </div>
@@ -933,45 +936,59 @@ export default function MemberAccountPage() {
                   <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
                     No passes yet.
                   </div>
-                ) : passes.map(p => (
-                  <div key={p.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
-                        {p.pass_template?.name ?? 'Pass'}
-                        {p.pass_template && <span style={{ fontWeight: 400, color: '#999', marginLeft: '8px' }}>{formatMoney(p.pass_template.price, p.pass_template.currency)}</span>}
+                ) : passes.map(p => {
+                  const isCredit = p.credits_total !== null
+                  const open = expandedPassId === p.id
+                  const entries = ledger.filter(e => e.member_pass_id === p.id)
+                  return (
+                    <div key={p.id} style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                      <div
+                        onClick={isCredit ? () => setExpandedPassId(open ? null : p.id) : undefined}
+                        style={{
+                          padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          flexWrap: 'wrap', gap: '12px', cursor: isCredit ? 'pointer' : 'default',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
+                            {isCredit && <span style={{ color: '#999', marginRight: '6px' }}>{open ? '▾' : '▸'}</span>}
+                            {p.pass_template?.name ?? 'Pass'}
+                            {p.pass_template && <span style={{ fontWeight: 400, color: '#999', marginLeft: '8px' }}>{formatMoney(p.pass_template.price, p.pass_template.currency)}</span>}
+                          </div>
+                          <div style={{ fontSize: '13px', color: '#666' }}>
+                            {p.credits_remaining === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · Expires {formatDate(p.expires_at)}
+                          </div>
+                        </div>
+                        <StatusBadge status={p.status} />
                       </div>
-                      <div style={{ fontSize: '13px', color: '#666' }}>
-                        {p.credits_remaining === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · Expires {formatDate(p.expires_at)}
-                      </div>
-                    </div>
-                    <StatusBadge status={p.status} />
-                  </div>
-                ))}
-              </div>
-            )}
 
-            {tab === 'credits' && (
-              <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                {ledger.length === 0 ? (
-                  <div style={{ padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px' }}>No credit activity yet.</div>
-                ) : ledger.map((entry, i) => (
-                  <div key={entry.id} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px',
-                    borderBottom: i < ledger.length - 1 ? '1px solid #f4f4f4' : 'none', gap: '12px', flexWrap: 'wrap'
-                  }}>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: 500 }}>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
-                      <div style={{ fontSize: '12px', color: '#999' }}>{formatDateTime(entry.created_at)}</div>
-                      {entry.notes && <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>{entry.notes}</div>}
+                      {open && (
+                        <div style={{ borderTop: '1px solid #f4f4f4' }}>
+                          {entries.length === 0 ? (
+                            <div style={{ padding: '16px 20px', textAlign: 'center', color: '#999', fontSize: '13px' }}>No credit activity on this pass yet.</div>
+                          ) : entries.map((entry, i) => (
+                            <div key={entry.id} style={{
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px',
+                              borderBottom: i < entries.length - 1 ? '1px solid #f7f7f7' : 'none', gap: '12px', flexWrap: 'wrap',
+                            }}>
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: 500 }}>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
+                                <div style={{ fontSize: '12px', color: '#999' }}>{formatDateTime(entry.created_at)}</div>
+                                {entry.notes && <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>{entry.notes}</div>}
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: entry.credits_delta >= 0 ? '#085041' : '#8b1a1a' }}>
+                                  {entry.credits_delta >= 0 ? '+' : ''}{entry.credits_delta}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#999' }}>balance: {entry.credits_after}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: entry.credits_delta >= 0 ? '#085041' : '#8b1a1a' }}>
-                        {entry.credits_delta >= 0 ? '+' : ''}{entry.credits_delta}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#999' }}>balance: {entry.credits_after}</div>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
