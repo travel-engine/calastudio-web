@@ -8,6 +8,15 @@ import Forbidden from '@/app/components/Forbidden'
 import { canManageSettings } from '@/lib/roles'
 import styles from '@/app/dashboard/dashboard.module.css'
 
+// IANA zone names straight from the runtime — an empty list (older browser) falls back to a text input.
+const TIMEZONES: string[] = (() => {
+  try {
+    return (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? []
+  } catch {
+    return []
+  }
+})()
+
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '24px' }}>
@@ -98,6 +107,10 @@ function SettingsPageContent() {
     addressCity: '',
     addressState: '',
     addressPostcode: '',
+    addressCountry: '',
+    timezone: '',
+    locale: '',
+    country: '',
     cancellationHours: '',
     bookingWindowDays: '',
     minAdvanceBookingHours: '',
@@ -118,6 +131,9 @@ function SettingsPageContent() {
   const [addRateForm, setAddRateForm] = useState({ rate: '', effectiveFrom: '', notes: '' })
   const [addingRate, setAddingRate] = useState(false)
   const [rateError, setRateError] = useState('')
+
+  // Set at onboarding, not editable here — shown read-only for context alongside timezone/locale.
+  const [currency, setCurrency] = useState('')
 
   const [stripeOnboardingComplete, setStripeOnboardingComplete] = useState(false)
   const [stripeAccountId, setStripeAccountId] = useState<string | null>(null)
@@ -179,6 +195,10 @@ function SettingsPageContent() {
         addressCity: org.address_city ?? '',
         addressState: org.address_state ?? '',
         addressPostcode: org.address_postcode ?? '',
+        addressCountry: org.address_country ?? '',
+        timezone: org.timezone ?? '',
+        locale: org.locale ?? '',
+        country: org.country ?? '',
         cancellationHours: org.cancellation_hours != null ? String(org.cancellation_hours) : '',
         bookingWindowDays: org.booking_window_days != null ? String(org.booking_window_days) : '',
         minAdvanceBookingHours: org.min_advance_booking_hours != null ? String(org.min_advance_booking_hours) : '',
@@ -188,6 +208,7 @@ function SettingsPageContent() {
       setWaiverText(org.liability_waiver_text ?? '')
       setInitialWaiverText(org.liability_waiver_text ?? '')
       setWaiverVersion(org.liability_waiver_version ?? null)
+      setCurrency(org.currency ?? '')
       setStripeOnboardingComplete(org.stripe_onboarding_complete ?? false)
       setStripeAccountId(org.stripe_account_id ?? null)
 
@@ -345,6 +366,10 @@ function SettingsPageContent() {
           address_city: form.addressCity || null,
           address_state: form.addressState || null,
           address_postcode: form.addressPostcode || null,
+          address_country: form.addressCountry || null,
+          timezone: form.timezone || null,
+          locale: form.locale || null,
+          country: form.country ? form.country.toUpperCase() : null,
           cancellation_hours: form.cancellationHours !== '' ? parseInt(form.cancellationHours, 10) : null,
           booking_window_days: form.bookingWindowDays !== '' ? parseInt(form.bookingWindowDays, 10) : null,
           min_advance_booking_hours: form.minAdvanceBookingHours !== '' ? parseInt(form.minAdvanceBookingHours, 10) : null,
@@ -533,6 +558,48 @@ function SettingsPageContent() {
             </Field>
             <Field label="Postcode">
               <Input value={form.addressPostcode} onChange={e => update('addressPostcode', e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Country" hint="Printed on receipts, e.g. Australia.">
+            <Input value={form.addressCountry} onChange={e => update('addressCountry', e.target.value)} style={{ maxWidth: '260px' }} />
+          </Field>
+
+          <SectionHeader title="Region & locale" description="Set at onboarding. Timezone drives class times, pass expiry, and the local time shown in every email." />
+
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Timezone">
+              {TIMEZONES.length > 0 ? (
+                <select
+                  value={form.timezone}
+                  onChange={e => update('timezone', e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
+                    fontSize: '14px', outline: 'none', backgroundColor: 'white'
+                  }}
+                >
+                  <option value="">Not set</option>
+                  {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+                </select>
+              ) : (
+                <Input placeholder="Australia/Brisbane" value={form.timezone} onChange={e => update('timezone', e.target.value)} />
+              )}
+            </Field>
+            <Field label="Locale" hint="IETF language tag — controls date and number formatting on receipts and emails.">
+              <Input placeholder="en-AU" value={form.locale} onChange={e => update('locale', e.target.value)} />
+            </Field>
+          </div>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Country code" hint="ISO two-letter code the system keys off (tax, formatting). The printed country name is above.">
+              <Input
+                placeholder="AU"
+                maxLength={2}
+                value={form.country}
+                onChange={e => update('country', e.target.value.toUpperCase())}
+                style={{ maxWidth: '120px', textTransform: 'uppercase' }}
+              />
+            </Field>
+            <Field label="Currency" hint="Fixed at onboarding — it's baked into every stored price and Stripe charge.">
+              <Input value={currency || '—'} disabled style={{ maxWidth: '120px', backgroundColor: '#f4f4f4', color: '#666' }} />
             </Field>
           </div>
 
