@@ -21,8 +21,10 @@ export interface PassTemplate {
   delivery_mode_restriction: string[] | null
 }
 
+// Pinned locale: this component is SSR'd then hydrated, so an undefined (runtime-default) locale
+// formats differently on the Node server vs. the browser and trips a hydration mismatch.
 const money = (n: number, c: string) => {
-  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: c }).format(n) }
+  try { return new Intl.NumberFormat('en-AU', { style: 'currency', currency: c }).format(n) }
   catch { return `${c} ${n.toFixed(2)}` }
 }
 

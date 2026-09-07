@@ -6,7 +6,7 @@ import StripePaymentForm from './StripePaymentForm'
 import type { PassTemplate } from './PricingList'
 
 const money = (n: number, c: string) => {
-  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: c }).format(n) }
+  try { return new Intl.NumberFormat('en-AU', { style: 'currency', currency: c }).format(n) }
   catch { return `${c} ${n.toFixed(2)}` }
 }
 
