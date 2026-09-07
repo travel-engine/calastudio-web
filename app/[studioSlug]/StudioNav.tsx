@@ -95,6 +95,15 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
           >
             Schedule
           </Link>
+          <Link
+            href={`/${studioSlug}/pricing`}
+            style={{
+              fontSize: '13px', fontWeight: 600, textDecoration: 'none',
+              color: pathname === `/${studioSlug}/pricing` ? '#1a1a1a' : '#666',
+            }}
+          >
+            Pricing
+          </Link>
 
           {!ready ? (
             <span style={{ width: '32px' }} aria-hidden />
