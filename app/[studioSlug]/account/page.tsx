@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { splitName } from '@/lib/names'
@@ -687,20 +688,31 @@ export default function MemberAccountPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
       <header style={{ backgroundColor: 'white', borderBottom: '1px solid #e2e2e2', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <Link
+          href={`/${studioSlug}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}
+        >
           {org?.logo_url ? (
             <img src={org.logo_url} alt="" style={{ width: 32, height: 32, borderRadius: '6px', objectFit: 'cover' }} />
           ) : (
             <div style={{ width: 32, height: 32, borderRadius: '6px', backgroundColor: brand }} />
           )}
           <span style={{ fontWeight: 700, fontSize: '16px' }}>{org?.name ?? 'My account'}</span>
+        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Link
+            href={`/${studioSlug}`}
+            style={{ padding: '8px 16px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
+          >
+            Book classes
+          </Link>
+          <button
+            onClick={handleSignOut}
+            style={{ padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #e2e2e2', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', color: '#666' }}
+          >
+            Sign out
+          </button>
         </div>
-        <button
-          onClick={handleSignOut}
-          style={{ padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #e2e2e2', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', color: '#666' }}
-        >
-          Sign out
-        </button>
       </header>
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '24px' }}>
