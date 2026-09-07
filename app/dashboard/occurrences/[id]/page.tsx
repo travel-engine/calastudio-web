@@ -94,6 +94,14 @@ interface Booking {
   card_refund_amount?: number | null
   total_credits_used?: number
   member_pass_id?: string | null
+  // Guests cancelled individually via the admin per-guest cancel — the owning booking stays
+  // Confirmed, so these don't show up as their own rows. Roster endpoint only.
+  cancelled_guests?: {
+    name: string
+    cancelled_at: string | null
+    cancelled_by_name: string | null
+    credits_refunded: number
+  }[] | null
 }
 
 // Matches WaitlistEndpoints.cs's WaitlistRosterEntry projection — already redacted server-side
@@ -712,6 +720,15 @@ export default function OccurrenceDetailPage() {
   const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel')
   const rowsForTab = tab === 'booked' ? bookedRows : cancelledRows
 
+  // Guests cancelled one-by-one (admin per-guest cancel) — the owning booking is still Confirmed,
+  // so it isn't in cancelledRows. Surface each here, tied back to its booking's member.
+  const cancelledGuestEntries = bookings.flatMap(b =>
+    (b.cancelled_guests ?? []).map(g => ({
+      ...g,
+      bookingId: b.id,
+      memberName: displayName(b.user) || b.member_name || 'Unknown member',
+    })))
+
   return (
     <div className={styles.shell}>
       <Sidebar active="schedule" roles={roles} />
@@ -1088,7 +1105,7 @@ export default function OccurrenceDetailPage() {
                 ))}
               </div>
             )
-          ) : rowsForTab.length === 0 ? (
+          ) : (rowsForTab.length === 0 && (tab !== 'cancelled' || cancelledGuestEntries.length === 0)) ? (
             <p style={{ fontSize: '13px', color: '#666' }}>
               {tab === 'booked' ? "No one's booked in yet." : 'No cancellations.'}
             </p>
@@ -1200,6 +1217,27 @@ export default function OccurrenceDetailPage() {
                   </div>
                 )
               })}
+
+              {tab === 'cancelled' && cancelledGuestEntries.length > 0 && (
+                <div style={{ marginTop: rowsForTab.length > 0 ? '18px' : '0' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                    Cancelled guests
+                  </div>
+                  {cancelledGuestEntries.map((g, i) => (
+                    <div key={`${g.bookingId}-${i}`} style={{
+                      padding: '10px 0', borderBottom: i < cancelledGuestEntries.length - 1 ? '1px solid #f4f4f4' : 'none'
+                    }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{g.name}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>Guest of {g.memberName}</div>
+                      <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                        Cancelled{g.cancelled_at ? ` ${formatWhen(g.cancelled_at)}` : ''}
+                        {g.cancelled_by_name ? ` by ${g.cancelled_by_name}` : ''}
+                        {g.credits_refunded > 0 ? ` · ${g.credits_refunded} credit${g.credits_refunded > 1 ? 's' : ''} refunded` : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

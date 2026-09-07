@@ -93,6 +93,15 @@ function SettingsPageContent() {
     taxEnabled: false,
     taxLabel: '',
     taxRegistrationNumber: '',
+    addressLine1: '',
+    addressLine2: '',
+    addressCity: '',
+    addressState: '',
+    addressPostcode: '',
+    cancellationHours: '',
+    bookingWindowDays: '',
+    minAdvanceBookingHours: '',
+    lateCancelCreditsForfeited: true,
   })
 
   const [taxRates, setTaxRates] = useState<{ id: string; rate: number; effective_from: string; effective_until: string | null; notes: string | null }[]>([])
@@ -156,6 +165,15 @@ function SettingsPageContent() {
         taxEnabled: org.tax_enabled ?? false,
         taxLabel: org.tax_label ?? '',
         taxRegistrationNumber: org.tax_registration_number ?? '',
+        addressLine1: org.address_line1 ?? '',
+        addressLine2: org.address_line2 ?? '',
+        addressCity: org.address_city ?? '',
+        addressState: org.address_state ?? '',
+        addressPostcode: org.address_postcode ?? '',
+        cancellationHours: org.cancellation_hours != null ? String(org.cancellation_hours) : '',
+        bookingWindowDays: org.booking_window_days != null ? String(org.booking_window_days) : '',
+        minAdvanceBookingHours: org.min_advance_booking_hours != null ? String(org.min_advance_booking_hours) : '',
+        lateCancelCreditsForfeited: org.late_cancel_credits_forfeited ?? true,
       })
       setStripeOnboardingComplete(org.stripe_onboarding_complete ?? false)
       setStripeAccountId(org.stripe_account_id ?? null)
@@ -309,6 +327,15 @@ function SettingsPageContent() {
           tax_enabled: form.taxEnabled,
           tax_label: form.taxLabel || null,
           tax_registration_number: form.taxRegistrationNumber || null,
+          address_line1: form.addressLine1 || null,
+          address_line2: form.addressLine2 || null,
+          address_city: form.addressCity || null,
+          address_state: form.addressState || null,
+          address_postcode: form.addressPostcode || null,
+          cancellation_hours: form.cancellationHours !== '' ? parseInt(form.cancellationHours, 10) : null,
+          booking_window_days: form.bookingWindowDays !== '' ? parseInt(form.bookingWindowDays, 10) : null,
+          min_advance_booking_hours: form.minAdvanceBookingHours !== '' ? parseInt(form.minAdvanceBookingHours, 10) : null,
+          late_cancel_credits_forfeited: form.lateCancelCreditsForfeited,
         })
       })
 
@@ -448,6 +475,50 @@ function SettingsPageContent() {
               <Input value={form.phone} onChange={e => update('phone', e.target.value)} />
             </Field>
           </div>
+
+          <SectionHeader title="Business address" description="Appears on the receipts and invoices members download" />
+
+          <Field label="Address line 1">
+            <Input value={form.addressLine1} onChange={e => update('addressLine1', e.target.value)} />
+          </Field>
+          <Field label="Address line 2">
+            <Input value={form.addressLine2} onChange={e => update('addressLine2', e.target.value)} />
+          </Field>
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '16px' }}>
+            <Field label="City / suburb">
+              <Input value={form.addressCity} onChange={e => update('addressCity', e.target.value)} />
+            </Field>
+            <Field label="State">
+              <Input value={form.addressState} onChange={e => update('addressState', e.target.value)} />
+            </Field>
+            <Field label="Postcode">
+              <Input value={form.addressPostcode} onChange={e => update('addressPostcode', e.target.value)} />
+            </Field>
+          </div>
+
+          <SectionHeader title="Booking policy" description="Studio-wide defaults. Individual sessions can override the cancellation window." />
+
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Cancellation window (hours)" hint="Members can cancel for free up to this many hours before a class starts.">
+              <Input type="number" min="0" value={form.cancellationHours} onChange={e => update('cancellationHours', e.target.value)} />
+            </Field>
+            <Field label="Minimum notice (hours)" hint="Members can't book a class starting sooner than this. Blank keeps the current setting.">
+              <Input type="number" min="0" value={form.minAdvanceBookingHours} onChange={e => update('minAdvanceBookingHours', e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Booking window (days)" hint="How far ahead members can book. Blank keeps the current setting.">
+            <Input type="number" min="0" value={form.bookingWindowDays} onChange={e => update('bookingWindowDays', e.target.value)} style={{ maxWidth: '200px' }} />
+          </Field>
+          <Field label="Late cancellations">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.lateCancelCreditsForfeited}
+                onChange={e => update('lateCancelCreditsForfeited', e.target.checked)}
+              />
+              Forfeit the pass credit when a member cancels after the window closes
+            </label>
+          </Field>
 
           <SectionHeader title="Payments" description="Connect Stripe so members can pay for drop-in classes and passes — money goes straight to your bank account, CalaStudio takes no commission" />
 
