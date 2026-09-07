@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { splitName } from '@/lib/names'
@@ -558,12 +557,6 @@ export default function MemberAccountPage() {
     }
   }
 
-  const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    setAccessToken(''); setOrgId(''); setOrg(null); setProfile(null)
-  }
-
   const brand = org?.brand_color || '#085041'
 
   const now = Date.now()
@@ -717,7 +710,7 @@ export default function MemberAccountPage() {
 
   if (checking) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ color: '#666' }}>Loading...</div>
       </div>
     )
@@ -725,7 +718,7 @@ export default function MemberAccountPage() {
 
   if (studioNotFound) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px' }}>
+      <div style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px' }}>
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Studio not found</h1>
           <p style={{ color: '#666', fontSize: '14px' }}>There's no studio at &quot;{studioSlug}&quot;.</p>
@@ -738,7 +731,7 @@ export default function MemberAccountPage() {
   if (needsAgreements) {
     const canContinue = agreeTerms && (!waiverInfo?.required || agreeWaiver)
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f4f4', padding: '24px' }}>
+      <div style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f4f4', padding: '24px' }}>
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '40px', width: '100%', maxWidth: '420px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
           <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Before you continue</h1>
           <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
@@ -798,7 +791,7 @@ export default function MemberAccountPage() {
   // ── Not signed in: auth gate ──────────────────────────────
   if (!accessToken || !orgId) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f4f4', padding: '24px' }}>
+      <div style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f4f4', padding: '24px' }}>
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '40px', width: '100%', maxWidth: '420px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
             <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{authMode === 'signin' ? 'Welcome back' : 'Create your account'}</h1>
@@ -885,35 +878,7 @@ export default function MemberAccountPage() {
 
   // ── Signed in: portal ──────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
-      <header style={{ backgroundColor: 'white', borderBottom: '1px solid #e2e2e2', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <Link
-          href={`/${studioSlug}`}
-          style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit' }}
-        >
-          {org?.logo_url ? (
-            <img src={org.logo_url} alt="" style={{ width: 32, height: 32, borderRadius: '6px', objectFit: 'cover' }} />
-          ) : (
-            <div style={{ width: 32, height: 32, borderRadius: '6px', backgroundColor: brand }} />
-          )}
-          <span style={{ fontWeight: 700, fontSize: '16px' }}>{org?.name ?? 'My account'}</span>
-        </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Link
-            href={`/${studioSlug}`}
-            style={{ padding: '8px 16px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
-          >
-            Book classes
-          </Link>
-          <button
-            onClick={handleSignOut}
-            style={{ padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #e2e2e2', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', color: '#666' }}
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
+    <div style={{ minHeight: 'calc(100vh - 57px)', backgroundColor: '#f4f4f4' }}>
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '24px' }}>
         {profile && (
           <div style={{ display: 'flex', gap: '28px', marginBottom: '22px', flexWrap: 'wrap' }}>

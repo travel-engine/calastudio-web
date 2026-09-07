@@ -108,18 +108,11 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
       )}
 
       <header className={styles.header}>
-        <div className={styles.headerInner} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {org.logo_url ? (
-            <img src={org.logo_url} alt="" style={{ width: 56, height: 56, borderRadius: '12px', objectFit: 'cover', flexShrink: 0 }} />
-          ) : (
-            <div style={{ width: 56, height: 56, borderRadius: '12px', backgroundColor: brandColor || '#085041', flexShrink: 0 }} />
-          )}
-          <div>
-            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{org.name}</h1>
-            <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-              {org.description || 'Browse and book upcoming sessions.'}
-            </p>
-          </div>
+        <div className={styles.headerInner}>
+          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{org.name}</h1>
+          <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
+            {org.description || 'Browse and book upcoming sessions.'}
+          </p>
         </div>
       </header>
 
