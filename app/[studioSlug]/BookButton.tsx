@@ -43,7 +43,9 @@ export default function BookButton({ studioSlug, occurrence, disabled, label, br
           removeBooking(occurrence.occurrence_id)
         } else {
           const body = await res.json().catch(() => null)
-          setError(body?.error ?? 'Could not cancel. Try again.')
+          setError(body?.error ?? (res.status === 404
+            ? 'This booking is no longer active — reload the page.'
+            : `Could not cancel (${res.status}). Try again.`))
         }
       } catch {
         setError('Could not reach the server.')
