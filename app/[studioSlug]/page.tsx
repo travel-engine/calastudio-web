@@ -54,6 +54,8 @@ interface PublicOrgInfo {
   banner_url: string | null
   brand_color: string | null
   currency: string
+  stripe_account_id: string | null
+  payments_enabled: boolean
 }
 
 export default async function StudioBookingPage({ params, searchParams }: Props) {
@@ -191,6 +193,8 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
                           disabled={!bookable}
                           label={occ.is_cancelled ? 'Cancelled' : spots.tone === 'full' ? 'Join waitlist' : 'Book'}
                           brandColor={brandColor}
+                          stripeAccountId={org.stripe_account_id}
+                          paymentsEnabled={org.payments_enabled}
                         />
                       </div>
                     </div>

@@ -95,11 +95,14 @@ interface BookingFlowState {
   step: BookingStep
   bookedMode: 'in_person' | 'online' | null
 
-  // Resolved once the member is signed in — read by the payment step to call member-scoped
-  // endpoints and to initialize Stripe.js against the studio's connected account.
+  // Payment config for the studio — from GET /api/public/{orgSlug} (the drawer has no admin token,
+  // so it can't read these off the admin org endpoint). Set when the drawer opens.
+  stripeAccountId: string | null
+  paymentsEnabled: boolean
+
+  // Resolved once the member is signed in — read by the payment step to call member-scoped endpoints.
   accessToken: string
   orgId: string
-  stripeAccountId: string | null
 
   bookingOptions: BookingOptions | null
   confirmedBooking: ConfirmedBooking | null
@@ -110,10 +113,14 @@ interface BookingFlowState {
   joiningWaitlist: boolean
   joinedWaitlistEntry: JoinedWaitlistEntry | null
 
-  openOccurrence: (studioSlug: string, occurrence: BookableOccurrence, brandColor?: string) => void
+  openOccurrence: (
+    studioSlug: string,
+    occurrence: BookableOccurrence,
+    opts?: { brandColor?: string; stripeAccountId?: string | null; paymentsEnabled?: boolean },
+  ) => void
   close: () => void
   setStep: (step: BookingStep) => void
-  setAuth: (auth: { accessToken: string; orgId: string; stripeAccountId: string | null }) => void
+  setAuth: (auth: { accessToken: string; orgId: string }) => void
   setBookingOptions: (options: BookingOptions) => void
   setConfirmedBooking: (booking: ConfirmedBooking) => void
   setError: (message: string) => void
@@ -132,6 +139,7 @@ const initialFlowState = {
   accessToken: '',
   orgId: '',
   stripeAccountId: null as string | null,
+  paymentsEnabled: false,
   bookingOptions: null as BookingOptions | null,
   confirmedBooking: null as ConfirmedBooking | null,
   errorMessage: '',
@@ -142,11 +150,13 @@ const initialFlowState = {
 export const useBookingFlow = create<BookingFlowState>((set) => ({
   ...initialFlowState,
 
-  openOccurrence: (studioSlug, occurrence, brandColor) => set({
+  openOccurrence: (studioSlug, occurrence, opts) => set({
     ...initialFlowState,
     studioSlug,
     occurrence,
-    brandColor: brandColor || DEFAULT_BRAND_COLOR,
+    brandColor: opts?.brandColor || DEFAULT_BRAND_COLOR,
+    stripeAccountId: opts?.stripeAccountId ?? null,
+    paymentsEnabled: opts?.paymentsEnabled ?? false,
     step: 'auth',
     bookedMode: occurrence.delivery_mode,
     joiningWaitlist: isOccurrenceFull(occurrence),
@@ -155,7 +165,7 @@ export const useBookingFlow = create<BookingFlowState>((set) => ({
   close: () => set({ ...initialFlowState }),
 
   setStep: (step) => set({ step }),
-  setAuth: ({ accessToken, orgId, stripeAccountId }) => set({ accessToken, orgId, stripeAccountId }),
+  setAuth: ({ accessToken, orgId }) => set({ accessToken, orgId }),
   setBookingOptions: (bookingOptions) => set({ bookingOptions }),
   setConfirmedBooking: (confirmedBooking) => set({ confirmedBooking, step: 'success' }),
   setError: (errorMessage) => set({ errorMessage, step: 'error' }),

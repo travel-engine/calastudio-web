@@ -67,7 +67,7 @@ function formatMoney(amount: number, currency: string) {
 
 export default function BookingDrawer() {
   const {
-    studioSlug, occurrence, brandColor, step, bookedMode, accessToken, orgId, stripeAccountId,
+    studioSlug, occurrence, brandColor, step, bookedMode, accessToken, orgId, stripeAccountId, paymentsEnabled,
     bookingOptions, confirmedBooking, errorMessage, joiningWaitlist, joinedWaitlistEntry,
     close, setStep, setAuth, setBookingOptions, setConfirmedBooking, setError,
     goToWaitlist, setJoinedWaitlist,
@@ -121,6 +121,9 @@ export default function BookingDrawer() {
   // BookingService's IsActive-less member lookup vs the accept endpoint's IsActiveMemberAsync gate,
   // which can disagree and produce an unbreakable loop.
   const agreementsAttemptsRef = useRef(0)
+  // Pass ids the member already held when a purchase started — so the post-payment poll can spot the
+  // *newly issued* pass rather than comparing a date-only effective_from against a timestamp.
+  const passIdsBeforePurchaseRef = useRef<Set<string>>(new Set())
 
   const isWaiverOrTermsError = (message: string) =>
     message.includes('Terms & Conditions') || message.includes('Liability Waiver') || message.includes('liability waiver')
@@ -177,14 +180,15 @@ export default function BookingDrawer() {
     }
     const member = await registerRes.json()
 
-    const [orgRes, profileRes] = await Promise.all([
-      fetch(`${apiUrl}/api/organisations/${member.organisation_id}`, { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${apiUrl}/api/organisations/${member.organisation_id}/members/me`, { headers: { Authorization: `Bearer ${token}` } }),
-    ])
-    const org = orgRes.ok ? await orgRes.json() : null
+    // Stripe config comes from the public org endpoint at open time (in the store) — the admin
+    // GET /api/organisations/{id} is 403 for a member token. Only the member's own name is needed here.
+    const profileRes = await fetch(
+      `${apiUrl}/api/organisations/${member.organisation_id}/members/me`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
     if (profileRes.ok) setMemberName(displayName(await profileRes.json()))
 
-    setAuth({ accessToken: token, orgId: member.organisation_id, stripeAccountId: org?.stripe_account_id ?? null })
+    setAuth({ accessToken: token, orgId: member.organisation_id })
     setStep(joiningWaitlist ? 'waitlist' : 'options')
   }
 
@@ -215,8 +219,11 @@ export default function BookingDrawer() {
     }
   }
 
-  // New occurrence → fresh agreements attempt budget.
-  useEffect(() => { agreementsAttemptsRef.current = 0 }, [occurrence?.occurrence_id])
+  // New occurrence → fresh agreements attempt budget + purchase snapshot.
+  useEffect(() => {
+    agreementsAttemptsRef.current = 0
+    passIdsBeforePurchaseRef.current = new Set()
+  }, [occurrence?.occurrence_id])
 
   // Whenever the drawer reaches the auth step, first check for an already-signed-in member so
   // returning visitors skip straight past the sign-in form.
@@ -416,18 +423,19 @@ export default function BookingDrawer() {
     setError("Your payment succeeded, but we're still confirming your booking. Check My Bookings in a minute — if it's not there, contact the studio.")
   }
 
-  const pollForIssuedPassThenBook = async (templateId: string, since: number) => {
+  const pollForIssuedPassThenBook = async (templateId: string) => {
     setConfirmingLabel('Payment received — issuing your pass...')
     setStep('confirming')
-    for (let attempt = 0; attempt < 10; attempt++) {
+    for (let attempt = 0; attempt < 12; attempt++) {
       await new Promise(r => setTimeout(r, 1500))
       const res = await fetch(`${apiUrl}/api/organisations/${orgId}/members/me/passes`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
       if (res.ok) {
         const passes = await res.json()
+        // The pass the webhook just issued: same template, and an id we didn't already hold.
         const found = passes.find((p: any) =>
-          p.pass_template_id === templateId && new Date(p.effective_from).getTime() >= since - 60_000)
+          p.pass_template_id === templateId && !passIdsBeforePurchaseRef.current.has(p.id))
         if (found) { await handleConfirmBooking(); return }
       }
     }
@@ -476,6 +484,18 @@ export default function BookingDrawer() {
       const data = await res.json().catch(() => null)
       if (!res.ok) { setNote(data?.error ?? "Couldn't start payment. Please try again."); return }
       setPurchaseSecret({ templateId, clientSecret: data.client_secret })
+
+      // Snapshot the passes the member already holds, so the post-payment poll can tell the
+      // newly-issued one apart. Best-effort — an empty snapshot just means "first matching pass wins".
+      try {
+        const existing = await fetch(`${apiUrl}/api/organisations/${orgId}/members/me/passes`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (existing.ok) {
+          const list = await existing.json()
+          passIdsBeforePurchaseRef.current = new Set(list.map((p: any) => p.id))
+        }
+      } catch { /* fall back to first-match */ }
     } finally {
       setPurchaseBusyId('')
     }
@@ -488,6 +508,11 @@ export default function BookingDrawer() {
   }
 
   const modeLabel = (m: 'in_person' | 'online') => m === 'online' ? 'Online' : 'In-person'
+
+  // Card payment is only possible when the studio has enabled payments and a connected account is
+  // known (both from GET /api/public/{orgSlug}, carried in the store since the drawer has no admin
+  // token). Without it the drop-in / buy-a-pass options can't be offered.
+  const canPay = paymentsEnabled && !!stripeAccountId
 
   // Credits a booking costs — matches what BookingService debits. 0 for free / drop-in paths.
   const creditsCost = bookingOptions
@@ -803,6 +828,10 @@ export default function BookingDrawer() {
                     Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
                   </button>
                 </div>
+              ) : !canPay ? (
+                <p style={{ fontSize: '14px', color: '#8b1a1a' }}>
+                  This class needs payment, but this studio hasn&apos;t set up card payments yet. Please contact the studio to book.
+                </p>
               ) : (
                 <div>
                   {!bookingOptions.drop_in_allowed && !bookingOptions.purchasable_pass_templates?.length ? (
@@ -871,7 +900,7 @@ export default function BookingDrawer() {
                                 stripeAccountId={stripeAccountId}
                                 accentColor={brandColor}
                                 submitLabel="Buy & book"
-                                onSuccess={() => pollForIssuedPassThenBook(pt.id, Date.now() - 5000)}
+                                onSuccess={() => pollForIssuedPassThenBook(pt.id)}
                                 onError={msg => setNote(msg)}
                               />
                             </div>
