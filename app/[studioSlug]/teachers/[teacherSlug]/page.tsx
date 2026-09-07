@@ -3,6 +3,7 @@ import Link from 'next/link'
 import styles from '../../booking.module.css'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
 import { initials } from '@/lib/names'
+import TeacherPhoto from '../TeacherPhoto'
 
 export const revalidate = 60
 
@@ -77,7 +78,7 @@ export default async function TeacherLandingPage({ params }: Props) {
       <header className={styles.header}>
         <div className={styles.headerInner} style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
           {p.photo_url ? (
-            <img src={p.photo_url} alt="" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+            <TeacherPhoto src={p.photo_url} alt={p.display_name} size={96} />
           ) : (
             <div style={{
               width: 96, height: 96, borderRadius: '50%', backgroundColor: '#085041', color: 'white', flexShrink: 0,
