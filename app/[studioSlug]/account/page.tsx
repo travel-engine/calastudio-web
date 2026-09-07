@@ -71,8 +71,13 @@ interface Payment {
   payment_type: 'booking' | 'pass_purchase' | 'membership_purchase'
   status: 'pending' | 'succeeded' | 'failed' | 'refunded' | 'partially_refunded'
   amount: number
+  subtotal: number
+  tax_amount: number
+  tax_name: string | null
   currency: string
+  invoice_number: string | null
   refunded_amount: number
+  refund_reason: string | null
   created_at: string
 }
 
@@ -237,6 +242,13 @@ export default function MemberAccountPage() {
   const [profileSaved, setProfileSaved] = useState(false)
   const [cancellingId, setCancellingId] = useState('')
   const [cancelError, setCancelError] = useState('')
+
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const [invoicePayment, setInvoicePayment] = useState<Payment | null>(null)
 
   // Terms & Liability Waiver acceptance — only surfaced when registering with this studio for the
   // first time fails because it hasn't been accepted yet.
@@ -456,6 +468,25 @@ export default function MemberAccountPage() {
     }
   }
 
+  const handleChangePassword = async () => {
+    setPasswordMsg(null)
+    if (newPassword.length < 8) { setPasswordMsg({ ok: false, text: 'Password must be at least 8 characters.' }); return }
+    if (newPassword !== confirmPassword) { setPasswordMsg({ ok: false, text: 'Passwords do not match.' }); return }
+    setChangingPassword(true)
+    try {
+      const { error } = await createClient().auth.updateUser({ password: newPassword })
+      if (error) {
+        setPasswordMsg({ ok: false, text: error.message })
+      } else {
+        setPasswordMsg({ ok: true, text: 'Password updated.' })
+        setNewPassword('')
+        setConfirmPassword('')
+      }
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
   const handleCancelBooking = async (id: string) => {
     setCancellingId(id)
     setCancelError('')
@@ -577,6 +608,13 @@ export default function MemberAccountPage() {
     .sort((a, b) =>
       new Date(a.session_occurrence?.starts_at ?? 0).getTime() -
       new Date(b.session_occurrence?.starts_at ?? 0).getTime())
+
+  const nextStartsAt = upcomingBookings[0]?.session_occurrence?.starts_at
+  const daysToNext = nextStartsAt ? Math.ceil((new Date(nextStartsAt).getTime() - now) / 86_400_000) : null
+  const nextClassLabel = daysToNext == null ? null
+    : daysToNext <= 0 ? 'Today'
+    : daysToNext === 1 ? 'Tomorrow'
+    : `In ${daysToNext} days`
 
   const renderWaitlistRow = (w: WaitlistEntry) => {
     const holdExpired = w.status === 'promoted' && (!w.token_expires_at || new Date(w.token_expires_at) <= new Date())
@@ -901,6 +939,20 @@ export default function MemberAccountPage() {
       </header>
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '24px' }}>
+        {profile && (
+          <div style={{ display: 'flex', gap: '28px', marginBottom: '22px', flexWrap: 'wrap' }}>
+            {[
+              { label: 'Member since', value: formatDate(profile.join_date) },
+              { label: 'Bookings', value: String(bookings.length) },
+              ...(nextClassLabel ? [{ label: 'Next class', value: nextClassLabel }] : []),
+            ].map((s, i) => (
+              <div key={s.label} style={i === 0 ? undefined : { borderLeft: '1px solid #e2e2e2', paddingLeft: '28px' }}>
+                <div style={{ fontSize: '12px', color: '#999', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
+                <div style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px' }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
         <div className={styles.tabs}>
           {(['upcoming', 'past', 'passes', 'payments', 'policies', 'profile'] as const).map(t => (
             <button
@@ -908,7 +960,7 @@ export default function MemberAccountPage() {
               onClick={() => setTab(t)}
               className={`${styles.tabButton} ${tab === t ? styles.tabButtonActive : ''}`}
             >
-              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Payments' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
+              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Order history' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
             </button>
           ))}
         </div>
@@ -993,6 +1045,36 @@ export default function MemberAccountPage() {
                   {savingProfile ? 'Saving...' : 'Save changes'}
                 </button>
                 {profileSaved && <span style={{ marginLeft: '12px', fontSize: '13px', color: '#085041' }}>Saved.</span>}
+
+                <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid #eee' }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '12px' }}>Change password</div>
+                  <div className={styles.formGrid} style={{ marginBottom: '12px' }}>
+                    <div>
+                      <label style={labelStyle}>New password</label>
+                      <input type="password" placeholder="Minimum 8 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Confirm new password</label>
+                      <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={inputStyle} />
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={changingPassword || !newPassword}
+                    style={{
+                      padding: '9px 20px', backgroundColor: (changingPassword || !newPassword) ? '#e2e2e2' : 'transparent',
+                      border: '1px solid #d2d2d2', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                      color: '#1a1a1a', cursor: (changingPassword || !newPassword) ? 'default' : 'pointer'
+                    }}
+                  >
+                    {changingPassword ? 'Updating…' : 'Update password'}
+                  </button>
+                  {passwordMsg && (
+                    <span style={{ marginLeft: '12px', fontSize: '13px', color: passwordMsg.ok ? '#085041' : '#8b1a1a' }}>
+                      {passwordMsg.text}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1054,7 +1136,7 @@ export default function MemberAccountPage() {
                             {p.pass_template && <span style={{ fontWeight: 400, color: '#999', marginLeft: '8px' }}>{formatMoney(p.pass_template.price, p.pass_template.currency)}</span>}
                           </div>
                           <div style={{ fontSize: '13px', color: '#666' }}>
-                            {p.credits_remaining === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · Expires {formatDate(p.expires_at)}
+                            {p.credits_remaining === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · {formatDate(p.effective_from)} – {formatDate(p.expires_at)}
                           </div>
                         </div>
                         <StatusBadge status={p.status} />
@@ -1102,13 +1184,19 @@ export default function MemberAccountPage() {
                     No payments yet.
                   </div>
                 ) : payments.map(p => (
-                  <div key={p.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div
+                    key={p.id}
+                    onClick={() => setInvoicePayment(p)}
+                    style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', cursor: 'pointer' }}
+                  >
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
                         {paymentTypeLabels[p.payment_type] ?? p.payment_type}
                         <span style={{ fontWeight: 400, color: '#999', marginLeft: '8px' }}>{formatMoney(p.amount, p.currency)}</span>
                       </div>
-                      <div style={{ fontSize: '13px', color: '#666' }}>{formatDateTime(p.created_at)}</div>
+                      <div style={{ fontSize: '13px', color: '#666' }}>
+                        {formatDateTime(p.created_at)}{p.invoice_number ? ` · Invoice ${p.invoice_number}` : ''}
+                      </div>
                       {p.refunded_amount > 0 && (
                         <div style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '2px' }}>
                           {p.status === 'refunded' ? 'Fully refunded' : `Refunded ${formatMoney(p.refunded_amount, p.currency)}`}
@@ -1119,7 +1207,7 @@ export default function MemberAccountPage() {
                       <StatusBadge status={p.status} />
                       {p.status === 'succeeded' && (
                         <button
-                          onClick={() => handleDownloadReceipt(p.id)}
+                          onClick={e => { e.stopPropagation(); handleDownloadReceipt(p.id) }}
                           disabled={downloadingReceiptId === p.id}
                           style={{
                             padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
@@ -1177,6 +1265,62 @@ export default function MemberAccountPage() {
           </>
         )}
       </div>
+
+      {invoicePayment && (() => {
+        const p = invoicePayment
+        const label = paymentTypeLabels[p.payment_type] ?? p.payment_type
+        return (
+          <div
+            onClick={() => setInvoicePayment(null)}
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px' }}
+          >
+            <div onClick={e => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '17px', fontWeight: 700 }}>{label}</div>
+                  <div style={{ marginTop: '4px' }}><StatusBadge status={p.status} /></div>
+                </div>
+                <button onClick={() => setInvoicePayment(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>×</button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: '6px', columnGap: '16px', fontSize: '13px', marginBottom: '16px' }}>
+                {p.invoice_number && (<><span style={{ color: '#999' }}>Invoice number</span><span style={{ fontWeight: 600 }}>{p.invoice_number}</span></>)}
+                <span style={{ color: '#999' }}>Date</span><span>{formatDateTime(p.created_at)}</span>
+              </div>
+
+              <div style={{ borderTop: '1px solid #eee', paddingTop: '12px', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span>{label}</span><span>{formatMoney(p.subtotal || p.amount, p.currency)}</span>
+                </div>
+                {p.tax_amount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#666' }}>
+                    <span>{p.tax_name || 'Tax'}</span><span>{formatMoney(p.tax_amount, p.currency)}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 0', marginTop: '4px', borderTop: '1px solid #eee', fontWeight: 700 }}>
+                  <span>Total</span><span>{formatMoney(p.amount, p.currency)}</span>
+                </div>
+                {p.refunded_amount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 0', color: '#8b1a1a' }}>
+                    <span>Refunded{p.refund_reason ? ` — ${p.refund_reason}` : ''}</span>
+                    <span>−{formatMoney(p.refunded_amount, p.currency)}</span>
+                  </div>
+                )}
+              </div>
+
+              {p.status === 'succeeded' && (
+                <button
+                  onClick={() => handleDownloadReceipt(p.id)}
+                  disabled={downloadingReceiptId === p.id}
+                  style={{ marginTop: '18px', width: '100%', padding: '10px', backgroundColor: brand, color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {downloadingReceiptId === p.id ? 'Downloading…' : 'Download receipt (PDF)'}
+                </button>
+              )}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
