@@ -243,11 +243,6 @@ export default function MemberAccountPage() {
   const [cancellingId, setCancellingId] = useState('')
   const [cancelError, setCancelError] = useState('')
 
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [changingPassword, setChangingPassword] = useState(false)
-  const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null)
-
   const [invoicePayment, setInvoicePayment] = useState<Payment | null>(null)
 
   // Terms & Liability Waiver acceptance — only surfaced when registering with this studio for the
@@ -465,25 +460,6 @@ export default function MemberAccountPage() {
       if (res.ok) { setProfile(await res.json()); setProfileSaved(true) }
     } finally {
       setSavingProfile(false)
-    }
-  }
-
-  const handleChangePassword = async () => {
-    setPasswordMsg(null)
-    if (newPassword.length < 8) { setPasswordMsg({ ok: false, text: 'Password must be at least 8 characters.' }); return }
-    if (newPassword !== confirmPassword) { setPasswordMsg({ ok: false, text: 'Passwords do not match.' }); return }
-    setChangingPassword(true)
-    try {
-      const { error } = await createClient().auth.updateUser({ password: newPassword })
-      if (error) {
-        setPasswordMsg({ ok: false, text: error.message })
-      } else {
-        setPasswordMsg({ ok: true, text: 'Password updated.' })
-        setNewPassword('')
-        setConfirmPassword('')
-      }
-    } finally {
-      setChangingPassword(false)
     }
   }
 
@@ -1047,33 +1023,11 @@ export default function MemberAccountPage() {
                 {profileSaved && <span style={{ marginLeft: '12px', fontSize: '13px', color: '#085041' }}>Saved.</span>}
 
                 <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid #eee' }}>
-                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '12px' }}>Change password</div>
-                  <div className={styles.formGrid} style={{ marginBottom: '12px' }}>
-                    <div>
-                      <label style={labelStyle}>New password</label>
-                      <input type="password" placeholder="Minimum 8 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={inputStyle} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Confirm new password</label>
-                      <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={inputStyle} />
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleChangePassword}
-                    disabled={changingPassword || !newPassword}
-                    style={{
-                      padding: '9px 20px', backgroundColor: (changingPassword || !newPassword) ? '#e2e2e2' : 'transparent',
-                      border: '1px solid #d2d2d2', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                      color: '#1a1a1a', cursor: (changingPassword || !newPassword) ? 'default' : 'pointer'
-                    }}
-                  >
-                    {changingPassword ? 'Updating…' : 'Update password'}
-                  </button>
-                  {passwordMsg && (
-                    <span style={{ marginLeft: '12px', fontSize: '13px', color: passwordMsg.ok ? '#085041' : '#8b1a1a' }}>
-                      {passwordMsg.text}
-                    </span>
-                  )}
+                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>Password</div>
+                  <p style={{ fontSize: '13px', color: '#666', margin: 0 }}>
+                    To change your password, sign out and use{' '}
+                    <span style={{ fontWeight: 600 }}>&ldquo;Forgot password?&rdquo;</span> on the sign-in screen. We&apos;ll email you a secure reset link.
+                  </p>
                 </div>
               </div>
             )}
