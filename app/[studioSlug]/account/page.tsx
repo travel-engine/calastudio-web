@@ -37,12 +37,21 @@ interface Booking {
   status: 'confirmed' | 'attended' | 'cancelled' | 'late_cancel' | 'no_show' | 'waitlisted'
   booked_mode: 'in_person' | 'online'
   booked_at: string
+  guest_count: number
   cancellation_reason: string | null
   session_occurrence: {
     starts_at: string
     ends_at: string
     meeting_url: string | null
-    session: { name: string; session_type: string; delivery_mode: string } | null
+    session: {
+      name: string
+      session_type: string
+      delivery_mode: string
+      location_name: string | null
+      location_address: string | null
+      meeting_url: string | null
+      meeting_url_visible: boolean
+    } | null
   } | null
 }
 
@@ -159,6 +168,28 @@ function formatDateTime(iso: string) {
   return formatDateTimeWithWeekday(iso)
 }
 
+function timeRange(startIso: string, endIso: string) {
+  const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }
+  return `${new Date(startIso).toLocaleTimeString(undefined, opts)} – ${new Date(endIso).toLocaleTimeString(undefined, opts)}`
+}
+
+const JOIN_WINDOW_MS = 15 * 60 * 1000
+
+// What the "Join" affordance should show for an upcoming online booking, per 04-booking-flow.md §4.2.6.
+function onlineJoin(occ: NonNullable<Booking['session_occurrence']>) {
+  const now = Date.now()
+  const starts = new Date(occ.starts_at).getTime()
+  const ends = new Date(occ.ends_at).getTime()
+  const url = occ.meeting_url ?? occ.session?.meeting_url ?? null
+  if (url && now >= starts - JOIN_WINDOW_MS && now <= ends) return { kind: 'link' as const, url }
+  if (now < starts - JOIN_WINDOW_MS) {
+    return occ.session?.meeting_url_visible || url
+      ? { kind: 'note' as const, text: 'Join link opens 15 min before' }
+      : { kind: 'note' as const, text: 'Join link emailed 15 min before' }
+  }
+  return null // session over, or no link available at all
+}
+
 export default function MemberAccountPage() {
   const params = useParams()
   const studioSlug = params.studioSlug as string
@@ -182,7 +213,7 @@ export default function MemberAccountPage() {
   const [studioNotFound, setStudioNotFound] = useState(false)
   const [portalError, setPortalError] = useState('')
 
-  const [tab, setTab] = useState<'bookings' | 'waitlist' | 'passes' | 'payments' | 'profile'>('bookings')
+  const [tab, setTab] = useState<'upcoming' | 'past' | 'waitlist' | 'passes' | 'payments' | 'policies' | 'profile'>('upcoming')
   // Credit history isn't its own tab — it's the movement list you expand under an individual pass.
   const [expandedPassId, setExpandedPassId] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -290,6 +321,15 @@ export default function MemberAccountPage() {
     init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Studio waiver text for the Privacy & policies tab (public endpoint, no auth).
+  useEffect(() => {
+    if (!studioSlug || waiverInfo) return
+    fetch(`${apiUrl}/api/public/${studioSlug}/liability-waiver`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setWaiverInfo(d) })
+      .catch(() => {})
+  }, [apiUrl, studioSlug, waiverInfo])
 
   // Once orgId is known, load studio branding + all portal data
   useEffect(() => {
@@ -476,7 +516,7 @@ export default function MemberAccountPage() {
         const [wlRes, bkRes] = await Promise.all([authedFetch('/members/me/waitlist'), authedFetch('/members/me/bookings')])
         if (wlRes.ok) setWaitlist(await wlRes.json())
         if (bkRes.ok) setBookings(await bkRes.json())
-        setTab('bookings')
+        setTab('upcoming')
       } else if (res.ok && !data?.booked) {
         setWaitlistActionError("You'll need an eligible pass to claim this spot — buy one from the booking page, then come back and claim again before your hold expires.")
       } else {
@@ -518,6 +558,87 @@ export default function MemberAccountPage() {
   }
 
   const brand = org?.brand_color || '#085041'
+
+  const now = Date.now()
+  const isUpcoming = (b: Booking) =>
+    b.status === 'confirmed' && !!b.session_occurrence && new Date(b.session_occurrence.starts_at).getTime() > now
+  const upcomingBookings = bookings
+    .filter(isUpcoming)
+    .sort((a, b) => new Date(a.session_occurrence!.starts_at).getTime() - new Date(b.session_occurrence!.starts_at).getTime())
+  const pastBookings = bookings
+    .filter(b => !isUpcoming(b))
+    .sort((a, b) =>
+      new Date(b.session_occurrence?.starts_at ?? b.booked_at).getTime() -
+      new Date(a.session_occurrence?.starts_at ?? a.booked_at).getTime())
+
+  const renderBookingRow = (b: Booking, upcoming: boolean) => {
+    const occ = b.session_occurrence
+    const sess = occ?.session
+    const join = upcoming && b.booked_mode === 'online' && occ ? onlineJoin(occ) : null
+    return (
+      <div key={b.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {sess?.name ?? 'Session'}
+            {b.guest_count > 0 && (
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#7a4f00', backgroundColor: '#fff3cd', borderRadius: '999px', padding: '2px 8px' }}>
+                +{b.guest_count} guest{b.guest_count > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: '13px', color: '#666' }}>
+            {occ ? `${formatDateTime(occ.starts_at)} · ${timeRange(occ.starts_at, occ.ends_at)}` : '—'}
+            {b.booked_mode === 'online' ? ' · Online' : ' · In person'}
+          </div>
+          {b.booked_mode !== 'online' && sess?.location_name && (
+            <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+              {sess.location_name}{sess.location_address ? ` · ${sess.location_address}` : ''}
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <StatusBadge status={b.status} />
+          {join?.kind === 'link' && (
+            <a
+              href={join.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ padding: '6px 14px', backgroundColor: brand, color: 'white', borderRadius: '6px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}
+            >
+              Join
+            </a>
+          )}
+          {join?.kind === 'note' && (
+            <span style={{ fontSize: '11px', color: '#999' }}>{join.text}</span>
+          )}
+          {upcoming && b.status === 'confirmed' && (
+            <button
+              onClick={() => handleCancelBooking(b.id)}
+              disabled={cancellingId === b.id}
+              style={{
+                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
+                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#8b1a1a'
+              }}
+            >
+              {cancellingId === b.id ? 'Cancelling...' : 'Cancel'}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const emptyPanel = (text: string) => (
+    <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+      <div style={{ color: '#666', fontSize: '14px', marginBottom: '16px' }}>{text}</div>
+      <a
+        href={`/${studioSlug}`}
+        style={{ display: 'inline-block', padding: '9px 20px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
+      >
+        Go to schedule
+      </a>
+    </div>
+  )
 
   if (checking) {
     return (
@@ -720,13 +841,13 @@ export default function MemberAccountPage() {
 
       <div style={{ maxWidth: '760px', margin: '0 auto', padding: '24px' }}>
         <div className={styles.tabs}>
-          {(['bookings', 'waitlist', 'passes', 'payments', 'profile'] as const).map(t => (
+          {(['upcoming', 'past', 'waitlist', 'passes', 'payments', 'policies', 'profile'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`${styles.tabButton} ${tab === t ? styles.tabButtonActive : ''}`}
             >
-              {t === 'bookings' ? 'My bookings' : t === 'waitlist' ? 'My waitlist' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Payments' : 'Profile'}
+              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'waitlist' ? 'My waitlist' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Payments' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
             </button>
           ))}
         </div>
@@ -814,45 +935,24 @@ export default function MemberAccountPage() {
               </div>
             )}
 
-            {tab === 'bookings' && (
+            {tab === 'upcoming' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {cancelError && (
                   <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
                     {cancelError}
                   </div>
                 )}
-                {bookings.length === 0 ? (
-                  <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
-                    No bookings yet.
-                  </div>
-                ) : bookings.map(b => (
-                  <div key={b.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
-                        {b.session_occurrence?.session?.name ?? 'Session'}
-                      </div>
-                      <div style={{ fontSize: '13px', color: '#666' }}>
-                        {b.session_occurrence ? formatDateTime(b.session_occurrence.starts_at) : '—'}
-                        {b.booked_mode === 'online' ? ' · Online' : ' · In person'}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <StatusBadge status={b.status} />
-                      {b.status === 'confirmed' && (
-                        <button
-                          onClick={() => handleCancelBooking(b.id)}
-                          disabled={cancellingId === b.id}
-                          style={{
-                            padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                            borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#8b1a1a'
-                          }}
-                        >
-                          {cancellingId === b.id ? 'Cancelling...' : 'Cancel'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                {upcomingBookings.length === 0
+                  ? emptyPanel('No upcoming bookings.')
+                  : upcomingBookings.map(b => renderBookingRow(b, true))}
+              </div>
+            )}
+
+            {tab === 'past' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {pastBookings.length === 0
+                  ? emptyPanel('No past bookings.')
+                  : pastBookings.map(b => renderBookingRow(b, false))}
               </div>
             )}
 
@@ -1034,6 +1134,46 @@ export default function MemberAccountPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {tab === 'policies' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>Terms &amp; Conditions</div>
+                  <p style={{ fontSize: '13px', color: '#666', margin: '0 0 12px' }}>
+                    The CalaStudio platform terms you agreed to when you created your account.
+                  </p>
+                  <a
+                    href="https://calastudio.app/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: '13px', fontWeight: 600, color: brand }}
+                  >
+                    Read the Terms &amp; Conditions →
+                  </a>
+                </div>
+
+                <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>
+                    {org?.name ? `${org.name} Liability Waiver` : 'Liability Waiver'}
+                  </div>
+                  {waiverInfo === null ? (
+                    <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>Loading…</p>
+                  ) : waiverInfo.text ? (
+                    <>
+                      <div style={{
+                        fontSize: '13px', color: '#444', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                        maxHeight: '260px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '8px', padding: '14px',
+                      }}>
+                        {waiverInfo.text}
+                      </div>
+                      <p style={{ fontSize: '11px', color: '#999', margin: '8px 0 0' }}>Version {waiverInfo.version}</p>
+                    </>
+                  ) : (
+                    <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>This studio hasn&apos;t published a liability waiver.</p>
+                  )}
+                </div>
               </div>
             )}
           </>
