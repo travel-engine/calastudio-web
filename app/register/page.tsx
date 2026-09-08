@@ -18,7 +18,8 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        // Land a freshly-verified studio signup on the onboarding wizard, not the empty dashboard.
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
       },
     })
 

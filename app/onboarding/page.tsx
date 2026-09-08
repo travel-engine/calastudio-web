@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -568,11 +568,28 @@ interface StudioData {
 // ── Main Wizard ───────────────────────────────────────────
 export default function OnboardingPage() {
   const router = useRouter()
+  const [checking, setChecking] = useState(true)
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [orgSlug, setOrgSlug] = useState('')
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [error, setError] = useState('')
+
+  // Guard the wizard: must be signed in, and must not already have a studio.
+  useEffect(() => {
+    const check = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.replace('/login'); return }
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) { router.replace('/dashboard'); return }
+      setChecking(false)
+    }
+    check()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [data, setData] = useState<StudioData>({
     name: '',
     ownerName: '',
@@ -636,6 +653,14 @@ export default function OnboardingPage() {
   }
 
   const TOTAL_STEPS = 4
+
+  if (checking) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f4f4', color: '#666' }}>
+        Loading…
+      </div>
+    )
+  }
 
   return (
     <div style={{

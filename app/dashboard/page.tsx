@@ -119,7 +119,9 @@ export default function DashboardPage() {
       const auth = { headers: { Authorization: `Bearer ${token}` } }
 
       const orgRes = await fetch(`${API}/api/organisations/mine`, auth)
-      if (!orgRes.ok) { setLoading(false); return }
+      // A verified-but-not-yet-onboarded user has a session but no org — send them to set one up
+      // (same as the settings/team pages do).
+      if (!orgRes.ok) { router.push('/onboarding'); return }
       const org = await orgRes.json()
 
       const roleRes = await fetch(`${API}/api/organisations/${org.id}/my-role`, auth)
