@@ -82,21 +82,22 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function NextButton({ onClick, loading, children }: { onClick: () => void; loading?: boolean; children: React.ReactNode }) {
+function NextButton({ onClick, loading, disabled, children }: { onClick: () => void; loading?: boolean; disabled?: boolean; children: React.ReactNode }) {
+  const off = loading || disabled
   return (
     <button
       onClick={onClick}
-      disabled={loading}
+      disabled={off}
       style={{
         width: '100%',
         padding: '12px',
-        backgroundColor: loading ? '#9fd6b8' : '#085041',
+        backgroundColor: off ? '#9fd6b8' : '#085041',
         color: 'white',
         border: 'none',
         borderRadius: '8px',
         fontSize: '15px',
         fontWeight: 600,
-        cursor: loading ? 'not-allowed' : 'pointer',
+        cursor: off ? 'not-allowed' : 'pointer',
         marginTop: '8px'
       }}
     >
@@ -128,10 +129,12 @@ function BackButton({ onClick }: { onClick: () => void }) {
 }
 
 // ── Step 1: Studio Basics ─────────────────────────────────
-function Step1({ data, onChange, onNext }: {
+function Step1({ data, onChange, onNext, acceptTerms, onAcceptTerms }: {
   data: StudioData
   onChange: (key: string, value: string) => void
   onNext: () => void
+  acceptTerms: boolean
+  onAcceptTerms: (v: boolean) => void
 }) {
   return (
     <div>
@@ -209,7 +212,15 @@ function Step1({ data, onChange, onNext }: {
         </Select>
       </Field>
 
-      <NextButton onClick={onNext}>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', color: '#444', cursor: 'pointer', margin: '4px 0 8px' }}>
+        <input type="checkbox" checked={acceptTerms} onChange={e => onAcceptTerms(e.target.checked)} style={{ marginTop: '2px' }} />
+        <span>
+          I accept the{' '}
+          <a href="https://calastudio.app/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#085041', fontWeight: 600 }}>Terms &amp; Conditions</a>.
+        </span>
+      </label>
+
+      <NextButton onClick={onNext} disabled={!data.name.trim() || !acceptTerms}>
         Continue →
       </NextButton>
     </div>
@@ -560,6 +571,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [orgSlug, setOrgSlug] = useState('')
+  const [acceptTerms, setAcceptTerms] = useState(false)
+  const [error, setError] = useState('')
   const [data, setData] = useState<StudioData>({
     name: '',
     ownerName: '',
@@ -584,10 +597,12 @@ export default function OnboardingPage() {
 
   const handleComplete = async () => {
     setLoading(true)
+    setError('')
     try {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
+      if (!token) { router.push('/login'); return }
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations`, {
         method: 'POST',
@@ -601,15 +616,20 @@ export default function OnboardingPage() {
           timezone: data.timezone,
           currency: data.currency,
           country: data.country,
-          locale: 'en-AU'
+          locale: 'en-AU',
+          accept_terms: acceptTerms,
         })
       })
 
-      const org = await response.json()
+      const org = await response.json().catch(() => null)
+      if (!response.ok || !org?.slug) {
+        setError(org?.error ?? 'Something went wrong creating your studio. Please try again.')
+        return
+      }
       setOrgSlug(org.slug)
       setStep(5)
-    } catch (error) {
-      console.error('Failed to create organisation:', error)
+    } catch {
+      setError('Could not reach the server. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -654,7 +674,7 @@ export default function OnboardingPage() {
 
         {/* Steps */}
         {step === 1 && (
-          <Step1 data={data} onChange={update} onNext={() => setStep(2)} />
+          <Step1 data={data} onChange={update} onNext={() => setStep(2)} acceptTerms={acceptTerms} onAcceptTerms={setAcceptTerms} />
         )}
         {step === 2 && (
           <Step2 data={data} onChange={update} onNext={() => setStep(3)} onBack={() => setStep(1)} />
@@ -663,11 +683,18 @@ export default function OnboardingPage() {
           <Step3 data={data} onChange={update} onNext={() => setStep(4)} onBack={() => setStep(2)} />
         )}
         {step === 4 && (
-          <Step4
-            onNext={handleComplete}
-            onSkip={handleComplete}
-            onBack={() => setStep(3)}
-          />
+          <>
+            <Step4
+              onNext={handleComplete}
+              onSkip={handleComplete}
+              onBack={() => setStep(3)}
+            />
+            {error && (
+              <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                {error}
+              </div>
+            )}
+          </>
         )}
         {step === 5 && (
           <Step5 data={data} orgSlug={orgSlug} />
