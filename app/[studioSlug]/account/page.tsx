@@ -826,20 +826,6 @@ export default function MemberAccountPage() {
             <div>
               <label style={labelStyle}>Password</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
-              {authMode === 'signin' && (
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  disabled={authBusy}
-                  style={{
-                    background: 'none', border: 'none', padding: 0, marginTop: '6px',
-                    color: brand, fontSize: '12px', fontWeight: 600,
-                    cursor: authBusy ? 'default' : 'pointer',
-                  }}
-                >
-                  Forgot password?
-                </button>
-              )}
             </div>
 
             <button
@@ -852,6 +838,23 @@ export default function MemberAccountPage() {
             >
               {authBusy ? 'Please wait...' : authMode === 'signin' ? 'Sign in' : 'Create account'}
             </button>
+
+            {authMode === 'signin' && (
+              <p style={{ textAlign: 'center', marginTop: '-2px' }}>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={authBusy}
+                  style={{
+                    background: 'none', border: 'none', padding: 0,
+                    color: brand, fontSize: '12px', fontWeight: 600,
+                    cursor: authBusy ? 'default' : 'pointer',
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </p>
+            )}
 
             {authMessage && (
               <div style={{
