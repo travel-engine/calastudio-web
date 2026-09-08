@@ -21,6 +21,7 @@ interface Occurrence {
     name: string
     delivery_mode: 'in_person' | 'online'
     capacity: number | null
+    visibility: string | null
   } | null
 }
 
@@ -262,6 +263,7 @@ export default function SchedulePage() {
                             const isFull = capacity !== null && booked >= capacity
                             const isPast = new Date(occ.starts_at) < now
                             const isCancelled = occ.status === 'cancelled'
+                            const isDraft = occ.session?.visibility === 'draft'
                             return (
                             <a
                               key={occ.id}
@@ -269,7 +271,8 @@ export default function SchedulePage() {
                               style={{
                                 display: 'flex', alignItems: 'center', gap: '10px',
                                 padding: '8px 12px', borderRadius: '8px',
-                                backgroundColor: isCancelled ? '#f7f7f7' : isPast ? '#f4f4f4' : '#e8f5ee',
+                                backgroundColor: isCancelled ? '#f7f7f7' : isDraft ? '#fbfbfb' : isPast ? '#f4f4f4' : '#e8f5ee',
+                                border: isDraft ? '1px dashed #d2d2d2' : undefined,
                                 textDecoration: 'none', color: isCancelled || isPast ? '#999' : '#1a1a1a', fontSize: '13px'
                               }}
                             >
@@ -291,6 +294,14 @@ export default function SchedulePage() {
                                   <span style={{ color: '#8b1a1a' }}> — {occ.cancellation_reason}</span>
                                 )}
                               </span>
+                              {isDraft && (
+                                <span style={{
+                                  fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
+                                  backgroundColor: '#f0f0f0', color: '#666'
+                                }}>
+                                  Draft
+                                </span>
+                              )}
                               {isCancelled ? (
                                 <span style={{
                                   fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
