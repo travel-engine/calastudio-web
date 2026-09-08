@@ -102,16 +102,19 @@ export interface SearchHit extends ArticleMeta {
   snippet: string
 }
 
-// Full-text search across both audiences — title/description/body. Small corpus (~30 short
-// articles), so a plain in-memory scan per request is fine.
-export function searchAllArticles(query: string): SearchHit[] {
+// Full-text search across the given audiences (default both) — title/description/body. Small
+// corpus (~30 short articles), so a plain in-memory scan per request is fine.
+export function searchAllArticles(
+  query: string,
+  audiences: ('studio' | 'member')[] = ['studio', 'member'],
+): SearchHit[] {
   const q = query.trim().toLowerCase()
   if (q.length < 2) return []
   const terms = q.split(/\s+/).filter(Boolean)
 
   const hits: SearchHit[] = []
 
-  for (const audience of ['studio', 'member'] as const) {
+  for (const audience of audiences) {
     const audienceDir = path.join(helpDir, audience)
     if (!fs.existsSync(audienceDir)) continue
 

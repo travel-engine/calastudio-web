@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 import { searchAllArticles, sectionNames } from '@/lib/help'
 
 interface Props {
@@ -14,10 +16,27 @@ const inputStyle: React.CSSProperties = {
   fontSize: '15px', outline: 'none',
 }
 
+// Studio guides are for signed-in studio staff; a signed-out visitor (a prospective/actual member)
+// only searches the member guides — matches the /help index, where the studio grid is gated.
+async function isSignedIn() {
+  const store = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => store.getAll(), setAll: () => {} } },
+  )
+  // Just a UI-scoping check; studio articles are still auth-gated on open. getSession reads the
+  // cookie without a refresh round-trip.
+  const { data: { session } } = await supabase.auth.getSession()
+  return !!session
+}
+
 export default async function HelpSearchPage({ searchParams }: Props) {
   const { q = '' } = await searchParams
   const query = q.trim()
-  const results = query ? searchAllArticles(query) : []
+  const signedIn = await isSignedIn()
+  const audiences = signedIn ? (['studio', 'member'] as const) : (['member'] as const)
+  const results = query ? searchAllArticles(query, [...audiences]) : []
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
@@ -47,6 +66,7 @@ export default async function HelpSearchPage({ searchParams }: Props) {
           <>
             <p style={{ color: '#666', fontSize: '13px', marginBottom: '16px' }}>
               {results.length} result{results.length === 1 ? '' : 's'} for &ldquo;{query}&rdquo;
+              {!signedIn && <span> · <Link href="/login" style={{ color: '#085041' }}>Sign in</Link> to also search studio guides</span>}
             </p>
             <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
               {results.map((r, i) => (
