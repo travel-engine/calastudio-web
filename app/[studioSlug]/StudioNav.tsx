@@ -113,6 +113,12 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
           >
             Pricing
           </Link>
+          <Link
+            href="/help"
+            style={{ fontSize: '13px', fontWeight: 600, textDecoration: 'none', color: '#666' }}
+          >
+            Help
+          </Link>
 
           {!ready ? (
             <span style={{ width: '32px' }} aria-hidden />
