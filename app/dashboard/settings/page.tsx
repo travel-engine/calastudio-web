@@ -18,6 +18,20 @@ const TIMEZONES: string[] = (() => {
   }
 })()
 
+// ISO 3166-1 alpha-2 → display name, for showing the onboarding-set country read-only.
+const COUNTRY_NAMES: Record<string, string> = {
+  AU: 'Australia', US: 'United States', GB: 'United Kingdom', NZ: 'New Zealand',
+  CA: 'Canada', SG: 'Singapore', IN: 'India', IE: 'Ireland', ZA: 'South Africa',
+}
+const countryLabel = (code: string) => {
+  if (!code) return '—'
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? COUNTRY_NAMES[code] ?? code
+  } catch {
+    return COUNTRY_NAMES[code] ?? code
+  }
+}
+
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: '24px' }}>
@@ -108,10 +122,9 @@ function SettingsPageContent() {
     addressCity: '',
     addressState: '',
     addressPostcode: '',
-    addressCountry: '',
     timezone: '',
     locale: '',
-    country: '',
+    country: '', // onboarding-only; shown read-only, never sent
     cancellationHours: '',
     bookingWindowDays: '',
     minAdvanceBookingHours: '',
@@ -196,7 +209,6 @@ function SettingsPageContent() {
         addressCity: org.address_city ?? '',
         addressState: org.address_state ?? '',
         addressPostcode: org.address_postcode ?? '',
-        addressCountry: org.address_country ?? '',
         timezone: org.timezone ?? '',
         locale: org.locale ?? '',
         country: org.country ?? '',
@@ -369,10 +381,8 @@ function SettingsPageContent() {
           address_city: form.addressCity || null,
           address_state: form.addressState || null,
           address_postcode: form.addressPostcode || null,
-          address_country: form.addressCountry || null,
           timezone: form.timezone || null,
           locale: form.locale || null,
-          country: form.country ? form.country.toUpperCase() : null,
           cancellation_hours: form.cancellationHours !== '' ? parseInt(form.cancellationHours, 10) : null,
           booking_window_days: form.bookingWindowDays !== '' ? parseInt(form.bookingWindowDays, 10) : null,
           min_advance_booking_hours: form.minAdvanceBookingHours !== '' ? parseInt(form.minAdvanceBookingHours, 10) : null,
@@ -563,11 +573,8 @@ function SettingsPageContent() {
               <Input value={form.addressPostcode} onChange={e => update('addressPostcode', e.target.value)} />
             </Field>
           </div>
-          <Field label="Country" hint="Printed on receipts, e.g. Australia.">
-            <Input value={form.addressCountry} onChange={e => update('addressCountry', e.target.value)} style={{ maxWidth: '260px' }} />
-          </Field>
 
-          <SectionHeader title="Region & locale" description="Set at onboarding. Timezone drives class times, pass expiry, and the local time shown in every email." />
+          <SectionHeader title="Region & locale" description="Timezone drives class times, pass expiry, and the local time shown in every email. Country and currency are fixed at onboarding." />
 
           <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Timezone">
@@ -592,16 +599,10 @@ function SettingsPageContent() {
             </Field>
           </div>
           <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Country code" hint="ISO two-letter code the system keys off (tax, formatting). The printed country name is above.">
-              <Input
-                placeholder="AU"
-                maxLength={2}
-                value={form.country}
-                onChange={e => update('country', e.target.value.toUpperCase())}
-                style={{ maxWidth: '120px', textTransform: 'uppercase' }}
-              />
+            <Field label="Country" hint="Set at onboarding — it drives tax rules and your Stripe payout account.">
+              <Input value={countryLabel(form.country)} disabled style={{ maxWidth: '220px', backgroundColor: '#f4f4f4', color: '#666' }} />
             </Field>
-            <Field label="Currency" hint="Fixed at onboarding — it's baked into every stored price and Stripe charge.">
+            <Field label="Currency" hint="Set at onboarding — it's baked into every stored price and Stripe charge.">
               <Input value={currency || '—'} disabled style={{ maxWidth: '120px', backgroundColor: '#f4f4f4', color: '#666' }} />
             </Field>
           </div>
