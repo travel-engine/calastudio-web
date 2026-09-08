@@ -17,6 +17,7 @@ interface TeacherCard {
   photo_url: string | null
   specialties: string[] | null
   is_page_published: boolean
+  is_primary: boolean
 }
 
 function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
@@ -33,7 +34,14 @@ function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
         </div>
       )}
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: '15px' }}>{t.display_name}</div>
+        <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {t.display_name}
+          {t.is_primary && (
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#085041', backgroundColor: '#e8f5ee', borderRadius: '999px', padding: '2px 8px' }}>
+              Lead teacher
+            </span>
+          )}
+        </div>
         {t.tagline && <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>{t.tagline}</div>}
         {t.specialties && t.specialties.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>

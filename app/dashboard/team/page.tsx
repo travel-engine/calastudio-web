@@ -24,6 +24,7 @@ interface Teacher {
     photo_url: string | null
     is_page_published: boolean
     show_on_studio_page: boolean
+    is_primary: boolean
   } | null
 }
 
@@ -311,7 +312,14 @@ export default function TeamPage() {
                     photoUrl={teacher.profile?.photo_url}
                   />
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{displayName(teacher)}</div>
+                    <div style={{ fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      {displayName(teacher)}
+                      {teacher.profile?.is_primary && (
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#085041', backgroundColor: '#e8f5ee', borderRadius: '999px', padding: '2px 8px' }}>
+                          Lead
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>{teacher.email}</div>
                   </div>
                 </div>

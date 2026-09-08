@@ -27,6 +27,7 @@ interface TeacherData {
     website_url: string | null
     is_page_published: boolean
     show_on_studio_page: boolean
+    is_primary: boolean
   } | null
 }
 
@@ -116,6 +117,8 @@ export default function EditTeacherPage() {
   const [orgId, setOrgId] = useState('')
   const [orgSlug, setOrgSlug] = useState('')
   const [token, setToken] = useState('')
+  const [isPrimary, setIsPrimary] = useState(false)
+  const [settingPrimary, setSettingPrimary] = useState(false)
   const [roles, setRoles] = useState<string[]>([])
   const [teacher, setTeacher] = useState<TeacherData | null>(null)
 
@@ -184,6 +187,7 @@ export default function EditTeacherPage() {
           : (data.profile?.photos ?? []),
         newPhotoUrl: '',
       })
+      setIsPrimary(data.profile?.is_primary ?? false)
 
       setLoading(false)
     }
@@ -198,6 +202,30 @@ export default function EditTeacherPage() {
       ? [...form.roles, role]
       : form.roles.filter(r => r !== role)
     update('roles', newRoles)
+  }
+
+  // Immediate action (like roles) — one primary per studio, so this also clears it on everyone else.
+  const handleMakePrimary = async () => {
+    setSettingPrimary(true)
+    setError('')
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/teachers/${teacherId}/primary`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (res.ok) {
+        setIsPrimary(true)
+        setSuccess("Set as the studio's primary teacher.")
+        setTimeout(() => setSuccess(''), 3000)
+      } else {
+        const data = await res.json().catch(() => null)
+        setError(data?.error ?? 'Could not set the primary teacher.')
+      }
+    } catch {
+      setError('Something went wrong.')
+    } finally {
+      setSettingPrimary(false)
+    }
   }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -486,6 +514,24 @@ export default function EditTeacherPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <Toggle checked={form.is_page_published} onChange={val => update('is_page_published', val)} label="Publish landing page — make this teacher's page publicly visible" />
             <Toggle checked={form.show_on_studio_page} onChange={val => update('show_on_studio_page', val)} label="Show in studio teacher directory" />
+          </div>
+
+          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 500 }}>Primary teacher</div>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>Shown first in the studio directory. One per studio — setting this clears it on any other teacher.</div>
+            </div>
+            {isPrimary ? (
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#085041', backgroundColor: '#e8f5ee', borderRadius: '999px', padding: '5px 14px', whiteSpace: 'nowrap' }}>★ Primary teacher</span>
+            ) : (
+              <button
+                onClick={handleMakePrimary}
+                disabled={settingPrimary}
+                style={{ padding: '8px 16px', border: '1px solid #085041', borderRadius: '8px', color: '#085041', backgroundColor: 'white', fontSize: '13px', fontWeight: 600, cursor: settingPrimary ? 'default' : 'pointer', whiteSpace: 'nowrap' }}
+              >
+                {settingPrimary ? 'Setting…' : 'Make primary'}
+              </button>
+            )}
           </div>
           {form.is_page_published && teacher.profile && (
             <div style={{ marginTop: '16px', padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px', fontSize: '13px', color: '#085041' }}>
