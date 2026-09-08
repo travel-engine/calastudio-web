@@ -373,10 +373,11 @@ function Step3({ data, onChange, onNext, onBack }: {
 }
 
 // ── Step 4: Payments ──────────────────────────────────────
-function Step4({ onNext, onSkip, onBack }: {
+function Step4({ onNext, onSkip, onBack, loading }: {
   onNext: () => void
   onSkip: () => void
   onBack: () => void
+  loading?: boolean
 }) {
   return (
     <div>
@@ -422,11 +423,14 @@ function Step4({ onNext, onSkip, onBack }: {
           ))}
         </div>
 
-        <NextButton onClick={onNext}>Connect with Stripe →</NextButton>
+        <NextButton onClick={onNext} loading={loading}>
+          {loading ? 'Setting up…' : 'Connect with Stripe →'}
+        </NextButton>
       </div>
 
       <button
         onClick={onSkip}
+        disabled={loading}
         style={{
           width: '100%',
           padding: '12px',
@@ -435,7 +439,7 @@ function Step4({ onNext, onSkip, onBack }: {
           border: '1px solid #e2e2e2',
           borderRadius: '8px',
           fontSize: '14px',
-          cursor: 'pointer'
+          cursor: loading ? 'not-allowed' : 'pointer'
         }}
       >
         Skip for now — I&apos;ll connect payments later
@@ -449,7 +453,7 @@ function Step4({ onNext, onSkip, onBack }: {
 }
 
 // ── Step 5: Done! ─────────────────────────────────────────
-function Step5({ data, orgSlug }: { data: StudioData; orgSlug: string }) {
+function Step5({ data, orgSlug, stripeNote }: { data: StudioData; orgSlug: string; stripeNote?: string }) {
   const bookingUrl = `${orgSlug}.calastudio.app`
 
   return (
@@ -504,6 +508,15 @@ function Step5({ data, orgSlug }: { data: StudioData; orgSlug: string }) {
           Copy link
         </button>
       </div>
+
+      {stripeNote && (
+        <div style={{
+          padding: '12px 16px', backgroundColor: '#fff8e6', border: '1px solid #f0e0b0',
+          borderRadius: '8px', fontSize: '13px', color: '#7a4f00', marginBottom: '24px', textAlign: 'left',
+        }}>
+          {stripeNote}
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         
@@ -574,6 +587,7 @@ export default function OnboardingPage() {
   const [orgSlug, setOrgSlug] = useState('')
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [error, setError] = useState('')
+  const [stripeNote, setStripeNote] = useState('')
 
   // Guard the wizard: must be signed in, and must not already have a studio.
   useEffect(() => {
@@ -612,38 +626,75 @@ export default function OnboardingPage() {
     setData(prev => ({ ...prev, [key]: value }))
   }
 
+  // Creates the studio and returns { id, slug } — or null after setting `error`.
+  const createOrg = async (): Promise<{ id: string; slug: string } | null> => {
+    const supabase = createClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) { router.push('/login'); return null }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        name: data.name,
+        email: session?.user?.email ?? '',
+        timezone: data.timezone,
+        currency: data.currency,
+        country: data.country,
+        locale: 'en-AU',
+        accept_terms: acceptTerms,
+      }),
+    })
+    const org = await response.json().catch(() => null)
+    if (!response.ok || !org?.slug) {
+      setError(org?.error ?? 'Something went wrong creating your studio. Please try again.')
+      return null
+    }
+    return { id: org.id, slug: org.slug }
+  }
+
   const handleComplete = async () => {
     setLoading(true)
     setError('')
     try {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) { router.push('/login'); return }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: data.name,
-          email: session?.user?.email ?? '',
-          timezone: data.timezone,
-          currency: data.currency,
-          country: data.country,
-          locale: 'en-AU',
-          accept_terms: acceptTerms,
-        })
-      })
-
-      const org = await response.json().catch(() => null)
-      if (!response.ok || !org?.slug) {
-        setError(org?.error ?? 'Something went wrong creating your studio. Please try again.')
-        return
-      }
+      const org = await createOrg()
+      if (!org) return
       setOrgSlug(org.slug)
+      setStep(5)
+    } catch {
+      setError('Could not reach the server. Please check your connection and try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // "Connect with Stripe" — create the studio, then open Stripe Connect in a new tab (per
+  // 01-onboarding.md; the OAuth callback lands on /dashboard/settings). The wizard still advances
+  // to the done screen here so the "your studio is live" moment isn't lost.
+  const handleConnectStripe = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const org = await createOrg()
+      if (!org) return
+      setOrgSlug(org.slug)
+      try {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/stripe/connect`, {
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        })
+        const body = await res.json().catch(() => null)
+        if (res.ok && body?.url) {
+          window.open(body.url, '_blank', 'noopener')
+          setStripeNote('Stripe opened in a new tab — finish connecting there. You can also do it later from Settings → Payments.')
+        } else {
+          setStripeNote("We couldn't start Stripe just now. Connect it later from Settings → Payments.")
+        }
+      } catch {
+        setStripeNote("We couldn't start Stripe just now. Connect it later from Settings → Payments.")
+      }
       setStep(5)
     } catch {
       setError('Could not reach the server. Please check your connection and try again.')
@@ -710,9 +761,10 @@ export default function OnboardingPage() {
         {step === 4 && (
           <>
             <Step4
-              onNext={handleComplete}
+              onNext={handleConnectStripe}
               onSkip={handleComplete}
               onBack={() => setStep(3)}
+              loading={loading}
             />
             {error && (
               <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
@@ -722,7 +774,7 @@ export default function OnboardingPage() {
           </>
         )}
         {step === 5 && (
-          <Step5 data={data} orgSlug={orgSlug} />
+          <Step5 data={data} orgSlug={orgSlug} stripeNote={stripeNote} />
         )}
       </div>
     </div>
