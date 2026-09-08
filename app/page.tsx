@@ -1,5 +1,50 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import styles from './home.module.css'
+import { SITE_URL } from '@/lib/seo'
+import { JsonLd } from '@/lib/jsonLd'
+
+const homeDescription =
+  'The booking platform for yoga and fitness studios that never takes a cut. Flat monthly fee, zero commission, and every price and change fully explainable.'
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+  // A child that sets openGraph replaces the layout's whole object, so repeat the shared fields.
+  openGraph: {
+    type: 'website',
+    siteName: 'CalaStudio',
+    title: 'CalaStudio — Your sessions. Your rules. Your members.',
+    description: homeDescription,
+    url: '/',
+  },
+}
+
+const orgLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'CalaStudio',
+  url: SITE_URL,
+  description:
+    'Booking and studio-management software for yoga and fitness studios — flat monthly fee, zero commission.',
+  sameAs: [] as string[],
+}
+
+const productLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'CalaStudio',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  url: SITE_URL,
+  description:
+    'The booking platform for yoga and fitness studios that never takes a cut: schedule, passes and memberships, teacher pages, payments, and a full activity log.',
+  offers: {
+    '@type': 'Offer',
+    priceCurrency: 'USD',
+    price: '0',
+    description: 'Start free — flat monthly fee, zero commission on bookings.',
+  },
+}
 
 function NavBar() {
   return (
@@ -75,8 +120,10 @@ function FeatureRow({ icon, title, body, reverse }: { icon: string; title: strin
 export default function Home() {
   return (
     <div style={{ backgroundColor: 'white' }}>
+      <JsonLd data={[orgLd, productLd]} />
       <NavBar />
 
+      <main>
       {/* Hero */}
       <Section>
         <div style={{ textAlign: 'center', maxWidth: '760px', margin: '0 auto' }}>
@@ -203,6 +250,7 @@ export default function Home() {
           </Link>
         </div>
       </Section>
+      </main>
 
       {/* Footer */}
       <footer style={{ borderTop: '1px solid var(--border)' }}>

@@ -1,9 +1,37 @@
 import type { Metadata } from 'next'
+import { SITE_URL } from '@/lib/seo'
 import './globals.css'
 
+const description =
+  'The booking platform for yoga and fitness studios that never takes a cut. Flat monthly fee, zero commission, and every price and change fully explainable.'
+
 export const metadata: Metadata = {
-  title: 'CalaStudio — Your sessions. Your rules. Your members.',
-  description: 'Session management and dynamic pricing for studios and instructors worldwide.',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'CalaStudio — Your sessions. Your rules. Your members.',
+    template: '%s · CalaStudio',
+  },
+  description,
+  applicationName: 'CalaStudio',
+  keywords: [
+    'studio booking software',
+    'yoga studio management',
+    'fitness class booking',
+    'zero commission booking platform',
+    'class pass and membership software',
+    'pilates studio scheduling',
+  ],
+  openGraph: {
+    type: 'website',
+    siteName: 'CalaStudio',
+    title: 'CalaStudio — Your sessions. Your rules. Your members.',
+    description,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'CalaStudio — Your sessions. Your rules. Your members.',
+    description,
+  },
 }
 
 export default function RootLayout({

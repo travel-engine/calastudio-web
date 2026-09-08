@@ -4,6 +4,9 @@ import type { Metadata } from 'next'
 // OG/metadata all key off that, independent of how the app is reached in dev/preview.
 export const STUDIO_DOMAIN = process.env.NEXT_PUBLIC_STUDIO_DOMAIN ?? 'calastudio.app'
 
+// The marketing / app apex, for canonical + OG on non-studio pages.
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://calastudio.app').replace(/\/$/, '')
+
 /** Canonical origin for a studio's public site. */
 export function studioOrigin(slug: string): string {
   return `https://${slug}.${STUDIO_DOMAIN}`
