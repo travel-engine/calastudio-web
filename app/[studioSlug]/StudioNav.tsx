@@ -74,7 +74,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
           style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit', minWidth: 0 }}
         >
           {logoUrl ? (
-            <img src={logoUrl} alt="" style={{ width: 30, height: 30, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+            <img src={logoUrl} alt={`${name} logo`} style={{ width: 30, height: 30, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
           ) : (
             <div style={{ width: 30, height: 30, borderRadius: '6px', backgroundColor: brandColor, flexShrink: 0 }} />
           )}

@@ -1,8 +1,10 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import styles from '../../booking.module.css'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
 import { initials } from '@/lib/names'
+import { metaDescription, studioOpenGraph } from '@/lib/seo'
 import TeacherPhoto from '../TeacherPhoto'
 import PhotoGallery from '../PhotoGallery'
 
@@ -45,6 +47,31 @@ interface TeacherPageData {
 function timeRange(startIso: string, endIso: string) {
   const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }
   return `${new Date(startIso).toLocaleTimeString('en-AU', opts)} – ${new Date(endIso).toLocaleTimeString('en-AU', opts)}`
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug, teacherSlug } = await params
+  const base = process.env.NEXT_PUBLIC_API_URL
+  const [tRes, orgRes] = await Promise.all([
+    fetch(`${base}/api/public/${studioSlug}/teachers/${teacherSlug}`, { next: { revalidate: 60 } }),
+    fetch(`${base}/api/public/${studioSlug}`, { next: { revalidate: 60 } }),
+  ])
+  if (!tRes.ok) return {}
+  const data: TeacherPageData = await tRes.json()
+  const p = data.profile
+  if (!p) return {}
+  const studioName: string = orgRes.ok ? (await orgRes.json()).name : 'the studio'
+
+  const description = metaDescription(p.bio ?? p.tagline, `${p.display_name} teaches at ${studioName}.`)
+  return {
+    title: p.display_name,
+    description,
+    alternates: { canonical: `/teachers/${teacherSlug}` },
+    openGraph: studioOpenGraph({
+      siteName: studioName, title: p.display_name, description,
+      path: `/teachers/${teacherSlug}`, image: p.photo_url, type: 'profile',
+    }),
+  }
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -99,7 +126,7 @@ export default async function TeacherLandingPage({ params }: Props) {
         </div>
       </header>
 
-      <div className={styles.content}>
+      <main className={styles.content}>
         {p.bio && (
           <Section title="About">
             <div style={{ fontSize: '14px', color: '#333', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{p.bio}</div>
@@ -172,7 +199,7 @@ export default async function TeacherLandingPage({ params }: Props) {
             </div>
           )}
         </Section>
-      </div>
+      </main>
     </div>
   )
 }

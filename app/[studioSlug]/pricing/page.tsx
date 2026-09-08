@@ -1,11 +1,30 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import styles from '../booking.module.css'
 import PricingList, { type PassTemplate } from '../PricingList'
+import { studioOpenGraph } from '@/lib/seo'
 
 export const revalidate = 60
 
 interface Props {
   params: Promise<{ studioSlug: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug } = await params
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}`, { next: { revalidate: 60 } })
+  const org = res.ok ? await res.json() : null
+  const name: string = org?.name ?? 'the studio'
+  const description = `Class passes and pricing for ${name}.`
+  return {
+    title: 'Pricing',
+    description,
+    alternates: { canonical: '/pricing' },
+    openGraph: studioOpenGraph({
+      siteName: name, title: `Pricing · ${name}`, description, path: '/pricing',
+      image: org?.banner_url || org?.logo_url,
+    }),
+  }
 }
 
 interface PublicOrgInfo {
@@ -42,7 +61,7 @@ export default async function PricingPage({ params }: Props) {
         </div>
       </header>
 
-      <div className={styles.content}>
+      <main className={styles.content}>
         <PricingList
           studioSlug={studioSlug}
           templates={templates}
@@ -52,7 +71,7 @@ export default async function PricingPage({ params }: Props) {
           stripeAccountId={org.stripe_account_id}
           paymentsEnabled={org.payments_enabled}
         />
-      </div>
+      </main>
     </div>
   )
 }

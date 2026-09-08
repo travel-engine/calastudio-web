@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import FilterBar from './FilterBar'
 import BookButton from './BookButton'
@@ -6,12 +7,27 @@ import MemberScheduleLoader from './MemberScheduleLoader'
 import styles from './booking.module.css'
 import type { BookableOccurrence } from '@/lib/store/bookingFlow'
 import { formatDateWithWeekday } from '@/lib/dates'
+import { metaDescription, studioOpenGraph } from '@/lib/seo'
 
 export const revalidate = 60
 
 interface Props {
   params: Promise<{ studioSlug: string }>
   searchParams: Promise<{ mode?: string; type?: string; location?: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug } = await params
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}`, { next: { revalidate: 60 } })
+  if (!res.ok) return {}
+  const org: PublicOrgInfo = await res.json()
+  // No `title` — inherits the studio name from the layout default, the strongest title for the home page.
+  const description = metaDescription(org.description, `See the upcoming class schedule at ${org.name} and book online.`)
+  return {
+    description,
+    alternates: { canonical: '/' },
+    openGraph: studioOpenGraph({ siteName: org.name, title: org.name, description, path: '/', image: org.banner_url || org.logo_url }),
+  }
 }
 
 function formatDayLabel(iso: string) {
@@ -103,7 +119,7 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
     <div className={styles.page}>
       {org.banner_url && (
         <div style={{ width: '100%', aspectRatio: '3 / 1', maxHeight: '320px', overflow: 'hidden' }}>
-          <img src={org.banner_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={org.banner_url} alt={org.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       )}
 
@@ -116,7 +132,7 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
         </div>
       </header>
 
-      <div className={styles.content}>
+      <main className={styles.content}>
         <FilterBar
           mode={sp.mode ?? 'all'}
           sessionType={sp.type ?? 'all'}
@@ -130,8 +146,8 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
           </div>
         ) : (
           Array.from(groups.entries()).map(([day, dayOccurrences]) => (
-            <div key={day} className={styles.dayGroup}>
-              <div className={styles.dayLabel}>{formatDayLabel(dayOccurrences[0].starts_at)}</div>
+            <section key={day} className={styles.dayGroup}>
+              <h2 className={styles.dayLabel}>{formatDayLabel(dayOccurrences[0].starts_at)}</h2>
               <div className={styles.cardList}>
                 {dayOccurrences.map(occ => {
                   const spots = spotsLabel(occ)
@@ -142,19 +158,19 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
                   const prices = occ.price != null ? [occ.price] : []
 
                   return (
-                    <div key={occ.occurrence_id} className={styles.card}>
+                    <article key={occ.occurrence_id} className={styles.card}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
                         {occ.photo_url ? (
-                          <img src={occ.photo_url} alt="" style={{ width: 52, height: 52, borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
+                          <img src={occ.photo_url} alt={occ.session_name} style={{ width: 52, height: 52, borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
                         ) : occ.instructor_photo_url ? (
-                          <img src={occ.instructor_photo_url} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          <img src={occ.instructor_photo_url} alt={occ.instructor_name ?? ''} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                         ) : (
                           <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#f4f4f4', flexShrink: 0 }} />
                         )}
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>{occ.session_name}</div>
                           <div style={{ fontSize: '13px', color: '#666' }}>
-                            {formatTimeRange(occ.starts_at, occ.ends_at)} · {deliveryModeLabel(occ.delivery_mode)}
+                            <time dateTime={occ.starts_at}>{formatTimeRange(occ.starts_at, occ.ends_at)}</time> · {deliveryModeLabel(occ.delivery_mode)}
                             {occ.instructor_name ? ` · ${occ.instructor_name}` : ''}
                           </div>
                           {occ.location_name && (
@@ -194,14 +210,14 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
                           paymentsEnabled={org.payments_enabled}
                         />
                       </div>
-                    </div>
+                    </article>
                   )
                 })}
               </div>
-            </div>
+            </section>
           ))
         )}
-      </div>
+      </main>
 
       <BookingDrawer />
       <MemberScheduleLoader studioSlug={studioSlug} orgId={org.id} queryString={qs} />

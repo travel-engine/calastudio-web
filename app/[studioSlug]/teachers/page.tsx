@@ -1,12 +1,31 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import styles from '../booking.module.css'
 import { initials } from '@/lib/names'
+import { studioOpenGraph } from '@/lib/seo'
 
 export const revalidate = 60
 
 interface Props {
   params: Promise<{ studioSlug: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { studioSlug } = await params
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}`, { next: { revalidate: 60 } })
+  const org = res.ok ? await res.json() : null
+  const name: string = org?.name ?? 'the studio'
+  const description = `Meet the teachers at ${name}.`
+  return {
+    title: 'Teachers',
+    description,
+    alternates: { canonical: '/teachers' },
+    openGraph: studioOpenGraph({
+      siteName: name, title: `Teachers · ${name}`, description, path: '/teachers',
+      image: org?.banner_url || org?.logo_url,
+    }),
+  }
 }
 
 interface TeacherCard {
@@ -24,7 +43,7 @@ function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
   const inner = (
     <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', minWidth: 0 }}>
       {t.photo_url ? (
-        <img src={t.photo_url} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+        <img src={t.photo_url} alt={t.display_name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
       ) : (
         <div style={{
           width: 64, height: 64, borderRadius: '50%', backgroundColor: '#085041', color: 'white', flexShrink: 0,
@@ -70,9 +89,13 @@ function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
     textDecoration: 'none', color: 'inherit', display: 'block',
   }
 
-  return t.is_page_published
-    ? <Link href={`/${studioSlug}/teachers/${t.slug}`} style={cardStyle}>{inner}</Link>
-    : <div style={cardStyle}>{inner}</div>
+  return (
+    <article>
+      {t.is_page_published
+        ? <Link href={`/${studioSlug}/teachers/${t.slug}`} style={cardStyle}>{inner}</Link>
+        : <div style={cardStyle}>{inner}</div>}
+    </article>
+  )
 }
 
 export default async function TeachersDirectoryPage({ params }: Props) {
@@ -98,7 +121,7 @@ export default async function TeachersDirectoryPage({ params }: Props) {
         </div>
       </header>
 
-      <div className={styles.content}>
+      <main className={styles.content}>
         {teachers.length === 0 ? (
           <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             This studio hasn&apos;t added any teacher bios yet.
@@ -108,7 +131,7 @@ export default async function TeachersDirectoryPage({ params }: Props) {
             {teachers.map(t => <Card key={t.slug} t={t} studioSlug={studioSlug} />)}
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }
