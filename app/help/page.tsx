@@ -37,11 +37,15 @@ export default function HelpPage() {
         <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '16px', marginBottom: '32px' }}>
           Guides and answers for studios and members
         </p>
-        <div style={{ maxWidth: '480px', margin: '0 auto' }}>
-          <Link href="/help/search" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 20px', backgroundColor: 'white', borderRadius: '10px', color: '#999', textDecoration: 'none', fontSize: '15px' }}>
-            🔍 Search the help centre...
-          </Link>
-        </div>
+        <form action="/help/search" method="get" style={{ maxWidth: '480px', margin: '0 auto' }}>
+          <input
+            name="q"
+            type="search"
+            placeholder="Search the help centre…"
+            aria-label="Search the help centre"
+            style={{ width: '100%', padding: '14px 20px', backgroundColor: 'white', borderRadius: '10px', border: 'none', fontSize: '15px', outline: 'none' }}
+          />
+        </form>
       </div>
 
       <div style={{ maxWidth: '960px', margin: '0 auto', padding: '48px 24px' }}>

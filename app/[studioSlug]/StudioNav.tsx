@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import styles from './studionav.module.css'
 
 interface Props {
   studioSlug: string
@@ -13,14 +14,15 @@ interface Props {
 }
 
 // Persistent top bar for the whole public studio tree ([studioSlug]/*): studio identity on the
-// left, Schedule + an account area on the right. Signed-in members get an avatar menu; everyone
-// else gets a "Sign in" link. Auth state is read client-side, so the bar renders in a neutral
-// state until the Supabase session resolves to avoid a hydration mismatch.
+// left, nav links + an account area on the right. Below 680px the links collapse into a burger
+// menu that drops down under the header. Auth state is read client-side, so the bar renders in a
+// neutral state until the Supabase session resolves to avoid a hydration mismatch.
 export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Props) {
   const pathname = usePathname()
   const [email, setEmail] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [navOpen, setNavOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -50,6 +52,16 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
     }
   }, [menuOpen])
 
+  // Collapse the mobile menu on navigation.
+  useEffect(() => { setNavOpen(false) }, [pathname])
+
+  useEffect(() => {
+    if (!navOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setNavOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [navOpen])
+
   // Full reload rather than a client transition — clears every page's in-memory auth/session state.
   const handleSignOut = async () => {
     await createClient().auth.signOut()
@@ -60,65 +72,51 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
   const onAccountPage = pathname === `/${studioSlug}/account`
   const initial = (email?.[0] ?? '?').toUpperCase()
 
-  return (
-    <header style={{
-      backgroundColor: 'white', borderBottom: '1px solid #e2e2e2',
-      position: 'sticky', top: 0, zIndex: 20,
-    }}>
-      <div style={{
-        maxWidth: '1100px', margin: '0 auto', padding: '0 20px', height: '56px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px',
-      }}>
-        <Link
-          href={`/${studioSlug}`}
-          style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit', minWidth: 0 }}
-        >
-          {logoUrl ? (
-            <img src={logoUrl} alt={`${name} logo`} style={{ width: 30, height: 30, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
-          ) : (
-            <div style={{ width: 30, height: 30, borderRadius: '6px', backgroundColor: brandColor, flexShrink: 0 }} />
-          )}
-          <span style={{
-            fontWeight: 700, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>
-            {name}
-          </span>
-        </Link>
+  const linkColor = (active: boolean) => ({ color: active ? '#1a1a1a' : '#666' })
 
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '18px', flexShrink: 0 }}>
+  return (
+    <header className={styles.bar}>
+      <div className={styles.inner}>
+        <div className={styles.left}>
+          <button
+            type="button"
+            className={styles.burger}
+            aria-label={navOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen(o => !o)}
+          >
+            {navOpen ? '✕' : '☰'}
+          </button>
           <Link
             href={`/${studioSlug}`}
-            style={{
-              fontSize: '13px', fontWeight: 600, textDecoration: 'none',
-              color: pathname === `/${studioSlug}` ? '#1a1a1a' : '#666',
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit', minWidth: 0 }}
           >
-            Schedule
+            {logoUrl ? (
+              <img src={logoUrl} alt={`${name} logo`} style={{ width: 30, height: 30, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 30, height: 30, borderRadius: '6px', backgroundColor: brandColor, flexShrink: 0 }} />
+            )}
+            <span style={{ fontWeight: 700, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {name}
+            </span>
           </Link>
-          <Link
-            href={`/${studioSlug}/teachers`}
-            style={{
-              fontSize: '13px', fontWeight: 600, textDecoration: 'none',
-              color: pathname.startsWith(`/${studioSlug}/teachers`) ? '#1a1a1a' : '#666',
-            }}
-          >
-            Teachers
-          </Link>
-          <Link
-            href={`/${studioSlug}/pricing`}
-            style={{
-              fontSize: '13px', fontWeight: 600, textDecoration: 'none',
-              color: pathname === `/${studioSlug}/pricing` ? '#1a1a1a' : '#666',
-            }}
-          >
-            Pricing
-          </Link>
-          <Link
-            href="/help"
-            style={{ fontSize: '13px', fontWeight: 600, textDecoration: 'none', color: '#666' }}
-          >
-            Help
-          </Link>
+        </div>
+
+        <nav className={styles.right}>
+          <div className={`${styles.links} ${navOpen ? styles.linksOpen : ''}`}>
+            <Link href={`/${studioSlug}`} className={styles.link} style={linkColor(pathname === `/${studioSlug}`)} onClick={() => setNavOpen(false)}>
+              Schedule
+            </Link>
+            <Link href={`/${studioSlug}/teachers`} className={styles.link} style={linkColor(pathname.startsWith(`/${studioSlug}/teachers`))} onClick={() => setNavOpen(false)}>
+              Teachers
+            </Link>
+            <Link href={`/${studioSlug}/pricing`} className={styles.link} style={linkColor(pathname === `/${studioSlug}/pricing`)} onClick={() => setNavOpen(false)}>
+              Pricing
+            </Link>
+            <a href="/help" target="_blank" rel="noopener noreferrer" className={styles.link} style={{ color: '#666' }} onClick={() => setNavOpen(false)}>
+              Help
+            </a>
+          </div>
 
           {!ready ? (
             <span style={{ width: '32px' }} aria-hidden />
@@ -157,10 +155,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
                     href={`/${studioSlug}/account`}
                     role="menuitem"
                     onClick={() => setMenuOpen(false)}
-                    style={{
-                      display: 'block', padding: '9px 10px', borderRadius: '6px', fontSize: '13px',
-                      color: '#1a1a1a', textDecoration: 'none',
-                    }}
+                    style={{ display: 'block', padding: '9px 10px', borderRadius: '6px', fontSize: '13px', color: '#1a1a1a', textDecoration: 'none' }}
                   >
                     My bookings &amp; orders
                   </Link>
@@ -182,7 +177,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
               href={`/${studioSlug}/account`}
               style={{
                 padding: '8px 16px', backgroundColor: brandColor, color: 'white', borderRadius: '8px',
-                fontSize: '13px', fontWeight: 600, textDecoration: 'none',
+                fontSize: '13px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
               }}
             >
               Sign in

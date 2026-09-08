@@ -97,15 +97,66 @@ export async function getArticle(
   }
 }
 
-export function searchArticles(query: string, audience: 'studio' | 'member'): ArticleMeta[] {
-  if (!query.trim()) return []
-  const articles = getAllArticles(audience)
-  const q = query.toLowerCase()
-  return articles.filter(a =>
-    a.title.toLowerCase().includes(q) ||
-    a.description.toLowerCase().includes(q) ||
-    a.section.toLowerCase().includes(q)
-  )
+export interface SearchHit extends ArticleMeta {
+  score: number
+  snippet: string
+}
+
+// Full-text search across both audiences — title/description/body. Small corpus (~30 short
+// articles), so a plain in-memory scan per request is fine.
+export function searchAllArticles(query: string): SearchHit[] {
+  const q = query.trim().toLowerCase()
+  if (q.length < 2) return []
+  const terms = q.split(/\s+/).filter(Boolean)
+
+  const hits: SearchHit[] = []
+
+  for (const audience of ['studio', 'member'] as const) {
+    const audienceDir = path.join(helpDir, audience)
+    if (!fs.existsSync(audienceDir)) continue
+
+    for (const section of fs.readdirSync(audienceDir)) {
+      const sectionDir = path.join(audienceDir, section)
+      if (!fs.statSync(sectionDir).isDirectory()) continue
+
+      for (const file of fs.readdirSync(sectionDir).filter(f => f.endsWith('.md'))) {
+        const raw = fs.readFileSync(path.join(sectionDir, file), 'utf8')
+        const { data, content } = matter(raw)
+        const slug = file.replace('.md', '')
+        const title: string = data.title ?? slug
+        const description: string = data.description ?? ''
+        const bodyText = content.replace(/[#>*`_[\]()|-]/g, ' ').replace(/\s+/g, ' ').trim()
+
+        const hayTitle = title.toLowerCase()
+        const hayDesc = description.toLowerCase()
+        const hayBody = bodyText.toLowerCase()
+
+        // Every term has to appear somewhere.
+        if (!terms.every(t => hayTitle.includes(t) || hayDesc.includes(t) || hayBody.includes(t) || section.includes(t))) {
+          continue
+        }
+
+        let score = 0
+        for (const t of terms) {
+          if (hayTitle.includes(t)) score += 10
+          if (hayDesc.includes(t)) score += 4
+          if (section.includes(t)) score += 3
+          if (hayBody.includes(t)) score += 1
+        }
+
+        let snippet = description || `${bodyText.slice(0, 160)}…`
+        const idx = hayBody.indexOf(terms[0])
+        if (idx >= 0) {
+          const start = Math.max(0, idx - 60)
+          snippet = `${start > 0 ? '…' : ''}${bodyText.slice(start, start + 200).trim()}…`
+        }
+
+        hits.push({ slug, section, audience, title, description, order: data.order ?? 99, score, snippet })
+      }
+    }
+  }
+
+  return hits.sort((a, b) => b.score - a.score || a.order - b.order)
 }
 
 export const sectionNames: Record<string, string> = {
