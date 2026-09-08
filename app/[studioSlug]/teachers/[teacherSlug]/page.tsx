@@ -4,7 +4,8 @@ import Link from 'next/link'
 import styles from '../../booking.module.css'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
 import { initials } from '@/lib/names'
-import { metaDescription, studioOpenGraph } from '@/lib/seo'
+import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
+import { JsonLd, personLd, breadcrumbLd, eventLd } from '@/lib/jsonLd'
 import TeacherPhoto from '../TeacherPhoto'
 import PhotoGallery from '../PhotoGallery'
 
@@ -22,6 +23,12 @@ interface UpcomingClass {
   starts_at: string
   ends_at: string
   location_name: string | null
+  location_address: string | null
+  instructor_name: string | null
+  price: number | null
+  currency: string
+  spots_remaining: number | null
+  photo_url: string | null
   is_cancelled: boolean
 }
 
@@ -87,7 +94,10 @@ export default async function TeacherLandingPage({ params }: Props) {
   const { studioSlug, teacherSlug } = await params
   const base = process.env.NEXT_PUBLIC_API_URL
 
-  const res = await fetch(`${base}/api/public/${studioSlug}/teachers/${teacherSlug}`, { next: { revalidate: 60 } })
+  const [res, orgRes] = await Promise.all([
+    fetch(`${base}/api/public/${studioSlug}/teachers/${teacherSlug}`, { next: { revalidate: 60 } }),
+    fetch(`${base}/api/public/${studioSlug}`, { next: { revalidate: 60 } }),
+  ])
   // 404 covers both "no such studio/teacher" and an unpublished page — the endpoint filters on
   // is_page_published, so an unpublished teacher simply isn't found here.
   if (res.status === 404) notFound()
@@ -96,6 +106,7 @@ export default async function TeacherLandingPage({ params }: Props) {
   const data: TeacherPageData = await res.json()
   const p = data.profile
   if (!p) notFound()
+  const studioName: string = orgRes.ok ? (await orgRes.json()).name : studioSlug
 
   const chips = [
     ...(p.specialties ?? []),
@@ -104,8 +115,21 @@ export default async function TeacherLandingPage({ params }: Props) {
   // Gallery = the extra photos, minus the one already shown as the hero.
   const galleryPhotos = (p.photos ?? []).filter(u => u && u !== p.photo_url)
 
+  const origin = studioOrigin(studioSlug)
+  const pageUrl = `${origin}/teachers/${teacherSlug}`
+  const ldCtx = { studioName, studioUrl: `${origin}/`, pageUrl }
+
   return (
     <div className={styles.page}>
+      <JsonLd data={personLd(p, ldCtx)} />
+      <JsonLd data={breadcrumbLd([
+        { name: studioName, url: `${origin}/` },
+        { name: 'Teachers', url: `${origin}/teachers` },
+        { name: p.display_name, url: pageUrl },
+      ])} />
+      {upcoming.length > 0 && (
+        <JsonLd data={upcoming.map(c => eventLd(c, ldCtx))} />
+      )}
       <header className={styles.header}>
         <div className={styles.headerInner} style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
           {p.photo_url ? (

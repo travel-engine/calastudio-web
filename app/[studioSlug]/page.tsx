@@ -6,8 +6,10 @@ import BookingDrawer from './BookingDrawer'
 import MemberScheduleLoader from './MemberScheduleLoader'
 import styles from './booking.module.css'
 import type { BookableOccurrence } from '@/lib/store/bookingFlow'
+import Image from 'next/image'
 import { formatDateWithWeekday } from '@/lib/dates'
-import { metaDescription, studioOpenGraph } from '@/lib/seo'
+import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
+import { JsonLd, studioLd, eventLd } from '@/lib/jsonLd'
 
 export const revalidate = 60
 
@@ -115,11 +117,19 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
     groups.get(key)!.push(occ)
   }
 
+  const canonical = `${studioOrigin(studioSlug)}/`
+  const ldCtx = { studioName: org.name, studioUrl: canonical, pageUrl: canonical }
+
   return (
     <div className={styles.page}>
+      <JsonLd data={studioLd({ name: org.name, description: org.description, url: canonical, image: org.banner_url || org.logo_url })} />
+      {visibleOccurrences.length > 0 && (
+        <JsonLd data={visibleOccurrences.filter(o => !o.is_cancelled).map(o => eventLd(o, ldCtx))} />
+      )}
+
       {org.banner_url && (
-        <div style={{ width: '100%', aspectRatio: '3 / 1', maxHeight: '320px', overflow: 'hidden' }}>
-          <img src={org.banner_url} alt={org.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 1', maxHeight: '320px', overflow: 'hidden' }}>
+          <Image src={org.banner_url} alt={org.name} fill priority sizes="100vw" style={{ objectFit: 'cover' }} />
         </div>
       )}
 
@@ -161,9 +171,9 @@ export default async function StudioBookingPage({ params, searchParams }: Props)
                     <article key={occ.occurrence_id} className={styles.card}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
                         {occ.photo_url ? (
-                          <img src={occ.photo_url} alt={occ.session_name} style={{ width: 52, height: 52, borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
+                          <Image src={occ.photo_url} alt={occ.session_name} width={52} height={52} style={{ borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
                         ) : occ.instructor_photo_url ? (
-                          <img src={occ.instructor_photo_url} alt={occ.instructor_name ?? ''} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          <Image src={occ.instructor_photo_url} alt={occ.instructor_name ?? ''} width={44} height={44} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                         ) : (
                           <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#f4f4f4', flexShrink: 0 }} />
                         )}

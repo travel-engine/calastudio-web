@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import styles from '../booking.module.css'
 import { initials } from '@/lib/names'
-import { studioOpenGraph } from '@/lib/seo'
+import { studioOpenGraph, studioOrigin } from '@/lib/seo'
+import { JsonLd, breadcrumbLd, personLd } from '@/lib/jsonLd'
 
 export const revalidate = 60
 
@@ -43,7 +45,7 @@ function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
   const inner = (
     <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', minWidth: 0 }}>
       {t.photo_url ? (
-        <img src={t.photo_url} alt={t.display_name} style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+        <Image src={t.photo_url} alt={t.display_name} width={64} height={64} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
       ) : (
         <div style={{
           width: 64, height: 64, borderRadius: '50%', backgroundColor: '#085041', color: 'white', flexShrink: 0,
@@ -112,8 +114,30 @@ export default async function TeachersDirectoryPage({ params }: Props) {
   const org: { name: string } = await orgRes.json()
   const teachers: TeacherCard[] = await teachersRes.json()
 
+  const origin = studioOrigin(studioSlug)
+  const published = teachers.filter(t => t.is_page_published)
+
   return (
     <div className={styles.page}>
+      <JsonLd data={breadcrumbLd([
+        { name: org.name, url: `${origin}/` },
+        { name: 'Teachers', url: `${origin}/teachers` },
+      ])} />
+      {published.length > 0 && (
+        <JsonLd data={{
+          '@context': 'https://schema.org',
+          '@type': 'ItemList',
+          itemListElement: published.map((t, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            item: personLd(
+              { ...t, instagram_url: null, website_url: null },
+              { studioName: org.name, studioUrl: `${origin}/`, pageUrl: `${origin}/teachers/${t.slug}` },
+            ),
+          })),
+        }} />
+      )}
+
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Teachers</h1>

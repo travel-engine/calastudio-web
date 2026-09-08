@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import styles from '../booking.module.css'
 import PricingList, { type PassTemplate } from '../PricingList'
-import { studioOpenGraph } from '@/lib/seo'
+import { studioOpenGraph, studioOrigin } from '@/lib/seo'
+import { JsonLd, breadcrumbLd, passProductLd } from '@/lib/jsonLd'
 
 export const revalidate = 60
 
@@ -50,8 +51,19 @@ export default async function PricingPage({ params }: Props) {
   const org: PublicOrgInfo = await orgRes.json()
   const templates: PassTemplate[] = await tplRes.json()
 
+  const origin = studioOrigin(studioSlug)
+  const pageUrl = `${origin}/pricing`
+
   return (
     <div className={styles.page}>
+      <JsonLd data={breadcrumbLd([
+        { name: org.name, url: `${origin}/` },
+        { name: 'Pricing', url: pageUrl },
+      ])} />
+      {templates.length > 0 && (
+        <JsonLd data={templates.map(t => passProductLd(t, { studioName: org.name, pageUrl }))} />
+      )}
+
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Pricing</h1>
