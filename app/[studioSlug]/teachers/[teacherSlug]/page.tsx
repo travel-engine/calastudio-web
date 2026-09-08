@@ -4,6 +4,7 @@ import styles from '../../booking.module.css'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
 import { initials } from '@/lib/names'
 import TeacherPhoto from '../TeacherPhoto'
+import PhotoGallery from '../PhotoGallery'
 
 export const revalidate = 60
 
@@ -28,6 +29,7 @@ interface TeacherProfile {
   tagline: string | null
   bio: string | null
   photo_url: string | null
+  photos: string[] | null
   specialties: string[] | null
   certifications: string[] | null
   years_experience: number | null
@@ -72,6 +74,8 @@ export default async function TeacherLandingPage({ params }: Props) {
     ...(p.specialties ?? []),
   ]
   const upcoming = (data.upcoming_classes ?? []).filter(c => !c.is_cancelled)
+  // Gallery = the extra photos, minus the one already shown as the hero.
+  const galleryPhotos = (p.photos ?? []).filter(u => u && u !== p.photo_url)
 
   return (
     <div className={styles.page}>
@@ -99,6 +103,12 @@ export default async function TeacherLandingPage({ params }: Props) {
         {p.bio && (
           <Section title="About">
             <div style={{ fontSize: '14px', color: '#333', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{p.bio}</div>
+          </Section>
+        )}
+
+        {galleryPhotos.length > 0 && (
+          <Section title="Photos">
+            <PhotoGallery photos={galleryPhotos} alt={p.display_name} />
           </Section>
         )}
 

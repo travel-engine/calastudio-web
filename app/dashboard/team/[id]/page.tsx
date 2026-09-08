@@ -278,7 +278,7 @@ export default function EditTeacherPage() {
             website_url: form.website_url || null,
             is_page_published: form.is_page_published,
             show_on_studio_page: form.show_on_studio_page,
-            // The profile model holds a single photo — the first one is what shows publicly.
+            // The first photo is the hero; the rest are the gallery.
             photo_url: form.photos[0] || null,
             photos: form.photos.length > 0 ? form.photos : null,
           })
@@ -289,7 +289,8 @@ export default function EditTeacherPage() {
         setSuccess('Profile saved successfully')
         setTimeout(() => setSuccess(''), 3000)
       } else {
-        setError('Failed to save. Please try again.')
+        const data = await res.json().catch(() => null)
+        setError(data?.error ?? 'Failed to save. Please try again.')
       }
     } catch {
       setError('Something went wrong.')
@@ -385,7 +386,7 @@ export default function EditTeacherPage() {
           </Field>
 
           {/* Photos */}
-          <Field label="Photos" hint="The first photo is the one shown on the teacher's public pages. (A multi-photo gallery is coming soon — for now only the first is saved.)">
+          <Field label="Photos" hint="The first photo is the hero at the top of the page; the rest appear in a gallery below the bio. Up to 10.">
 
             {/* Photo grid */}
             {form.photos.length > 0 && (
@@ -412,6 +413,18 @@ export default function EditTeacherPage() {
                       >
                         ×
                       </button>
+                    )}
+                    {!url.startsWith('blob:') && (
+                      i === 0 ? (
+                        <span style={{ position: 'absolute', bottom: '6px', left: '6px', backgroundColor: '#085041', color: 'white', fontSize: '10px', fontWeight: 600, borderRadius: '4px', padding: '2px 6px' }}>Hero</span>
+                      ) : (
+                        <button
+                          onClick={() => setForm(prev => ({ ...prev, photos: [prev.photos[i], ...prev.photos.filter((_, idx) => idx !== i)] }))}
+                          style={{ position: 'absolute', bottom: '6px', left: '6px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '10px', fontWeight: 600, borderRadius: '4px', padding: '2px 6px', border: 'none', cursor: 'pointer' }}
+                        >
+                          Make hero
+                        </button>
+                      )
                     )}
                   </div>
                 ))}
