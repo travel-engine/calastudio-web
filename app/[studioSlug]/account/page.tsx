@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { splitName } from '@/lib/names'
 import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
+import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
 
@@ -215,6 +216,7 @@ export default function MemberAccountPage() {
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
   const [authBusy, setAuthBusy] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
 
@@ -322,7 +324,11 @@ export default function MemberAccountPage() {
       try {
         const supabase = createClient()
         const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
+        if (session && isSessionExpiredByPolicy()) {
+          // "Keep me signed in" was off and the session cap has passed — drop back to the gate.
+          await supabase.auth.signOut()
+          clearRememberChoice()
+        } else if (session) {
           setAccessToken(session.access_token)
           const meta = session.user.user_metadata as { full_name?: string; phone?: string } | undefined
           await resolveMembership(session.access_token, { fullName: meta?.full_name, phone: meta?.phone })
@@ -396,6 +402,7 @@ export default function MemberAccountPage() {
     const supabase = createClient()
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setAuthMessage(error.message); setAuthBusy(false); return }
+    setRememberChoice(rememberMe)
     setAccessToken(data.session.access_token)
     const meta = data.session.user.user_metadata as { full_name?: string; phone?: string } | undefined
     await resolveMembership(data.session.access_token, { fullName: meta?.full_name, phone: meta?.phone })
@@ -834,6 +841,18 @@ export default function MemberAccountPage() {
               <label style={labelStyle}>Password</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
             </div>
+
+            {authMode === 'signin' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-meta)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: 'var(--ink)', cursor: 'pointer' }}
+                />
+                Keep me signed in on this device
+              </label>
+            )}
 
             <button
               type="submit"

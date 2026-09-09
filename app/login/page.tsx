@@ -2,12 +2,14 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { setRememberChoice } from '@/lib/authRemember'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -27,6 +29,8 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
+
+    setRememberChoice(rememberMe)
 
     try {
       const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
@@ -118,6 +122,16 @@ export default function LoginPage() {
               }}
             />
           </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#666', cursor: 'pointer', marginTop: '-2px' }}>
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={e => setRememberMe(e.target.checked)}
+              style={{ width: '16px', height: '16px', accentColor: '#085041', cursor: 'pointer' }}
+            />
+            Keep me signed in on this device
+          </label>
 
           <button
             type="submit"
