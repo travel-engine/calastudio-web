@@ -1,7 +1,14 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { Manrope } from 'next/font/google'
 import StudioNav from './StudioNav'
 import { studioOrigin, metaDescription } from '@/lib/seo'
+import { resolveTheme, themeVars } from './theme'
+
+// Photo First uses Manrope (handoff §Global). Self-hosted via next/font; the variable is set on
+// the studio-tree wrapper below and consumed through --font-body in theme.ts. Scoped here rather
+// than in the root layout so the dashboard keeps its system font.
+const manrope = Manrope({ subsets: ['latin'], weight: ['300', '400', '500', '700'], variable: '--font-manrope' })
 
 interface Props {
   children: React.ReactNode
@@ -14,6 +21,7 @@ interface PublicOrgInfo {
   logo_url: string | null
   banner_url: string | null
   brand_color: string | null
+  theme?: string | null
 }
 
 async function getOrg(studioSlug: string): Promise<PublicOrgInfo | null> {
@@ -68,8 +76,13 @@ export default async function StudioLayout({ children, params }: Props) {
   if (!res.ok) throw new Error('Failed to load studio')
   const org: PublicOrgInfo = await res.json()
 
+  const theme = resolveTheme(org.theme)
+
+  // The wrapper only carries the theme tokens + font variable — it deliberately doesn't paint a
+  // background or set text colour, so pages not yet converted to Photo First render unchanged.
+  // Converted pages apply the `.root` class (see photofirst.module.css) to opt into the look.
   return (
-    <>
+    <div className={manrope.variable} style={{ ...themeVars(theme), position: 'relative' }} data-studio-theme={theme.key}>
       <StudioNav
         studioSlug={studioSlug}
         name={org.name}
@@ -77,6 +90,6 @@ export default async function StudioLayout({ children, params }: Props) {
         brandColor={org.brand_color || '#085041'}
       />
       {children}
-    </>
+    </div>
   )
 }

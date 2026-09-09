@@ -17,6 +17,9 @@ interface Props {
 // left, nav links + an account area on the right. Below 680px the links collapse into a burger
 // menu that drops down under the header. Auth state is read client-side, so the bar renders in a
 // neutral state until the Supabase session resolves to avoid a hydration mismatch.
+//
+// On the studio home page the bar is transparent and overlays the hero photo; elsewhere it's a
+// solid sticky bar. `brand_color` still drives the account avatar (the theme owns everything else).
 export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Props) {
   const pathname = usePathname()
   const [email, setEmail] = useState<string | null>(null)
@@ -24,6 +27,9 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
   const [menuOpen, setMenuOpen] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const home = `/${studioSlug}`
+  const onHome = pathname === home
 
   useEffect(() => {
     const supabase = createClient()
@@ -66,16 +72,21 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
   const handleSignOut = async () => {
     await createClient().auth.signOut()
     setMenuOpen(false)
-    window.location.href = `/${studioSlug}`
+    window.location.href = home
   }
 
   const onAccountPage = pathname === `/${studioSlug}/account`
   const initial = (email?.[0] ?? '?').toUpperCase()
 
-  const linkColor = (active: boolean) => ({ color: active ? '#1a1a1a' : '#666' })
+  const navLinks = [
+    { href: home, label: 'Home', active: onHome },
+    { href: `${home}/schedule`, label: 'Schedule', active: pathname === `${home}/schedule` },
+    { href: `${home}/teachers`, label: 'Teachers', active: pathname.startsWith(`${home}/teachers`) },
+    { href: `${home}/pricing`, label: 'Pricing', active: pathname === `${home}/pricing` },
+  ]
 
   return (
-    <header className={styles.bar}>
+    <header className={`${styles.bar} ${onHome ? styles.barOverPhoto : ''}`}>
       <div className={styles.inner}>
         <div className={styles.left}>
           <button
@@ -88,15 +99,13 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
             {navOpen ? '✕' : '☰'}
           </button>
           <Link
-            href={`/${studioSlug}`}
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'inherit', minWidth: 0 }}
+            href={home}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'var(--ink)', minWidth: 0 }}
           >
             {logoUrl ? (
               <img src={logoUrl} alt={`${name} logo`} style={{ width: 30, height: 30, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
-            ) : (
-              <div style={{ width: 30, height: 30, borderRadius: '6px', backgroundColor: brandColor, flexShrink: 0 }} />
-            )}
-            <span style={{ fontWeight: 700, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            ) : null}
+            <span style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {name}
             </span>
           </Link>
@@ -104,16 +113,17 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
 
         <nav className={styles.right}>
           <div className={`${styles.links} ${navOpen ? styles.linksOpen : ''}`}>
-            <Link href={`/${studioSlug}`} className={styles.link} style={linkColor(pathname === `/${studioSlug}`)} onClick={() => setNavOpen(false)}>
-              Schedule
-            </Link>
-            <Link href={`/${studioSlug}/teachers`} className={styles.link} style={linkColor(pathname.startsWith(`/${studioSlug}/teachers`))} onClick={() => setNavOpen(false)}>
-              Teachers
-            </Link>
-            <Link href={`/${studioSlug}/pricing`} className={styles.link} style={linkColor(pathname === `/${studioSlug}/pricing`)} onClick={() => setNavOpen(false)}>
-              Pricing
-            </Link>
-            <a href="/help" target="_blank" rel="noopener noreferrer" className={styles.link} style={{ color: '#666' }} onClick={() => setNavOpen(false)}>
+            {navLinks.map(l => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`${styles.link} ${l.active ? styles.linkActive : ''}`}
+                onClick={() => setNavOpen(false)}
+              >
+                {l.label}
+              </Link>
+            ))}
+            <a href="/help" target="_blank" rel="noopener noreferrer" className={styles.link} onClick={() => setNavOpen(false)}>
               Help
             </a>
           </div>
@@ -139,14 +149,14 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
                 <div
                   role="menu"
                   style={{
-                    position: 'absolute', right: 0, top: 'calc(100% + 8px)', minWidth: '220px',
-                    backgroundColor: 'white', border: '1px solid #e2e2e2', borderRadius: '10px',
-                    boxShadow: '0 12px 32px rgba(0,0,0,0.12)', padding: '6px', zIndex: 30,
+                    position: 'absolute', right: 0, top: 'calc(100% + 10px)', minWidth: '220px',
+                    background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: '14px',
+                    boxShadow: '0 16px 40px rgba(0,0,0,0.45)', padding: '6px', zIndex: 30,
                   }}
                 >
                   <div style={{
-                    padding: '8px 10px 10px', fontSize: '12px', color: '#999',
-                    borderBottom: '1px solid #f0f0f0', marginBottom: '4px',
+                    padding: '8px 10px 10px', fontSize: '12px', color: 'var(--text-label)',
+                    borderBottom: '1px solid var(--line)', marginBottom: '4px',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>
                     {email}
@@ -155,7 +165,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
                     href={`/${studioSlug}/account`}
                     role="menuitem"
                     onClick={() => setMenuOpen(false)}
-                    style={{ display: 'block', padding: '9px 10px', borderRadius: '6px', fontSize: '13px', color: '#1a1a1a', textDecoration: 'none' }}
+                    style={{ display: 'block', padding: '9px 10px', borderRadius: '8px', fontSize: '13px', color: 'var(--ink)', textDecoration: 'none' }}
                   >
                     My bookings &amp; orders
                   </Link>
@@ -163,8 +173,8 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
                     role="menuitem"
                     onClick={handleSignOut}
                     style={{
-                      display: 'block', width: '100%', textAlign: 'left', padding: '9px 10px', borderRadius: '6px',
-                      fontSize: '13px', color: '#8b1a1a', background: 'none', border: 'none', cursor: 'pointer',
+                      display: 'block', width: '100%', textAlign: 'left', padding: '9px 10px', borderRadius: '8px',
+                      fontSize: '13px', color: '#e88f8f', background: 'none', border: 'none', cursor: 'pointer',
                     }}
                   >
                     Sign out
@@ -176,8 +186,8 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
             <Link
               href={`/${studioSlug}/account`}
               style={{
-                padding: '8px 16px', backgroundColor: brandColor, color: 'white', borderRadius: '8px',
-                fontSize: '13px', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
+                padding: '9px 18px', background: 'var(--accent)', color: 'var(--accent-ink)', borderRadius: 'var(--pill)',
+                fontSize: '13px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
               }}
             >
               Sign in

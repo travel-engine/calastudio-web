@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { splitName } from '@/lib/names'
 import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from './account.module.css'
+import pf from '../photofirst.module.css'
 
 interface OrgInfo {
   id: string
@@ -124,32 +125,38 @@ const paymentTypeLabels: Record<string, string> = {
 }
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-  fontSize: '14px', outline: 'none', backgroundColor: 'white'
+  width: '100%', padding: '12px 16px', border: '1px solid var(--line-chip)', borderRadius: '10px',
+  fontSize: '14px', outline: 'none', background: 'var(--inset)', color: 'var(--ink)',
 }
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }
+const labelStyle: React.CSSProperties = { display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.06em' }
 
 function StatusBadge({ status }: { status: string }) {
+  // Dark-palette badges: a low-alpha wash of the semantic hue with a light readable label.
+  const ok = { bg: 'rgba(245,244,241,0.10)', color: 'var(--text-body)' }
+  const warn = { bg: 'rgba(232,160,106,0.16)', color: '#e8a06a' }
+  const info = { bg: 'rgba(140,170,220,0.16)', color: '#a9c2e8' }
+  const bad = { bg: 'rgba(214,120,120,0.16)', color: '#e8a0a0' }
+  const mute = { bg: 'rgba(245,244,241,0.06)', color: 'var(--text-label)' }
   const map: Record<string, { bg: string; color: string; label: string }> = {
-    active: { bg: '#e8f5ee', color: '#085041', label: 'Active' },
-    low: { bg: '#fff3cd', color: '#7a4f00', label: 'Low' },
-    frozen: { bg: '#e8eef8', color: '#1B4F8A', label: 'Frozen' },
-    expired: { bg: '#f4f4f4', color: '#666', label: 'Expired' },
-    exhausted: { bg: '#fdecea', color: '#8b1a1a', label: 'Exhausted' },
-    confirmed: { bg: '#e8f5ee', color: '#085041', label: 'Confirmed' },
-    attended: { bg: '#e8eef8', color: '#1B4F8A', label: 'Attended' },
-    cancelled: { bg: '#f4f4f4', color: '#666', label: 'Cancelled' },
-    late_cancel: { bg: '#fdecea', color: '#8b1a1a', label: 'Late cancel' },
-    waitlisted: { bg: '#fff3cd', color: '#7a4f00', label: 'Waitlisted' },
-    pending: { bg: '#fff3cd', color: '#7a4f00', label: 'Pending' },
-    succeeded: { bg: '#e8f5ee', color: '#085041', label: 'Paid' },
-    failed: { bg: '#fdecea', color: '#8b1a1a', label: 'Failed' },
-    refunded: { bg: '#f4f4f4', color: '#666', label: 'Refunded' },
-    partially_refunded: { bg: '#f4f4f4', color: '#666', label: 'Partially refunded' },
-    waiting: { bg: '#fff3cd', color: '#7a4f00', label: 'Waiting' },
-    promoted: { bg: '#e8f5ee', color: '#085041', label: 'Spot ready' },
-    booked: { bg: '#e8f5ee', color: '#085041', label: 'Booked' },
-    removed: { bg: '#f4f4f4', color: '#666', label: 'Left' },
+    active: { ...ok, label: 'Active' },
+    low: { ...warn, label: 'Low' },
+    frozen: { ...info, label: 'Frozen' },
+    expired: { ...mute, label: 'Expired' },
+    exhausted: { ...bad, label: 'Exhausted' },
+    confirmed: { ...ok, label: 'Confirmed' },
+    attended: { ...info, label: 'Attended' },
+    cancelled: { ...mute, label: 'Cancelled' },
+    late_cancel: { ...bad, label: 'Late cancel' },
+    waitlisted: { ...warn, label: 'Waitlisted' },
+    pending: { ...warn, label: 'Pending' },
+    succeeded: { ...ok, label: 'Paid' },
+    failed: { ...bad, label: 'Failed' },
+    refunded: { ...mute, label: 'Refunded' },
+    partially_refunded: { ...mute, label: 'Partially refunded' },
+    waiting: { ...warn, label: 'Waiting' },
+    promoted: { ...ok, label: 'Spot ready' },
+    booked: { ...ok, label: 'Booked' },
+    removed: { ...mute, label: 'Left' },
   }
   const s = map[status]
   if (!s) return null // no_show and any unknown status carry no badge
@@ -589,22 +596,22 @@ export default function MemberAccountPage() {
     const holdExpired = w.status === 'promoted' && (!w.token_expires_at || new Date(w.token_expires_at) <= new Date())
     const occ = w.session_occurrence
     return (
-      <div key={w.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+      <div key={w.id} style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
               {occ?.session?.name ?? 'Session'}
             </div>
-            <div style={{ fontSize: '13px', color: '#666' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
               {occ ? `${formatDateTime(occ.starts_at)} · ${timeRange(occ.starts_at, occ.ends_at)}` : '—'}
               {w.preferred_mode === 'online' ? ' · Online' : ' · In person'}
               {w.intended_guest_count > 0 ? ` · ${w.intended_guest_count + 1} spots` : ''}
             </div>
             {w.status === 'waiting' && (
-              <div style={{ fontSize: '13px', color: '#7a4f00', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
+              <div style={{ fontSize: '13px', color: '#e8a06a', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
             )}
             {w.status === 'promoted' && !holdExpired && (
-              <div style={{ fontSize: '13px', color: '#085041', marginTop: '4px', fontWeight: 600 }}>
+              <div style={{ fontSize: '13px', color: 'var(--ink)', marginTop: '4px', fontWeight: 600 }}>
                 A spot opened — claim by {w.token_expires_at ? formatDateTime(w.token_expires_at) : 'soon'}
               </div>
             )}
@@ -616,7 +623,7 @@ export default function MemberAccountPage() {
                 onClick={() => handleClaimWaitlist(w)}
                 disabled={claimingWaitlistId === w.id}
                 style={{
-                  padding: '6px 14px', backgroundColor: claimingWaitlistId === w.id ? '#9fd6b8' : brand, color: 'white',
+                  padding: '6px 14px', backgroundColor: claimingWaitlistId === w.id ? 'rgba(245,244,241,0.3)' : brand, color: 'white',
                   border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: claimingWaitlistId === w.id ? 'default' : 'pointer'
                 }}
               >
@@ -627,8 +634,8 @@ export default function MemberAccountPage() {
               onClick={() => handleLeaveWaitlist(w.id)}
               disabled={leavingWaitlistId === w.id}
               style={{
-                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#8b1a1a'
+                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
+                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#e8a0a0'
               }}
             >
               {leavingWaitlistId === w.id ? 'Leaving…' : 'Leave waitlist'}
@@ -644,22 +651,22 @@ export default function MemberAccountPage() {
     const sess = occ?.session
     const join = upcoming && b.booked_mode === 'online' && occ ? onlineJoin(occ) : null
     return (
-      <div key={b.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+      <div key={b.id} style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             {sess?.name ?? 'Session'}
             {b.guest_count > 0 && (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#7a4f00', backgroundColor: '#fff3cd', borderRadius: '999px', padding: '2px 8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#e8a06a', backgroundColor: '#fff3cd', borderRadius: '999px', padding: '2px 8px' }}>
                 +{b.guest_count} guest{b.guest_count > 1 ? 's' : ''}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '13px', color: '#666' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
             {occ ? `${formatDateTime(occ.starts_at)} · ${timeRange(occ.starts_at, occ.ends_at)}` : '—'}
             {b.booked_mode === 'online' ? ' · Online' : ' · In person'}
           </div>
           {b.booked_mode !== 'online' && sess?.location_name && (
-            <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-label)', marginTop: '2px' }}>
               {sess.location_name}{sess.location_address ? ` · ${sess.location_address}` : ''}
             </div>
           )}
@@ -677,15 +684,15 @@ export default function MemberAccountPage() {
             </a>
           )}
           {join?.kind === 'note' && (
-            <span style={{ fontSize: '11px', color: '#999' }}>{join.text}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-label)' }}>{join.text}</span>
           )}
           {upcoming && b.status === 'confirmed' && (
             <button
               onClick={() => handleCancelBooking(b.id)}
               disabled={cancellingId === b.id}
               style={{
-                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#8b1a1a'
+                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
+                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#e8a0a0'
               }}
             >
               {cancellingId === b.id ? 'Cancelling...' : 'Cancel'}
@@ -697,8 +704,8 @@ export default function MemberAccountPage() {
   }
 
   const emptyPanel = (text: string) => (
-    <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-      <div style={{ color: '#666', fontSize: '14px', marginBottom: '16px' }}>{text}</div>
+    <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '48px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
+      <div style={{ color: 'var(--text-meta)', fontSize: '14px', marginBottom: '16px' }}>{text}</div>
       <a
         href={`/${studioSlug}`}
         style={{ display: 'inline-block', padding: '9px 20px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
@@ -710,18 +717,18 @@ export default function MemberAccountPage() {
 
   if (checking) {
     return (
-      <div style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: '#666' }}>Loading...</div>
+      <div className={pf.root} style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+        <div style={{ color: 'var(--text-meta)' }}>Loading...</div>
       </div>
     )
   }
 
   if (studioNotFound) {
     return (
-      <div style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px' }}>
+      <div className={pf.root} style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', background: 'var(--bg)' }}>
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Studio not found</h1>
-          <p style={{ color: '#666', fontSize: '14px' }}>There's no studio at &quot;{studioSlug}&quot;.</p>
+          <p style={{ color: 'var(--text-meta)', fontSize: '14px' }}>There's no studio at &quot;{studioSlug}&quot;.</p>
         </div>
       </div>
     )
@@ -731,21 +738,21 @@ export default function MemberAccountPage() {
   if (needsAgreements) {
     const canContinue = agreeTerms && (!waiverInfo?.required || agreeWaiver)
     return (
-      <div style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f4f4', padding: '24px' }}>
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '40px', width: '100%', maxWidth: '420px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
+      <div className={pf.root} style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '24px' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: '16px', padding: '40px', width: '100%', maxWidth: '420px', border: '1px solid var(--line-strong)' }}>
           <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>Before you continue</h1>
-          <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
+          <p style={{ color: 'var(--text-meta)', fontSize: '14px', marginBottom: '20px' }}>
             Please review and accept the following to finish signing up.
           </p>
 
           {waiverLoading ? (
-            <p style={{ color: '#666', fontSize: '14px' }}>Loading...</p>
+            <p style={{ color: 'var(--text-meta)', fontSize: '14px' }}>Loading...</p>
           ) : (
             <>
               {waiverInfo?.text && (
                 <div style={{
-                  border: '1px solid #e2e2e2', borderRadius: '8px', padding: '14px', marginBottom: '16px',
-                  maxHeight: '180px', overflowY: 'auto', fontSize: '13px', color: '#444', whiteSpace: 'pre-wrap'
+                  border: '1px solid var(--line-chip)', borderRadius: '8px', padding: '14px', marginBottom: '16px',
+                  maxHeight: '180px', overflowY: 'auto', fontSize: '13px', color: 'var(--text-body)', whiteSpace: 'pre-wrap'
                 }}>
                   {waiverInfo.text}
                 </div>
@@ -765,7 +772,7 @@ export default function MemberAccountPage() {
               </div>
 
               {agreementsError && (
-                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
+                <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px', marginBottom: '16px' }}>
                   {agreementsError}
                 </div>
               )}
@@ -774,7 +781,7 @@ export default function MemberAccountPage() {
                 onClick={handleAcceptAgreements}
                 disabled={agreementsBusy || !canContinue}
                 style={{
-                  width: '100%', padding: '12px', backgroundColor: agreementsBusy || !canContinue ? '#9fd6b8' : brand,
+                  width: '100%', padding: '12px', backgroundColor: agreementsBusy || !canContinue ? 'rgba(245,244,241,0.3)' : brand,
                   color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 600,
                   cursor: agreementsBusy || !canContinue ? 'not-allowed' : 'pointer'
                 }}
@@ -791,17 +798,17 @@ export default function MemberAccountPage() {
   // ── Not signed in: auth gate ──────────────────────────────
   if (!accessToken || !orgId) {
     return (
-      <div style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f4f4', padding: '24px' }}>
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '40px', width: '100%', maxWidth: '420px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
+      <div className={pf.root} style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '24px' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: '16px', padding: '40px', width: '100%', maxWidth: '420px', border: '1px solid var(--line-strong)' }}>
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
             <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{authMode === 'signin' ? 'Welcome back' : 'Create your account'}</h1>
-            <p style={{ color: '#666', marginTop: '6px', fontSize: '14px' }}>
+            <p style={{ color: 'var(--text-meta)', marginTop: '6px', fontSize: '14px' }}>
               {authMode === 'signin' ? 'Sign in to manage your bookings and passes' : 'Book classes and manage your passes'}
             </p>
           </div>
 
           {portalError && (
-            <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
+            <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px', marginBottom: '16px' }}>
               {portalError}
             </div>
           )}
@@ -832,7 +839,7 @@ export default function MemberAccountPage() {
               type="submit"
               disabled={authBusy}
               style={{
-                padding: '12px', backgroundColor: authBusy ? '#9fd6b8' : brand, color: 'white', border: 'none',
+                padding: '12px', backgroundColor: authBusy ? 'rgba(245,244,241,0.3)' : brand, color: 'white', border: 'none',
                 borderRadius: '8px', fontSize: '15px', fontWeight: 600, cursor: authBusy ? 'default' : 'pointer', marginTop: '4px'
               }}
             >
@@ -859,14 +866,14 @@ export default function MemberAccountPage() {
             {authMessage && (
               <div style={{
                 padding: '12px', borderRadius: '8px', fontSize: '13px', textAlign: 'center',
-                backgroundColor: authMessage.includes('Check your email') ? '#e8f5ee' : '#fdecea',
-                color: authMessage.includes('Check your email') ? '#085041' : '#8b1a1a',
+                backgroundColor: authMessage.includes('Check your email') ? 'rgba(245,244,241,0.08)' : 'rgba(214,120,120,0.16)',
+                color: authMessage.includes('Check your email') ? 'var(--text-body)' : '#e8a0a0',
               }}>
                 {authMessage}
               </div>
             )}
 
-            <p style={{ textAlign: 'center', fontSize: '13px', color: '#666', marginTop: '4px' }}>
+            <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-meta)', marginTop: '4px' }}>
               {authMode === 'signin' ? (
                 <>New here? <button type="button" onClick={() => { setAuthMode('signup'); setAuthMessage('') }} style={{ background: 'none', border: 'none', color: brand, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Create an account</button></>
               ) : (
@@ -881,7 +888,7 @@ export default function MemberAccountPage() {
 
   // ── Signed in: portal ──────────────────────────────────────
   return (
-    <div style={{ minHeight: 'calc(100vh - 57px)', backgroundColor: '#f4f4f4' }}>
+    <div className={pf.root} style={{ minHeight: 'calc(100vh - 57px)', background: 'var(--bg)' }}>
       <div className={styles.layout}>
         <nav className={styles.nav}>
           {(['upcoming', 'past', 'passes', 'payments', 'policies', 'profile'] as const).map(t => (
@@ -903,8 +910,8 @@ export default function MemberAccountPage() {
               { label: 'Bookings', value: String(bookings.length) },
               ...(nextClassLabel ? [{ label: 'Next class', value: nextClassLabel }] : []),
             ].map((s, i) => (
-              <div key={s.label} style={i === 0 ? undefined : { borderLeft: '1px solid #e2e2e2', paddingLeft: '28px' }}>
-                <div style={{ fontSize: '12px', color: '#999', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
+              <div key={s.label} style={i === 0 ? undefined : { borderLeft: '1px solid var(--line-chip)', paddingLeft: '28px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
                 <div style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px' }}>{s.value}</div>
               </div>
             ))}
@@ -912,21 +919,21 @@ export default function MemberAccountPage() {
         )}
 
         {portalError && (
-          <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
+          <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px', marginBottom: '16px' }}>
             {portalError}
           </div>
         )}
 
         {dataLoading ? (
-          <div style={{ padding: '48px', textAlign: 'center', color: '#666' }}>Loading...</div>
+          <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-meta)' }}>Loading...</div>
         ) : (
           <>
             {tab === 'profile' && profile && (
-              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '28px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '28px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
-                    <div style={{ fontSize: '13px', color: '#666' }}>{profile.email}</div>
-                    <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>{profile.email}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-label)', marginTop: '2px' }}>
                       Member since {formatDate(profile.join_date)} · {profile.total_sessions_attended} session{profile.total_sessions_attended !== 1 ? 's' : ''} attended
                     </div>
                   </div>
@@ -984,17 +991,17 @@ export default function MemberAccountPage() {
                   onClick={handleSaveProfile}
                   disabled={savingProfile}
                   style={{
-                    padding: '10px 24px', backgroundColor: savingProfile ? '#9fd6b8' : brand, color: 'white', border: 'none',
+                    padding: '10px 24px', backgroundColor: savingProfile ? 'rgba(245,244,241,0.3)' : brand, color: 'white', border: 'none',
                     borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: savingProfile ? 'default' : 'pointer'
                   }}
                 >
                   {savingProfile ? 'Saving...' : 'Save changes'}
                 </button>
-                {profileSaved && <span style={{ marginLeft: '12px', fontSize: '13px', color: '#085041' }}>Saved.</span>}
+                {profileSaved && <span style={{ marginLeft: '12px', fontSize: '13px', color: 'var(--ink)' }}>Saved.</span>}
 
-                <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid #eee' }}>
+                <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--line)' }}>
                   <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>Password</div>
-                  <p style={{ fontSize: '13px', color: '#666', margin: 0 }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-meta)', margin: 0 }}>
                     To change your password, sign out and use{' '}
                     <span style={{ fontWeight: 600 }}>&ldquo;Forgot password?&rdquo;</span> on the sign-in screen. We&apos;ll email you a secure reset link.
                   </p>
@@ -1005,12 +1012,12 @@ export default function MemberAccountPage() {
             {tab === 'upcoming' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {cancelError && (
-                  <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px' }}>
                     {cancelError}
                   </div>
                 )}
                 {waitlistActionError && (
-                  <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px' }}>
                     {waitlistActionError}
                   </div>
                 )}
@@ -1037,7 +1044,7 @@ export default function MemberAccountPage() {
             {tab === 'passes' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {passes.length === 0 ? (
-                  <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
+                  <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '48px', textAlign: 'center', color: 'var(--text-meta)', fontSize: '14px' }}>
                     No passes yet.
                   </div>
                 ) : passes.map(p => {
@@ -1045,7 +1052,7 @@ export default function MemberAccountPage() {
                   const open = expandedPassId === p.id
                   const entries = ledger.filter(e => e.member_pass_id === p.id)
                   return (
-                    <div key={p.id} style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                    <div key={p.id} style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)', overflow: 'hidden' }}>
                       <div
                         onClick={isCredit ? () => setExpandedPassId(open ? null : p.id) : undefined}
                         style={{
@@ -1055,11 +1062,11 @@ export default function MemberAccountPage() {
                       >
                         <div>
                           <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
-                            {isCredit && <span style={{ color: '#999', marginRight: '6px' }}>{open ? '▾' : '▸'}</span>}
+                            {isCredit && <span style={{ color: 'var(--text-label)', marginRight: '6px' }}>{open ? '▾' : '▸'}</span>}
                             {p.pass_template?.name ?? 'Pass'}
-                            {p.pass_template && <span style={{ fontWeight: 400, color: '#999', marginLeft: '8px' }}>{formatMoney(p.pass_template.price, p.pass_template.currency)}</span>}
+                            {p.pass_template && <span style={{ fontWeight: 400, color: 'var(--text-label)', marginLeft: '8px' }}>{formatMoney(p.pass_template.price, p.pass_template.currency)}</span>}
                           </div>
-                          <div style={{ fontSize: '13px', color: '#666' }}>
+                          <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
                             {p.credits_remaining === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · {formatDate(p.effective_from)} – {formatDate(p.expires_at)}
                           </div>
                         </div>
@@ -1067,24 +1074,24 @@ export default function MemberAccountPage() {
                       </div>
 
                       {open && (
-                        <div style={{ borderTop: '1px solid #f4f4f4' }}>
+                        <div style={{ borderTop: '1px solid var(--line)' }}>
                           {entries.length === 0 ? (
-                            <div style={{ padding: '16px 20px', textAlign: 'center', color: '#999', fontSize: '13px' }}>No credit activity on this pass yet.</div>
+                            <div style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-label)', fontSize: '13px' }}>No credit activity on this pass yet.</div>
                           ) : entries.map((entry, i) => (
                             <div key={entry.id} style={{
                               display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px',
-                              borderBottom: i < entries.length - 1 ? '1px solid #f7f7f7' : 'none', gap: '12px', flexWrap: 'wrap',
+                              borderBottom: i < entries.length - 1 ? '1px solid var(--line)' : 'none', gap: '12px', flexWrap: 'wrap',
                             }}>
                               <div>
                                 <div style={{ fontSize: '13px', fontWeight: 500 }}>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
-                                <div style={{ fontSize: '12px', color: '#999' }}>{formatDateTime(entry.created_at)}</div>
-                                {entry.notes && <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>{entry.notes}</div>}
+                                <div style={{ fontSize: '12px', color: 'var(--text-label)' }}>{formatDateTime(entry.created_at)}</div>
+                                {entry.notes && <div style={{ fontSize: '12px', color: 'var(--text-meta)', marginTop: '2px' }}>{entry.notes}</div>}
                               </div>
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '13px', fontWeight: 600, color: entry.credits_delta >= 0 ? '#085041' : '#8b1a1a' }}>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: entry.credits_delta >= 0 ? '#86c9a8' : '#e8a0a0' }}>
                                   {entry.credits_delta >= 0 ? '+' : ''}{entry.credits_delta}
                                 </div>
-                                <div style={{ fontSize: '11px', color: '#999' }}>balance: {entry.credits_after}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-label)' }}>balance: {entry.credits_after}</div>
                               </div>
                             </div>
                           ))}
@@ -1099,30 +1106,30 @@ export default function MemberAccountPage() {
             {tab === 'payments' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {receiptError && (
-                  <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px' }}>
                     {receiptError}
                   </div>
                 )}
                 {payments.length === 0 ? (
-                  <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
+                  <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '48px', textAlign: 'center', color: 'var(--text-meta)', fontSize: '14px' }}>
                     No payments yet.
                   </div>
                 ) : payments.map(p => (
                   <div
                     key={p.id}
                     onClick={() => setInvoicePayment(p)}
-                    style={{ backgroundColor: 'white', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', cursor: 'pointer' }}
+                    style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '18px 20px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', cursor: 'pointer' }}
                   >
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
                         {paymentTypeLabels[p.payment_type] ?? p.payment_type}
-                        <span style={{ fontWeight: 400, color: '#999', marginLeft: '8px' }}>{formatMoney(p.amount, p.currency)}</span>
+                        <span style={{ fontWeight: 400, color: 'var(--text-label)', marginLeft: '8px' }}>{formatMoney(p.amount, p.currency)}</span>
                       </div>
-                      <div style={{ fontSize: '13px', color: '#666' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
                         {formatDateTime(p.created_at)}{p.invoice_number ? ` · Invoice ${p.invoice_number}` : ''}
                       </div>
                       {p.refunded_amount > 0 && (
-                        <div style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '2px' }}>
+                        <div style={{ fontSize: '12px', color: '#e8a0a0', marginTop: '2px' }}>
                           {p.status === 'refunded' ? 'Fully refunded' : `Refunded ${formatMoney(p.refunded_amount, p.currency)}`}
                         </div>
                       )}
@@ -1134,8 +1141,8 @@ export default function MemberAccountPage() {
                           onClick={e => { e.stopPropagation(); handleDownloadReceipt(p.id) }}
                           disabled={downloadingReceiptId === p.id}
                           style={{
-                            padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                            borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#444'
+                            padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
+                            borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: 'var(--text-body)'
                           }}
                         >
                           {downloadingReceiptId === p.id ? 'Downloading...' : 'Download receipt'}
@@ -1149,9 +1156,9 @@ export default function MemberAccountPage() {
 
             {tab === 'policies' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
                   <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>Terms &amp; Conditions</div>
-                  <p style={{ fontSize: '13px', color: '#666', margin: '0 0 12px' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-meta)', margin: '0 0 12px' }}>
                     The CalaStudio platform terms you agreed to when you created your account.
                   </p>
                   <a
@@ -1164,24 +1171,24 @@ export default function MemberAccountPage() {
                   </a>
                 </div>
 
-                <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
                   <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>
                     {org?.name ? `${org.name} Liability Waiver` : 'Liability Waiver'}
                   </div>
                   {waiverInfo === null ? (
-                    <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>Loading…</p>
+                    <p style={{ fontSize: '13px', color: 'var(--text-label)', margin: 0 }}>Loading…</p>
                   ) : waiverInfo.text ? (
                     <>
                       <div style={{
-                        fontSize: '13px', color: '#444', lineHeight: 1.6, whiteSpace: 'pre-wrap',
-                        maxHeight: '260px', overflowY: 'auto', border: '1px solid #eee', borderRadius: '8px', padding: '14px',
+                        fontSize: '13px', color: 'var(--text-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                        maxHeight: '260px', overflowY: 'auto', border: '1px solid var(--line)', borderRadius: '8px', padding: '14px',
                       }}>
                         {waiverInfo.text}
                       </div>
-                      <p style={{ fontSize: '11px', color: '#999', margin: '8px 0 0' }}>Version {waiverInfo.version}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-label)', margin: '8px 0 0' }}>Version {waiverInfo.version}</p>
                     </>
                   ) : (
-                    <p style={{ fontSize: '13px', color: '#999', margin: 0 }}>This studio hasn&apos;t published a liability waiver.</p>
+                    <p style={{ fontSize: '13px', color: 'var(--text-label)', margin: 0 }}>This studio hasn&apos;t published a liability waiver.</p>
                   )}
                 </div>
               </div>
@@ -1199,34 +1206,34 @@ export default function MemberAccountPage() {
             onClick={() => setInvoicePayment(null)}
             style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px' }}
           >
-            <div onClick={e => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div onClick={e => e.stopPropagation()} style={{ backgroundColor: 'var(--surface)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                 <div>
                   <div style={{ fontSize: '17px', fontWeight: 700 }}>{label}</div>
                   <div style={{ marginTop: '4px' }}><StatusBadge status={p.status} /></div>
                 </div>
-                <button onClick={() => setInvoicePayment(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>×</button>
+                <button onClick={() => setInvoicePayment(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-meta)' }}>×</button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: '6px', columnGap: '16px', fontSize: '13px', marginBottom: '16px' }}>
-                {p.invoice_number && (<><span style={{ color: '#999' }}>Invoice number</span><span style={{ fontWeight: 600 }}>{p.invoice_number}</span></>)}
-                <span style={{ color: '#999' }}>Date</span><span>{formatDateTime(p.created_at)}</span>
+                {p.invoice_number && (<><span style={{ color: 'var(--text-label)' }}>Invoice number</span><span style={{ fontWeight: 600 }}>{p.invoice_number}</span></>)}
+                <span style={{ color: 'var(--text-label)' }}>Date</span><span>{formatDateTime(p.created_at)}</span>
               </div>
 
-              <div style={{ borderTop: '1px solid #eee', paddingTop: '12px', fontSize: '13px' }}>
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: '12px', fontSize: '13px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                   <span>{label}</span><span>{formatMoney(p.subtotal || p.amount, p.currency)}</span>
                 </div>
                 {p.tax_amount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: '#666' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', color: 'var(--text-meta)' }}>
                     <span>{p.tax_name || 'Tax'}</span><span>{formatMoney(p.tax_amount, p.currency)}</span>
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 0', marginTop: '4px', borderTop: '1px solid #eee', fontWeight: 700 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 0', marginTop: '4px', borderTop: '1px solid var(--line)', fontWeight: 700 }}>
                   <span>Total</span><span>{formatMoney(p.amount, p.currency)}</span>
                 </div>
                 {p.refunded_amount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 0', color: '#8b1a1a' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 0', color: '#e8a0a0' }}>
                     <span>Refunded{p.refund_reason ? ` — ${p.refund_reason}` : ''}</span>
                     <span>−{formatMoney(p.refunded_amount, p.currency)}</span>
                   </div>

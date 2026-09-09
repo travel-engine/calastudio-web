@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import StripePaymentForm from './StripePaymentForm'
 import type { PassTemplate } from './PricingList'
+import styles from './photofirst.module.css'
 
 const money = (n: number, c: string) => {
   try { return new Intl.NumberFormat('en-AU', { style: 'currency', currency: c }).format(n) }
@@ -16,7 +17,7 @@ type Phase = 'loading' | 'pay' | 'confirming' | 'done' | 'error'
 // booking drawer runs, lifted out so it works from the Pricing page (and, later, the account page)
 // without an occurrence in scope.
 export default function PassPurchaseModal({
-  template, orgId, token, studioSlug, stripeAccountId, currency, brandColor, onClose, onPurchased,
+  template, orgId, token, studioSlug, stripeAccountId, currency, onClose, onPurchased,
 }: {
   template: PassTemplate
   orgId: string
@@ -24,7 +25,7 @@ export default function PassPurchaseModal({
   studioSlug: string
   stripeAccountId: string
   currency: string
-  brandColor: string
+  brandColor?: string
   onClose: () => void
   onPurchased: () => void
 }) {
@@ -88,29 +89,23 @@ export default function PassPurchaseModal({
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: '24px' }}
-    >
-      <div onClick={e => e.stopPropagation()} style={{ backgroundColor: 'white', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
-          <div>
-            <div style={{ fontSize: '17px', fontWeight: 700 }}>{template.name}</div>
-            <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>{price}</div>
+    <div onClick={onClose} className={styles.modalOverlay}>
+      <div onClick={e => e.stopPropagation()} className={styles.modalPanel}>
+        <div className={styles.drawerHead} style={{ marginBottom: '18px' }}>
+          <div style={{ minWidth: 0 }}>
+            <div className={styles.drawerTitle}>{template.name}</div>
+            <div className={styles.drawerMeta}>{price}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>×</button>
+          <button onClick={onClose} aria-label="Close" className={styles.iconClose}>✕</button>
         </div>
 
-        {phase === 'loading' && <div style={{ padding: '24px', textAlign: 'center', color: '#666', fontSize: '14px' }}>Setting up…</div>}
+        {phase === 'loading' && <div className={styles.drawerStatus}>Setting up…</div>}
 
         {phase === 'error' && (
           <div>
-            <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>{error}</div>
+            <div className={styles.noticeError} style={{ marginBottom: 0 }}>{error}</div>
             {error.startsWith("You're not a member") && (
-              <Link
-                href={`/${studioSlug}/account`}
-                style={{ display: 'inline-block', marginTop: '14px', padding: '9px 18px', backgroundColor: brandColor, color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
-              >
+              <Link href={`/${studioSlug}/account`} className={styles.smallBtn} style={{ marginTop: '14px' }}>
                 Go to your account
               </Link>
             )}
@@ -122,24 +117,20 @@ export default function PassPurchaseModal({
             clientSecret={clientSecret}
             stripeAccountId={stripeAccountId}
             submitLabel={`Pay ${price}`}
-            accentColor={brandColor}
+            dark
             onSuccess={pollForPass}
             onError={m => { setError(m); setPhase('error') }}
           />
         )}
 
-        {phase === 'confirming' && <div style={{ padding: '24px', textAlign: 'center', color: '#666', fontSize: '14px' }}>Confirming your payment…</div>}
+        {phase === 'confirming' && <div className={styles.drawerStatus}>Confirming your payment…</div>}
 
         {phase === 'done' && (
-          <div style={{ padding: '16px 0', textAlign: 'center' }}>
-            <div style={{ fontSize: '15px', fontWeight: 600, color: '#085041' }}>Pass added to your account</div>
-            <div style={{ fontSize: '13px', color: '#666', margin: '6px 0 16px' }}>You can use it next time you book.</div>
-            <button
-              onClick={onPurchased}
-              style={{ padding: '9px 22px', backgroundColor: brandColor, color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-            >
-              Done
-            </button>
+          <div className={styles.resultWrap}>
+            <div className={`${styles.resultCircle} ${styles.resultCircleSolid}`}>✓</div>
+            <div className={styles.resultTitle}>Pass added to your account</div>
+            <p className={styles.drawerText}>You can use it next time you book.</p>
+            <button onClick={onPurchased} className={styles.blockBtn}>Done</button>
           </div>
         )}
       </div>

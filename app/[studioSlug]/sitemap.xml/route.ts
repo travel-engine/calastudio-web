@@ -24,6 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ studioS
   const now = new Date().toISOString()
   const entries: { loc: string; changefreq: string; priority: string }[] = [
     { loc: `${origin}/`, changefreq: 'daily', priority: '1.0' },
+    { loc: `${origin}/schedule`, changefreq: 'daily', priority: '0.9' },
     { loc: `${origin}/teachers`, changefreq: 'weekly', priority: '0.7' },
     { loc: `${origin}/pricing`, changefreq: 'weekly', priority: '0.6' },
     ...teachers

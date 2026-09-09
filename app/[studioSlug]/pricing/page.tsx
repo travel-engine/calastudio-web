@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import styles from '../booking.module.css'
+import styles from '../photofirst.module.css'
 import PricingList, { type PassTemplate } from '../PricingList'
+import StudioFooter from '../StudioFooter'
+import { getStudioContent } from '../studioContent'
 import { studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, breadcrumbLd, passProductLd } from '@/lib/jsonLd'
 
@@ -35,6 +37,7 @@ interface PublicOrgInfo {
   currency: string
   stripe_account_id: string | null
   payments_enabled: boolean
+  contactEmail?: string | null
 }
 
 export default async function PricingPage({ params }: Props) {
@@ -50,12 +53,13 @@ export default async function PricingPage({ params }: Props) {
 
   const org: PublicOrgInfo = await orgRes.json()
   const templates: PassTemplate[] = await tplRes.json()
+  const content = getStudioContent(studioSlug, org)
 
   const origin = studioOrigin(studioSlug)
   const pageUrl = `${origin}/pricing`
 
   return (
-    <div className={styles.page}>
+    <div className={styles.root}>
       <JsonLd data={breadcrumbLd([
         { name: org.name, url: `${origin}/` },
         { name: 'Pricing', url: pageUrl },
@@ -64,16 +68,12 @@ export default async function PricingPage({ params }: Props) {
         <JsonLd data={templates.map(t => passProductLd(t, { studioName: org.name, pageUrl }))} />
       )}
 
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Pricing</h1>
-          <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-            Class passes at {org.name}. Buy one now, or use it next time you book.
-          </p>
-        </div>
-      </header>
+      <main className={styles.container}>
+        <header className={styles.pageHeader}>
+          <h1 className={styles.h1}>Pricing</h1>
+          <p className={styles.lead}>Class passes at {org.name}. Buy one now, or use it next time you book.</p>
+        </header>
 
-      <main className={styles.content}>
         <PricingList
           studioSlug={studioSlug}
           templates={templates}
@@ -83,7 +83,10 @@ export default async function PricingPage({ params }: Props) {
           stripeAccountId={org.stripe_account_id}
           paymentsEnabled={org.payments_enabled}
         />
+        <div style={{ height: 32 }} />
       </main>
+
+      <StudioFooter name={org.name} email={content.contactEmail} />
     </div>
   )
 }
