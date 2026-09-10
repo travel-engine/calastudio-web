@@ -956,7 +956,9 @@
 
 .teacherGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  /* Text column, then a slightly wider column for the portrait; both fall to full width
+     when the container is too narrow. */
+  grid-template-columns: minmax(min(100%, 300px), 1fr) minmax(min(100%, 340px), 1.2fr);
   gap: clamp(24px, 5vw, 64px);
   align-items: start;
   padding: clamp(28px, 5vw, 64px) 0 clamp(24px, 4vw, 44px);
@@ -1012,7 +1014,7 @@
 
 .teacherPortrait {
   width: 100%;
-  max-width: 460px;
+  max-width: 560px;
   justify-self: center;
   aspect-ratio: 2 / 3;
   object-fit: cover;
@@ -1052,19 +1054,19 @@
 /* --- Teacher directory cards -------------------------------------- */
 
 .dirGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .dirCard {
   background: var(--surface);
   border-radius: var(--radius-card);
-  padding: 22px 24px;
+  padding: 24px 28px;
   text-decoration: none;
   color: inherit;
   display: flex;
-  gap: 16px;
+  gap: 20px;
   align-items: flex-start;
 }
 
@@ -1078,8 +1080,8 @@
 }
 
 .dirAvatar {
-  width: 64px;
-  height: 64px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;

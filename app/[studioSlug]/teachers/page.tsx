@@ -48,7 +48,7 @@ function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
   const inner = (
     <>
       {t.photo_url ? (
-        <Image src={t.photo_url} alt={t.display_name} width={64} height={64} className={styles.dirAvatar} />
+        <Image src={t.photo_url} alt={t.display_name} width={96} height={96} className={styles.dirAvatar} />
       ) : (
         <div className={styles.dirAvatar} style={{ background: 'var(--surface-drawer)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700, color: 'var(--text-meta)' }}>
           {initials(t.display_name)}
