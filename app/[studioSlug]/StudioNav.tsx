@@ -100,14 +100,13 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
           </button>
           <Link
             href={home}
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: 'var(--ink)', minWidth: 0 }}
+            className={styles.brand}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}
           >
             {logoUrl ? (
               <img src={logoUrl} alt={`${name} logo`} style={{ width: 30, height: 30, borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
             ) : null}
-            <span style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {name}
-            </span>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
           </Link>
         </div>
 

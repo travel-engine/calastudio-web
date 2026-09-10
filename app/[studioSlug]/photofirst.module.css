@@ -129,6 +129,19 @@
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
+  /* Always light-on-image, whatever the body palette — the scrim is dark in every theme. */
+  color: #f5f4f1;
+}
+
+/* Pin the hero's buttons to the on-photo treatment regardless of the active theme's tokens. */
+.hero .btnSolid {
+  background: #f5f4f1;
+  color: #0e0e0d;
+}
+
+.hero .btnGhost {
+  color: #f5f4f1;
+  border-color: rgba(245, 244, 241, 0.4);
 }
 
 .heroImg {
@@ -528,7 +541,7 @@
   right: 0;
   bottom: 0;
   z-index: 20;
-  background: rgba(14, 14, 13, 0.86);
+  background: var(--fixedbar-bg);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--line);
   padding: 13px var(--gutter);
@@ -823,7 +836,7 @@
 .noticeWarn {
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(232, 160, 106, 0.14);
+  background: var(--warn-bg);
   color: var(--text-warn);
   font-size: 13px;
   margin-bottom: 16px;
@@ -832,8 +845,8 @@
 .noticeError {
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(214, 120, 120, 0.16);
-  color: #e8a0a0;
+  background: var(--danger-bg);
+  color: var(--danger);
   font-size: 13px;
   margin-bottom: 16px;
 }
@@ -841,7 +854,7 @@
 .noticeOk {
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(245, 244, 241, 0.08);
+  background: var(--ok-bg);
   color: var(--text-body);
   font-size: 13px;
   margin-bottom: 16px;

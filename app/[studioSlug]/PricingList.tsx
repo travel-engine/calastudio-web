@@ -107,7 +107,7 @@ export default function PricingList({
                 ) : token === null ? (
                   <Link href={`/${studioSlug}/account`} className={styles.smallBtn}>Sign in to buy</Link>
                 ) : !canPay ? (
-                  <div style={{ fontSize: '12.5px', color: '#e8a0a0' }}>This studio hasn&apos;t set up card payments yet.</div>
+                  <div style={{ fontSize: '12.5px', color: 'var(--danger)' }}>This studio hasn&apos;t set up card payments yet.</div>
                 ) : (
                   <button onClick={() => setBuying(t)} className={styles.smallBtn}>Buy this pass</button>
                 )}

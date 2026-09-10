@@ -19,6 +19,20 @@
   top: 0;
 }
 
+/* Over the hero photo the bar is always light-on-image, whatever the body palette. */
+.barOverPhoto .brand,
+.barOverPhoto .link {
+  color: rgba(245, 244, 241, 0.82);
+}
+
+.barOverPhoto .linkActive {
+  color: #f5f4f1;
+}
+
+.barOverPhoto .burger {
+  color: #f5f4f1;
+}
+
 .inner {
   max-width: var(--content-max);
   margin: 0 auto;

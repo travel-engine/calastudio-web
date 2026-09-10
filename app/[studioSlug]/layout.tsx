@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { Manrope } from 'next/font/google'
 import StudioNav from './StudioNav'
+import ThemeSwitcher from './ThemeSwitcher'
 import { studioOrigin, metaDescription } from '@/lib/seo'
 import { resolveTheme, themeVars } from './theme'
 
@@ -76,13 +77,22 @@ export default async function StudioLayout({ children, params }: Props) {
   if (!res.ok) throw new Error('Failed to load studio')
   const org: PublicOrgInfo = await res.json()
 
-  const theme = resolveTheme(org.theme)
+  // In development only, a `cs-theme` cookie (set by <ThemeSwitcher>) overrides the studio's theme
+  // so alternates can be previewed. Reading cookies makes a route dynamic, so this is gated to dev
+  // to keep the public pages on ISR in production.
+  let themeKey: string | null | undefined = org.theme
+  if (process.env.NODE_ENV === 'development') {
+    const { cookies } = await import('next/headers')
+    themeKey = (await cookies()).get('cs-theme')?.value ?? org.theme
+  }
+  const theme = resolveTheme(themeKey)
 
   // The wrapper only carries the theme tokens + font variable — it deliberately doesn't paint a
   // background or set text colour, so pages not yet converted to Photo First render unchanged.
   // Converted pages apply the `.root` class (see photofirst.module.css) to opt into the look.
   return (
     <div className={manrope.variable} style={{ ...themeVars(theme), position: 'relative' }} data-studio-theme={theme.key}>
+      {process.env.NODE_ENV === 'development' && <ThemeSwitcher current={theme.key} />}
       <StudioNav
         studioSlug={studioSlug}
         name={org.name}

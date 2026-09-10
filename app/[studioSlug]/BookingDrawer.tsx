@@ -560,7 +560,7 @@ export default function BookingDrawer() {
           </select>
         </div>
         {credits && (
-          <div style={{ fontSize: '12.5px', color: passCreditsShort ? '#e8a0a0' : 'var(--text-meta)', marginTop: '8px' }}>
+          <div style={{ fontSize: '12.5px', color: passCreditsShort ? 'var(--danger)' : 'var(--text-meta)', marginTop: '8px' }}>
             {credits}
             {passCreditsShort && bookingOptions.usable_pass_credits_remaining != null &&
               ` — only ${bookingOptions.usable_pass_credits_remaining} left on your pass`}
@@ -778,13 +778,13 @@ export default function BookingDrawer() {
                   </button>
                 </div>
               ) : !canPay ? (
-                <p style={{ fontSize: '14px', color: '#e8a0a0' }}>
+                <p style={{ fontSize: '14px', color: 'var(--danger)' }}>
                   This class needs payment, but this studio hasn&apos;t set up card payments yet. Please contact the studio to book.
                 </p>
               ) : (
                 <div>
                   {!bookingOptions.drop_in_allowed && !bookingOptions.purchasable_pass_templates?.length ? (
-                    <p style={{ fontSize: '14px', color: '#e8a0a0' }}>
+                    <p style={{ fontSize: '14px', color: 'var(--danger)' }}>
                       No pricing options are available for this class. Please contact the studio.
                     </p>
                   ) : (
