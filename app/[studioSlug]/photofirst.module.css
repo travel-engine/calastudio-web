@@ -176,8 +176,32 @@
   font-weight: 500;
   letter-spacing: var(--kicker-spacing, 0.14em);
   text-transform: uppercase;
+  color: var(--text-meta);
   opacity: 0.82;
   margin: 0 0 18px;
+}
+
+/* --- Split hero (themed layout — handoff "Studio Themes") --------------- */
+
+.heroSplit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: clamp(24px, 5vw, 64px);
+  align-items: center;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: clamp(32px, 6vw, 80px) var(--gutter);
+}
+
+.heroSplitImg {
+  width: 100%;
+  max-width: 520px;
+  justify-self: center;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  object-position: 50% 26%;
+  border-radius: var(--img-radius, var(--radius-card));
+  filter: var(--photo-filter, none);
 }
 
 .heroH1 {
@@ -201,6 +225,11 @@
   line-height: 1.65;
   max-width: 46ch;
   margin: 0 0 28px;
+  color: var(--text-meta);
+}
+
+/* Full-bleed hero sits on a dark scrim — keep its lead brighter than the themed default. */
+.hero .heroLead {
   color: rgba(245, 244, 241, 0.86);
 }
 

@@ -1,62 +1,58 @@
-# Backend contract — Photo First public site
+# Backend contract — studio public site + theming
 
-Frontend work for the Photo First design (design_handoff_studio_pages) is done against the
-contract below. Until `CalaStudio.Api` implements it, the frontend falls back to a per-slug
-content map (`app/[studioSlug]/studioContent.ts`) so `yoga-with-ravi` renders the final copy.
-When the API returns a field, it wins over the fallback.
+The frontend (theme engine, 6-theme picker, split/full-bleed layouts, the settings content
+editor) is built against the contract below. Two columns/areas of backend work remain:
 
-## 1. `theme` on the org  — frontend DONE, needs the column + accept/persist
+1. a `theme` value on the org
+2. the public-page **content** fields
 
-Add a `theme` column to the organisation record.
+Until they land, the frontend falls back to a per-slug map (`app/[studioSlug]/studioContent.ts`)
+so `yoga-with-ravi` still renders; every other studio shows an empty-but-valid home page.
 
-- Type: `varchar(20)`, nullable. `null` ⇒ frontend default (`photo-first`).
-- Valid values: `classic | night | clay | grid | poster` (the picker) plus `photo-first`
-  (Yoga with Ravi's private look — an alias of `night`, never shown in the picker).
-- **Accept** it on:
-  - `POST /api/organisations` — onboarding wizard sends `theme` in the create body (step 4).
-  - `PATCH /api/organisations/{id}` — dashboard settings sends `theme` alongside `brand_color` etc.
-- **Expose** it on `GET /api/public/{slug}` as `theme` (already consumed by
-  `app/[studioSlug]/layout.tsx` → `resolveTheme`).
-- Frontend picker UI: `app/components/ThemePicker.tsx`, wired into `app/onboarding/page.tsx`
-  (step 4) and `app/dashboard/settings/page.tsx`. Until the API accepts the field the picker
-  still works but the choice isn't saved — new studios all render the `photo-first` fallback.
+---
 
-The theme engine (`lib/studioTheme.ts` + `app/[studioSlug]/photofirst.module.css`) is complete —
-adding the column is the only backend work for theming.
+## 1. `theme` on the org
 
-## 2. Marketing content fields on `GET /api/public/{slug}`
+- Column: `theme varchar(20)` nullable. `null` ⇒ frontend default (`photo-first`).
+- Valid values: **`classic | night | clay | grid | poster | photo-first`** — all six are offered
+  in the picker now. `photo-first` uses the Night palette with the full-bleed photo-hero layout;
+  the other five use the split-hero layout.
+- **Accept** on:
+  - `POST /api/organisations` — onboarding step 4 sends `theme` in the create body.
+  - `PATCH /api/organisations/{id}` — settings sends `theme` alongside `brand_color` etc.
+- **Expose** on `GET /api/public/{slug}` as `theme` — consumed by `app/[studioSlug]/layout.tsx`
+  and each page (`lib/resolveStudioTheme.ts`) to pick tokens *and* the hero/nav layout.
 
-All optional / nullable. Names are camelCase in the JSON to match how the frontend reads them
-(`app/[studioSlug]/studioContent.ts` → `ApiStudioContent`). Suggested storage: columns on the
-org, or a `studio_page_content` 1:1 table.
+## 2. Public-page content
 
-| JSON field | Type | Notes / example |
+The studio edits these in **dashboard settings → "Public page content"**. They must round-trip:
+`PATCH /api/organisations/{id}` accepts them, `GET /api/public/{slug}` returns them (same names).
+All optional / nullable. Suggested storage: a `studio_page_content` 1:1 table.
+
+| Field (JSON, both directions) | Type | Notes |
 | --- | --- | --- |
-| `tagline` | string | Hero kicker. `"Mysore · Ashtanga · Vinyasa · Workshops"` |
-| `heroHeadline` | string | Hero H1. `"Practise with Ravi"` |
-| `heroHeadlineEmphasis` | string | Substring of `heroHeadline` rendered bold. `"Ravi"` |
-| `heroLead` | string | 1 short paragraph under the H1 |
-| `heroImageUrl` | string (URL) | Supabase Storage public URL, portrait orientation |
-| `heroCtaLabel` | string | Secondary hero button label (links to the teacher page). `"About Ravi"` |
-| `aboutHeading` | string | About section H2 |
-| `about_body` | string[] | One entry per paragraph |
+| `tagline` | string | Kicker above the hero headline |
+| `heroHeadline` | string | Hero H1. Falls back to `"Practise with {studio name}"` |
+| `heroHeadlineEmphasis` | string | Substring of `heroHeadline` rendered bolder |
+| `heroLead` | string | One paragraph under the H1 |
+| `heroImageUrl` | string (URL) | Supabase Storage public URL; portrait |
+| `heroCtaLabel` | string | Second hero button label (→ teacher page) |
+| `aboutHeading` | string | About section heading |
+| `about_body` | string[] | One entry per paragraph (settings sends the split array) |
 | `aboutImageUrl` | string (URL) | Square image |
-| `aboutCtaLabel` | string | About section button label. `"Read more"` |
-| `passesHeading` | string | Home "Passes" block heading. Falls back to `"Passes, or pay as you go"` |
+| `aboutCtaLabel` | string | About section button label |
+| `passesHeading` | string | Home "Passes" block heading; falls back to `"Passes, or pay as you go"` |
 | `passesBlurb` | string | One line under it |
-| `gallery` | `{ url: string, alt: string }[]` | Square photos for the Home + Teacher galleries |
-| `contactEmail` | string | Footer contact. `"hello@yogawithravi.com"` |
+| `gallery` | `{ url: string, alt: string }[]` | Square photos (settings sends `alt` = studio name) |
+| `contactEmail` | string | Footer contact |
 
-Prices, times, capacity, pass balances stay dynamic — they already come from
-`/occurrences`, `/pass-templates`, `/booking-options`.
+Image uploads already go to Supabase Storage client-side (`org-content/` prefix in the
+`teacher-photos` bucket) — the API only needs to store the returned URLs.
 
-## 3. Dashboard settings UI (phase 4, not started)
-
-`app/dashboard/settings` needs inputs for the fields above + a theme selector. Image fields
-reuse the existing banner/logo upload-to-Supabase flow.
+Prices, times, capacity, pass balances, teacher bios stay dynamic — from `/occurrences`,
+`/pass-templates`, `/booking-options`, `/teachers`.
 
 ## Stopgap to remove once §2 ships
 
-- `public/studio/yoga-with-ravi/*` — bundled design photos, ~1.9 MB. Delete when
-  `heroImageUrl` / `aboutImageUrl` / `gallery` come from the API.
+- `public/studio/yoga-with-ravi/*` — bundled design photos (~1.9 MB).
 - The `FALLBACK` map in `app/[studioSlug]/studioContent.ts`.

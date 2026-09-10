@@ -11,6 +11,11 @@ interface Props {
   name: string
   logoUrl: string | null
   brandColor: string
+  /**
+   * `photofirst` — bar overlays the hero photo on the home page, no CTA.
+   * `themed` — always a solid bar with a "Book a class" CTA (handoff Studio Themes layout).
+   */
+  layout?: 'photofirst' | 'themed'
 }
 
 // Persistent top bar for the whole public studio tree ([studioSlug]/*): studio identity on the
@@ -18,10 +23,10 @@ interface Props {
 // menu that drops down under the header. Auth state is read client-side, so the bar renders in a
 // neutral state until the Supabase session resolves to avoid a hydration mismatch.
 //
-// On the studio home page the bar is transparent and overlays the hero photo; elsewhere it's a
-// solid sticky bar. `brand_color` still drives the account avatar (the theme owns everything else).
-export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Props) {
+// `brand_color` still drives the account avatar (the theme owns everything else).
+export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layout = 'photofirst' }: Props) {
   const pathname = usePathname()
+  const themed = layout === 'themed'
   const [email, setEmail] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -79,14 +84,15 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
   const initial = (email?.[0] ?? '?').toUpperCase()
 
   const navLinks = [
-    { href: home, label: 'Home', active: onHome },
+    // The themed layout leads with the studio name as "home" and drops the explicit Home link.
+    ...(themed ? [] : [{ href: home, label: 'Home', active: onHome }]),
     { href: `${home}/schedule`, label: 'Schedule', active: pathname === `${home}/schedule` },
     { href: `${home}/teachers`, label: 'Teachers', active: pathname.startsWith(`${home}/teachers`) },
     { href: `${home}/pricing`, label: 'Pricing', active: pathname === `${home}/pricing` },
   ]
 
   return (
-    <header className={`${styles.bar} ${onHome ? styles.barOverPhoto : ''}`}>
+    <header className={`${styles.bar} ${!themed && onHome ? styles.barOverPhoto : ''}`}>
       <div className={styles.inner}>
         <div className={styles.left}>
           <button
@@ -126,6 +132,12 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor }: Pro
               Help
             </a>
           </div>
+
+          {themed && (
+            <Link href={`${home}/schedule`} className={styles.navCta} onClick={() => setNavOpen(false)}>
+              Book a class
+            </Link>
+          )}
 
           {!ready ? (
             <span style={{ width: '32px' }} aria-hidden />

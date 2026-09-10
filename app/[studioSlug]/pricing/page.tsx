@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import styles from '../photofirst.module.css'
 import PricingList, { type PassTemplate } from '../PricingList'
 import StudioFooter from '../StudioFooter'
+import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 import { getStudioContent } from '../studioContent'
 import { studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, breadcrumbLd, passProductLd } from '@/lib/jsonLd'
@@ -51,7 +52,8 @@ export default async function PricingPage({ params }: Props) {
   if (orgRes.status === 404) notFound()
   if (!orgRes.ok || !tplRes.ok) throw new Error('Failed to load pricing')
 
-  const org: PublicOrgInfo = await orgRes.json()
+  const org: PublicOrgInfo & { theme?: string | null } = await orgRes.json()
+  const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
   const templates: PassTemplate[] = await tplRes.json()
   const content = getStudioContent(studioSlug, org)
 
@@ -86,7 +88,7 @@ export default async function PricingPage({ params }: Props) {
         <div style={{ height: 32 }} />
       </main>
 
-      <StudioFooter name={org.name} email={content.contactEmail} />
+      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} />
     </div>
   )
 }

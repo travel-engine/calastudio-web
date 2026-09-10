@@ -101,6 +101,19 @@
   text-underline-offset: 5px;
 }
 
+/* "Book a class" CTA — themed layout only. */
+.navCta {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: var(--pill);
+  padding: 10px 20px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 @media (max-width: 680px) {
   .burger {
     display: inline-flex;

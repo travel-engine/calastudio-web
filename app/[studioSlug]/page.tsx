@@ -11,6 +11,7 @@ import Gallery from './Gallery'
 import FixedBookingBar from './FixedBookingBar'
 import StudioFooter from './StudioFooter'
 import { getStudioContent, headlineRuns, type ApiStudioContent } from './studioContent'
+import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, studioLd } from '@/lib/jsonLd'
 
@@ -101,6 +102,8 @@ export default async function StudioHomePage({ params }: Props) {
   const passTemplates: PassTemplate[] = passRes.ok ? await passRes.json() : []
   const content = getStudioContent(studioSlug, org)
   const brandColor = org.brand_color || undefined
+  const theme = await studioThemeForRequest(org.theme)
+  const themed = theme.layout === 'themed'
 
   const live = occurrences.filter(o => !o.is_cancelled)
   const featured = live.slice(0, 4)
@@ -122,29 +125,52 @@ export default async function StudioHomePage({ params }: Props) {
     <div className={styles.root}>
       <JsonLd data={studioLd({ name: org.name, description: content.heroLead ?? org.description, url: canonical, image: content.heroImageUrl || org.banner_url || org.logo_url })} />
 
-      {/* Hero — the layout's nav overlays the top of this section */}
-      <section className={styles.hero}>
-        {content.heroImageUrl && (
-          <Image src={content.heroImageUrl} alt="" fill priority sizes="100vw" className={styles.heroImg} />
-        )}
-        <div className={styles.heroScrim} />
-        <div />
-        <div className={styles.heroBody}>
-          {content.tagline && <p className={styles.kicker}>{content.tagline}</p>}
-          <h1 className={styles.heroH1}>
-            {headlineRuns(headline, content.heroHeadlineEmphasis).map((r, i) =>
-              r.bold ? <strong key={i}>{r.text}</strong> : <span key={i}>{r.text}</span>,
+      {(() => {
+        const heroCopy = (
+          <>
+            {content.tagline && <p className={styles.kicker}>{content.tagline}</p>}
+            <h1 className={styles.heroH1}>
+              {headlineRuns(headline, content.heroHeadlineEmphasis).map((r, i) =>
+                r.bold ? <strong key={i}>{r.text}</strong> : <span key={i}>{r.text}</span>,
+              )}
+            </h1>
+            {content.heroLead && <p className={styles.heroLead}>{content.heroLead}</p>}
+            <div className={styles.btnRow}>
+              <Link href={`/${studioSlug}/schedule`} className={styles.btnSolid}>See the schedule</Link>
+              <Link href={`/${studioSlug}/teachers`} className={styles.btnGhost}>
+                {content.heroCtaLabel ?? 'About the studio'}
+              </Link>
+            </div>
+          </>
+        )
+
+        // themed: split hero (copy left, photo right). photofirst: full-bleed photo + scrim.
+        return themed ? (
+          <section className={styles.heroSplit}>
+            <div>{heroCopy}</div>
+            {content.heroImageUrl && (
+              <Image
+                src={content.heroImageUrl}
+                alt=""
+                width={520}
+                height={650}
+                priority
+                sizes="(max-width: 900px) 100vw, 520px"
+                className={styles.heroSplitImg}
+              />
             )}
-          </h1>
-          {content.heroLead && <p className={styles.heroLead}>{content.heroLead}</p>}
-          <div className={styles.btnRow}>
-            <Link href={`/${studioSlug}/schedule`} className={styles.btnSolid}>See the schedule</Link>
-            <Link href={`/${studioSlug}/teachers`} className={styles.btnGhost}>
-              {content.heroCtaLabel ?? 'About the studio'}
-            </Link>
-          </div>
-        </div>
-      </section>
+          </section>
+        ) : (
+          <section className={styles.hero}>
+            {content.heroImageUrl && (
+              <Image src={content.heroImageUrl} alt="" fill priority sizes="100vw" className={styles.heroImg} />
+            )}
+            <div className={styles.heroScrim} />
+            <div />
+            <div className={styles.heroBody}>{heroCopy}</div>
+          </section>
+        )
+      })()}
 
       <main className={styles.container}>
         {/* This week */}
@@ -218,8 +244,9 @@ export default async function StudioHomePage({ params }: Props) {
         )}
       </main>
 
-      <StudioFooter name={org.name} email={content.contactEmail} />
-      <FixedBookingBar next={next} {...bookProps} />
+      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} />
+      {/* The fixed booking bar belongs to the full-bleed layout; the themed nav has a CTA instead. */}
+      {!themed && <FixedBookingBar next={next} {...bookProps} />}
 
       <BookingDrawer />
       <MemberScheduleLoader studioSlug={studioSlug} orgId={org.id} queryString="" />

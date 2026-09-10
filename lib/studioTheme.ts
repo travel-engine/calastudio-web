@@ -150,6 +150,13 @@ export interface StudioTheme {
   colorScheme: 'light' | 'dark'
   /** Google Fonts families to request for this theme (empty when covered by next/font). */
   fonts: string[]
+  /**
+   * Home / nav layout family:
+   *  - `photofirst` — full-bleed photo hero + overlaid nav + fixed booking bar (Ravi's look)
+   *  - `themed`     — split hero (copy left, photo right) + solid nav with a "Book a class" CTA
+   *                   (the design handoff's Studio Themes template; all picker themes)
+   */
+  layout: 'photofirst' | 'themed'
   tokens: Record<string, string>
 }
 
@@ -217,7 +224,7 @@ function expandTokens(s: ThemeSpec): Record<string, string> {
 }
 
 function build(key: ThemeKey, s: ThemeSpec): StudioTheme {
-  return { key, name: s.name, blurb: s.blurb, colorScheme: s.colorScheme, fonts: s.fonts, tokens: expandTokens(s) }
+  return { key, name: s.name, blurb: s.blurb, colorScheme: s.colorScheme, fonts: s.fonts, layout: 'themed', tokens: expandTokens(s) }
 }
 
 const THEMES: Record<ThemeKey, StudioTheme> = {
@@ -226,16 +233,21 @@ const THEMES: Record<ThemeKey, StudioTheme> = {
   clay: build('clay', SPECS.clay),
   grid: build('grid', SPECS.grid),
   poster: build('poster', SPECS.poster),
-  // Ravi's private look — the Night token set under its own key.
-  'photo-first': { ...build('photo-first', SPECS.night), name: 'Photo First', blurb: SPECS.night.blurb },
+  // The Night token set with the full-bleed photo-hero layout instead of the split hero.
+  'photo-first': {
+    ...build('photo-first', SPECS.night),
+    name: 'Photo First',
+    blurb: 'One full-screen photograph with your studio name over it. Dark and dramatic — best with a single strong hero image.',
+    layout: 'photofirst',
+  },
 }
 
 const DEFAULT_THEME: ThemeKey = 'photo-first'
 
-/** Themes offered to other studios in the picker — Ravi's `photo-first` is deliberately excluded. */
-export const PICKER_THEMES: ThemeKey[] = ['classic', 'night', 'clay', 'grid', 'poster']
-/** Every key the dev switcher can cycle. */
-export const THEME_KEYS: ThemeKey[] = ['photo-first', ...PICKER_THEMES]
+/** All six themes a studio can choose, in picker order. */
+export const PICKER_THEMES: ThemeKey[] = ['classic', 'night', 'clay', 'grid', 'poster', 'photo-first']
+/** Alias kept for the dev switcher. */
+export const THEME_KEYS: ThemeKey[] = PICKER_THEMES
 
 export function resolveTheme(key: string | null | undefined): StudioTheme {
   if (key && key in THEMES) return THEMES[key as ThemeKey]

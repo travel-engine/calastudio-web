@@ -7,6 +7,7 @@ import { initials } from '@/lib/names'
 import { studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, breadcrumbLd, personLd } from '@/lib/jsonLd'
 import StudioFooter from '../StudioFooter'
+import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 import { getStudioContent } from '../studioContent'
 
 export const revalidate = 60
@@ -96,7 +97,8 @@ export default async function TeachersDirectoryPage({ params }: Props) {
   if (orgRes.status === 404) notFound()
   if (!orgRes.ok || !teachersRes.ok) throw new Error('Failed to load teachers')
 
-  const org: { name: string; contactEmail?: string | null } = await orgRes.json()
+  const org: { name: string; contactEmail?: string | null; theme?: string | null } = await orgRes.json()
+  const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
   const teachers: TeacherCard[] = await teachersRes.json()
   const content = getStudioContent(studioSlug, org)
 
@@ -140,7 +142,7 @@ export default async function TeachersDirectoryPage({ params }: Props) {
         <div style={{ height: 32 }} />
       </main>
 
-      <StudioFooter name={org.name} email={content.contactEmail} />
+      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} />
     </div>
   )
 }

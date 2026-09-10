@@ -7,6 +7,7 @@ import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, personLd, breadcrumbLd, eventLd } from '@/lib/jsonLd'
 import Gallery from '../../Gallery'
 import StudioFooter from '../../StudioFooter'
+import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 import { getStudioContent } from '../../studioContent'
 
 export const revalidate = 60
@@ -103,7 +104,8 @@ export default async function TeacherLandingPage({ params }: Props) {
   const data: TeacherPageData = await res.json()
   const p = data.profile
   if (!p) notFound()
-  const org: PublicOrgInfo = orgRes.ok ? await orgRes.json() : { name: studioSlug }
+  const org: PublicOrgInfo & { theme?: string | null } = orgRes.ok ? await orgRes.json() : { name: studioSlug }
+  const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
   const studioName = org.name
   const content = getStudioContent(studioSlug, org)
 
@@ -216,7 +218,7 @@ export default async function TeacherLandingPage({ params }: Props) {
         )}
       </main>
 
-      <StudioFooter name={studioName} email={content.contactEmail} />
+      <StudioFooter name={studioName} email={content.contactEmail} poweredBy={themed} />
     </div>
   )
 }

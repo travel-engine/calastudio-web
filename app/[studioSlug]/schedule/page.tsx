@@ -9,6 +9,7 @@ import MemberScheduleLoader from '../MemberScheduleLoader'
 import FixedBookingBar from '../FixedBookingBar'
 import StudioFooter from '../StudioFooter'
 import { getStudioContent } from '../studioContent'
+import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 import { formatDateWithWeekday } from '@/lib/dates'
 import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, eventLd, breadcrumbLd } from '@/lib/jsonLd'
@@ -31,6 +32,7 @@ interface PublicOrgInfo {
   currency: string
   stripe_account_id: string | null
   payments_enabled: boolean
+  theme?: string | null
   contactEmail?: string | null
 }
 
@@ -84,6 +86,7 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
   const occurrences: BookableOccurrence[] = await occurrencesRes.json()
   const content = getStudioContent(studioSlug, org)
   const brandColor = org.brand_color || undefined
+  const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
 
   // Locations available under the current mode/type filters — computed before the location filter
   // is applied so picking one doesn't collapse the set down to itself.
@@ -155,8 +158,8 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
         <div style={{ height: 32 }} />
       </main>
 
-      <StudioFooter name={org.name} email={content.contactEmail} />
-      <FixedBookingBar next={next} {...bookProps} />
+      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} />
+      {!themed && <FixedBookingBar next={next} {...bookProps} />}
 
       <BookingDrawer />
       <MemberScheduleLoader studioSlug={studioSlug} orgId={org.id} queryString={qs} />

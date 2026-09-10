@@ -117,6 +117,21 @@ function SettingsPageContent() {
     bannerUrl: '',
     brandColor: '#085041',
     theme: 'classic',
+    // Public-page content (design handoff). Drives the studio's home + section copy.
+    tagline: '',
+    heroHeadline: '',
+    heroHeadlineEmphasis: '',
+    heroLead: '',
+    heroCtaLabel: '',
+    heroImageUrl: '',
+    aboutHeading: '',
+    aboutBody: '', // blank-line-separated paragraphs
+    aboutImageUrl: '',
+    aboutCtaLabel: '',
+    passesHeading: '',
+    passesBlurb: '',
+    contactEmail: '',
+    galleryUrls: [] as string[],
     taxEnabled: false,
     taxLabel: '',
     taxRegistrationNumber: '',
@@ -205,6 +220,20 @@ function SettingsPageContent() {
         bannerUrl: org.banner_url ?? '',
         brandColor: org.brand_color ?? '#085041',
         theme: org.theme ?? 'classic',
+        tagline: org.tagline ?? '',
+        heroHeadline: org.heroHeadline ?? '',
+        heroHeadlineEmphasis: org.heroHeadlineEmphasis ?? '',
+        heroLead: org.heroLead ?? '',
+        heroCtaLabel: org.heroCtaLabel ?? '',
+        heroImageUrl: org.heroImageUrl ?? '',
+        aboutHeading: org.aboutHeading ?? '',
+        aboutBody: Array.isArray(org.about_body) ? org.about_body.join('\n\n') : (org.aboutBody ?? ''),
+        aboutImageUrl: org.aboutImageUrl ?? '',
+        aboutCtaLabel: org.aboutCtaLabel ?? '',
+        passesHeading: org.passesHeading ?? '',
+        passesBlurb: org.passesBlurb ?? '',
+        contactEmail: org.contactEmail ?? '',
+        galleryUrls: Array.isArray(org.gallery) ? org.gallery.map((g: { url: string } | string) => typeof g === 'string' ? g : g.url) : [],
         taxEnabled: org.tax_enabled ?? false,
         taxLabel: org.tax_label ?? '',
         taxRegistrationNumber: org.tax_registration_number ?? '',
@@ -310,7 +339,7 @@ function SettingsPageContent() {
     }
   }
 
-  const uploadImage = async (file: File, folder: 'org-logos' | 'org-banners'): Promise<string | null> => {
+  const uploadImage = async (file: File, folder: 'org-logos' | 'org-banners' | 'org-content'): Promise<string | null> => {
     if (!file.type.startsWith('image/')) {
       setError('Please select an image file')
       return null
@@ -347,6 +376,32 @@ function SettingsPageContent() {
     setUploadingLogo(false)
   }
 
+  // Public-page content images (hero, about). Uploads to the shared bucket, then stores the URL.
+  const [contentImgBusy, setContentImgBusy] = useState('')
+  const handleContentImage = async (e: React.ChangeEvent<HTMLInputElement>, field: 'heroImageUrl' | 'aboutImageUrl') => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setError('')
+    setContentImgBusy(field)
+    const url = await uploadImage(file, 'org-content')
+    if (url) update(field, url)
+    setContentImgBusy('')
+  }
+
+  const handleGalleryAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (files.length === 0) return
+    setError('')
+    setContentImgBusy('gallery')
+    for (const file of files) {
+      const url = await uploadImage(file, 'org-content')
+      if (url) setForm(prev => ({ ...prev, galleryUrls: [...prev.galleryUrls, url] }))
+    }
+    setContentImgBusy('')
+  }
+
   // The banner isn't uploaded straight away — the file goes into the crop modal, which uploads the
   // framed 3:1 version and hands back its URL.
   const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -378,6 +433,21 @@ function SettingsPageContent() {
           banner_url: form.bannerUrl || null,
           brand_color: form.brandColor || null,
           theme: form.theme || null,
+          // Public-page content — see HANDOFF-backend-contract.md §2.
+          tagline: form.tagline || null,
+          heroHeadline: form.heroHeadline || null,
+          heroHeadlineEmphasis: form.heroHeadlineEmphasis || null,
+          heroLead: form.heroLead || null,
+          heroCtaLabel: form.heroCtaLabel || null,
+          heroImageUrl: form.heroImageUrl || null,
+          aboutHeading: form.aboutHeading || null,
+          about_body: form.aboutBody.split(/\n{2,}/).map(s => s.trim()).filter(Boolean),
+          aboutImageUrl: form.aboutImageUrl || null,
+          aboutCtaLabel: form.aboutCtaLabel || null,
+          passesHeading: form.passesHeading || null,
+          passesBlurb: form.passesBlurb || null,
+          contactEmail: form.contactEmail || null,
+          gallery: form.galleryUrls.map(url => ({ url, alt: form.name })),
           tax_enabled: form.taxEnabled,
           tax_label: form.taxLabel || null,
           tax_registration_number: form.taxRegistrationNumber || null,
@@ -540,8 +610,106 @@ function SettingsPageContent() {
             </div>
           </Field>
 
-          <Field label="Page theme" hint="The look of your public studio pages. One layout, five styles — your logo and brand colour carry across all of them.">
+          <Field label="Page theme" hint="The look of your public studio pages. One layout, six styles — your logo and brand colour carry across all of them.">
             <ThemePicker value={form.theme as ThemeKey} onChange={k => update('theme', k)} />
+          </Field>
+
+          <SectionHeader title="Public page content" description="The words and photos on your public home page. Class times, prices and teacher bios come from your schedule and team — this is just the framing." />
+
+          <Field label="Tagline" hint="Small line above the headline. e.g. “Mysore · Ashtanga · Vinyasa · Workshops”">
+            <Input value={form.tagline} onChange={e => update('tagline', e.target.value)} />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Headline" hint="The big line in your hero.">
+              <Input value={form.heroHeadline} onChange={e => update('heroHeadline', e.target.value)} />
+            </Field>
+            <Field label="Emphasised word" hint="A word inside the headline shown bolder (optional).">
+              <Input value={form.heroHeadlineEmphasis} onChange={e => update('heroHeadlineEmphasis', e.target.value)} />
+            </Field>
+          </div>
+
+          <Field label="Intro paragraph">
+            <Textarea value={form.heroLead} onChange={e => update('heroLead', e.target.value)} rows={3} />
+          </Field>
+
+          <Field label="Hero button label" hint="Second hero button, links to your teacher page. e.g. “About Ravi”">
+            <Input value={form.heroCtaLabel} onChange={e => update('heroCtaLabel', e.target.value)} />
+          </Field>
+
+          <Field label="Hero photo" hint="Portrait works best. Shown full-screen on the Photo First theme, beside the text on the others.">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{ width: '96px', height: '120px', borderRadius: '10px', backgroundColor: '#f4f4f4', border: '1px solid #e2e2e2', overflow: 'hidden', flexShrink: 0 }}>
+                {form.heroImageUrl && <img src={form.heroImageUrl} alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              </div>
+              <label style={{ padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#444', cursor: contentImgBusy === 'heroImageUrl' ? 'not-allowed' : 'pointer' }}>
+                {contentImgBusy === 'heroImageUrl' ? 'Uploading…' : form.heroImageUrl ? 'Replace photo' : 'Upload photo'}
+                <input type="file" accept="image/*" onChange={e => handleContentImage(e, 'heroImageUrl')} disabled={contentImgBusy === 'heroImageUrl'} style={{ display: 'none' }} />
+              </label>
+              {form.heroImageUrl && (
+                <button onClick={() => update('heroImageUrl', '')} style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}>Remove</button>
+              )}
+            </div>
+          </Field>
+
+          <Field label="About heading">
+            <Input value={form.aboutHeading} onChange={e => update('aboutHeading', e.target.value)} />
+          </Field>
+
+          <Field label="About text" hint="Leave a blank line between paragraphs.">
+            <Textarea value={form.aboutBody} onChange={e => update('aboutBody', e.target.value)} rows={4} />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="About button label" hint="Optional. e.g. “Read more”">
+              <Input value={form.aboutCtaLabel} onChange={e => update('aboutCtaLabel', e.target.value)} />
+            </Field>
+            <Field label="About photo">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ width: '72px', height: '72px', borderRadius: '10px', backgroundColor: '#f4f4f4', border: '1px solid #e2e2e2', overflow: 'hidden', flexShrink: 0 }}>
+                  {form.aboutImageUrl && <img src={form.aboutImageUrl} alt="About" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                </div>
+                <label style={{ padding: '8px 14px', backgroundColor: '#f4f4f4', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#444', cursor: 'pointer' }}>
+                  {contentImgBusy === 'aboutImageUrl' ? 'Uploading…' : form.aboutImageUrl ? 'Replace' : 'Upload'}
+                  <input type="file" accept="image/*" onChange={e => handleContentImage(e, 'aboutImageUrl')} disabled={contentImgBusy === 'aboutImageUrl'} style={{ display: 'none' }} />
+                </label>
+                {form.aboutImageUrl && (
+                  <button onClick={() => update('aboutImageUrl', '')} style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}>Remove</button>
+                )}
+              </div>
+            </Field>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Passes heading" hint="Above the pass prices. Defaults to “Passes, or pay as you go”.">
+              <Input value={form.passesHeading} onChange={e => update('passesHeading', e.target.value)} />
+            </Field>
+            <Field label="Contact email" hint="Shown in the page footer.">
+              <Input type="email" value={form.contactEmail} onChange={e => update('contactEmail', e.target.value)} />
+            </Field>
+          </div>
+
+          <Field label="Passes blurb">
+            <Textarea value={form.passesBlurb} onChange={e => update('passesBlurb', e.target.value)} rows={2} />
+          </Field>
+
+          <Field label="Photo gallery" hint="Square photos shown on your home and teacher pages.">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              {form.galleryUrls.map((url, i) => (
+                <div key={url + i} style={{ position: 'relative', width: '84px', height: '84px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e2e2e2' }}>
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button
+                    onClick={() => setForm(prev => ({ ...prev, galleryUrls: prev.galleryUrls.filter((_, j) => j !== i) }))}
+                    aria-label="Remove photo"
+                    style={{ position: 'absolute', top: '4px', right: '4px', width: '20px', height: '20px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '12px', cursor: 'pointer', lineHeight: 1 }}
+                  >×</button>
+                </div>
+              ))}
+              <label style={{ width: '84px', height: '84px', borderRadius: '10px', border: '1px dashed #c2c2c2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#666', cursor: 'pointer', textAlign: 'center' }}>
+                {contentImgBusy === 'gallery' ? '…' : '+ Add'}
+                <input type="file" accept="image/*" multiple onChange={handleGalleryAdd} disabled={contentImgBusy === 'gallery'} style={{ display: 'none' }} />
+              </label>
+            </div>
           </Field>
 
           <SectionHeader title="Studio profile" />

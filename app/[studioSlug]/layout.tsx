@@ -4,7 +4,8 @@ import { Manrope } from 'next/font/google'
 import StudioNav from './StudioNav'
 import ThemeSwitcher from './ThemeSwitcher'
 import { studioOrigin, metaDescription } from '@/lib/seo'
-import { resolveTheme, themeVars, fontHref } from '@/lib/studioTheme'
+import { themeVars, fontHref } from '@/lib/studioTheme'
+import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 
 // Photo First uses Manrope (handoff §Global). Self-hosted via next/font; the variable is set on
 // the studio-tree wrapper below and consumed through --font-body in theme.ts. Scoped here rather
@@ -77,15 +78,10 @@ export default async function StudioLayout({ children, params }: Props) {
   if (!res.ok) throw new Error('Failed to load studio')
   const org: PublicOrgInfo = await res.json()
 
-  // In development only, a `cs-theme` cookie (set by <ThemeSwitcher>) overrides the studio's theme
-  // so alternates can be previewed. Reading cookies makes a route dynamic, so this is gated to dev
-  // to keep the public pages on ISR in production.
-  let themeKey: string | null | undefined = org.theme
-  if (process.env.NODE_ENV === 'development') {
-    const { cookies } = await import('next/headers')
-    themeKey = (await cookies()).get('cs-theme')?.value ?? org.theme
-  }
-  const theme = resolveTheme(themeKey)
+  // studioThemeForRequest layers the dev-only `cs-theme` cookie preview over org.theme. It reads
+  // cookies (dev only), which would make the route dynamic — fine here; the public *pages* still
+  // resolve the theme without a cookie in production and stay on ISR.
+  const theme = await studioThemeForRequest(org.theme)
   // Manrope (Night / Photo First) is self-hosted via next/font; the other themes pull their faces
   // from Google Fonts. Only the active theme's <link> is emitted.
   const themeFontHref = fontHref(theme)
@@ -107,6 +103,7 @@ export default async function StudioLayout({ children, params }: Props) {
         name={org.name}
         logoUrl={org.logo_url}
         brandColor={org.brand_color || '#085041'}
+        layout={theme.layout}
       />
       {children}
     </div>
