@@ -576,7 +576,7 @@ function SettingsPageContent() {
 
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
-          {tab === 'general' && (<>
+          {tab === 'content' && (<>
 
           <SectionHeader title="Branding" description="Your logo and brand colour appear on your public pages" />
 
@@ -626,10 +626,6 @@ function SettingsPageContent() {
           <Field label="Page theme" hint="The look of your public studio pages. One layout, six styles — your logo and brand colour carry across all of them.">
             <ThemePicker value={form.theme as ThemeKey} onChange={k => update('theme', k)} />
           </Field>
-
-          </>)}
-
-          {tab === 'content' && (<>
 
           <SectionHeader title="Public page content" description="The words and photos on your public home page. Class times, prices and teacher bios come from your schedule and team — this is just the framing." />
 
