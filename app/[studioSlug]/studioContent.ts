@@ -3,11 +3,7 @@
 //
 // The API carries it as a nested `page_content` object (snake_case) on the org, editable in
 // dashboard settings. `getStudioContent` normalises that to the camelCase `StudioContent` the
-// components use, falling back per-slug while a studio's `page_content` is still empty.
-//
-// The bundled photos under /public/studio/<slug>/ are a STOPGAP — production images come from
-// Supabase Storage via the API. Remove them (and FALLBACK) once yoga-with-ravi's page_content
-// is populated in Settings.
+// components use; a studio with no `page_content` set just renders without those sections.
 
 export interface GalleryImage {
   url: string
@@ -76,66 +72,26 @@ const EMPTY: StudioContent = {
   contactEmail: null,
 }
 
-// --- Per-slug fallback (remove once the API serves these fields) --------------------------------
-
-const RAVI_PHOTO = (name: string) => `/studio/yoga-with-ravi/${name}`
-
-const FALLBACK: Record<string, StudioContent> = {
-  'yoga-with-ravi': {
-    tagline: 'Mysore · Ashtanga · Vinyasa · Workshops',
-    heroHeadline: 'Practise with Ravi',
-    heroHeadlineEmphasis: 'Ravi',
-    heroLead:
-      'Ravi grew up in Mysore, where most of his own practice has been Ashtanga. These days he teaches vinyasa and workshop-style classes drawing on both the basic and advanced postures.',
-    heroImageUrl: RAVI_PHOTO('ravi-adjust.jpg'),
-    heroCtaLabel: 'About Ravi',
-    aboutHeading: 'A workshop takes one posture apart',
-    aboutBody: [
-      'A bind, an inversion, a jump-through — with props, and time to try it. Vinyasa classes stay breath-led and open to anyone who has practised a little.',
-      'Never practised? Come to a vinyasa class and say so at the door.',
-    ],
-    aboutImageUrl: RAVI_PHOTO('ravi-vishwamitrasana.jpg'),
-    aboutCtaLabel: 'Read more',
-    passesHeading: 'Passes, or pay as you go',
-    passesBlurb:
-      'Drop in for a single class, or buy a ten-class pass and use it whenever you book.',
-    gallery: [
-      { url: RAVI_PHOTO('photo-3.jpg'), alt: 'Ravi practising' },
-      { url: RAVI_PHOTO('photo-4.jpg'), alt: 'Ravi practising' },
-      { url: RAVI_PHOTO('photo-5.jpg'), alt: 'Ravi practising' },
-      { url: RAVI_PHOTO('photo-6.webp'), alt: 'Ravi practising' },
-      { url: RAVI_PHOTO('ravi-vishwamitrasana.jpg'), alt: 'Ravi in a supported side-angle posture' },
-      { url: RAVI_PHOTO('ravi-adjust.jpg'), alt: 'Ravi adjusting a student in class' },
-    ],
-    contactEmail: 'hello@yogawithravi.com',
-  },
-}
-
-/**
- * Normalise the API's `page_content` to `StudioContent`, layered over the per-slug fallback. A
- * string field the API returns as `null` *or* `""` counts as "not set" and falls through;
- * `about_body` / `gallery` fall through only when the API omits them (an explicit `[]` means the
- * studio cleared that list).
- */
-export function getStudioContent(slug: string, pc?: PageContentDto | null): StudioContent {
-  const base = FALLBACK[slug] ?? EMPTY
-  if (!pc) return base
-  const str = (v: string | null | undefined, fb: string | null) => (v && v.trim() ? v : fb)
+/** Normalise the API's snake_case `page_content` to the camelCase `StudioContent` the components
+ *  use. A missing object, or a field that's `null`/`""`, just renders as "not set". */
+export function getStudioContent(_slug: string, pc?: PageContentDto | null): StudioContent {
+  if (!pc) return EMPTY
+  const str = (v: string | null | undefined) => (v && v.trim() ? v : null)
   return {
-    tagline: str(pc.tagline, base.tagline),
-    heroHeadline: str(pc.hero_headline, base.heroHeadline),
-    heroHeadlineEmphasis: str(pc.hero_headline_emphasis, base.heroHeadlineEmphasis),
-    heroLead: str(pc.hero_lead, base.heroLead),
-    heroImageUrl: str(pc.hero_image_url, base.heroImageUrl),
-    heroCtaLabel: str(pc.hero_cta_label, base.heroCtaLabel),
-    aboutHeading: str(pc.about_heading, base.aboutHeading),
-    aboutBody: pc.about_body ?? base.aboutBody,
-    aboutImageUrl: str(pc.about_image_url, base.aboutImageUrl),
-    aboutCtaLabel: str(pc.about_cta_label, base.aboutCtaLabel),
-    passesHeading: str(pc.passes_heading, base.passesHeading),
-    passesBlurb: str(pc.passes_blurb, base.passesBlurb),
-    gallery: pc.gallery ?? base.gallery,
-    contactEmail: str(pc.contact_email, base.contactEmail),
+    tagline: str(pc.tagline),
+    heroHeadline: str(pc.hero_headline),
+    heroHeadlineEmphasis: str(pc.hero_headline_emphasis),
+    heroLead: str(pc.hero_lead),
+    heroImageUrl: str(pc.hero_image_url),
+    heroCtaLabel: str(pc.hero_cta_label),
+    aboutHeading: str(pc.about_heading),
+    aboutBody: pc.about_body ?? [],
+    aboutImageUrl: str(pc.about_image_url),
+    aboutCtaLabel: str(pc.about_cta_label),
+    passesHeading: str(pc.passes_heading),
+    passesBlurb: str(pc.passes_blurb),
+    gallery: pc.gallery ?? [],
+    contactEmail: str(pc.contact_email),
   }
 }
 

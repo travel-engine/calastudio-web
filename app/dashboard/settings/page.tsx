@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import BannerCropModal from './BannerCropModal'
 import { canManageSettings } from '@/lib/roles'
 import ThemePicker from '@/app/components/ThemePicker'
 import type { ThemeKey } from '@/lib/studioTheme'
@@ -100,7 +99,7 @@ function SettingsPageContent() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [tab, setTab] = useState<'general' | 'content'>('general')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [orgId, setOrgId] = useState('')
@@ -114,7 +113,7 @@ function SettingsPageContent() {
     email: '',
     phone: '',
     logoUrl: '',
-    bannerUrl: '',
+    bannerUrl: '', // no longer edited here (design uses the hero photo); kept as an OG-image fallback
     brandColor: '#085041',
     theme: 'classic',
     // Public-page content (design handoff). Drives the studio's home + section copy.
@@ -211,7 +210,23 @@ function SettingsPageContent() {
         return
       }
 
-      const pc = org.page_content ?? {}
+      // GET /api/organisations/mine currently returns page_content: null even when it's set
+      // (backend mapping gap) — GET /api/public/{slug} always has it. Pull both from there,
+      // preferring `mine`'s values when it actually provides them.
+      let theme = org.theme
+      let pageContent = org.page_content
+      if (org.slug) {
+        try {
+          const pubRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${org.slug}`)
+          if (pubRes.ok) {
+            const pub = await pubRes.json()
+            theme = theme ?? pub.theme
+            pageContent = pageContent ?? pub.page_content
+          }
+        } catch { /* keep whatever `mine` gave us */ }
+      }
+
+      const pc = pageContent ?? {}
       setForm({
         name: org.name ?? '',
         description: org.description ?? '',
@@ -220,7 +235,7 @@ function SettingsPageContent() {
         logoUrl: org.logo_url ?? '',
         bannerUrl: org.banner_url ?? '',
         brandColor: org.brand_color ?? '#085041',
-        theme: org.theme ?? 'classic',
+        theme: theme ?? 'classic',
         // Public-page content lives in a nested `page_content` object (snake_case) on the API.
         tagline: pc.tagline ?? '',
         heroHeadline: pc.hero_headline ?? '',
@@ -404,17 +419,6 @@ function SettingsPageContent() {
     setContentImgBusy('')
   }
 
-  // The banner isn't uploaded straight away — the file goes into the crop modal, which uploads the
-  // framed 3:1 version and hands back its URL.
-  const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = '' // let the same file be re-picked
-    if (!file) return
-    setError('')
-    if (!file.type.startsWith('image/')) { setError('Please select an image file'); return }
-    if (file.size > 10 * 1024 * 1024) { setError('Image must be under 10MB'); return }
-    setBannerFile(file)
-  }
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError('Studio name is required'); return }
@@ -534,9 +538,28 @@ function SettingsPageContent() {
           </p>
         </div>
 
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '1px solid #e2e2e2' }}>
+          {([['general', 'Studio settings'], ['content', 'Public page']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              style={{
+                padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
+                fontSize: '14px', fontWeight: tab === k ? 600 : 500,
+                color: tab === k ? '#085041' : '#666',
+                borderBottom: `2px solid ${tab === k ? '#085041' : 'transparent'}`,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
-          <SectionHeader title="Branding" description="Your logo and banner appear on your public booking page and teacher pages" />
+          {tab === 'general' && (<>
+
+          <SectionHeader title="Branding" description="Your logo and brand colour appear on your public pages" />
 
           <Field label="Logo">
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -569,39 +592,6 @@ function SettingsPageContent() {
             </div>
           </Field>
 
-          <Field label="Banner" hint="Wide image at the top of your booking page, shown at 3:1. After you pick a file you'll frame it — drag to position, slider to zoom.">
-            <div>
-              <div style={{
-                width: '100%', aspectRatio: '3 / 1', maxHeight: '200px', borderRadius: '12px', backgroundColor: '#f4f4f4',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                border: '1px solid #e2e2e2', marginBottom: '12px'
-              }}>
-                {form.bannerUrl ? (
-                  <img src={form.bannerUrl} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: '13px', color: '#999' }}>No banner uploaded</span>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <label style={{
-                  padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px',
-                  fontSize: '13px', fontWeight: 500, color: '#444', cursor: 'pointer'
-                }}>
-                  {form.bannerUrl ? 'Replace banner' : 'Upload banner'}
-                  <input type="file" accept="image/*" onChange={handleBannerFile} style={{ display: 'none' }} />
-                </label>
-                {form.bannerUrl && (
-                  <button
-                    onClick={() => update('bannerUrl', '')}
-                    style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          </Field>
-
           <Field label="Brand colour" hint="Used as the accent colour on your public pages">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <input
@@ -617,6 +607,10 @@ function SettingsPageContent() {
           <Field label="Page theme" hint="The look of your public studio pages. One layout, six styles — your logo and brand colour carry across all of them.">
             <ThemePicker value={form.theme as ThemeKey} onChange={k => update('theme', k)} />
           </Field>
+
+          </>)}
+
+          {tab === 'content' && (<>
 
           <SectionHeader title="Public page content" description="The words and photos on your public home page. Class times, prices and teacher bios come from your schedule and team — this is just the framing." />
 
@@ -715,6 +709,10 @@ function SettingsPageContent() {
               </label>
             </div>
           </Field>
+
+          </>)}
+
+          {tab === 'general' && (<>
 
           <SectionHeader title="Studio profile" />
 
@@ -986,6 +984,8 @@ function SettingsPageContent() {
             </button>
           </Field>
 
+          </>)}
+
           {error && (
             <div style={{ padding: '12px 16px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '14px', marginBottom: '24px' }}>
               {error}
@@ -1013,15 +1013,6 @@ function SettingsPageContent() {
         </div>
         </>}
       </div>
-
-      {bannerFile && orgId && (
-        <BannerCropModal
-          file={bannerFile}
-          orgId={orgId}
-          onCancel={() => setBannerFile(null)}
-          onDone={url => { update('bannerUrl', url); setBannerFile(null); setSuccess('Banner updated — remember to Save changes.') }}
-        />
-      )}
 
       {/* Add tax rate modal */}
       {showAddRate && (
