@@ -8,7 +8,7 @@ import BookingDrawer from '../BookingDrawer'
 import MemberScheduleLoader from '../MemberScheduleLoader'
 import FixedBookingBar from '../FixedBookingBar'
 import StudioFooter from '../StudioFooter'
-import { getStudioContent } from '../studioContent'
+import { getStudioContent, type PageContentDto } from '../studioContent'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 import { formatDateWithWeekday } from '@/lib/dates'
 import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
@@ -33,6 +33,7 @@ interface PublicOrgInfo {
   stripe_account_id: string | null
   payments_enabled: boolean
   theme?: string | null
+  page_content?: PageContentDto | null
   contactEmail?: string | null
 }
 
@@ -84,7 +85,7 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
   if (!orgRes.ok || !occurrencesRes.ok) throw new Error('Failed to load studio')
   const org: PublicOrgInfo = await orgRes.json()
   const occurrences: BookableOccurrence[] = await occurrencesRes.json()
-  const content = getStudioContent(studioSlug, org)
+  const content = getStudioContent(studioSlug, org.page_content)
   const brandColor = org.brand_color || undefined
   const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
 

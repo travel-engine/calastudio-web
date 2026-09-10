@@ -1,58 +1,59 @@
-# Backend contract — studio public site + theming
+# Studio public site — theming & content wiring
 
-The frontend (theme engine, 6-theme picker, split/full-bleed layouts, the settings content
-editor) is built against the contract below. Two columns/areas of backend work remain:
+Backend implemented `theme` + `page_content`. The frontend has been conformed to the **actual**
+API shape (this doc previously guessed flat camelCase; the real shape is below).
 
-1. a `theme` value on the org
-2. the public-page **content** fields
+## Shape (from the running API's swagger + `GET /api/public/yoga-with-ravi`)
 
-Until they land, the frontend falls back to a per-slug map (`app/[studioSlug]/studioContent.ts`)
-so `yoga-with-ravi` still renders; every other studio shows an empty-but-valid home page.
+`GET /api/public/{slug}` and `GET /api/organisations/mine` return, on the org:
 
----
+```jsonc
+{
+  "theme": "classic",          // or null → frontend defaults to "photo-first"
+  "page_content": {            // PageContentDto, or null
+    "tagline": null,
+    "hero_headline": null,
+    "hero_headline_emphasis": null,
+    "hero_lead": null,
+    "hero_image_url": null,
+    "hero_cta_label": null,
+    "about_heading": null,
+    "about_body": [],           // string[]
+    "about_image_url": null,
+    "about_cta_label": null,
+    "passes_heading": null,
+    "passes_blurb": null,
+    "gallery": [],              // { url, alt }[]
+    "contact_email": null
+  }
+}
+```
 
-## 1. `theme` on the org
+- `POST /api/organisations` (`CreateOrganisationRequest`) accepts `theme`. ✓ onboarding sends it.
+- `PATCH /api/organisations/{id}` (`UpdateOrganisationRequest`) accepts `theme` + `page_content`
+  (nested). ✓ settings sends both.
+- `theme` values: `classic | night | clay | grid | poster | photo-first`.
 
-- Column: `theme varchar(20)` nullable. `null` ⇒ frontend default (`photo-first`).
-- Valid values: **`classic | night | clay | grid | poster | photo-first`** — all six are offered
-  in the picker now. `photo-first` uses the Night palette with the full-bleed photo-hero layout;
-  the other five use the split-hero layout.
-- **Accept** on:
-  - `POST /api/organisations` — onboarding step 4 sends `theme` in the create body.
-  - `PATCH /api/organisations/{id}` — settings sends `theme` alongside `brand_color` etc.
-- **Expose** on `GET /api/public/{slug}` as `theme` — consumed by `app/[studioSlug]/layout.tsx`
-  and each page (`lib/resolveStudioTheme.ts`) to pick tokens *and* the hero/nav layout.
+## Frontend status — done
 
-## 2. Public-page content
+- `lib/studioTheme.ts` / `lib/resolveStudioTheme.ts` — resolve `org.theme` (→ tokens + layout).
+- `app/[studioSlug]/studioContent.ts` — `getStudioContent(slug, org.page_content)` normalises the
+  snake_case DTO to the components' `StudioContent`; empty/`null` fields fall through to the
+  per-slug fallback.
+- `app/dashboard/settings` — "Public page content" section reads `org.page_content.*`, writes
+  `page_content: { … }` in the PATCH.
+- `app/onboarding` step 4 — theme picker, `theme` in the create body.
 
-The studio edits these in **dashboard settings → "Public page content"**. They must round-trip:
-`PATCH /api/organisations/{id}` accepts them, `GET /api/public/{slug}` returns them (same names).
-All optional / nullable. Suggested storage: a `studio_page_content` 1:1 table.
+## To verify (needs a signed-in admin — I can't from here)
 
-| Field (JSON, both directions) | Type | Notes |
-| --- | --- | --- |
-| `tagline` | string | Kicker above the hero headline |
-| `heroHeadline` | string | Hero H1. Falls back to `"Practise with {studio name}"` |
-| `heroHeadlineEmphasis` | string | Substring of `heroHeadline` rendered bolder |
-| `heroLead` | string | One paragraph under the H1 |
-| `heroImageUrl` | string (URL) | Supabase Storage public URL; portrait |
-| `heroCtaLabel` | string | Second hero button label (→ teacher page) |
-| `aboutHeading` | string | About section heading |
-| `about_body` | string[] | One entry per paragraph (settings sends the split array) |
-| `aboutImageUrl` | string (URL) | Square image |
-| `aboutCtaLabel` | string | About section button label |
-| `passesHeading` | string | Home "Passes" block heading; falls back to `"Passes, or pay as you go"` |
-| `passesBlurb` | string | One line under it |
-| `gallery` | `{ url: string, alt: string }[]` | Square photos (settings sends `alt` = studio name) |
-| `contactEmail` | string | Footer contact |
+1. **`GET /api/organisations/mine` returns `theme` + `page_content`.** Settings pre-fills from it;
+   if they're missing, the form loads blank and the next Save `PATCH`es them to `null`, wiping
+   content. Quick check: open Settings, set theme + a few content fields, Save, reload — it should
+   round-trip, and the public page should reflect it.
 
-Image uploads already go to Supabase Storage client-side (`org-content/` prefix in the
-`teacher-photos` bucket) — the API only needs to store the returned URLs.
+## Stopgap — remove after Ravi's content is entered
 
-Prices, times, capacity, pass balances, teacher bios stay dynamic — from `/occurrences`,
-`/pass-templates`, `/booking-options`, `/teachers`.
-
-## Stopgap to remove once §2 ships
-
-- `public/studio/yoga-with-ravi/*` — bundled design photos (~1.9 MB).
-- The `FALLBACK` map in `app/[studioSlug]/studioContent.ts`.
+`yoga-with-ravi` currently has `theme: null`, `page_content: null`, so it still renders from the
+fallback. Once its content is set in Settings and round-trips:
+- delete the `FALLBACK` map in `app/[studioSlug]/studioContent.ts`
+- delete `public/studio/yoga-with-ravi/` (~1.9 MB)

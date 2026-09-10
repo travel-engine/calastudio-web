@@ -10,7 +10,7 @@ import SessionRow from './SessionRow'
 import Gallery from './Gallery'
 import FixedBookingBar from './FixedBookingBar'
 import StudioFooter from './StudioFooter'
-import { getStudioContent, headlineRuns, type ApiStudioContent } from './studioContent'
+import { getStudioContent, headlineRuns, type PageContentDto } from './studioContent'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, studioLd } from '@/lib/jsonLd'
@@ -21,7 +21,7 @@ interface Props {
   params: Promise<{ studioSlug: string }>
 }
 
-interface PublicOrgInfo extends ApiStudioContent {
+interface PublicOrgInfo {
   id: string
   slug: string
   name: string
@@ -33,6 +33,7 @@ interface PublicOrgInfo extends ApiStudioContent {
   stripe_account_id: string | null
   payments_enabled: boolean
   theme?: string | null
+  page_content?: PageContentDto | null
 }
 
 interface PassTemplate {
@@ -70,7 +71,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}`, { next: { revalidate: 60 } })
   if (!res.ok) return {}
   const org: PublicOrgInfo = await res.json()
-  const content = getStudioContent(studioSlug, org)
+  const content = getStudioContent(studioSlug, org.page_content)
   const description = metaDescription(
     content.heroLead ?? org.description,
     `Practise with ${org.name}. See the schedule and book online.`,
@@ -100,7 +101,7 @@ export default async function StudioHomePage({ params }: Props) {
   const org: PublicOrgInfo = await orgRes.json()
   const occurrences: BookableOccurrence[] = occRes.ok ? await occRes.json() : []
   const passTemplates: PassTemplate[] = passRes.ok ? await passRes.json() : []
-  const content = getStudioContent(studioSlug, org)
+  const content = getStudioContent(studioSlug, org.page_content)
   const brandColor = org.brand_color || undefined
   const theme = await studioThemeForRequest(org.theme)
   const themed = theme.layout === 'themed'

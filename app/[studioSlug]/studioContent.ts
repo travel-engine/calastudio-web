@@ -1,12 +1,13 @@
-// Marketing content for a studio's public site — the copy and photography the Photo First design
-// needs that the schedule/teacher/pass data doesn't carry: hero, about, gallery, footer contact.
+// Marketing content for a studio's public site — the copy and photography the design needs that
+// the schedule / teacher / pass data doesn't carry: hero, about, gallery, footer contact.
 //
-// TARGET: these become fields on GET /api/public/{slug} (see HANDOFF-backend-contract.md), editable
-// in dashboard settings. Until the API serves them, `getStudioContent` falls back to a per-slug
-// map so yoga-with-ravi renders the final handoff copy. When the API returns a field, it wins.
+// The API carries it as a nested `page_content` object (snake_case) on the org, editable in
+// dashboard settings. `getStudioContent` normalises that to the camelCase `StudioContent` the
+// components use, falling back per-slug while a studio's `page_content` is still empty.
 //
-// The bundled photos under /public/studio/<slug>/ are a STOPGAP for local rendering — production
-// images come from Supabase Storage via the API, same as banner_url / photo_url elsewhere.
+// The bundled photos under /public/studio/<slug>/ are a STOPGAP — production images come from
+// Supabase Storage via the API. Remove them (and FALLBACK) once yoga-with-ravi's page_content
+// is populated in Settings.
 
 export interface GalleryImage {
   url: string
@@ -16,7 +17,7 @@ export interface GalleryImage {
 export interface StudioContent {
   /** Uppercase kicker over the hero headline. */
   tagline: string | null
-  /** Hero H1. If `heroHeadlineEmphasis` occurs in it, that run renders at weight 700. */
+  /** Hero H1. If `heroHeadlineEmphasis` occurs in it, that run renders bolder. */
   heroHeadline: string | null
   heroHeadlineEmphasis: string | null
   heroLead: string | null
@@ -39,9 +40,23 @@ export interface StudioContent {
   contactEmail: string | null
 }
 
-export interface ApiStudioContent extends Partial<Omit<StudioContent, 'aboutBody' | 'gallery'>> {
+/** The `page_content` object as the API serves it (GET /api/public/{slug}) and accepts it
+ *  (PATCH /api/organisations/{id} → `page_content`). All fields optional / nullable. */
+export interface PageContentDto {
+  tagline?: string | null
+  hero_headline?: string | null
+  hero_headline_emphasis?: string | null
+  hero_lead?: string | null
+  hero_image_url?: string | null
+  hero_cta_label?: string | null
+  about_heading?: string | null
   about_body?: string[] | null
+  about_image_url?: string | null
+  about_cta_label?: string | null
+  passes_heading?: string | null
+  passes_blurb?: string | null
   gallery?: GalleryImage[] | null
+  contact_email?: string | null
 }
 
 const EMPTY: StudioContent = {
@@ -96,25 +111,31 @@ const FALLBACK: Record<string, StudioContent> = {
   },
 }
 
-/** Merge API-provided content (when present) over the per-slug fallback. */
-export function getStudioContent(slug: string, api?: ApiStudioContent | null): StudioContent {
+/**
+ * Normalise the API's `page_content` to `StudioContent`, layered over the per-slug fallback. A
+ * string field the API returns as `null` *or* `""` counts as "not set" and falls through;
+ * `about_body` / `gallery` fall through only when the API omits them (an explicit `[]` means the
+ * studio cleared that list).
+ */
+export function getStudioContent(slug: string, pc?: PageContentDto | null): StudioContent {
   const base = FALLBACK[slug] ?? EMPTY
-  if (!api) return base
+  if (!pc) return base
+  const str = (v: string | null | undefined, fb: string | null) => (v && v.trim() ? v : fb)
   return {
-    tagline: api.tagline ?? base.tagline,
-    heroHeadline: api.heroHeadline ?? base.heroHeadline,
-    heroHeadlineEmphasis: api.heroHeadlineEmphasis ?? base.heroHeadlineEmphasis,
-    heroLead: api.heroLead ?? base.heroLead,
-    heroImageUrl: api.heroImageUrl ?? base.heroImageUrl,
-    heroCtaLabel: api.heroCtaLabel ?? base.heroCtaLabel,
-    aboutHeading: api.aboutHeading ?? base.aboutHeading,
-    aboutBody: api.about_body ?? base.aboutBody,
-    aboutImageUrl: api.aboutImageUrl ?? base.aboutImageUrl,
-    aboutCtaLabel: api.aboutCtaLabel ?? base.aboutCtaLabel,
-    passesHeading: api.passesHeading ?? base.passesHeading,
-    passesBlurb: api.passesBlurb ?? base.passesBlurb,
-    gallery: api.gallery ?? base.gallery,
-    contactEmail: api.contactEmail ?? base.contactEmail,
+    tagline: str(pc.tagline, base.tagline),
+    heroHeadline: str(pc.hero_headline, base.heroHeadline),
+    heroHeadlineEmphasis: str(pc.hero_headline_emphasis, base.heroHeadlineEmphasis),
+    heroLead: str(pc.hero_lead, base.heroLead),
+    heroImageUrl: str(pc.hero_image_url, base.heroImageUrl),
+    heroCtaLabel: str(pc.hero_cta_label, base.heroCtaLabel),
+    aboutHeading: str(pc.about_heading, base.aboutHeading),
+    aboutBody: pc.about_body ?? base.aboutBody,
+    aboutImageUrl: str(pc.about_image_url, base.aboutImageUrl),
+    aboutCtaLabel: str(pc.about_cta_label, base.aboutCtaLabel),
+    passesHeading: str(pc.passes_heading, base.passesHeading),
+    passesBlurb: str(pc.passes_blurb, base.passesBlurb),
+    gallery: pc.gallery ?? base.gallery,
+    contactEmail: str(pc.contact_email, base.contactEmail),
   }
 }
 

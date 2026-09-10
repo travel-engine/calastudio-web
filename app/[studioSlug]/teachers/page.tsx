@@ -8,7 +8,7 @@ import { studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, breadcrumbLd, personLd } from '@/lib/jsonLd'
 import StudioFooter from '../StudioFooter'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
-import { getStudioContent } from '../studioContent'
+import { getStudioContent, type PageContentDto } from '../studioContent'
 
 export const revalidate = 60
 
@@ -97,10 +97,10 @@ export default async function TeachersDirectoryPage({ params }: Props) {
   if (orgRes.status === 404) notFound()
   if (!orgRes.ok || !teachersRes.ok) throw new Error('Failed to load teachers')
 
-  const org: { name: string; contactEmail?: string | null; theme?: string | null } = await orgRes.json()
+  const org: { name: string; contactEmail?: string | null; theme?: string | null; page_content?: PageContentDto | null } = await orgRes.json()
   const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
   const teachers: TeacherCard[] = await teachersRes.json()
-  const content = getStudioContent(studioSlug, org)
+  const content = getStudioContent(studioSlug, org.page_content)
 
   const origin = studioOrigin(studioSlug)
   const published = teachers.filter(t => t.is_page_published)

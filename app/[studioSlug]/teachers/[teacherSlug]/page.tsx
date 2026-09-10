@@ -8,7 +8,7 @@ import { JsonLd, personLd, breadcrumbLd, eventLd } from '@/lib/jsonLd'
 import Gallery from '../../Gallery'
 import StudioFooter from '../../StudioFooter'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
-import { getStudioContent } from '../../studioContent'
+import { getStudioContent, type PageContentDto } from '../../studioContent'
 
 export const revalidate = 60
 
@@ -55,6 +55,8 @@ interface TeacherPageData {
 
 interface PublicOrgInfo {
   name: string
+  theme?: string | null
+  page_content?: PageContentDto | null
   contactEmail?: string | null
 }
 
@@ -107,7 +109,7 @@ export default async function TeacherLandingPage({ params }: Props) {
   const org: PublicOrgInfo & { theme?: string | null } = orgRes.ok ? await orgRes.json() : { name: studioSlug }
   const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
   const studioName = org.name
-  const content = getStudioContent(studioSlug, org)
+  const content = getStudioContent(studioSlug, org.page_content)
 
   const tags = p.specialties ?? []
   const upcoming = (data.upcoming_classes ?? []).filter(c => !c.is_cancelled)

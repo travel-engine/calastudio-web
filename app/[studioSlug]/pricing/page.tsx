@@ -4,7 +4,7 @@ import styles from '../photofirst.module.css'
 import PricingList, { type PassTemplate } from '../PricingList'
 import StudioFooter from '../StudioFooter'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
-import { getStudioContent } from '../studioContent'
+import { getStudioContent, type PageContentDto } from '../studioContent'
 import { studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, breadcrumbLd, passProductLd } from '@/lib/jsonLd'
 
@@ -38,6 +38,8 @@ interface PublicOrgInfo {
   currency: string
   stripe_account_id: string | null
   payments_enabled: boolean
+  theme?: string | null
+  page_content?: PageContentDto | null
   contactEmail?: string | null
 }
 
@@ -55,7 +57,7 @@ export default async function PricingPage({ params }: Props) {
   const org: PublicOrgInfo & { theme?: string | null } = await orgRes.json()
   const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
   const templates: PassTemplate[] = await tplRes.json()
-  const content = getStudioContent(studioSlug, org)
+  const content = getStudioContent(studioSlug, org.page_content)
 
   const origin = studioOrigin(studioSlug)
   const pageUrl = `${origin}/pricing`
