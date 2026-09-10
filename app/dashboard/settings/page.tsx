@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canManageSettings } from '@/lib/roles'
+import { scanForMojibake } from '@/lib/mojibake'
 import ThemePicker from '@/app/components/ThemePicker'
 import type { ThemeKey } from '@/lib/studioTheme'
 import styles from '@/app/dashboard/dashboard.module.css'
@@ -173,6 +174,24 @@ function SettingsPageContent() {
   const [stripeBanner, setStripeBanner] = useState<'success' | 'failure' | null>(null)
 
   const update = (key: string, value: string | boolean) => setForm(prev => ({ ...prev, [key]: value }))
+
+  // Flag any free-text field that looks like it has an encoding problem — usually text pasted from
+  // a source where a character was already double-encoded (see lib/mojibake). Warn, don't block.
+  const encodingIssues = useMemo(() => scanForMojibake({
+    'Studio name': form.name,
+    'Description': form.description,
+    'Tagline': form.tagline,
+    'Headline': form.heroHeadline,
+    'Emphasised word': form.heroHeadlineEmphasis,
+    'Intro paragraph': form.heroLead,
+    'Hero button label': form.heroCtaLabel,
+    'About heading': form.aboutHeading,
+    'About text': form.aboutBody,
+    'About button label': form.aboutCtaLabel,
+    'Passes heading': form.passesHeading,
+    'Passes blurb': form.passesBlurb,
+    'Contact email': form.contactEmail,
+  }), [form])
 
   useEffect(() => {
     const connected = searchParams.get('stripe_connected')
@@ -994,6 +1013,13 @@ function SettingsPageContent() {
           {success && (
             <div style={{ padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px', color: '#085041', fontSize: '14px', marginBottom: '24px' }}>
               {success}
+            </div>
+          )}
+          {encodingIssues.length > 0 && (
+            <div style={{ padding: '12px 16px', backgroundColor: '#fff8e6', border: '1px solid #f0e0b0', borderRadius: '8px', color: '#7a4f00', fontSize: '13px', marginBottom: '24px' }}>
+              <strong>Possible encoding problem</strong> in {encodingIssues.join(', ')} — the text
+              looks like it was pasted from a source where a character was already garbled. Retype
+              the affected value before saving.
             </div>
           )}
 
