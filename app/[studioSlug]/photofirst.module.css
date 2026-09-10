@@ -1062,12 +1062,12 @@
 .dirCard {
   background: var(--surface);
   border-radius: var(--radius-card);
-  padding: 24px 28px;
+  padding: 22px 26px;
   text-decoration: none;
   color: inherit;
   display: flex;
-  gap: 20px;
-  align-items: flex-start;
+  gap: 24px;
+  align-items: center;
 }
 
 .dirName {
@@ -1079,12 +1079,25 @@
   flex-wrap: wrap;
 }
 
-.dirAvatar {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  object-fit: cover;
+.dirPhoto {
+  position: relative;
+  width: clamp(120px, 22vw, 160px);
+  aspect-ratio: 4 / 5;
+  border-radius: var(--radius-thumb, 14px);
+  overflow: hidden;
   flex-shrink: 0;
+  background: var(--inset);
+}
+
+.dirPhotoInitials {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-meta);
 }
 
 /* --- Pricing / passes list ------------------------------------- */
