@@ -5,16 +5,24 @@ contract below. Until `CalaStudio.Api` implements it, the frontend falls back to
 content map (`app/[studioSlug]/studioContent.ts`) so `yoga-with-ravi` renders the final copy.
 When the API returns a field, it wins over the fallback.
 
-## 1. `theme` on the org
+## 1. `theme` on the org  — frontend DONE, needs the column + accept/persist
 
 Add a `theme` column to the organisation record.
 
-- Type: `varchar(20)`, nullable (null ⇒ default, which is currently `photo-first`).
-- Values today: `photo-first`. The five-theme picker (`classic | night | clay | grid | poster`)
-  is a later phase — reserve the column now.
-- Expose on **`GET /api/public/{slug}`** as `theme`.
-- Set during onboarding; editable in `app/dashboard/settings`. (Frontend for those screens is
-  not built yet — phase 4.)
+- Type: `varchar(20)`, nullable. `null` ⇒ frontend default (`photo-first`).
+- Valid values: `classic | night | clay | grid | poster` (the picker) plus `photo-first`
+  (Yoga with Ravi's private look — an alias of `night`, never shown in the picker).
+- **Accept** it on:
+  - `POST /api/organisations` — onboarding wizard sends `theme` in the create body (step 4).
+  - `PATCH /api/organisations/{id}` — dashboard settings sends `theme` alongside `brand_color` etc.
+- **Expose** it on `GET /api/public/{slug}` as `theme` (already consumed by
+  `app/[studioSlug]/layout.tsx` → `resolveTheme`).
+- Frontend picker UI: `app/components/ThemePicker.tsx`, wired into `app/onboarding/page.tsx`
+  (step 4) and `app/dashboard/settings/page.tsx`. Until the API accepts the field the picker
+  still works but the choice isn't saved — new studios all render the `photo-first` fallback.
+
+The theme engine (`lib/studioTheme.ts` + `app/[studioSlug]/photofirst.module.css`) is complete —
+adding the column is the only backend work for theming.
 
 ## 2. Marketing content fields on `GET /api/public/{slug}`
 

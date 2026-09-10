@@ -19,6 +19,16 @@
   top: 0;
 }
 
+.brand {
+  font-family: var(--font-display);
+  font-weight: var(--brand-weight, 700);
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+  min-width: 0;
+}
+
 /* Over the hero photo the bar is always light-on-image, whatever the body palette. */
 .barOverPhoto .brand,
 .barOverPhoto .link {
@@ -77,6 +87,7 @@
 }
 
 .link {
+  font-family: var(--font-body);
   font-size: 13.5px;
   font-weight: 500;
   text-decoration: none;

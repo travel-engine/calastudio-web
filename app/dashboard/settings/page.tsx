@@ -7,6 +7,8 @@ import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import BannerCropModal from './BannerCropModal'
 import { canManageSettings } from '@/lib/roles'
+import ThemePicker from '@/app/components/ThemePicker'
+import type { ThemeKey } from '@/lib/studioTheme'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 // IANA zone names straight from the runtime — an empty list (older browser) falls back to a text input.
@@ -114,6 +116,7 @@ function SettingsPageContent() {
     logoUrl: '',
     bannerUrl: '',
     brandColor: '#085041',
+    theme: 'classic',
     taxEnabled: false,
     taxLabel: '',
     taxRegistrationNumber: '',
@@ -201,6 +204,7 @@ function SettingsPageContent() {
         logoUrl: org.logo_url ?? '',
         bannerUrl: org.banner_url ?? '',
         brandColor: org.brand_color ?? '#085041',
+        theme: org.theme ?? 'classic',
         taxEnabled: org.tax_enabled ?? false,
         taxLabel: org.tax_label ?? '',
         taxRegistrationNumber: org.tax_registration_number ?? '',
@@ -373,6 +377,7 @@ function SettingsPageContent() {
           logo_url: form.logoUrl || null,
           banner_url: form.bannerUrl || null,
           brand_color: form.brandColor || null,
+          theme: form.theme || null,
           tax_enabled: form.taxEnabled,
           tax_label: form.taxLabel || null,
           tax_registration_number: form.taxRegistrationNumber || null,
@@ -533,6 +538,10 @@ function SettingsPageContent() {
               />
               <Input value={form.brandColor} onChange={e => update('brandColor', e.target.value)} style={{ maxWidth: '140px' }} />
             </div>
+          </Field>
+
+          <Field label="Page theme" hint="The look of your public studio pages. One layout, five styles — your logo and brand colour carry across all of them.">
+            <ThemePicker value={form.theme as ThemeKey} onChange={k => update('theme', k)} />
           </Field>
 
           <SectionHeader title="Studio profile" />
