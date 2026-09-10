@@ -1,8 +1,12 @@
 'use client'
 
 import { useBookingFlow, type BookableOccurrence } from '@/lib/store/bookingFlow'
-import { formatDateWithWeekday } from '@/lib/dates'
 import styles from './photofirst.module.css'
+
+// This is a Client Component that renders during SSR *and* re-renders on hydration, so every
+// formatter here pins its locale — an `undefined` (runtime-default) locale formats differently on
+// the Node server vs. the browser and trips a hydration mismatch. Same reasoning as PricingList.
+const LOCALE = 'en-AU'
 
 function dayLabel(iso: string) {
   const d = new Date(iso)
@@ -11,15 +15,15 @@ function dayLabel(iso: string) {
   tomorrow.setDate(today.getDate() + 1)
   if (d.toDateString() === today.toDateString()) return 'Today'
   if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
-  return formatDateWithWeekday(d)
+  return d.toLocaleDateString(LOCALE, { weekday: 'short', day: '2-digit', month: 'short' })
 }
 
 function timeLabel(iso: string) {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString(LOCALE, { hour: 'numeric', minute: '2-digit' })
 }
 
 function formatMoney(amount: number, currency: string) {
-  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount) }
+  try { return new Intl.NumberFormat(LOCALE, { style: 'currency', currency }).format(amount) }
   catch { return `${currency} ${amount.toFixed(2)}` }
 }
 
