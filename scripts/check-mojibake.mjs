@@ -1,14 +1,20 @@
 #!/usr/bin/env node
-// Fails if any tracked source / content file contains a literal mojibake sequence — catches
-// mangled text pasted into code, JSON fixtures, or seed data. Wire into CI:  node scripts/check-mojibake.mjs
+// Fails if any tracked source / content file contains a mojibake sequence — catches mangled text
+// pasted into code, JSON fixtures or seed data. CI:  node scripts/check-mojibake.mjs
+//
+// Keep the regex in sync with lib/mojibake.ts (MOJIBAKE_RE) — a UTF-8 lead-byte char followed by
+// the right number of continuation-byte chars.
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
-const RE = /[ÂÃâ][-¿–—‘’“”… ]/
+const CONT = '[\\u0080-\\u00BF]'
+const RE = new RegExp(
+  `[\\u00C2-\\u00DF]${CONT}|[\\u00E0-\\u00EF]${CONT}{2}|[\\u00F0-\\u00F4]${CONT}{3}|\\uFFFD`,
+)
 
 const files = execSync('git ls-files', { encoding: 'utf8' })
   .split('\n')
-  .filter((f) => /\.(ts|tsx|js|jsx|json|md|css)$/.test(f))
+  .filter((f) => /\.(ts|tsx|js|jsx|mjs|json|md|css)$/.test(f))
 
 let bad = 0
 for (const f of files) {
@@ -27,7 +33,7 @@ for (const f of files) {
 }
 
 if (bad) {
-  console.error(`\n✗ ${bad} line(s) look mojibake'd. Re-type the text or fix the encoding.`)
+  console.error(`\nx ${bad} line(s) look mojibake'd. Re-type the text or fix the encoding.`)
   process.exit(1)
 }
-console.log('✓ no mojibake in tracked files')
+console.log('ok - no mojibake in tracked files')
