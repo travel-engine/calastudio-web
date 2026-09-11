@@ -14,6 +14,11 @@
   overflow-x: clip;
 }
 
+/* Pages with no fixed booking bar (e.g. Home) don't need the reserved space. */
+.rootNoFixedBar {
+  padding-bottom: 0;
+}
+
 .root :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 3px;

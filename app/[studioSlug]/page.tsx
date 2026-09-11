@@ -8,7 +8,6 @@ import BookingDrawer from './BookingDrawer'
 import MemberScheduleLoader from './MemberScheduleLoader'
 import SessionRow from './SessionRow'
 import Gallery from './Gallery'
-import FixedBookingBar from './FixedBookingBar'
 import StudioFooter from './StudioFooter'
 import { getStudioContent, headlineRuns, type PageContentDto } from './studioContent'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
@@ -107,9 +106,7 @@ export default async function StudioHomePage({ params }: Props) {
   const themed = theme.layout === 'themed'
 
   const live = occurrences.filter(o => !o.is_cancelled)
-  const featured = live.slice(0, 4)
-  const now = Date.now()
-  const next = live.find(o => new Date(o.starts_at).getTime() > now) ?? live[0] ?? null
+  const featured = live.slice(0, 3)
   const passes = passTemplates.slice(0, 2)
 
   const canonical = `${studioOrigin(studioSlug)}/`
@@ -123,7 +120,7 @@ export default async function StudioHomePage({ params }: Props) {
   const headline = content.heroHeadline ?? `Practise with ${org.name}`
 
   return (
-    <div className={styles.root}>
+    <div className={`${styles.root} ${styles.rootNoFixedBar}`}>
       <JsonLd data={studioLd({ name: org.name, description: content.heroLead ?? org.description, url: canonical, image: content.heroImageUrl || org.banner_url || org.logo_url })} />
 
       {(() => {
@@ -174,13 +171,13 @@ export default async function StudioHomePage({ params }: Props) {
       })()}
 
       <main className={styles.container}>
-        {/* This week */}
+        {/* Upcoming */}
         {featured.length > 0 && (
           <section className={styles.section}>
             <div className={styles.sectionHead}>
-              <h2 className={styles.h2}>This week</h2>
+              <h2 className={styles.h2}>Upcoming</h2>
               <Link href={`/${studioSlug}/schedule`} className={styles.textBtn}>
-                All {live.length} session{live.length === 1 ? '' : 's'}
+                All Sessions
               </Link>
             </div>
             <div className={styles.rowList}>
@@ -246,8 +243,6 @@ export default async function StudioHomePage({ params }: Props) {
       </main>
 
       <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} />
-      {/* The fixed booking bar belongs to the full-bleed layout; the themed nav has a CTA instead. */}
-      {!themed && <FixedBookingBar next={next} {...bookProps} />}
 
       <BookingDrawer />
       <MemberScheduleLoader studioSlug={studioSlug} orgId={org.id} queryString="" />
