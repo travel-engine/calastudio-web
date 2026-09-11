@@ -242,7 +242,7 @@ export default async function StudioHomePage({ params }: Props) {
         )}
       </main>
 
-      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} />
+      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} socials={{ instagram: content.instagramUrl, facebook: content.facebookUrl, tiktok: content.tiktokUrl, youtube: content.youtubeUrl }} />
 
       <BookingDrawer />
       <MemberScheduleLoader studioSlug={studioSlug} orgId={org.id} queryString="" />

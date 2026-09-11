@@ -220,7 +220,7 @@ export default async function TeacherLandingPage({ params }: Props) {
         )}
       </main>
 
-      <StudioFooter name={studioName} email={content.contactEmail} poweredBy={themed} />
+      <StudioFooter name={studioName} email={content.contactEmail} poweredBy={themed} socials={{ instagram: content.instagramUrl, facebook: content.facebookUrl, tiktok: content.tiktokUrl, youtube: content.youtubeUrl }} />
     </div>
   )
 }

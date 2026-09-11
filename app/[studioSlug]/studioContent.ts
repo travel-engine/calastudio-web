@@ -34,6 +34,12 @@ export interface StudioContent {
   gallery: GalleryImage[]
 
   contactEmail: string | null
+
+  /** Studio social links — shown in the footer. Any/all may be unset. */
+  instagramUrl: string | null
+  facebookUrl: string | null
+  tiktokUrl: string | null
+  youtubeUrl: string | null
 }
 
 /** The `page_content` object as the API serves it (GET /api/public/{slug}) and accepts it
@@ -53,6 +59,10 @@ export interface PageContentDto {
   passes_blurb?: string | null
   gallery?: GalleryImage[] | null
   contact_email?: string | null
+  instagram_url?: string | null
+  facebook_url?: string | null
+  tiktok_url?: string | null
+  youtube_url?: string | null
 }
 
 const EMPTY: StudioContent = {
@@ -70,6 +80,10 @@ const EMPTY: StudioContent = {
   passesBlurb: null,
   gallery: [],
   contactEmail: null,
+  instagramUrl: null,
+  facebookUrl: null,
+  tiktokUrl: null,
+  youtubeUrl: null,
 }
 
 /** Normalise the API's snake_case `page_content` to the camelCase `StudioContent` the components
@@ -92,6 +106,10 @@ export function getStudioContent(_slug: string, pc?: PageContentDto | null): Stu
     passesBlurb: str(pc.passes_blurb),
     gallery: pc.gallery ?? [],
     contactEmail: str(pc.contact_email),
+    instagramUrl: str(pc.instagram_url),
+    facebookUrl: str(pc.facebook_url),
+    tiktokUrl: str(pc.tiktok_url),
+    youtubeUrl: str(pc.youtube_url),
   }
 }
 
