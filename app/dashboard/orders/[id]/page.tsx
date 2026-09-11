@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewMembers } from '@/lib/roles'
+import { canViewMembers, canManageBookings } from '@/lib/roles'
 import { formatDate, formatDateTime } from '@/lib/dates'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -46,8 +46,22 @@ interface OrderDetail {
   card_last4: string | null
   fee: number | null
   net_amount: number | null
+  // Not present on the live API response as of this writing (checked against a real booking
+  // order) — kept optional so a future addition is picked up without a type change, and every use
+  // below tolerates it being absent.
+  refunded_amount?: number | null
   receipt_reference: string
   pass: PassOrderDetail | null
+}
+
+// GET /payments/{id} has no booking-side equivalent of `pass.member_pass_id` — a `type: "booking"`
+// order doesn't carry the booking's own id. Bookings do carry `payment_id` back to their order
+// (see dashboard/bookings/page.tsx's Booking type), so refunding a session order means fetching the
+// member's bookings and matching on that, then calling the same /bookings/{id}/refund the roster
+// uses. Confirmed against a live order — see git history for the request that traced this.
+interface MemberBookingRef {
+  id: string
+  payment_id?: string | null
 }
 
 const orderTypeLabels: Record<string, string> = {
@@ -109,6 +123,11 @@ const th: React.CSSProperties = { textAlign: 'left', fontSize: '11px', fontWeigh
 const td: React.CSSProperties = { fontSize: '13px', color: '#444', padding: '10px 0', borderTop: '1px solid #f4f4f4' }
 const rowLabel: React.CSSProperties = { fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }
 const rowValue: React.CSSProperties = { fontSize: '13px', color: '#444', textAlign: 'right' }
+const refundButtonStyle: React.CSSProperties = {
+  marginTop: '14px', padding: '8px 16px', backgroundColor: 'white',
+  border: '1px solid #d2d2d2', borderRadius: '8px', fontSize: '13px',
+  fontWeight: 600, color: '#1a1a1a', cursor: 'pointer',
+}
 
 function fmtMoney(amount: number, currency: string) {
   try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount) }
@@ -129,6 +148,43 @@ export default function OrderDetailPage() {
   const [showPaymentDetail, setShowPaymentDetail] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
+
+  // Resolved for `type: "booking"` orders only — see the MemberBookingRef comment above.
+  const [bookingRefundId, setBookingRefundId] = useState<string | null>(null)
+
+  // Issue-refund modal — covers both a session booking (money via Stripe, POST /bookings/{id}/refund)
+  // and a pass purchase (POST /member-passes/{id}/refund). Separate from the credit-only "Refund
+  // credit" action that lives on the bookings roster. Mirrors that roster's modal: prefilled,
+  // editable amount + a required reason, admin reviews before confirming.
+  const [refundOpen, setRefundOpen] = useState(false)
+  const [refundKind, setRefundKind] = useState<'booking' | 'pass' | null>(null)
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refundReason, setRefundReason] = useState('')
+  const [refundQuoteLoading, setRefundQuoteLoading] = useState(false)
+  const [refundBusy, setRefundBusy] = useState(false)
+  const [refundError, setRefundError] = useState('')
+
+  const fetchOrder = useCallback(async (oId: string, t: string) => {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${oId}/payments/${orderId}`, {
+      headers: { Authorization: `Bearer ${t}` },
+    })
+    if (res.status === 404) { setNotFound(true); return }
+    if (!res.ok) return
+    const data: OrderDetail = await res.json()
+    setOrder(data)
+
+    if (data.type === 'booking' && data.member_id) {
+      const bRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${oId}/members/${data.member_id}/bookings`, {
+        headers: { Authorization: `Bearer ${t}` },
+      })
+      if (bRes.ok) {
+        const bookings: MemberBookingRef[] = await bRes.json()
+        setBookingRefundId(bookings.find(b => b.payment_id === data.id)?.id ?? null)
+      }
+    } else {
+      setBookingRefundId(null)
+    }
+  }, [orderId])
 
   useEffect(() => {
     const load = async () => {
@@ -152,16 +208,80 @@ export default function OrderDetailPage() {
       setRoles(myRoles)
       if (!canViewMembers(myRoles)) { setForbidden(true); setLoading(false); return }
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/payments/${orderId}`, {
-        headers: { Authorization: `Bearer ${t}` },
-      })
-      if (res.status === 404) { setNotFound(true); setLoading(false); return }
-      if (res.ok) setOrder(await res.json())
+      await fetchOrder(org.id, t)
       setLoading(false)
     }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, orderId])
+
+  // The refund target: a booking id for a session order, a member-pass id for a pass-purchase
+  // order. Null while it can't be resolved (still loading, or no matching booking found).
+  const refundTargetId = refundKind === 'booking' ? bookingRefundId : refundKind === 'pass' ? order?.pass?.member_pass_id ?? null : null
+
+  // The pass refund-quote endpoint's response shape isn't documented anywhere we can check ahead
+  // of time; read a number off whichever plausible field it uses, and fall back to the outstanding
+  // balance if none matches. The amount is always shown to the admin and stays editable before
+  // they confirm, so a missed field name just means a worse pre-fill, not a wrong charge. Booking
+  // refunds have no quote endpoint — same prefill as the bookings roster's own modal.
+  const openRefund = useCallback(async (kind: 'booking' | 'pass') => {
+    if (!order) return
+    setRefundKind(kind)
+    setRefundOpen(true)
+    setRefundReason('')
+    setRefundError('')
+    setRefundAmount(order.amount > 0 ? order.amount.toFixed(2) : '')
+
+    if (kind !== 'pass' || !order.pass) return
+    setRefundQuoteLoading(true)
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/member-passes/${order.pass.member_pass_id}/refund-quote`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      if (res.ok) {
+        const data = await res.json().catch(() => null)
+        const quoted = data && typeof data === 'object'
+          ? [data.amount, data.refund_amount, data.refundable_amount, data.suggested_amount, data.max_amount]
+              .find((v: unknown) => typeof v === 'number' && v > 0)
+          : undefined
+        if (typeof quoted === 'number') setRefundAmount(quoted.toFixed(2))
+      }
+    } catch {
+      /* keep the outstanding-balance fallback */
+    } finally {
+      setRefundQuoteLoading(false)
+    }
+  }, [order, orgId, token])
+
+  const handleIssueRefund = async () => {
+    if (!refundKind || !refundTargetId) return
+    const amount = parseFloat(refundAmount)
+    if (!amount || amount <= 0) { setRefundError('Enter a refund amount greater than zero.'); return }
+    if (!refundReason.trim()) { setRefundError('A reason is required.'); return }
+
+    const path = refundKind === 'booking' ? `/bookings/${refundTargetId}/refund` : `/member-passes/${refundTargetId}/refund`
+    setRefundBusy(true)
+    setRefundError('')
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount, reason: refundReason }),
+      })
+      if (res.ok) {
+        setRefundOpen(false)
+        await fetchOrder(orgId, token)
+      } else {
+        const data = await res.json().catch(() => null)
+        setRefundError(data?.error ?? 'Could not issue this refund.')
+      }
+    } catch {
+      setRefundError('Could not reach the server. Please try again.')
+    } finally {
+      setRefundBusy(false)
+    }
+  }
 
   const downloadReceipt = useCallback(async () => {
     setDownloading(true)
@@ -338,12 +458,26 @@ export default function OrderDetailPage() {
                                 )}
                               </>
                             )}
+                            {!!order.refunded_amount && (
+                              <>
+                                <div style={{ borderTop: '1px solid #eee', margin: '8px 0' }} />
+                                <Row label="Refunded" value={`− ${fmtMoney(order.refunded_amount, order.currency)}`} muted />
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+
+                {(order.status === 'succeeded' || order.status === 'partially_refunded') && canManageBookings(roles) && (
+                  order.pass ? (
+                    <button onClick={() => openRefund('pass')} style={refundButtonStyle}>Issue refund</button>
+                  ) : order.type === 'booking' && bookingRefundId ? (
+                    <button onClick={() => openRefund('booking')} style={refundButtonStyle}>Issue refund</button>
+                  ) : null
+                )}
               </Section>
             </Card>
 
@@ -385,6 +519,93 @@ export default function OrderDetailPage() {
                   </table>
                 )}
               </Card>
+            )}
+
+            {refundOpen && refundKind && (
+              <div style={{
+                position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px',
+              }}>
+                <div style={{
+                  backgroundColor: 'white', borderRadius: '16px', padding: '28px',
+                  width: '100%', maxWidth: '420px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Issue refund</h2>
+                    <button
+                      onClick={() => setRefundOpen(false)}
+                      style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+                    {order.member_name} paid {fmtMoney(order.amount, order.currency)} for {order.product_name}.
+                    Partial refunds are allowed; the amount can&apos;t exceed what&apos;s left unrefunded.
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
+                        Refund amount {refundQuoteLoading && <span style={{ color: '#999', fontWeight: 400 }}>(fetching suggested amount…)</span>}
+                      </label>
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={refundAmount}
+                        onChange={e => setRefundAmount(e.target.value)}
+                        disabled={refundQuoteLoading}
+                        style={{
+                          width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
+                          fontSize: '14px', outline: 'none',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Reason</label>
+                      <textarea
+                        value={refundReason}
+                        onChange={e => setRefundReason(e.target.value)}
+                        placeholder="e.g. Studio closure, member requested cancellation"
+                        style={{
+                          width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
+                          fontSize: '14px', outline: 'none', minHeight: '72px', fontFamily: 'inherit', resize: 'vertical',
+                        }}
+                      />
+                    </div>
+
+                    {refundError && (
+                      <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                        {refundError}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                      <button
+                        onClick={() => setRefundOpen(false)}
+                        disabled={refundBusy}
+                        style={{
+                          padding: '10px 18px', backgroundColor: 'white', border: '1px solid #e2e2e2',
+                          borderRadius: '8px', fontSize: '13px', fontWeight: 600, color: '#444', cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleIssueRefund}
+                        disabled={refundBusy || refundQuoteLoading}
+                        style={{
+                          padding: '10px 18px', backgroundColor: refundBusy ? '#9fd6b8' : '#085041', color: 'white',
+                          border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                          cursor: refundBusy ? 'default' : 'pointer',
+                        }}
+                      >
+                        {refundBusy ? 'Refunding…' : 'Issue refund'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </>
         )}
