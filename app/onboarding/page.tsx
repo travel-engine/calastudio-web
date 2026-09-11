@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { type ThemeKey } from '@/lib/studioTheme'
+import ThemePicker from '@/app/components/ThemePicker'
 
 // ── Step components ──────────────────────────────────────
 function ProgressBar({ step, total }: { step: number; total: number }) {
@@ -372,7 +374,36 @@ function Step3({ data, onChange, onNext, onBack }: {
   )
 }
 
-// ── Step 4: Payments ──────────────────────────────────────
+// ── Step 4: Theme ─────────────────────────────────────────
+// The studio's public-page look (design handoff §"Onboarding picker"). One template, five themes;
+// changeable later in Settings. Swatches are painted in each theme's own tokens.
+function ThemeStep({ data, onChange, onNext, onBack }: {
+  data: StudioData
+  onChange: (key: string, value: string) => void
+  onNext: () => void
+  onBack: () => void
+}) {
+  return (
+    <div>
+      <BackButton onClick={onBack} />
+      <h2 style={{ fontSize: '22px', fontWeight: 600, marginBottom: '8px' }}>Choose how your studio page looks</h2>
+      <p style={{ color: '#666', marginBottom: '28px', fontSize: '14px' }}>
+        Every theme carries the same pages — schedule, teachers, pricing, booking. You can change it
+        any time in Settings, and your logo and brand colour come along.
+      </p>
+
+      <ThemePicker
+        value={data.theme}
+        onChange={(key) => onChange('theme', key)}
+        sampleTitle={data.sessionName?.trim() || undefined}
+      />
+
+      <NextButton onClick={onNext}>Continue →</NextButton>
+    </div>
+  )
+}
+
+// ── Step 5: Payments ──────────────────────────────────────
 function Step4({ onNext, onSkip, onBack, loading }: {
   onNext: () => void
   onSkip: () => void
@@ -575,6 +606,7 @@ interface StudioData {
   sessionCapacity: string
   locationName: string
   dropInPrice: string
+  theme: ThemeKey
   email: string
 }
 
@@ -619,11 +651,12 @@ export default function OnboardingPage() {
     sessionCapacity: '12',
     locationName: '',
     dropInPrice: '',
+    theme: 'classic',
     email: '',
   })
 
   const update = (key: string, value: string) => {
-    setData(prev => ({ ...prev, [key]: value }))
+    setData(prev => ({ ...prev, [key]: value }) as StudioData)
   }
 
   // Creates the studio and returns { id, slug } — or null after setting `error`.
@@ -643,6 +676,7 @@ export default function OnboardingPage() {
         currency: data.currency,
         country: data.country,
         locale: 'en-AU',
+        theme: data.theme,
         accept_terms: acceptTerms,
       }),
     })
@@ -661,7 +695,7 @@ export default function OnboardingPage() {
       const org = await createOrg()
       if (!org) return
       setOrgSlug(org.slug)
-      setStep(5)
+      setStep(6)
     } catch {
       setError('Could not reach the server. Please check your connection and try again.')
     } finally {
@@ -695,7 +729,7 @@ export default function OnboardingPage() {
       } catch {
         setStripeNote("We couldn't start Stripe just now. Connect it later from Settings → Payments.")
       }
-      setStep(5)
+      setStep(6)
     } catch {
       setError('Could not reach the server. Please check your connection and try again.')
     } finally {
@@ -703,7 +737,7 @@ export default function OnboardingPage() {
     }
   }
 
-  const TOTAL_STEPS = 4
+  const TOTAL_STEPS = 5
 
   if (checking) {
     return (
@@ -745,7 +779,7 @@ export default function OnboardingPage() {
             CalaStudio
           </div>
 
-          {step < 5 && <ProgressBar step={step} total={TOTAL_STEPS} />}
+          {step < 6 && <ProgressBar step={step} total={TOTAL_STEPS} />}
         </div>
 
         {/* Steps */}
@@ -759,11 +793,14 @@ export default function OnboardingPage() {
           <Step3 data={data} onChange={update} onNext={() => setStep(4)} onBack={() => setStep(2)} />
         )}
         {step === 4 && (
+          <ThemeStep data={data} onChange={update} onNext={() => setStep(5)} onBack={() => setStep(3)} />
+        )}
+        {step === 5 && (
           <>
             <Step4
               onNext={handleConnectStripe}
               onSkip={handleComplete}
-              onBack={() => setStep(3)}
+              onBack={() => setStep(4)}
               loading={loading}
             />
             {error && (
@@ -773,7 +810,7 @@ export default function OnboardingPage() {
             )}
           </>
         )}
-        {step === 5 && (
+        {step === 6 && (
           <Step5 data={data} orgSlug={orgSlug} stripeNote={stripeNote} />
         )}
       </div>

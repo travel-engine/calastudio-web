@@ -1,8 +1,8 @@
-/* Account portal shell: horizontal tab strip on mobile, left rail on desktop. */
+/* Account portal shell: horizontal tab strip on mobile, left rail on desktop. Photo First tokens. */
 .layout {
   max-width: 820px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 24px var(--gutter, 24px);
   display: grid;
   grid-template-columns: 1fr;
   gap: 18px;
@@ -13,7 +13,7 @@
   gap: 4px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  border-bottom: 1px solid #e2e2e2;
+  border-bottom: 1px solid var(--line);
 }
 
 .navItem {
@@ -23,7 +23,7 @@
   background: transparent;
   font-size: 14px;
   font-weight: 500;
-  color: #666;
+  color: var(--text-meta);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
@@ -31,9 +31,9 @@
 }
 
 .navItemActive {
-  color: #085041;
+  color: var(--ink);
   font-weight: 600;
-  border-bottom-color: #085041;
+  border-bottom-color: var(--ink);
 }
 
 .body {
@@ -65,7 +65,7 @@
 
   .navItemActive {
     border-bottom-color: transparent;
-    background-color: #e8f5ee;
+    background: var(--inset);
   }
 }
 

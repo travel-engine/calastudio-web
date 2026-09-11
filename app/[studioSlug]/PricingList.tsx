@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { formatDate } from '@/lib/dates'
 import PassPurchaseModal from './PassPurchaseModal'
+import styles from './photofirst.module.css'
 
 export interface PassTemplate {
   id: string
@@ -73,50 +74,42 @@ export default function PricingList({
   }, [])
 
   if (templates.length === 0) {
-    return (
-      <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-        This studio doesn&apos;t have any passes for sale right now.
-      </div>
-    )
+    return <div className={styles.emptyState}>This studio doesn&apos;t have any passes for sale right now.</div>
   }
 
   const canPay = paymentsEnabled && !!stripeAccountId
-  const btn: React.CSSProperties = {
-    display: 'inline-block', padding: '9px 18px', backgroundColor: brandColor, color: 'white',
-    borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none', border: 'none', cursor: 'pointer',
-  }
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+      <div className={styles.passGridFull}>
         {templates.map(t => {
           const expiry = expiryText(t)
           const restriction = restrictionText(t)
           const unlimited = t.pass_type === 'unlimited' || t.credit_count == null
           return (
-            <div key={t.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontWeight: 700, fontSize: '16px' }}>{t.name}</div>
-              <div style={{ fontSize: '24px', fontWeight: 800, margin: '8px 0' }}>{money(t.price, t.currency || currency)}</div>
-              <div style={{ fontSize: '13px', color: '#444' }}>
+            <div key={t.id} className={styles.passListCard}>
+              <div className={styles.passListName}>{t.name}</div>
+              <div className={styles.passListPrice}>{money(t.price, t.currency || currency)}</div>
+              <div className={styles.passListDetail}>
                 {unlimited ? 'Unlimited classes' : `${t.credit_count} class${t.credit_count === 1 ? '' : 'es'}`}
               </div>
-              {expiry && <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{expiry}</div>}
-              {restriction && <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{restriction}</div>}
-              {t.description && <p style={{ fontSize: '13px', color: '#666', marginTop: '10px', marginBottom: 0 }}>{t.description}</p>}
+              {expiry && <div className={styles.passListMuted}>{expiry}</div>}
+              {restriction && <div className={styles.passListMuted}>{restriction}</div>}
+              {t.description && <p className={styles.passListDetail} style={{ marginTop: '10px', color: 'var(--text-body)' }}>{t.description}</p>}
 
               <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
                 {justBought === t.id ? (
-                  <div style={{ fontSize: '13px', color: '#085041', fontWeight: 600 }}>
-                    ✓ Added — <Link href={`/${studioSlug}/account`} style={{ color: brandColor }}>view your passes</Link>
+                  <div style={{ fontSize: '13px', color: 'var(--ink)', fontWeight: 600 }}>
+                    ✓ Added — <Link href={`/${studioSlug}/account`} style={{ textDecoration: 'underline' }}>view your passes</Link>
                   </div>
                 ) : token === undefined ? (
-                  <button disabled style={{ ...btn, backgroundColor: '#e2e2e2', color: '#999', cursor: 'default' }}>…</button>
+                  <button disabled className={styles.smallBtn}>…</button>
                 ) : token === null ? (
-                  <Link href={`/${studioSlug}/account`} style={btn}>Sign in to buy</Link>
+                  <Link href={`/${studioSlug}/account`} className={styles.smallBtn}>Sign in to buy</Link>
                 ) : !canPay ? (
-                  <div style={{ fontSize: '12px', color: '#8b1a1a' }}>This studio hasn&apos;t set up card payments yet.</div>
+                  <div style={{ fontSize: '12.5px', color: 'var(--danger)' }}>This studio hasn&apos;t set up card payments yet.</div>
                 ) : (
-                  <button onClick={() => setBuying(t)} style={btn}>Buy this pass</button>
+                  <button onClick={() => setBuying(t)} className={styles.smallBtn}>Buy this pass</button>
                 )}
               </div>
             </div>

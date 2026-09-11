@@ -6,15 +6,9 @@ import { useBookingFlow, type PassTemplateOption } from '@/lib/store/bookingFlow
 import { displayName, splitName } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
 import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
-import styles from './booking.module.css'
+import styles from './photofirst.module.css'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
-
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-  fontSize: '14px', outline: 'none', backgroundColor: 'white'
-}
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }
 
 function formatDateTime(iso: string) {
   return formatDateTimeWithWeekday(iso)
@@ -65,9 +59,20 @@ function formatMoney(amount: number, currency: string) {
   catch { return `${currency} ${amount.toFixed(2)}` }
 }
 
+const STEP_LABELS: Record<string, string> = {
+  auth: 'Step 1 of 2 — sign in',
+  agreements: 'Before you continue',
+  options: 'Step 2 of 2 — payment',
+  waitlist: 'Waitlist',
+  'waitlist-joined': 'Waitlist',
+  confirming: 'One moment',
+  success: 'Booked',
+  error: '',
+}
+
 export default function BookingDrawer() {
   const {
-    studioSlug, occurrence, brandColor, step, bookedMode, accessToken, orgId, stripeAccountId, paymentsEnabled,
+    studioSlug, occurrence, step, bookedMode, accessToken, orgId, stripeAccountId, paymentsEnabled,
     bookingOptions, confirmedBooking, errorMessage, joiningWaitlist, joinedWaitlistEntry,
     close, setStep, setAuth, setBookingOptions, setConfirmedBooking, setError,
     goToWaitlist, setJoinedWaitlist,
@@ -541,13 +546,13 @@ export default function BookingDrawer() {
     const credits = creditsLine(bookingOptions.member_credits_cost, bookingOptions.guest_credits_cost, guestCount)
 
     return (
-      <div className={styles.optionCard}>
+      <div className={styles.infoCard}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontWeight: 600, fontSize: '14px' }}>Bringing guests?</div>
+          <div style={{ fontWeight: 500, fontSize: '15px' }}>Bringing guests?</div>
           <select
             value={guestCount}
             onChange={e => setGuestCount(parseInt(e.target.value))}
-            style={{ padding: '6px 10px', border: '1px solid #e2e2e2', borderRadius: '6px', fontSize: '13px' }}
+            className={styles.selectPf}
           >
             {Array.from({ length: maxGuests + 1 }, (_, n) => (
               <option key={n} value={n}>{n === 0 ? 'No guests' : `${n} guest${n > 1 ? 's' : ''}`}</option>
@@ -555,7 +560,7 @@ export default function BookingDrawer() {
           </select>
         </div>
         {credits && (
-          <div style={{ fontSize: '12px', color: passCreditsShort ? '#8b1a1a' : '#666', marginTop: '8px' }}>
+          <div style={{ fontSize: '12.5px', color: passCreditsShort ? 'var(--danger)' : 'var(--text-meta)', marginTop: '8px' }}>
             {credits}
             {passCreditsShort && bookingOptions.usable_pass_credits_remaining != null &&
               ` — only ${bookingOptions.usable_pass_credits_remaining} left on your pass`}
@@ -565,144 +570,92 @@ export default function BookingDrawer() {
     )
   }
 
+  const durationMins = durationMinutes(occurrence.starts_at, occurrence.ends_at)
+  const spots = spotsLabel(occurrence.spots_remaining)
+  const drawerMeta = [
+    formatDateTime(occurrence.starts_at) + ' – ' + timeOnly(occurrence.ends_at),
+    durationMins ? `${durationMins} min` : null,
+    occurrence.delivery_mode === 'online' ? 'Online' : (occurrence.location_name || 'In person'),
+  ].filter(Boolean).join(' · ')
+
   return (
-    <div className={styles.overlay} onClick={close}>
-      <div className={styles.drawer} onClick={e => e.stopPropagation()}>
-        {(() => {
-          const durationMins = durationMinutes(occurrence.starts_at, occurrence.ends_at)
-          const spots = spotsLabel(occurrence.spots_remaining)
-          return (
-            <div style={{ marginBottom: '20px' }}>
-              {occurrence.photo_url && (
-                <img
-                  src={occurrence.photo_url}
-                  alt=""
-                  style={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 10, display: 'block', marginBottom: '14px', backgroundColor: '#f4f4f4' }}
-                />
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                <div style={{ fontWeight: 700, fontSize: '17px', lineHeight: 1.3, minWidth: 0 }}>{occurrence.session_name}</div>
-                <button onClick={close} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#666', lineHeight: 1, flexShrink: 0 }}>×</button>
+    <div className={styles.drawerOverlay} onClick={close}>
+      <div className={styles.drawerPanel} onClick={e => e.stopPropagation()}>
+        <div className={styles.drawerHead}>
+          <div style={{ minWidth: 0 }}>
+            {STEP_LABELS[step] && <div className={styles.drawerStep}>{STEP_LABELS[step]}</div>}
+            <div className={styles.drawerTitle}>{occurrence.session_name}</div>
+            <div className={styles.drawerMeta}>{drawerMeta}</div>
+            {occurrence.instructor_name && (
+              <div className={styles.drawerMeta} style={{ marginTop: 2 }}>with {occurrence.instructor_name}</div>
+            )}
+            {spots && (
+              <div
+                className={styles.drawerMeta}
+                style={{
+                  marginTop: 4, fontWeight: 500,
+                  color: spots.tone === 'full' ? 'var(--text-footer)' : spots.tone === 'low' ? 'var(--text-warn)' : 'var(--text-meta)',
+                }}
+              >
+                {spots.text}
               </div>
-
-              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#555' }}>
-                <div>
-                  {formatDateTime(occurrence.starts_at)} – {timeOnly(occurrence.ends_at)}
-                  {durationMins ? ` · ${durationMins} min` : ''}
-                </div>
-                <div>
-                  {occurrence.delivery_mode === 'online' ? 'Online' : (occurrence.location_name || 'In person')}
-                  {occurrence.delivery_mode !== 'online' && occurrence.location_address && (
-                    <span style={{ color: '#999' }}> · {occurrence.location_address}</span>
-                  )}
-                </div>
-                {occurrence.instructor_name && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                    {occurrence.instructor_photo_url && (
-                      <img
-                        src={occurrence.instructor_photo_url}
-                        alt=""
-                        style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-                      />
-                    )}
-                    <span>with {occurrence.instructor_name}</span>
-                  </div>
-                )}
-                {spots && (
-                  <div style={{
-                    fontWeight: 500,
-                    color: spots.tone === 'full' ? '#8b1a1a' : spots.tone === 'low' ? '#7a4f00' : '#777',
-                  }}>
-                    {spots.text}
-                  </div>
-                )}
-                {occurrence.is_cancelled && (
-                  <div style={{ color: '#8b1a1a', fontWeight: 600 }}>
-                    This class has been cancelled{occurrence.cancellation_reason ? ` — ${occurrence.cancellation_reason}` : ''}.
-                  </div>
-                )}
+            )}
+            {occurrence.is_cancelled && (
+              <div className={styles.noticeError} style={{ marginTop: 12, marginBottom: 0 }}>
+                This class has been cancelled{occurrence.cancellation_reason ? ` — ${occurrence.cancellation_reason}` : ''}.
               </div>
-
-              {occurrence.description && (
-                <p style={{
-                  marginTop: '12px', marginBottom: 0, fontSize: '13px', color: '#555', lineHeight: 1.5,
-                  whiteSpace: 'pre-wrap', maxHeight: 108, overflowY: 'auto',
-                }}>
-                  {occurrence.description}
-                </p>
-              )}
-
-              <div style={{ borderBottom: '1px solid #eee', marginTop: '16px' }} />
-            </div>
-          )
-        })()}
+            )}
+          </div>
+          <button type="button" aria-label="Close" onClick={close} className={styles.iconClose}>✕</button>
+        </div>
 
         {step === 'auth' && (
           checkingAuth ? (
-            <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>Checking...</div>
+            <div className={styles.drawerStatus}>Checking…</div>
           ) : (
             <div>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>
-                {authMode === 'signin' ? 'Sign in to book' : 'Create your account'}
-              </h3>
-              <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>Your class selection is saved — you won&apos;t lose your spot in the queue.</p>
+              <p className={styles.drawerText}>
+                {authMode === 'signin'
+                  ? 'Sign in with your email to book. New here? Create an account — your class selection is saved.'
+                  : 'Create your account to book. Your class selection is saved.'}
+              </p>
 
-              <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {authMode === 'signup' && (
                   <div>
-                    <label style={labelStyle}>Full name</label>
-                    <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} style={inputStyle} />
+                    <label htmlFor="bk-name" className={styles.fieldLabel}>Full name</label>
+                    <input id="bk-name" type="text" value={fullName} onChange={e => setFullName(e.target.value)} className={styles.inputRect} />
                   </div>
                 )}
                 <div>
-                  <label style={labelStyle}>Email address</label>
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+                  <label htmlFor="bk-email" className={styles.fieldLabel}>Email</label>
+                  <input id="bk-email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} className={styles.input} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Password</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
+                  <label htmlFor="bk-password" className={styles.fieldLabel}>Password</label>
+                  <input id="bk-password" type="password" value={password} onChange={e => setPassword(e.target.value)} className={styles.inputRect} />
                   {authMode === 'signin' && (
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
-                      disabled={authBusy}
-                      style={{
-                        background: 'none', border: 'none', padding: 0, marginTop: '6px',
-                        color: brandColor, fontSize: '12px', fontWeight: 600,
-                        cursor: authBusy ? 'default' : 'pointer',
-                      }}
-                    >
+                    <button type="button" onClick={handleForgotPassword} disabled={authBusy} className={styles.linkBtn} style={{ marginTop: '10px' }}>
                       Forgot password?
                     </button>
                   )}
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={authBusy}
-                  style={{
-                    padding: '12px', backgroundColor: authBusy ? '#9fd6b8' : brandColor, color: 'white', border: 'none',
-                    borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: authBusy ? 'default' : 'pointer', marginTop: '4px'
-                  }}
-                >
-                  {authBusy ? 'Please wait...' : authMode === 'signin' ? 'Sign in' : 'Create account'}
+                <button type="submit" disabled={authBusy} className={styles.blockBtn}>
+                  {authBusy ? 'Please wait…' : authMode === 'signin' ? 'Continue' : 'Create account'}
                 </button>
 
                 {authMessage && (
-                  <div style={{
-                    padding: '12px', borderRadius: '8px', fontSize: '13px', textAlign: 'center',
-                    backgroundColor: authMessage.includes('Check your email') ? '#e8f5ee' : '#fdecea',
-                    color: authMessage.includes('Check your email') ? '#085041' : '#8b1a1a',
-                  }}>
+                  <div className={authMessage.includes('Check your email') ? styles.noticeOk : styles.noticeError} style={{ marginBottom: 0 }}>
                     {authMessage}
                   </div>
                 )}
 
-                <p style={{ textAlign: 'center', fontSize: '13px', color: '#666', marginTop: '4px' }}>
+                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-meta)' }}>
                   {authMode === 'signin' ? (
-                    <>New here? <button type="button" onClick={() => { setAuthMode('signup'); setAuthMessage('') }} style={{ background: 'none', border: 'none', color: brandColor, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Create an account</button></>
+                    <>New here? <button type="button" onClick={() => { setAuthMode('signup'); setAuthMessage('') }} className={styles.linkBtn}>Create an account</button></>
                   ) : (
-                    <>Already have an account? <button type="button" onClick={() => { setAuthMode('signin'); setAuthMessage('') }} style={{ background: 'none', border: 'none', color: brandColor, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Sign in</button></>
+                    <>Already have an account? <button type="button" onClick={() => { setAuthMode('signin'); setAuthMessage('') }} className={styles.linkBtn}>Sign in</button></>
                   )}
                 </p>
               </form>
@@ -712,36 +665,33 @@ export default function BookingDrawer() {
 
         {step === 'agreements' && (
           waiverLoading ? (
-            <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>Loading...</div>
+            <div className={styles.drawerStatus}>Loading…</div>
           ) : (
             <div>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>
+              <h3 className={styles.resultTitle} style={{ textAlign: 'left', fontSize: '18px' }}>
                 {agreementsContext === 'register' ? 'Before you continue' : "This studio's waiver has changed"}
               </h3>
-              <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
+              <p className={styles.drawerText}>
                 {agreementsContext === 'register'
                   ? 'Please review and accept the following to finish signing up.'
                   : 'Please review and re-accept the liability waiver to continue booking.'}
               </p>
 
               {waiverInfo?.text && (
-                <div style={{
-                  border: '1px solid #e2e2e2', borderRadius: '8px', padding: '14px', marginBottom: '16px',
-                  maxHeight: '160px', overflowY: 'auto', fontSize: '13px', color: '#444', whiteSpace: 'pre-wrap'
-                }}>
+                <div className={styles.infoCard} style={{ maxHeight: '160px', overflowY: 'auto', whiteSpace: 'pre-wrap', fontSize: '13px', color: 'var(--text-body)' }}>
                   {waiverInfo.text}
                 </div>
               )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
                 {agreementsContext === 'register' && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13.5px', cursor: 'pointer', color: 'var(--text-body)' }}>
                     <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} style={{ marginTop: '2px' }} />
                     I accept the Terms &amp; Conditions
                   </label>
                 )}
                 {waiverInfo?.required && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13.5px', cursor: 'pointer', color: 'var(--text-body)' }}>
                     <input type="checkbox" checked={agreeWaiver} onChange={e => setAgreeWaiver(e.target.checked)} style={{ marginTop: '2px' }} />
                     I accept the Liability Waiver
                   </label>
@@ -749,9 +699,7 @@ export default function BookingDrawer() {
               </div>
 
               {agreementsError && (
-                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginTop: '16px' }}>
-                  {agreementsError}
-                </div>
+                <div className={styles.noticeError} style={{ marginTop: '16px', marginBottom: 0 }}>{agreementsError}</div>
               )}
 
               <button
@@ -761,13 +709,10 @@ export default function BookingDrawer() {
                   (agreementsContext === 'register' && !agreeTerms) ||
                   (!!waiverInfo?.required && !agreeWaiver)
                 }
-                style={{
-                  ...confirmButtonStyle(brandColor), marginTop: '16px',
-                  opacity: agreementsBusy || (agreementsContext === 'register' && !agreeTerms) || (!!waiverInfo?.required && !agreeWaiver) ? 0.6 : 1,
-                  cursor: agreementsBusy ? 'default' : 'pointer'
-                }}
+                className={styles.blockBtn}
+                style={{ marginTop: '16px' }}
               >
-                {agreementsBusy ? 'Please wait...' : 'Accept & continue'}
+                {agreementsBusy ? 'Please wait…' : 'Accept & continue'}
               </button>
             </div>
           )
@@ -775,48 +720,43 @@ export default function BookingDrawer() {
 
         {step === 'options' && (
           optionsLoading ? (
-            <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>Loading options...</div>
+            <div className={styles.drawerStatus}>Loading options…</div>
           ) : alreadyBooked ? (
-            <div style={{ textAlign: 'center', padding: '12px 0' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>✓</div>
-              <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>You&apos;re already booked in</div>
-              <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+            <div className={styles.resultWrap}>
+              <div className={`${styles.resultCircle} ${styles.resultCircleSolid}`}>✓</div>
+              <h3 className={styles.resultTitle}>You&apos;re already booked in</h3>
+              <p className={styles.drawerText}>
                 You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
               </p>
-              <a
-                href={`/${studioSlug}/account`}
-                style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: brandColor, color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
-              >
+              <a href={`/${studioSlug}/account`} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
                 View my bookings
               </a>
             </div>
           ) : !bookingOptions ? (
-            <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>Loading options...</div>
+            <div className={styles.drawerStatus}>Loading options…</div>
           ) : (
             <div>
-              {note && (
-                <div style={{ padding: '12px', backgroundColor: '#fff3cd', borderRadius: '8px', color: '#7a4f00', fontSize: '13px', marginBottom: '16px' }}>
-                  {note}
-                </div>
-              )}
+              {note && <div className={styles.noticeWarn}>{note}</div>}
 
               {bookedMode && (
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>Attending: <strong>{modeLabel(bookedMode)}</strong></div>
+                <div style={{ fontSize: '13px', color: 'var(--text-meta)', marginBottom: '16px' }}>
+                  Attending: <strong style={{ color: 'var(--ink)' }}>{modeLabel(bookedMode)}</strong>
+                </div>
               )}
 
               {bookingOptions.is_free ? (
                 <div>
-                  <p style={{ fontSize: '14px', color: '#444', marginBottom: '16px' }}>This class is free — no payment required.</p>
+                  <p className={styles.drawerText}>This class is free — no payment required.</p>
                   {renderGuestSelector()}
-                  <button onClick={handleConfirmBooking} style={{ ...confirmButtonStyle(brandColor), marginTop: '12px' }}>
+                  <button onClick={handleConfirmBooking} className={styles.blockBtn} style={{ marginTop: '12px' }}>
                     Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
                   </button>
                 </div>
               ) : bookingOptions.usable_pass_id ? (
                 <div>
-                  <div className={styles.optionCard}>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>Using your pass</div>
-                    <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>
+                  <div className={styles.infoCard}>
+                    <div style={{ fontWeight: 500, fontSize: '15px' }}>Using your pass</div>
+                    <div style={{ fontSize: '13.5px', color: 'var(--text-meta)', marginTop: '2px' }}>
                       {bookingOptions.usable_pass_name}
                       {bookingOptions.usable_pass_credits_remaining != null &&
                         ` · ${bookingOptions.usable_pass_credits_remaining} credit${bookingOptions.usable_pass_credits_remaining === 1 ? '' : 's'} left`}
@@ -824,46 +764,45 @@ export default function BookingDrawer() {
                   </div>
                   {renderGuestSelector()}
                   {passCreditsShort && (
-                    <div style={{ padding: '10px 12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginTop: '12px' }}>
+                    <div className={styles.noticeError}>
                       This booking needs {creditsCost} credits but only {bookingOptions.usable_pass_credits_remaining} are left on your pass. Reduce guests or buy another pass.
                     </div>
                   )}
                   <button
                     onClick={handleConfirmBooking}
                     disabled={passCreditsShort}
-                    style={{ ...confirmButtonStyle(brandColor), marginTop: '12px', opacity: passCreditsShort ? 0.6 : 1, cursor: passCreditsShort ? 'default' : 'pointer' }}
+                    className={styles.blockBtn}
+                    style={{ marginTop: '12px' }}
                   >
                     Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
                   </button>
                 </div>
               ) : !canPay ? (
-                <p style={{ fontSize: '14px', color: '#8b1a1a' }}>
+                <p style={{ fontSize: '14px', color: 'var(--danger)' }}>
                   This class needs payment, but this studio hasn&apos;t set up card payments yet. Please contact the studio to book.
                 </p>
               ) : (
                 <div>
                   {!bookingOptions.drop_in_allowed && !bookingOptions.purchasable_pass_templates?.length ? (
-                    <p style={{ fontSize: '14px', color: '#8b1a1a' }}>
+                    <p style={{ fontSize: '14px', color: 'var(--danger)' }}>
                       No pricing options are available for this class. Please contact the studio.
                     </p>
                   ) : (
                     <>
-                      <p style={{ fontSize: '14px', color: '#444', marginBottom: '16px' }}>
+                      <p className={styles.drawerText}>
                         You need a pass to book this class, or you can pay for a single drop-in.
                       </p>
 
                       {bookingOptions.drop_in_allowed && (
-                        <div className={styles.optionCard}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className={styles.optionCardPf} style={{ cursor: 'default', marginBottom: '10px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                             <div>
-                              <div style={{ fontWeight: 600, fontSize: '14px' }}>Pay drop-in</div>
-                              <div style={{ fontSize: '13px', color: '#666' }}>
-                                {formatMoney(bookingOptions.base_price ?? 0, bookingOptions.currency)}
-                              </div>
+                              <div className={styles.optionTitle}>Pay drop-in</div>
+                              <span className={styles.optionNote}>{formatMoney(bookingOptions.base_price ?? 0, bookingOptions.currency)}</span>
                             </div>
                             {!dropInSecret && (
-                              <button onClick={startDropInPayment} disabled={dropInBusy} style={smallButtonStyle(brandColor)}>
-                                {dropInBusy ? 'Starting...' : 'Pay now'}
+                              <button onClick={startDropInPayment} disabled={dropInBusy} className={styles.smallBtn}>
+                                {dropInBusy ? 'Starting…' : 'Pay now'}
                               </button>
                             )}
                           </div>
@@ -873,7 +812,7 @@ export default function BookingDrawer() {
                                 key={dropInSecret}
                                 clientSecret={dropInSecret}
                                 stripeAccountId={stripeAccountId}
-                                accentColor={brandColor}
+                                dark
                                 submitLabel="Pay & book"
                                 onSuccess={() => pollForConfirmedBooking(Date.now() - 5000)}
                                 onError={msg => setNote(msg)}
@@ -886,17 +825,17 @@ export default function BookingDrawer() {
                       {bookingOptions.purchasable_pass_templates?.map((pt: PassTemplateOption) => {
                         const detail = [passCreditText(pt), passExpiryText(pt)].filter(Boolean).join(' · ')
                         return (
-                        <div key={pt.id} className={styles.optionCard}>
+                        <div key={pt.id} className={styles.optionCardPf} style={{ cursor: 'default', marginBottom: '10px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ fontWeight: 600, fontSize: '14px' }}>{pt.name}</div>
-                              {detail && <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>{detail}</div>}
-                              {pt.description && <div style={{ fontSize: '12px', color: '#999', marginTop: '4px', lineHeight: 1.4 }}>{pt.description}</div>}
-                              <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{formatMoney(pt.price, pt.currency)}</div>
+                              <div className={styles.optionTitle}>{pt.name}</div>
+                              {detail && <span className={styles.optionNote}>{detail}</span>}
+                              {pt.description && <span className={styles.optionNote}>{pt.description}</span>}
+                              <span className={styles.optionNote}>{formatMoney(pt.price, pt.currency)}</span>
                             </div>
                             {purchaseSecret?.templateId !== pt.id && (
-                              <button onClick={() => startPassPurchase(pt.id)} disabled={purchaseBusyId === pt.id} style={{ ...smallButtonStyle(brandColor), flexShrink: 0 }}>
-                                {purchaseBusyId === pt.id ? 'Starting...' : 'Buy now'}
+                              <button onClick={() => startPassPurchase(pt.id)} disabled={purchaseBusyId === pt.id} className={styles.smallBtn} style={{ flexShrink: 0 }}>
+                                {purchaseBusyId === pt.id ? 'Starting…' : 'Buy now'}
                               </button>
                             )}
                           </div>
@@ -906,7 +845,7 @@ export default function BookingDrawer() {
                                 key={purchaseSecret.clientSecret}
                                 clientSecret={purchaseSecret.clientSecret}
                                 stripeAccountId={stripeAccountId}
-                                accentColor={brandColor}
+                                dark
                                 submitLabel="Buy & book"
                                 onSuccess={() => pollForIssuedPassThenBook(pt.id)}
                                 onError={msg => setNote(msg)}
@@ -919,41 +858,39 @@ export default function BookingDrawer() {
                   )}
                 </div>
               )}
+              <p className={styles.drawerFootnote}>Free cancellation up to 12 hours before the session.</p>
             </div>
           )
         )}
 
         {step === 'waitlist' && (
           optionsLoading ? (
-            <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>Loading...</div>
+            <div className={styles.drawerStatus}>Loading…</div>
           ) : alreadyBooked ? (
-            <div style={{ textAlign: 'center', padding: '12px 0' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>✓</div>
-              <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>You&apos;re already booked in</div>
-              <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+            <div className={styles.resultWrap}>
+              <div className={`${styles.resultCircle} ${styles.resultCircleSolid}`}>✓</div>
+              <h3 className={styles.resultTitle}>You&apos;re already booked in</h3>
+              <p className={styles.drawerText}>
                 You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
               </p>
-              <a
-                href={`/${studioSlug}/account`}
-                style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: brandColor, color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
-              >
+              <a href={`/${studioSlug}/account`} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
                 View my bookings
               </a>
             </div>
           ) : (
             <div>
-              <p style={{ fontSize: '14px', color: '#444', marginBottom: '16px' }}>
-                This class is full. Join the waitlist and we&apos;ll email you the moment a spot opens up.
+              <p className={styles.drawerText}>
+                This session is full. Join the waitlist and you&apos;ll be offered the first place that opens, by text and email.
               </p>
 
               {bookingOptions && bookingOptions.guest_bookings_enabled && bookingOptions.guest_max_per_booking > 0 && (
-                <div className={styles.optionCard}>
+                <div className={styles.infoCard}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>Waiting as a group?</div>
+                    <div style={{ fontWeight: 500, fontSize: '15px' }}>Waiting as a group?</div>
                     <select
                       value={guestCount}
                       onChange={e => setGuestCount(parseInt(e.target.value))}
-                      style={{ padding: '6px 10px', border: '1px solid #e2e2e2', borderRadius: '6px', fontSize: '13px' }}
+                      className={styles.selectPf}
                     >
                       {Array.from({ length: bookingOptions.guest_max_per_booking + 1 }, (_, n) => (
                         <option key={n} value={n}>{n === 0 ? 'Just me' : `Me + ${n} guest${n > 1 ? 's' : ''}`}</option>
@@ -961,58 +898,48 @@ export default function BookingDrawer() {
                     </select>
                   </div>
                   {guestCount > 0 && (
-                    <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                    <div style={{ fontSize: '12.5px', color: 'var(--text-meta)', marginTop: '8px' }}>
                       You&apos;ll only be promoted once {guestCount + 1} spots open up together.
                     </div>
                   )}
                 </div>
               )}
 
-              {waitlistError && (
-                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', margin: '16px 0' }}>
-                  {waitlistError}
-                </div>
-              )}
+              {waitlistError && <div className={styles.noticeError}>{waitlistError}</div>}
 
-              <button onClick={handleJoinWaitlist} disabled={waitlistBusy} style={{ ...confirmButtonStyle(brandColor), marginTop: '16px', opacity: waitlistBusy ? 0.7 : 1 }}>
-                {waitlistBusy ? 'Joining...' : `Join the waitlist${guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}`}
+              <button onClick={handleJoinWaitlist} disabled={waitlistBusy} className={styles.blockBtn} style={{ marginTop: '16px' }}>
+                {waitlistBusy ? 'Joining…' : `Join the waitlist${guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}`}
               </button>
             </div>
           )
         )}
 
         {step === 'waitlist-joined' && joinedWaitlistEntry && (
-          <div style={{ textAlign: 'center', padding: '12px 0' }}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>✓</div>
-            <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>You&apos;re on the waitlist</div>
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+          <div className={styles.resultWrap}>
+            <div className={`${styles.resultCircle} ${styles.resultCircleOutline}`}>{joinedWaitlistEntry.position}</div>
+            <h3 className={styles.resultTitle}>You&apos;re on the waitlist</h3>
+            <p className={styles.drawerText}>
               You&apos;re #{joinedWaitlistEntry.position} in line for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
-              We&apos;ll email you if a spot opens up — no payment is taken until then.
+              If a place opens we&apos;ll hold it for you — nothing is charged until you accept.
             </p>
-            <a
-              href={`/${studioSlug}/account`}
-              style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: brandColor, color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
-            >
+            <a href={`/${studioSlug}/account`} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
               View my waitlist
             </a>
           </div>
         )}
 
         {step === 'confirming' && (
-          <div style={{ padding: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>{confirmingLabel}</div>
+          <div className={styles.drawerStatus}>{confirmingLabel}</div>
         )}
 
         {step === 'success' && confirmedBooking && (
-          <div style={{ textAlign: 'center', padding: '12px 0' }}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>✓</div>
-            <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '6px' }}>Booking confirmed</div>
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
+          <div className={styles.resultWrap}>
+            <div className={`${styles.resultCircle} ${styles.resultCircleSolid}`}>✓</div>
+            <h3 className={styles.resultTitle}>You&apos;re booked</h3>
+            <p className={styles.drawerText}>
               You&apos;re booked for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}. A confirmation email is on its way.
             </p>
-            <a
-              href={`/${studioSlug}/account`}
-              style={{ display: 'inline-block', padding: '10px 20px', backgroundColor: brandColor, color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
-            >
+            <a href={`/${studioSlug}/account`} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
               View my bookings
             </a>
           </div>
@@ -1020,10 +947,8 @@ export default function BookingDrawer() {
 
         {step === 'error' && (
           <div>
-            <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
-              {errorMessage}
-            </div>
-            <button onClick={() => setStep(joiningWaitlist ? 'waitlist' : 'options')} style={confirmButtonStyle(brandColor)}>
+            <div className={styles.noticeError}>{errorMessage}</div>
+            <button onClick={() => setStep(joiningWaitlist ? 'waitlist' : 'options')} className={styles.blockBtn}>
               {joiningWaitlist ? 'Back to waitlist' : 'Back to options'}
             </button>
           </div>
@@ -1032,13 +957,3 @@ export default function BookingDrawer() {
     </div>
   )
 }
-
-const confirmButtonStyle = (brandColor: string): React.CSSProperties => ({
-  width: '100%', padding: '12px', backgroundColor: brandColor, color: 'white', border: 'none',
-  borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-})
-
-const smallButtonStyle = (brandColor: string): React.CSSProperties => ({
-  padding: '8px 16px', backgroundColor: brandColor, color: 'white', border: 'none',
-  borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
-})

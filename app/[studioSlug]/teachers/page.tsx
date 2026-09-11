@@ -2,10 +2,13 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import styles from '../booking.module.css'
+import styles from '../photofirst.module.css'
 import { initials } from '@/lib/names'
 import { studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, breadcrumbLd, personLd } from '@/lib/jsonLd'
+import StudioFooter from '../StudioFooter'
+import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
+import { getStudioContent, type PageContentDto } from '../studioContent'
 
 export const revalidate = 60
 
@@ -43,59 +46,42 @@ interface TeacherCard {
 
 function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
   const inner = (
-    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', minWidth: 0 }}>
-      {t.photo_url ? (
-        <Image src={t.photo_url} alt={t.display_name} width={64} height={64} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-      ) : (
-        <div style={{
-          width: 64, height: 64, borderRadius: '50%', backgroundColor: '#085041', color: 'white', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 700,
-        }}>
-          {initials(t.display_name)}
-        </div>
-      )}
+    <>
+      <div className={styles.dirPhoto}>
+        {t.photo_url ? (
+          <Image src={t.photo_url} alt={t.display_name} fill sizes="160px" style={{ objectFit: 'cover' }} />
+        ) : (
+          <span className={styles.dirPhotoInitials}>{initials(t.display_name)}</span>
+        )}
+      </div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className={styles.dirName}>
           {t.display_name}
-          {t.is_primary && (
-            <span style={{ fontSize: '11px', fontWeight: 600, color: '#085041', backgroundColor: '#e8f5ee', borderRadius: '999px', padding: '2px 8px' }}>
-              Lead teacher
-            </span>
-          )}
+          {t.is_primary && <span className={`${styles.tag} ${styles.tagSolid}`}>Lead teacher</span>}
         </div>
-        {t.tagline && <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>{t.tagline}</div>}
+        {t.tagline && <div className={styles.rowMeta} style={{ marginTop: '2px' }}>{t.tagline}</div>}
         {t.specialties && t.specialties.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-            {t.specialties.slice(0, 4).map(s => (
-              <span key={s} style={{ fontSize: '11px', fontWeight: 500, color: '#444', backgroundColor: '#f0f0f0', borderRadius: '999px', padding: '2px 8px' }}>{s}</span>
-            ))}
+          <div className={styles.tagRow} style={{ marginTop: '10px', marginBottom: 0 }}>
+            {t.specialties.slice(0, 4).map(s => <span key={s} className={styles.tag}>{s}</span>)}
           </div>
         )}
         {t.bio && (
-          <p style={{
-            fontSize: '13px', color: '#666', marginTop: '10px', marginBottom: 0,
-            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          }}>
+          <p className={styles.bioPara} style={{ marginTop: '10px', marginBottom: 0, maxWidth: 'none', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {t.bio}
           </p>
         )}
         {t.is_page_published && (
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#085041', marginTop: '10px' }}>View profile →</div>
+          <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)', marginTop: '10px' }}>View profile →</div>
         )}
       </div>
-    </div>
+    </>
   )
-
-  const cardStyle: React.CSSProperties = {
-    backgroundColor: 'white', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-    textDecoration: 'none', color: 'inherit', display: 'block',
-  }
 
   return (
     <article>
       {t.is_page_published
-        ? <Link href={`/${studioSlug}/teachers/${t.slug}`} style={cardStyle}>{inner}</Link>
-        : <div style={cardStyle}>{inner}</div>}
+        ? <Link href={`/${studioSlug}/teachers/${t.slug}`} className={styles.dirCard}>{inner}</Link>
+        : <div className={styles.dirCard}>{inner}</div>}
     </article>
   )
 }
@@ -111,14 +97,16 @@ export default async function TeachersDirectoryPage({ params }: Props) {
   if (orgRes.status === 404) notFound()
   if (!orgRes.ok || !teachersRes.ok) throw new Error('Failed to load teachers')
 
-  const org: { name: string } = await orgRes.json()
+  const org: { name: string; contactEmail?: string | null; theme?: string | null; page_content?: PageContentDto | null } = await orgRes.json()
+  const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
   const teachers: TeacherCard[] = await teachersRes.json()
+  const content = getStudioContent(studioSlug, org.page_content)
 
   const origin = studioOrigin(studioSlug)
   const published = teachers.filter(t => t.is_page_published)
 
   return (
-    <div className={styles.page}>
+    <div className={styles.root}>
       <JsonLd data={breadcrumbLd([
         { name: org.name, url: `${origin}/` },
         { name: 'Teachers', url: `${origin}/teachers` },
@@ -138,24 +126,23 @@ export default async function TeachersDirectoryPage({ params }: Props) {
         }} />
       )}
 
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Teachers</h1>
-          <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>Meet the team at {org.name}.</p>
-        </div>
-      </header>
+      <main className={styles.container}>
+        <header className={styles.pageHeader}>
+          <h1 className={styles.h1}>Teachers</h1>
+          <p className={styles.lead}>Meet the team at {org.name}.</p>
+        </header>
 
-      <main className={styles.content}>
         {teachers.length === 0 ? (
-          <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            This studio hasn&apos;t added any teacher bios yet.
-          </div>
+          <div className={styles.emptyState}>This studio hasn&apos;t added any teacher bios yet.</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+          <div className={styles.dirGrid}>
             {teachers.map(t => <Card key={t.slug} t={t} studioSlug={studioSlug} />)}
           </div>
         )}
+        <div style={{ height: 32 }} />
       </main>
+
+      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} />
     </div>
   )
 }

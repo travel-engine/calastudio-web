@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { SITE_URL } from '@/lib/seo'
+import MojibakeCanary from '@/app/components/MojibakeCanary'
 import './globals.css'
 
 const description =
@@ -41,7 +42,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {process.env.NODE_ENV !== 'production' && <MojibakeCanary />}
+        {children}
+      </body>
     </html>
   )
 }

@@ -1,68 +1,24 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import FilterBar from './FilterBar'
-import BookButton from './BookButton'
+import Image from 'next/image'
+import Link from 'next/link'
+import styles from './photofirst.module.css'
+import type { BookableOccurrence } from '@/lib/store/bookingFlow'
 import BookingDrawer from './BookingDrawer'
 import MemberScheduleLoader from './MemberScheduleLoader'
-import styles from './booking.module.css'
-import type { BookableOccurrence } from '@/lib/store/bookingFlow'
-import Image from 'next/image'
-import { formatDateWithWeekday } from '@/lib/dates'
+import SessionRow from './SessionRow'
+import Gallery from './Gallery'
+import FixedBookingBar from './FixedBookingBar'
+import StudioFooter from './StudioFooter'
+import { getStudioContent, headlineRuns, type PageContentDto } from './studioContent'
+import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
-import { JsonLd, studioLd, eventLd } from '@/lib/jsonLd'
+import { JsonLd, studioLd } from '@/lib/jsonLd'
 
 export const revalidate = 60
 
 interface Props {
   params: Promise<{ studioSlug: string }>
-  searchParams: Promise<{ mode?: string; type?: string; location?: string }>
-}
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { studioSlug } = await params
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}`, { next: { revalidate: 60 } })
-  if (!res.ok) return {}
-  const org: PublicOrgInfo = await res.json()
-  // No `title` — inherits the studio name from the layout default, the strongest title for the home page.
-  const description = metaDescription(org.description, `See the upcoming class schedule at ${org.name} and book online.`)
-  return {
-    description,
-    alternates: { canonical: '/' },
-    openGraph: studioOpenGraph({ siteName: org.name, title: org.name, description, path: '/', image: org.banner_url || org.logo_url }),
-  }
-}
-
-function formatDayLabel(iso: string) {
-  const d = new Date(iso)
-  const today = new Date()
-  const tomorrow = new Date(today)
-  tomorrow.setDate(today.getDate() + 1)
-  if (d.toDateString() === today.toDateString()) return 'Today'
-  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
-  return formatDateWithWeekday(d)
-}
-
-function formatTimeRange(startsAt: string, endsAt: string) {
-  const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }
-  return `${new Date(startsAt).toLocaleTimeString(undefined, opts)} – ${new Date(endsAt).toLocaleTimeString(undefined, opts)}`
-}
-
-function formatMoney(amount: number, currency: string) {
-  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount) }
-  catch { return `${currency} ${amount.toFixed(2)}` }
-}
-
-function deliveryModeLabel(mode: string) {
-  return mode === 'online' ? 'Online' : 'In-person'
-}
-
-function spotsLabel(occ: BookableOccurrence) {
-  if (occ.is_cancelled) return { text: 'Cancelled', tone: 'full' as const }
-  if (occ.spots_remaining === null) return { text: '', tone: 'normal' as const }
-  const total = occ.spots_remaining
-  if (total <= 0) return { text: 'Full', tone: 'full' as const }
-  if (total <= 3) return { text: `Only ${total} left`, tone: 'low' as const }
-  return { text: `${total} spots left`, tone: 'normal' as const }
 }
 
 interface PublicOrgInfo {
@@ -76,161 +32,225 @@ interface PublicOrgInfo {
   currency: string
   stripe_account_id: string | null
   payments_enabled: boolean
+  theme?: string | null
+  page_content?: PageContentDto | null
 }
 
-export default async function StudioBookingPage({ params, searchParams }: Props) {
+interface PassTemplate {
+  id: string
+  name: string
+  price: number
+  currency: string
+  pass_type: 'credit' | 'unlimited'
+  credit_count: number | null
+  expiry_type: 'fixed_date' | 'rolling_days' | 'rolling_months'
+  expiry_rolling_value: number | null
+}
+
+function formatMoney(amount: number, currency: string) {
+  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount) }
+  catch { return `${currency} ${amount.toFixed(2)}` }
+}
+
+function passNote(t: PassTemplate): string {
+  if (t.pass_type === 'unlimited' || t.credit_count == null) {
+    if (t.expiry_type === 'rolling_months' && t.expiry_rolling_value) {
+      return `Unlimited · ${t.expiry_rolling_value} month${t.expiry_rolling_value === 1 ? '' : 's'}`
+    }
+    return 'Unlimited classes'
+  }
+  if (t.expiry_type === 'rolling_days' && t.expiry_rolling_value) return `Valid ${t.expiry_rolling_value} days from purchase`
+  if (t.expiry_type === 'rolling_months' && t.expiry_rolling_value) {
+    return `Valid ${t.expiry_rolling_value} month${t.expiry_rolling_value === 1 ? '' : 's'} from purchase`
+  }
+  return `${t.credit_count} class${t.credit_count === 1 ? '' : 'es'}`
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { studioSlug } = await params
-  const sp = await searchParams
-  const mode = sp.mode && sp.mode !== 'all' ? sp.mode : undefined
-  const sessionType = sp.type && sp.type !== 'all' ? sp.type : undefined
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}`, { next: { revalidate: 60 } })
+  if (!res.ok) return {}
+  const org: PublicOrgInfo = await res.json()
+  const content = getStudioContent(studioSlug, org.page_content)
+  const description = metaDescription(
+    content.heroLead ?? org.description,
+    `Practise with ${org.name}. See the schedule and book online.`,
+  )
+  return {
+    description,
+    alternates: { canonical: '/' },
+    openGraph: studioOpenGraph({
+      siteName: org.name, title: org.name, description, path: '/',
+      image: content.heroImageUrl || org.banner_url || org.logo_url,
+    }),
+  }
+}
 
-  const query = new URLSearchParams()
-  if (mode) query.set('mode', mode)
-  if (sessionType) query.set('sessionType', sessionType)
-  const qs = query.toString()
+export default async function StudioHomePage({ params }: Props) {
+  const { studioSlug } = await params
+  const base = process.env.NEXT_PUBLIC_API_URL
 
-  const [orgRes, occurrencesRes] = await Promise.all([
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}`, { next: { revalidate: 60 } }),
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}/occurrences${qs ? `?${qs}` : ''}`, { next: { revalidate: 60 } }),
+  const [orgRes, occRes, passRes] = await Promise.all([
+    fetch(`${base}/api/public/${studioSlug}`, { next: { revalidate: 60 } }),
+    fetch(`${base}/api/public/${studioSlug}/occurrences`, { next: { revalidate: 60 } }),
+    fetch(`${base}/api/public/${studioSlug}/pass-templates`, { next: { revalidate: 60 } }),
   ])
   if (orgRes.status === 404) notFound()
-  if (!orgRes.ok || !occurrencesRes.ok) throw new Error('Failed to load studio')
+  if (!orgRes.ok) throw new Error('Failed to load studio')
+
   const org: PublicOrgInfo = await orgRes.json()
-  const occurrences: BookableOccurrence[] = await occurrencesRes.json()
+  const occurrences: BookableOccurrence[] = occRes.ok ? await occRes.json() : []
+  const passTemplates: PassTemplate[] = passRes.ok ? await passRes.json() : []
+  const content = getStudioContent(studioSlug, org.page_content)
   const brandColor = org.brand_color || undefined
+  const theme = await studioThemeForRequest(org.theme)
+  const themed = theme.layout === 'themed'
 
-  // Locations available under the current mode/type filters — computed before the location
-  // filter itself is applied, so picking one doesn't collapse the dropdown down to just itself.
-  const locations = Array.from(new Set(
-    occurrences.map(o => o.location_name).filter((l): l is string => !!l)
-  )).sort()
-
-  const selectedLocation = sp.location && sp.location !== 'all' ? sp.location : undefined
-  const visibleOccurrences = selectedLocation
-    ? occurrences.filter(o => o.location_name === selectedLocation)
-    : occurrences
-
-  const groups = new Map<string, BookableOccurrence[]>()
-  for (const occ of visibleOccurrences) {
-    const key = new Date(occ.starts_at).toDateString()
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(occ)
-  }
+  const live = occurrences.filter(o => !o.is_cancelled)
+  const featured = live.slice(0, 4)
+  const now = Date.now()
+  const next = live.find(o => new Date(o.starts_at).getTime() > now) ?? live[0] ?? null
+  const passes = passTemplates.slice(0, 2)
 
   const canonical = `${studioOrigin(studioSlug)}/`
-  const ldCtx = { studioName: org.name, studioUrl: canonical, pageUrl: canonical }
+  const bookProps = {
+    studioSlug,
+    brandColor,
+    stripeAccountId: org.stripe_account_id,
+    paymentsEnabled: org.payments_enabled,
+  }
+
+  const headline = content.heroHeadline ?? `Practise with ${org.name}`
 
   return (
-    <div className={styles.page}>
-      <JsonLd data={studioLd({ name: org.name, description: org.description, url: canonical, image: org.banner_url || org.logo_url })} />
-      {visibleOccurrences.length > 0 && (
-        <JsonLd data={visibleOccurrences.filter(o => !o.is_cancelled).map(o => eventLd(o, ldCtx))} />
-      )}
+    <div className={styles.root}>
+      <JsonLd data={studioLd({ name: org.name, description: content.heroLead ?? org.description, url: canonical, image: content.heroImageUrl || org.banner_url || org.logo_url })} />
 
-      {org.banner_url && (
-        <div style={{ position: 'relative', width: '100%', aspectRatio: '3 / 1', maxHeight: '320px', overflow: 'hidden' }}>
-          <Image src={org.banner_url} alt={org.name} fill priority sizes="100vw" style={{ objectFit: 'cover' }} />
-        </div>
-      )}
+      {(() => {
+        const heroCopy = (
+          <>
+            {content.tagline && <p className={styles.kicker}>{content.tagline}</p>}
+            <h1 className={styles.heroH1}>
+              {headlineRuns(headline, content.heroHeadlineEmphasis).map((r, i) =>
+                r.bold ? <strong key={i}>{r.text}</strong> : <span key={i}>{r.text}</span>,
+              )}
+            </h1>
+            {content.heroLead && <p className={styles.heroLead}>{content.heroLead}</p>}
+            <div className={styles.btnRow}>
+              <Link href={`/${studioSlug}/schedule`} className={styles.btnSolid}>See the schedule</Link>
+              <Link href={`/${studioSlug}/teachers`} className={styles.btnGhost}>
+                {content.heroCtaLabel ?? 'About the studio'}
+              </Link>
+            </div>
+          </>
+        )
 
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{org.name}</h1>
-          <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-            {org.description || 'Browse and book upcoming sessions.'}
-          </p>
-        </div>
-      </header>
-
-      <main className={styles.content}>
-        <FilterBar
-          mode={sp.mode ?? 'all'}
-          sessionType={sp.type ?? 'all'}
-          location={sp.location ?? 'all'}
-          locations={locations.length > 1 ? locations : undefined}
-        />
-
-        {visibleOccurrences.length === 0 ? (
-          <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
-            No upcoming sessions match these filters.
-          </div>
+        // themed: split hero (copy left, photo right). photofirst: full-bleed photo + scrim.
+        return themed ? (
+          <section className={styles.heroSplit}>
+            <div>{heroCopy}</div>
+            {content.heroImageUrl && (
+              <Image
+                src={content.heroImageUrl}
+                alt=""
+                width={520}
+                height={650}
+                priority
+                sizes="(max-width: 900px) 100vw, 520px"
+                className={styles.heroSplitImg}
+              />
+            )}
+          </section>
         ) : (
-          Array.from(groups.entries()).map(([day, dayOccurrences]) => (
-            <section key={day} className={styles.dayGroup}>
-              <h2 className={styles.dayLabel}>{formatDayLabel(dayOccurrences[0].starts_at)}</h2>
-              <div className={styles.cardList}>
-                {dayOccurrences.map(occ => {
-                  const spots = spotsLabel(occ)
-                  // A full occurrence still opens the drawer — it routes into "join the waitlist"
-                  // instead of the normal booking steps (04-booking-flow.md §4.4). Only a cancelled
-                  // occurrence is genuinely unbookable.
-                  const bookable = !occ.is_cancelled
-                  const prices = occ.price != null ? [occ.price] : []
+          <section className={styles.hero}>
+            {content.heroImageUrl && (
+              <Image src={content.heroImageUrl} alt="" fill priority sizes="100vw" className={styles.heroImg} />
+            )}
+            <div className={styles.heroScrim} />
+            <div />
+            <div className={styles.heroBody}>{heroCopy}</div>
+          </section>
+        )
+      })()}
 
-                  return (
-                    <article key={occ.occurrence_id} className={styles.card}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
-                        {occ.photo_url ? (
-                          <Image src={occ.photo_url} alt={occ.session_name} width={52} height={52} style={{ borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
-                        ) : occ.instructor_photo_url ? (
-                          <Image src={occ.instructor_photo_url} alt={occ.instructor_name ?? ''} width={44} height={44} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                        ) : (
-                          <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#f4f4f4', flexShrink: 0 }} />
-                        )}
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>{occ.session_name}</div>
-                          <div style={{ fontSize: '13px', color: '#666' }}>
-                            <time dateTime={occ.starts_at}>{formatTimeRange(occ.starts_at, occ.ends_at)}</time> · {deliveryModeLabel(occ.delivery_mode)}
-                            {occ.instructor_name ? ` · ${occ.instructor_name}` : ''}
-                          </div>
-                          {occ.location_name && (
-                            <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>{occ.location_name}</div>
-                          )}
-                          {occ.is_cancelled && occ.cancellation_reason && (
-                            <div style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '2px' }}>
-                              Cancelled — {occ.cancellation_reason}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+      <main className={styles.container}>
+        {/* This week */}
+        {featured.length > 0 && (
+          <section className={styles.section}>
+            <div className={styles.sectionHead}>
+              <h2 className={styles.h2}>This week</h2>
+              <Link href={`/${studioSlug}/schedule`} className={styles.textBtn}>
+                All {live.length} session{live.length === 1 ? '' : 's'}
+              </Link>
+            </div>
+            <div className={styles.rowList}>
+              {featured.map(occ => (
+                <SessionRow key={occ.occurrence_id} occ={occ} {...bookProps} />
+              ))}
+            </div>
+          </section>
+        )}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
-                        <div style={{ textAlign: 'right' }}>
-                          {spots.text && (
-                            <div style={{
-                              fontSize: '12px', fontWeight: 500,
-                              color: spots.tone === 'full' ? '#8b1a1a' : spots.tone === 'low' ? '#7a4f00' : '#666'
-                            }}>
-                              {spots.text}
-                            </div>
-                          )}
-                          {prices.length > 0 && (
-                            <div style={{ fontSize: '13px', color: '#444', marginTop: '2px' }}>
-                              from {formatMoney(Math.min(...prices), occ.currency)}
-                            </div>
-                          )}
-                        </div>
-                        <BookButton
-                          studioSlug={studioSlug}
-                          occurrence={occ}
-                          disabled={!bookable}
-                          label={occ.is_cancelled ? 'Cancelled' : spots.tone === 'full' ? 'Join waitlist' : 'Book'}
-                          brandColor={brandColor}
-                          stripeAccountId={org.stripe_account_id}
-                          paymentsEnabled={org.payments_enabled}
-                        />
-                      </div>
-                    </article>
-                  )
-                })}
+        {/* About */}
+        {content.aboutHeading && (
+          <section className={styles.split}>
+            <div>
+              <h2 className={styles.h2Light}>{content.aboutHeading}</h2>
+              {content.aboutBody.map((p, i) => (
+                <p key={i} className={styles.para}>{p}</p>
+              ))}
+              {content.aboutCtaLabel && (
+                <Link href={`/${studioSlug}/teachers`} className={styles.btnGhost} style={{ marginTop: '10px' }}>
+                  {content.aboutCtaLabel}
+                </Link>
+              )}
+            </div>
+            {content.aboutImageUrl && (
+              <Image
+                src={content.aboutImageUrl}
+                alt=""
+                width={480}
+                height={480}
+                sizes="(max-width: 800px) 100vw, 480px"
+                className={styles.splitImg}
+              />
+            )}
+          </section>
+        )}
+
+        {/* Gallery */}
+        {content.gallery.length > 0 && (
+          <section className={styles.section} style={{ paddingTop: 'clamp(16px, 3vw, 32px)' }}>
+            <Gallery images={content.gallery} />
+          </section>
+        )}
+
+        {/* Passes */}
+        {passes.length > 0 && (
+          <section className={styles.section} style={{ paddingTop: 0 }}>
+            <div className={styles.passesCard}>
+              <h2 className={styles.passesH2}>{content.passesHeading ?? 'Passes, or pay as you go'}</h2>
+              {content.passesBlurb && <p className={styles.passesBlurb}>{content.passesBlurb}</p>}
+              <div className={styles.passesGrid}>
+                {passes.map(t => (
+                  <div key={t.id} className={styles.passCard}>
+                    <div className={styles.passLabel}>{t.name}</div>
+                    <div className={styles.passPrice}>{formatMoney(t.price, t.currency || org.currency)}</div>
+                    <div className={styles.passNote}>{passNote(t)}</div>
+                  </div>
+                ))}
               </div>
-            </section>
-          ))
+            </div>
+          </section>
         )}
       </main>
 
+      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} />
+      {/* The fixed booking bar belongs to the full-bleed layout; the themed nav has a CTA instead. */}
+      {!themed && <FixedBookingBar next={next} {...bookProps} />}
+
       <BookingDrawer />
-      <MemberScheduleLoader studioSlug={studioSlug} orgId={org.id} queryString={qs} />
+      <MemberScheduleLoader studioSlug={studioSlug} orgId={org.id} queryString="" />
     </div>
   )
 }

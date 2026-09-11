@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import BannerCropModal from './BannerCropModal'
 import { canManageSettings } from '@/lib/roles'
+import { scanForMojibake } from '@/lib/mojibake'
+import ThemePicker from '@/app/components/ThemePicker'
+import type { ThemeKey } from '@/lib/studioTheme'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 // IANA zone names straight from the runtime — an empty list (older browser) falls back to a text input.
@@ -98,7 +100,7 @@ function SettingsPageContent() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [tab, setTab] = useState<'general' | 'content'>('general')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [orgId, setOrgId] = useState('')
@@ -112,8 +114,24 @@ function SettingsPageContent() {
     email: '',
     phone: '',
     logoUrl: '',
-    bannerUrl: '',
+    bannerUrl: '', // no longer edited here (design uses the hero photo); kept as an OG-image fallback
     brandColor: '#085041',
+    theme: 'classic',
+    // Public-page content (design handoff). Drives the studio's home + section copy.
+    tagline: '',
+    heroHeadline: '',
+    heroHeadlineEmphasis: '',
+    heroLead: '',
+    heroCtaLabel: '',
+    heroImageUrl: '',
+    aboutHeading: '',
+    aboutBody: '', // blank-line-separated paragraphs
+    aboutImageUrl: '',
+    aboutCtaLabel: '',
+    passesHeading: '',
+    passesBlurb: '',
+    contactEmail: '',
+    galleryUrls: [] as string[],
     taxEnabled: false,
     taxLabel: '',
     taxRegistrationNumber: '',
@@ -157,6 +175,24 @@ function SettingsPageContent() {
 
   const update = (key: string, value: string | boolean) => setForm(prev => ({ ...prev, [key]: value }))
 
+  // Flag any free-text field that looks like it has an encoding problem — usually text pasted from
+  // a source where a character was already double-encoded (see lib/mojibake). Warn, don't block.
+  const encodingIssues = useMemo(() => scanForMojibake({
+    'Studio name': form.name,
+    'Description': form.description,
+    'Tagline': form.tagline,
+    'Headline': form.heroHeadline,
+    'Emphasised word': form.heroHeadlineEmphasis,
+    'Intro paragraph': form.heroLead,
+    'Hero button label': form.heroCtaLabel,
+    'About heading': form.aboutHeading,
+    'About text': form.aboutBody,
+    'About button label': form.aboutCtaLabel,
+    'Passes heading': form.passesHeading,
+    'Passes blurb': form.passesBlurb,
+    'Contact email': form.contactEmail,
+  }), [form])
+
   useEffect(() => {
     const connected = searchParams.get('stripe_connected')
     if (connected === 'true') setStripeBanner('success')
@@ -193,6 +229,23 @@ function SettingsPageContent() {
         return
       }
 
+      // GET /api/organisations/mine currently returns page_content: null even when it's set
+      // (backend mapping gap) — GET /api/public/{slug} always has it. Pull both from there,
+      // preferring `mine`'s values when it actually provides them.
+      let theme = org.theme
+      let pageContent = org.page_content
+      if (org.slug) {
+        try {
+          const pubRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${org.slug}`)
+          if (pubRes.ok) {
+            const pub = await pubRes.json()
+            theme = theme ?? pub.theme
+            pageContent = pageContent ?? pub.page_content
+          }
+        } catch { /* keep whatever `mine` gave us */ }
+      }
+
+      const pc = pageContent ?? {}
       setForm({
         name: org.name ?? '',
         description: org.description ?? '',
@@ -201,6 +254,22 @@ function SettingsPageContent() {
         logoUrl: org.logo_url ?? '',
         bannerUrl: org.banner_url ?? '',
         brandColor: org.brand_color ?? '#085041',
+        theme: theme ?? 'classic',
+        // Public-page content lives in a nested `page_content` object (snake_case) on the API.
+        tagline: pc.tagline ?? '',
+        heroHeadline: pc.hero_headline ?? '',
+        heroHeadlineEmphasis: pc.hero_headline_emphasis ?? '',
+        heroLead: pc.hero_lead ?? '',
+        heroCtaLabel: pc.hero_cta_label ?? '',
+        heroImageUrl: pc.hero_image_url ?? '',
+        aboutHeading: pc.about_heading ?? '',
+        aboutBody: Array.isArray(pc.about_body) ? pc.about_body.join('\n\n') : '',
+        aboutImageUrl: pc.about_image_url ?? '',
+        aboutCtaLabel: pc.about_cta_label ?? '',
+        passesHeading: pc.passes_heading ?? '',
+        passesBlurb: pc.passes_blurb ?? '',
+        contactEmail: pc.contact_email ?? '',
+        galleryUrls: Array.isArray(pc.gallery) ? pc.gallery.map((g: { url: string }) => g.url).filter(Boolean) : [],
         taxEnabled: org.tax_enabled ?? false,
         taxLabel: org.tax_label ?? '',
         taxRegistrationNumber: org.tax_registration_number ?? '',
@@ -306,7 +375,7 @@ function SettingsPageContent() {
     }
   }
 
-  const uploadImage = async (file: File, folder: 'org-logos' | 'org-banners'): Promise<string | null> => {
+  const uploadImage = async (file: File, folder: 'org-logos' | 'org-banners' | 'org-content'): Promise<string | null> => {
     if (!file.type.startsWith('image/')) {
       setError('Please select an image file')
       return null
@@ -343,17 +412,32 @@ function SettingsPageContent() {
     setUploadingLogo(false)
   }
 
-  // The banner isn't uploaded straight away — the file goes into the crop modal, which uploads the
-  // framed 3:1 version and hands back its URL.
-  const handleBannerFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Public-page content images (hero, about). Uploads to the shared bucket, then stores the URL.
+  const [contentImgBusy, setContentImgBusy] = useState('')
+  const handleContentImage = async (e: React.ChangeEvent<HTMLInputElement>, field: 'heroImageUrl' | 'aboutImageUrl') => {
     const file = e.target.files?.[0]
-    e.target.value = '' // let the same file be re-picked
+    e.target.value = ''
     if (!file) return
     setError('')
-    if (!file.type.startsWith('image/')) { setError('Please select an image file'); return }
-    if (file.size > 10 * 1024 * 1024) { setError('Image must be under 10MB'); return }
-    setBannerFile(file)
+    setContentImgBusy(field)
+    const url = await uploadImage(file, 'org-content')
+    if (url) update(field, url)
+    setContentImgBusy('')
   }
+
+  const handleGalleryAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (files.length === 0) return
+    setError('')
+    setContentImgBusy('gallery')
+    for (const file of files) {
+      const url = await uploadImage(file, 'org-content')
+      if (url) setForm(prev => ({ ...prev, galleryUrls: [...prev.galleryUrls, url] }))
+    }
+    setContentImgBusy('')
+  }
+
 
   const handleSave = async () => {
     if (!form.name.trim()) { setError('Studio name is required'); return }
@@ -373,6 +457,24 @@ function SettingsPageContent() {
           logo_url: form.logoUrl || null,
           banner_url: form.bannerUrl || null,
           brand_color: form.brandColor || null,
+          theme: form.theme || null,
+          // Public-page content — nested `page_content` object (PageContentDto, snake_case).
+          page_content: {
+            tagline: form.tagline || null,
+            hero_headline: form.heroHeadline || null,
+            hero_headline_emphasis: form.heroHeadlineEmphasis || null,
+            hero_lead: form.heroLead || null,
+            hero_cta_label: form.heroCtaLabel || null,
+            hero_image_url: form.heroImageUrl || null,
+            about_heading: form.aboutHeading || null,
+            about_body: form.aboutBody.split(/\n{2,}/).map(s => s.trim()).filter(Boolean),
+            about_image_url: form.aboutImageUrl || null,
+            about_cta_label: form.aboutCtaLabel || null,
+            passes_heading: form.passesHeading || null,
+            passes_blurb: form.passesBlurb || null,
+            contact_email: form.contactEmail || null,
+            gallery: form.galleryUrls.map(url => ({ url, alt: form.name })),
+          },
           tax_enabled: form.taxEnabled,
           tax_label: form.taxLabel || null,
           tax_registration_number: form.taxRegistrationNumber || null,
@@ -455,9 +557,28 @@ function SettingsPageContent() {
           </p>
         </div>
 
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '1px solid #e2e2e2' }}>
+          {([['general', 'Studio settings'], ['content', 'Public page']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              style={{
+                padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
+                fontSize: '14px', fontWeight: tab === k ? 600 : 500,
+                color: tab === k ? '#085041' : '#666',
+                borderBottom: `2px solid ${tab === k ? '#085041' : 'transparent'}`,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
-          <SectionHeader title="Branding" description="Your logo and banner appear on your public booking page and teacher pages" />
+          {tab === 'content' && (<>
+
+          <SectionHeader title="Branding" description="Your logo and brand colour appear on your public pages" />
 
           <Field label="Logo">
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -490,39 +611,6 @@ function SettingsPageContent() {
             </div>
           </Field>
 
-          <Field label="Banner" hint="Wide image at the top of your booking page, shown at 3:1. After you pick a file you'll frame it — drag to position, slider to zoom.">
-            <div>
-              <div style={{
-                width: '100%', aspectRatio: '3 / 1', maxHeight: '200px', borderRadius: '12px', backgroundColor: '#f4f4f4',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                border: '1px solid #e2e2e2', marginBottom: '12px'
-              }}>
-                {form.bannerUrl ? (
-                  <img src={form.bannerUrl} alt="Banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: '13px', color: '#999' }}>No banner uploaded</span>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <label style={{
-                  padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px',
-                  fontSize: '13px', fontWeight: 500, color: '#444', cursor: 'pointer'
-                }}>
-                  {form.bannerUrl ? 'Replace banner' : 'Upload banner'}
-                  <input type="file" accept="image/*" onChange={handleBannerFile} style={{ display: 'none' }} />
-                </label>
-                {form.bannerUrl && (
-                  <button
-                    onClick={() => update('bannerUrl', '')}
-                    style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          </Field>
-
           <Field label="Brand colour" hint="Used as the accent colour on your public pages">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <input
@@ -534,6 +622,112 @@ function SettingsPageContent() {
               <Input value={form.brandColor} onChange={e => update('brandColor', e.target.value)} style={{ maxWidth: '140px' }} />
             </div>
           </Field>
+
+          <Field label="Page theme" hint="The look of your public studio pages. One layout, six styles — your logo and brand colour carry across all of them.">
+            <ThemePicker value={form.theme as ThemeKey} onChange={k => update('theme', k)} />
+          </Field>
+
+          <SectionHeader title="Public page content" description="The words and photos on your public home page. Class times, prices and teacher bios come from your schedule and team — this is just the framing." />
+
+          <Field label="Tagline" hint="Small line above the headline. e.g. “Mysore · Ashtanga · Vinyasa · Workshops”">
+            <Input value={form.tagline} onChange={e => update('tagline', e.target.value)} />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Headline" hint="The big line in your hero.">
+              <Input value={form.heroHeadline} onChange={e => update('heroHeadline', e.target.value)} />
+            </Field>
+            <Field label="Emphasised word" hint="A word inside the headline shown bolder (optional).">
+              <Input value={form.heroHeadlineEmphasis} onChange={e => update('heroHeadlineEmphasis', e.target.value)} />
+            </Field>
+          </div>
+
+          <Field label="Intro paragraph">
+            <Textarea value={form.heroLead} onChange={e => update('heroLead', e.target.value)} rows={3} />
+          </Field>
+
+          <Field label="Hero button label" hint="Second hero button, links to your teacher page. e.g. “About Ravi”">
+            <Input value={form.heroCtaLabel} onChange={e => update('heroCtaLabel', e.target.value)} />
+          </Field>
+
+          <Field label="Hero photo" hint="Portrait works best. Shown full-screen on the Photo First theme, beside the text on the others.">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{ width: '96px', height: '120px', borderRadius: '10px', backgroundColor: '#f4f4f4', border: '1px solid #e2e2e2', overflow: 'hidden', flexShrink: 0 }}>
+                {form.heroImageUrl && <img src={form.heroImageUrl} alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              </div>
+              <label style={{ padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#444', cursor: contentImgBusy === 'heroImageUrl' ? 'not-allowed' : 'pointer' }}>
+                {contentImgBusy === 'heroImageUrl' ? 'Uploading…' : form.heroImageUrl ? 'Replace photo' : 'Upload photo'}
+                <input type="file" accept="image/*" onChange={e => handleContentImage(e, 'heroImageUrl')} disabled={contentImgBusy === 'heroImageUrl'} style={{ display: 'none' }} />
+              </label>
+              {form.heroImageUrl && (
+                <button onClick={() => update('heroImageUrl', '')} style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}>Remove</button>
+              )}
+            </div>
+          </Field>
+
+          <Field label="About heading">
+            <Input value={form.aboutHeading} onChange={e => update('aboutHeading', e.target.value)} />
+          </Field>
+
+          <Field label="About text" hint="Leave a blank line between paragraphs.">
+            <Textarea value={form.aboutBody} onChange={e => update('aboutBody', e.target.value)} rows={4} />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="About button label" hint="Optional. e.g. “Read more”">
+              <Input value={form.aboutCtaLabel} onChange={e => update('aboutCtaLabel', e.target.value)} />
+            </Field>
+            <Field label="About photo">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ width: '72px', height: '72px', borderRadius: '10px', backgroundColor: '#f4f4f4', border: '1px solid #e2e2e2', overflow: 'hidden', flexShrink: 0 }}>
+                  {form.aboutImageUrl && <img src={form.aboutImageUrl} alt="About" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                </div>
+                <label style={{ padding: '8px 14px', backgroundColor: '#f4f4f4', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#444', cursor: 'pointer' }}>
+                  {contentImgBusy === 'aboutImageUrl' ? 'Uploading…' : form.aboutImageUrl ? 'Replace' : 'Upload'}
+                  <input type="file" accept="image/*" onChange={e => handleContentImage(e, 'aboutImageUrl')} disabled={contentImgBusy === 'aboutImageUrl'} style={{ display: 'none' }} />
+                </label>
+                {form.aboutImageUrl && (
+                  <button onClick={() => update('aboutImageUrl', '')} style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}>Remove</button>
+                )}
+              </div>
+            </Field>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Passes heading" hint="Above the pass prices. Defaults to “Passes, or pay as you go”.">
+              <Input value={form.passesHeading} onChange={e => update('passesHeading', e.target.value)} />
+            </Field>
+            <Field label="Contact email" hint="Shown in the page footer.">
+              <Input type="email" value={form.contactEmail} onChange={e => update('contactEmail', e.target.value)} />
+            </Field>
+          </div>
+
+          <Field label="Passes blurb">
+            <Textarea value={form.passesBlurb} onChange={e => update('passesBlurb', e.target.value)} rows={2} />
+          </Field>
+
+          <Field label="Photo gallery" hint="Square photos shown on your home and teacher pages.">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              {form.galleryUrls.map((url, i) => (
+                <div key={url + i} style={{ position: 'relative', width: '84px', height: '84px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e2e2e2' }}>
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button
+                    onClick={() => setForm(prev => ({ ...prev, galleryUrls: prev.galleryUrls.filter((_, j) => j !== i) }))}
+                    aria-label="Remove photo"
+                    style={{ position: 'absolute', top: '4px', right: '4px', width: '20px', height: '20px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '12px', cursor: 'pointer', lineHeight: 1 }}
+                  >×</button>
+                </div>
+              ))}
+              <label style={{ width: '84px', height: '84px', borderRadius: '10px', border: '1px dashed #c2c2c2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#666', cursor: 'pointer', textAlign: 'center' }}>
+                {contentImgBusy === 'gallery' ? '…' : '+ Add'}
+                <input type="file" accept="image/*" multiple onChange={handleGalleryAdd} disabled={contentImgBusy === 'gallery'} style={{ display: 'none' }} />
+              </label>
+            </div>
+          </Field>
+
+          </>)}
+
+          {tab === 'general' && (<>
 
           <SectionHeader title="Studio profile" />
 
@@ -805,6 +999,8 @@ function SettingsPageContent() {
             </button>
           </Field>
 
+          </>)}
+
           {error && (
             <div style={{ padding: '12px 16px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '14px', marginBottom: '24px' }}>
               {error}
@@ -813,6 +1009,13 @@ function SettingsPageContent() {
           {success && (
             <div style={{ padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px', color: '#085041', fontSize: '14px', marginBottom: '24px' }}>
               {success}
+            </div>
+          )}
+          {encodingIssues.length > 0 && (
+            <div style={{ padding: '12px 16px', backgroundColor: '#fff8e6', border: '1px solid #f0e0b0', borderRadius: '8px', color: '#7a4f00', fontSize: '13px', marginBottom: '24px' }}>
+              <strong>Possible encoding problem</strong> in {encodingIssues.join(', ')} — the text
+              looks like it was pasted from a source where a character was already garbled. Retype
+              the affected value before saving.
             </div>
           )}
 
@@ -832,15 +1035,6 @@ function SettingsPageContent() {
         </div>
         </>}
       </div>
-
-      {bannerFile && orgId && (
-        <BannerCropModal
-          file={bannerFile}
-          orgId={orgId}
-          onCancel={() => setBannerFile(null)}
-          onDone={url => { update('bannerUrl', url); setBannerFile(null); setSuccess('Banner updated — remember to Save changes.') }}
-        />
-      )}
 
       {/* Add tax rate modal */}
       {showAddRate && (

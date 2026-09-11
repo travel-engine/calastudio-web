@@ -1,20 +1,57 @@
+/* Studio public-tree top bar — Photo First look. Structure/burger behaviour unchanged from the
+ * original; colours are theme tokens. On the studio home page the bar is transparent and overlays
+ * the hero photo (`.barOverPhoto`); everywhere else it's a solid bar with a hairline rule. */
+
 .bar {
-  background-color: #fff;
-  border-bottom: 1px solid #e2e2e2;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
   z-index: 20;
 }
 
+.barOverPhoto {
+  background: transparent;
+  border-bottom: 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-weight: var(--brand-weight, 700);
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+  min-width: 0;
+}
+
+/* Over the hero photo the bar is always light-on-image, whatever the body palette. */
+.barOverPhoto .brand,
+.barOverPhoto .link {
+  color: rgba(245, 244, 241, 0.82);
+}
+
+.barOverPhoto .linkActive {
+  color: #f5f4f1;
+}
+
+.barOverPhoto .burger {
+  color: #f5f4f1;
+}
+
 .inner {
-  max-width: 1100px;
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 0 20px;
-  height: 56px;
+  padding: 18px var(--gutter);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: clamp(10px, 2.4vw, 24px);
+  flex-wrap: wrap;
 }
 
 .left {
@@ -27,7 +64,7 @@
 .right {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: clamp(10px, 2.4vw, 24px);
   flex-shrink: 0;
 }
 
@@ -39,19 +76,40 @@
   line-height: 1;
   cursor: pointer;
   padding: 4px 6px;
-  color: #444;
+  color: var(--ink);
   border-radius: 6px;
 }
 
 .links {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: clamp(10px, 2.4vw, 24px);
 }
 
 .link {
-  font-size: 13px;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  color: var(--text-meta);
+}
+
+.linkActive {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+/* "Book a class" CTA — themed layout only. */
+.navCta {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: var(--pill);
+  padding: 10px 20px;
+  background: var(--accent);
+  color: var(--accent-ink);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -66,14 +124,14 @@
     position: absolute;
     left: 0;
     right: 0;
-    top: 56px;
+    top: 100%;
     flex-direction: column;
     align-items: stretch;
     gap: 0;
-    background-color: #fff;
-    border-bottom: 1px solid #e2e2e2;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-    padding: 4px 20px 10px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.32);
+    padding: 4px var(--gutter) 10px;
   }
 
   .linksOpen {
@@ -82,6 +140,6 @@
 
   .link {
     padding: 13px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--line);
   }
 }
