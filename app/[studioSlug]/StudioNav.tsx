@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { clearRememberChoice } from '@/lib/authRemember'
 import styles from './studionav.module.css'
 
 interface Props {
@@ -76,6 +77,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
   // Full reload rather than a client transition — clears every page's in-memory auth/session state.
   const handleSignOut = async () => {
     await createClient().auth.signOut()
+    clearRememberChoice()
     setMenuOpen(false)
     window.location.href = home
   }

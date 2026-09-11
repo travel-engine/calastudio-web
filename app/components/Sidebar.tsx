@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { clearRememberChoice } from '@/lib/authRemember'
 import { canViewSessions, canViewOccurrences, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
 import styles from './sidebar.module.css'
 
@@ -35,6 +36,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
   const handleSignOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
+    clearRememberChoice()
     router.push('/')
   }
 
