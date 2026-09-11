@@ -131,6 +131,10 @@ function SettingsPageContent() {
     passesHeading: '',
     passesBlurb: '',
     contactEmail: '',
+    instagramUrl: '',
+    facebookUrl: '',
+    tiktokUrl: '',
+    youtubeUrl: '',
     galleryUrls: [] as string[],
     taxEnabled: false,
     taxLabel: '',
@@ -269,6 +273,10 @@ function SettingsPageContent() {
         passesHeading: pc.passes_heading ?? '',
         passesBlurb: pc.passes_blurb ?? '',
         contactEmail: pc.contact_email ?? '',
+        instagramUrl: pc.instagram_url ?? '',
+        facebookUrl: pc.facebook_url ?? '',
+        tiktokUrl: pc.tiktok_url ?? '',
+        youtubeUrl: pc.youtube_url ?? '',
         galleryUrls: Array.isArray(pc.gallery) ? pc.gallery.map((g: { url: string }) => g.url).filter(Boolean) : [],
         taxEnabled: org.tax_enabled ?? false,
         taxLabel: org.tax_label ?? '',
@@ -473,6 +481,10 @@ function SettingsPageContent() {
             passes_heading: form.passesHeading || null,
             passes_blurb: form.passesBlurb || null,
             contact_email: form.contactEmail || null,
+            instagram_url: form.instagramUrl || null,
+            facebook_url: form.facebookUrl || null,
+            tiktok_url: form.tiktokUrl || null,
+            youtube_url: form.youtubeUrl || null,
             gallery: form.galleryUrls.map(url => ({ url, alt: form.name })),
           },
           tax_enabled: form.taxEnabled,
@@ -724,6 +736,25 @@ function SettingsPageContent() {
               </label>
             </div>
           </Field>
+
+          <SectionHeader title="Social links" description="Shown in the footer of your public pages. Leave any blank to hide it." />
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Instagram">
+              <Input type="url" placeholder="https://instagram.com/yourstudio" value={form.instagramUrl} onChange={e => update('instagramUrl', e.target.value)} />
+            </Field>
+            <Field label="Facebook">
+              <Input type="url" placeholder="https://facebook.com/yourstudio" value={form.facebookUrl} onChange={e => update('facebookUrl', e.target.value)} />
+            </Field>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="TikTok">
+              <Input type="url" placeholder="https://tiktok.com/@yourstudio" value={form.tiktokUrl} onChange={e => update('tiktokUrl', e.target.value)} />
+            </Field>
+            <Field label="YouTube">
+              <Input type="url" placeholder="https://youtube.com/@yourstudio" value={form.youtubeUrl} onChange={e => update('youtubeUrl', e.target.value)} />
+            </Field>
+          </div>
 
           </>)}
 

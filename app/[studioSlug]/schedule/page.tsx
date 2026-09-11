@@ -159,7 +159,7 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
         <div style={{ height: 32 }} />
       </main>
 
-      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} />
+      <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} socials={{ instagram: content.instagramUrl, facebook: content.facebookUrl, tiktok: content.tiktokUrl, youtube: content.youtubeUrl }} />
       {!themed && <FixedBookingBar next={next} {...bookProps} />}
 
       <BookingDrawer />
