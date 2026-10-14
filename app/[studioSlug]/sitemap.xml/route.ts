@@ -8,8 +8,8 @@ interface DirTeacher {
   is_page_published: boolean
 }
 
-// Per-studio sitemap. Reachable at /{studioSlug}/sitemap.xml now, and at
-// {slug}.calastudio.app/sitemap.xml once subdomain rewrites are in place.
+// Per-studio sitemap: {slug}.calastudio.app/sitemap.xml (proxy.ts rewrites it here), or
+// /{studioSlug}/sitemap.xml when path-based.
 export async function GET(_req: Request, { params }: { params: Promise<{ studioSlug: string }> }) {
   const { studioSlug } = await params
   const base = process.env.NEXT_PUBLIC_API_URL

@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '../../../components/Sidebar'
 import { displayName } from '@/lib/names'
+import { STUDIO_DOMAIN, studioUrl } from '@/lib/seo'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface TeacherData {
@@ -361,7 +362,7 @@ export default function EditTeacherPage() {
             <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{displayName(teacher)}</h1>
           </div>
           {form.is_page_published && teacher.profile && orgSlug && (
-            <a href={`/${orgSlug}/teachers/${teacher.profile.slug}`} target="_blank" style={{ padding: '8px 16px', border: '1px solid #085041', borderRadius: '8px', color: '#085041', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
+            <a href={studioUrl(orgSlug, `/teachers/${teacher.profile.slug}`)} target="_blank" style={{ padding: '8px 16px', border: '1px solid #085041', borderRadius: '8px', color: '#085041', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
               View landing page
             </a>
           )}
@@ -535,7 +536,7 @@ export default function EditTeacherPage() {
           </div>
           {form.is_page_published && teacher.profile && (
             <div style={{ marginTop: '16px', padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px', fontSize: '13px', color: '#085041' }}>
-              Landing page URL: <strong>{'{studio}'}.calastudio.app/teachers/{teacher.profile.slug}</strong>
+              Landing page URL: <strong>{orgSlug ?? '{studio}'}.{STUDIO_DOMAIN}/teachers/{teacher.profile.slug}</strong>
             </div>
           )}
         </div>

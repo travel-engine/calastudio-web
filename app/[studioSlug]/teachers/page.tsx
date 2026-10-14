@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import styles from '../photofirst.module.css'
 import { initials } from '@/lib/names'
-import { studioOpenGraph, studioOrigin } from '@/lib/seo'
+import { studioOpenGraph, studioOrigin, studioPath } from '@/lib/seo'
 import { JsonLd, breadcrumbLd, personLd } from '@/lib/jsonLd'
 import StudioFooter from '../StudioFooter'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
@@ -80,7 +80,7 @@ function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
   return (
     <article>
       {t.is_page_published
-        ? <Link href={`/${studioSlug}/teachers/${t.slug}`} className={styles.dirCard}>{inner}</Link>
+        ? <Link href={studioPath(studioSlug, `/teachers/${t.slug}`)} className={styles.dirCard}>{inner}</Link>
         : <div className={styles.dirCard}>{inner}</div>}
     </article>
   )

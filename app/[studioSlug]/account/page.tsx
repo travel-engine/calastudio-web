@@ -8,6 +8,7 @@ import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
+import { studioPath } from '@/lib/seo'
 
 interface OrgInfo {
   id: string
@@ -418,7 +419,7 @@ export default function MemberAccountPage() {
       email, password,
       options: {
         data: { full_name: fullName, phone: phone || null },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/${studioSlug}/account`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${studioPath(studioSlug, '/account')}`,
       },
     })
     if (error) { setAuthMessage(error.message); setAuthBusy(false); return }
@@ -714,7 +715,7 @@ export default function MemberAccountPage() {
     <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '48px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
       <div style={{ color: 'var(--text-meta)', fontSize: '14px', marginBottom: '16px' }}>{text}</div>
       <a
-        href={`/${studioSlug}`}
+        href={studioPath(studioSlug)}
         style={{ display: 'inline-block', padding: '9px 20px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
       >
         Go to schedule

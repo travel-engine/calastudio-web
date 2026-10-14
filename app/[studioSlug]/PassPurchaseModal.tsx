@@ -5,6 +5,7 @@ import Link from 'next/link'
 import StripePaymentForm from './StripePaymentForm'
 import type { PassTemplate } from './PricingList'
 import styles from './photofirst.module.css'
+import { studioPath } from '@/lib/seo'
 
 const money = (n: number, c: string) => {
   try { return new Intl.NumberFormat('en-AU', { style: 'currency', currency: c }).format(n) }
@@ -105,7 +106,7 @@ export default function PassPurchaseModal({
           <div>
             <div className={styles.noticeError} style={{ marginBottom: 0 }}>{error}</div>
             {error.startsWith("You're not a member") && (
-              <Link href={`/${studioSlug}/account`} className={styles.smallBtn} style={{ marginTop: '14px' }}>
+              <Link href={studioPath(studioSlug, '/account')} className={styles.smallBtn} style={{ marginTop: '14px' }}>
                 Go to your account
               </Link>
             )}

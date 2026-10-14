@@ -11,7 +11,7 @@ import Gallery from './Gallery'
 import StudioFooter from './StudioFooter'
 import { getStudioContent, headlineRuns, type PageContentDto } from './studioContent'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
-import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
+import { metaDescription, studioOpenGraph, studioOrigin, studioPath } from '@/lib/seo'
 import { JsonLd, studioLd } from '@/lib/jsonLd'
 
 export const revalidate = 60
@@ -134,8 +134,8 @@ export default async function StudioHomePage({ params }: Props) {
             </h1>
             {content.heroLead && <p className={styles.heroLead}>{content.heroLead}</p>}
             <div className={styles.btnRow}>
-              <Link href={`/${studioSlug}/schedule`} className={styles.btnSolid}>See the schedule</Link>
-              <Link href={`/${studioSlug}/teachers`} className={styles.btnGhost}>
+              <Link href={studioPath(studioSlug, '/schedule')} className={styles.btnSolid}>See the schedule</Link>
+              <Link href={studioPath(studioSlug, '/teachers')} className={styles.btnGhost}>
                 {content.heroCtaLabel ?? 'About the studio'}
               </Link>
             </div>
@@ -176,7 +176,7 @@ export default async function StudioHomePage({ params }: Props) {
           <section className={styles.section}>
             <div className={styles.sectionHead}>
               <h2 className={styles.h2}>Upcoming</h2>
-              <Link href={`/${studioSlug}/schedule`} className={styles.textBtn}>
+              <Link href={studioPath(studioSlug, '/schedule')} className={styles.textBtn}>
                 All Sessions
               </Link>
             </div>
@@ -197,7 +197,7 @@ export default async function StudioHomePage({ params }: Props) {
                 <p key={i} className={styles.para}>{p}</p>
               ))}
               {content.aboutCtaLabel && (
-                <Link href={`/${studioSlug}/teachers`} className={styles.btnGhost} style={{ marginTop: '10px' }}>
+                <Link href={studioPath(studioSlug, '/teachers')} className={styles.btnGhost} style={{ marginTop: '10px' }}>
                   {content.aboutCtaLabel}
                 </Link>
               )}

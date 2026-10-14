@@ -5,6 +5,7 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { studioSlugFromHost, studioUrl } from '@/lib/seo'
 
 // Landing page for the invite / recovery link sent to studio-added members and invited teachers
 // (backend: teacher-member-invite-emails). The email link is
@@ -110,12 +111,20 @@ export default function SetPasswordPage() {
     }
 
     const staff = memberships.find(m => m.roles.some(r => STAFF_ROLES.includes(r)))
-    const memberArea = memberships.find(m => m.roles.includes('member'))
-    const target = staff ? '/dashboard' : memberArea ? `/${memberArea.slug}/account` : '/dashboard'
+    // On a studio's own subdomain, land on that studio's account page, not just the first one.
+    const hereSlug = studioSlugFromHost(window.location.host)
+    const memberOf = memberships.filter(m => m.roles.includes('member'))
+    const memberArea = memberOf.find(m => m.slug === hereSlug) ?? memberOf[0]
 
     setDoneNote(merged > 0 ? 'Your existing studio account has been linked.' : '')
     setPhase('done')
-    setTimeout(() => router.push(target), 1200)
+    if (staff || !memberArea) {
+      setTimeout(() => router.push('/dashboard'), 1200)
+    } else {
+      // May be another host (studio subdomain), so a full navigation rather than router.push.
+      const target = studioUrl(memberArea.slug, '/account')
+      setTimeout(() => { window.location.href = target }, 1200)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
