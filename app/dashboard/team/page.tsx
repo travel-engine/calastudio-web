@@ -15,7 +15,7 @@ interface Teacher {
   first_name: string
   last_name: string
   email: string
-  role: string
+  roles: string[]
   profile: {
     slug: string
     display_name: string
@@ -325,7 +325,10 @@ export default function TeamPage() {
                 </div>
 
                 {/* Role */}
-                <div><RoleBadge role={teacher.role} /></div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {/* Staff roles only — 'member' just means they can also book classes. */}
+                  {teacher.roles.filter(r => r !== 'member').map(r => <RoleBadge key={r} role={r} />)}
+                </div>
 
                 {/* Landing page status */}
                 <div style={{ fontSize: '13px' }}>
