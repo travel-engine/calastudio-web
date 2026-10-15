@@ -21,7 +21,6 @@ const navItems = [
   { href: '/dashboard/members', icon: '👥', label: 'Members', key: 'members', canView: canViewMembers },
   { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings', key: 'bookings', canView: canViewBookings },
   { href: '/dashboard/passes', icon: '💳', label: 'Passes', key: 'passes', canView: canViewPassTemplates },
-  { href: '/dashboard/memberships', icon: '⭐', label: 'Memberships', key: 'memberships', canView: undefined },
   { href: '/dashboard/reports', icon: '📊', label: 'Reports', key: 'reports', canView: canViewReports },
   { href: '/dashboard/team', icon: '👤', label: 'Team', key: 'team', canView: canViewTeam },
   { href: '/dashboard/audit-log', icon: '🕘', label: 'Activity log', key: 'audit-log', canView: canViewAuditLog },
