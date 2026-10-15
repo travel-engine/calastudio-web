@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
+import { clearOrgContext } from '@/lib/orgContext'
 import { canViewSessions, canViewOccurrences, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
 import styles from './sidebar.module.css'
 
@@ -36,6 +38,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
     const supabase = createClient()
     await supabase.auth.signOut()
     clearRememberChoice()
+    clearOrgContext()
     router.push('/')
   }
 
@@ -57,7 +60,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
         >
           ☰
         </button>
-        <a href="/dashboard" style={{
+        <Link href="/dashboard" style={{
           backgroundColor: '#085041',
           color: 'white',
           fontWeight: 700,
@@ -67,7 +70,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
           textDecoration: 'none'
         }}>
           CalaStudio
-        </a>
+        </Link>
       </div>
 
       {/* Mobile backdrop */}
@@ -76,7 +79,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
       <div className={`${styles.panel} ${open ? styles.open : ''}`}>
       {/* Logo */}
 
-        <a href="/dashboard"
+        <Link href="/dashboard"
         style={{
           display: 'block',
           backgroundColor: '#085041',
@@ -91,7 +94,7 @@ export default function Sidebar({ active, roles }: SidebarProps) {
         }}
       >
         CalaStudio
-      </a>
+      </Link>
 
       {/* Nav */}
       <nav style={{ flex: 1 }}>
@@ -172,7 +175,9 @@ export default function Sidebar({ active, roles }: SidebarProps) {
 function NavLink({ item, active, onNavigate }: { item: typeof navItems[0]; active: boolean; onNavigate?: () => void }) {
   return (
 
-      <a href={item.href}
+      // next/link: client-side navigation keeps the cached org/roles (lib/orgContext), so a page
+      // switch only waits on that page's own data.
+      <Link href={item.href}
       onClick={onNavigate}
       style={{
         display: 'flex',
@@ -190,6 +195,6 @@ function NavLink({ item, active, onNavigate }: { item: typeof navItems[0]; activ
     >
       <span>{item.icon}</span>
       <span>{item.label}</span>
-    </a>
+    </Link>
   )
 }

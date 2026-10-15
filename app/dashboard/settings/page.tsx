@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { getOrgContext, clearOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canManageSettings } from '@/lib/roles'
@@ -207,24 +208,16 @@ function SettingsPageContent() {
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/login'); return }
+      // fresh: this page edits the org, so never pre-fill the form from the cached copy.
+      const ctx = await getOrgContext({ fresh: true })
+      if (ctx.status === 'signed-out') { router.push('/login'); return }
+      if (ctx.status === 'no-org') { router.push('/onboarding'); return }
 
-      const t = session.access_token
+      const t = ctx.token
       setToken(t)
-
-      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
-        headers: { Authorization: `Bearer ${t}` }
-      })
-      if (!orgRes.ok) { router.push('/onboarding'); return }
-      const org = await orgRes.json()
+      const org = ctx.org
       setOrgId(org.id)
-
-      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
-        headers: { Authorization: `Bearer ${t}` }
-      })
-      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
       if (!canManageSettings(myRoles)) {
@@ -506,6 +499,7 @@ function SettingsPageContent() {
       })
 
       if (res.ok) {
+        clearOrgContext() // other pages re-read currency, timezone etc.
         setSuccess('Settings saved.')
       } else {
         const data = await res.json().catch(() => null)
@@ -529,6 +523,7 @@ function SettingsPageContent() {
         body: JSON.stringify({ text: waiverText }),
       })
       if (res.ok) {
+        clearOrgContext()
         const org = await res.json().catch(() => null)
         setInitialWaiverText(waiverText)
         setWaiverVersion(org?.liability_waiver_version ?? (waiverVersion != null ? waiverVersion + 1 : null))

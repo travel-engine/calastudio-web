@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
+import { getOrgContext } from '@/lib/orgContext'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
@@ -62,35 +63,14 @@ export default function SessionsPage() {
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const ctx = await getOrgContext()
+      if (ctx.status === 'signed-out') { router.push('/login'); return }
+      if (ctx.status === 'no-org') { router.push('/onboarding'); return }
 
-      if (!session) {
-        router.push('/login')
-        return
-      }
-
-      const token = session.access_token
-
-      // Get org ID from API
-      const orgRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-
-      if (!orgRes.ok) {
-        router.push('/onboarding')
-        return
-      }
-
-      const org = await orgRes.json()
+      const token = ctx.token
+      const org = ctx.org
       setOrgId(org.id)
-
-      const roleRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
       if (!canViewSessions(myRoles)) {

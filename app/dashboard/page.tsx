@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { getOrgContext } from '@/lib/orgContext'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
 import { canManageSessions, canViewOccurrences, canViewAllReports } from '@/lib/roles'
@@ -112,20 +112,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/login'); return }
-      const token = session.access_token
+      const ctx = await getOrgContext()
+      if (ctx.status === 'signed-out') { router.push('/login'); return }
+      if (ctx.status === 'no-org') { router.push('/onboarding'); return }
+      const token = ctx.token
       const auth = { headers: { Authorization: `Bearer ${token}` } }
-
-      const orgRes = await fetch(`${API}/api/organisations/mine`, auth)
-      // A verified-but-not-yet-onboarded user has a session but no org — send them to set one up
-      // (same as the settings/team pages do).
-      if (!orgRes.ok) { router.push('/onboarding'); return }
-      const org = await orgRes.json()
-
-      const roleRes = await fetch(`${API}/api/organisations/${org.id}/my-role`, auth)
-      const myRoles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      const org = ctx.org
+      const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
       if (canViewAllReports(myRoles)) {

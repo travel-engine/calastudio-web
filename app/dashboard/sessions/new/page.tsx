@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import { useSearchParams } from 'next/navigation'
 import { canManageSessions } from '@/lib/roles'
@@ -147,21 +148,13 @@ function NewSessionPageContent() {
 
   useEffect(() => {
     const checkAccess = async () => {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/login'); return }
+      const ctx = await getOrgContext()
+      if (ctx.status === 'signed-out') { router.push('/login'); return }
+      if (ctx.status === 'no-org') { router.push('/onboarding'); return }
 
-      const token = session.access_token
-      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (!orgRes.ok) { router.push('/onboarding'); return }
-      const org = await orgRes.json()
-
-      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      const roles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      const token = ctx.token
+      const org = ctx.org
+      const roles: string[] = ctx.roles
 
       if (!canManageSessions(roles)) { router.push('/dashboard/sessions'); return }
 
