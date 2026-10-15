@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '../../../components/Sidebar'
 import { displayName } from '@/lib/names'
 import { STUDIO_DOMAIN, studioUrl } from '@/lib/seo'
@@ -141,25 +142,16 @@ export default function EditTeacherPage() {
 
   useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/login'); return }
+      const ctx = await getOrgContext()
+      if (ctx.status === 'signed-out') { router.push('/login'); return }
+      if (ctx.status === 'no-org') { router.push('/onboarding'); return }
 
-      const t = session.access_token
+      const t = ctx.token
       setToken(t)
-
-      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
-        headers: { Authorization: `Bearer ${t}` }
-      })
-      if (!orgRes.ok) { router.push('/onboarding'); return }
-      const org = await orgRes.json()
+      const org = ctx.org
       setOrgId(org.id)
       setOrgSlug(org.slug ?? '')
-
-      const roleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/my-role`, {
-        headers: { Authorization: `Bearer ${t}` }
-      })
-      if (roleRes.ok) setRoles((await roleRes.json()).roles)
+      setRoles(ctx.roles)
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/teachers/${teacherId}`,

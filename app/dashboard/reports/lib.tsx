@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns'
 import { ResponsiveContainer } from 'recharts'
-import { createClient } from '@/lib/supabase'
+import { getOrgContext } from '@/lib/orgContext'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -82,14 +82,12 @@ export function useOrgCtx() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { session } } = await createClient().auth.getSession()
-      if (!session) { router.push('/login'); return }
-      const token = session.access_token
-      const orgRes = await fetch(`${API}/api/organisations/mine`, { headers: { Authorization: `Bearer ${token}` } })
-      if (!orgRes.ok) { router.push('/onboarding'); return }
-      const org = await orgRes.json()
-      const roleRes = await fetch(`${API}/api/organisations/${org.id}/my-role`, { headers: { Authorization: `Bearer ${token}` } })
-      const roles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
+      const ctx = await getOrgContext()
+      if (ctx.status === 'signed-out') { router.push('/login'); return }
+      if (ctx.status === 'no-org') { router.push('/onboarding'); return }
+      const token = ctx.token
+      const org = ctx.org
+      const roles: string[] = ctx.roles
       setCtx({ orgId: org.id, token, roles, currency: org.currency ?? 'AUD' })
       setLoading(false)
     }
