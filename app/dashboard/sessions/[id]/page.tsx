@@ -1119,7 +1119,7 @@ export default function EditSessionPage() {
                     <OccurrenceStatusBadge status={occ.status} />
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <a href={`/dashboard/bookings?occurrence=${occ.id}`} style={{
+                    <a href={`/dashboard/occurrences/${occ.id}`} style={{
                       padding: '6px 12px', backgroundColor: '#f4f4f4', borderRadius: '6px',
                       fontSize: '12px', color: '#444', textDecoration: 'none', fontWeight: 500
                     }}>

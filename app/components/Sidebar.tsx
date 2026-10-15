@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import { CalendarDays, ChartColumn, ClipboardList, Clock, House, Layers, LogOut, Menu, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
+import { CalendarDays, ChartColumn, Clock, House, Layers, LogOut, Menu, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
 import { clearOrgContext } from '@/lib/orgContext'
-import { canViewSessions, canViewOccurrences, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
+import { canViewSessions, canViewOccurrences, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
 import { color } from '@/lib/ui/tokens'
 import { buttonStyle } from '@/app/components/admin/Button'
 import ui from '@/app/components/admin/admin.module.css'
@@ -36,14 +36,12 @@ type NavItem = {
   canView?: (roles: string[]) => boolean
 }
 
-// Bookings stays until the Schedule + Roster redesign lands (handoff §2 retires it then, with a
-// redirect to Schedule) so nobody loses the page in between.
+// No Bookings item: its job is Schedule → a class's roster (handoff §2); next.config redirects it.
 const navItems: NavItem[] = [
   { href: '/dashboard', icon: House, label: 'Dashboard', key: 'dashboard', section: 'studio' },
   { href: '/dashboard/schedule', icon: CalendarDays, label: 'Schedule', key: 'schedule', section: 'studio', canView: canViewOccurrences },
   { href: '/dashboard/sessions', icon: Layers, label: 'Sessions', key: 'sessions', section: 'studio', canView: canViewSessions },
   { href: '/dashboard/members', icon: Users, label: 'Members', key: 'members', section: 'studio', canView: canViewMembers },
-  { href: '/dashboard/bookings', icon: ClipboardList, label: 'Bookings', key: 'bookings', section: 'studio', canView: canViewBookings },
   { href: '/dashboard/passes', icon: Ticket, label: 'Passes', key: 'passes', section: 'revenue', canView: canViewPassTemplates },
   { href: '/dashboard/reports', icon: ChartColumn, label: 'Reports', key: 'reports', section: 'revenue', canView: canViewReports },
   { href: '/dashboard/team', icon: UserPlus, label: 'Team', key: 'team', section: 'settings', canView: canViewTeam },
