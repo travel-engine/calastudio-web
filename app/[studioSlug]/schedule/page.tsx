@@ -10,7 +10,7 @@ import FixedBookingBar from '../FixedBookingBar'
 import StudioFooter from '../StudioFooter'
 import { getStudioContent, type PageContentDto } from '../studioContent'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
-import { formatDateWithWeekday } from '@/lib/dates'
+import { dayKey, formatDayLabel } from '@/lib/dates'
 import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, eventLd, breadcrumbLd } from '@/lib/jsonLd'
 
@@ -30,21 +30,13 @@ interface PublicOrgInfo {
   banner_url: string | null
   brand_color: string | null
   currency: string
+  // IANA zone (e.g. Australia/Brisbane). Class times are shown on the studio's clock.
+  timezone?: string | null
   stripe_account_id: string | null
   payments_enabled: boolean
   theme?: string | null
   page_content?: PageContentDto | null
   contactEmail?: string | null
-}
-
-function formatDayLabel(iso: string) {
-  const d = new Date(iso)
-  const today = new Date()
-  const tomorrow = new Date(today)
-  tomorrow.setDate(today.getDate() + 1)
-  if (d.toDateString() === today.toDateString()) return 'Today'
-  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
-  return formatDateWithWeekday(d)
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -102,7 +94,7 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
 
   const groups = new Map<string, BookableOccurrence[]>()
   for (const occ of visible) {
-    const key = new Date(occ.starts_at).toDateString()
+    const key = dayKey(occ.starts_at, org.timezone)
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key)!.push(occ)
   }
@@ -119,6 +111,7 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
     brandColor,
     stripeAccountId: org.stripe_account_id,
     paymentsEnabled: org.payments_enabled,
+    timeZone: org.timezone ?? null,
   }
 
   return (
@@ -147,7 +140,7 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
         ) : (
           Array.from(groups.entries()).map(([day, dayOccurrences]) => (
             <section key={day} className={styles.dayGroup}>
-              <h2 className={styles.dayLabel}>{formatDayLabel(dayOccurrences[0].starts_at)}</h2>
+              <h2 className={styles.dayLabel}>{formatDayLabel(dayOccurrences[0].starts_at, org.timezone)}</h2>
               <div className={styles.rowList}>
                 {dayOccurrences.map(occ => (
                   <SessionRow key={occ.occurrence_id} occ={occ} showLocation {...bookProps} />

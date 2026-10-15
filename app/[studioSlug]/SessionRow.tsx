@@ -1,22 +1,8 @@
 import Image from 'next/image'
 import type { BookableOccurrence } from '@/lib/store/bookingFlow'
-import { formatDateWithWeekday } from '@/lib/dates'
+import { formatDayLabel, formatTime } from '@/lib/dates'
 import RowBookButton from './RowBookButton'
 import styles from './photofirst.module.css'
-
-function dayLabel(iso: string) {
-  const d = new Date(iso)
-  const today = new Date()
-  const tomorrow = new Date(today)
-  tomorrow.setDate(today.getDate() + 1)
-  if (d.toDateString() === today.toDateString()) return 'Today'
-  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
-  return formatDateWithWeekday(d)
-}
-
-function timeLabel(iso: string) {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-}
 
 function durationLabel(startIso: string, endIso: string) {
   const mins = Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000)
@@ -42,7 +28,7 @@ function spots(occ: BookableOccurrence): { text: string; cls: string } | null {
 // One class/workshop row — handoff §"Session row". `showLocation` adds the location line (schedule
 // screen only). The meta line is `{day}, {time} · {duration} · {In-person|Online}`.
 export default function SessionRow({
-  occ, studioSlug, showLocation = false, brandColor, stripeAccountId, paymentsEnabled,
+  occ, studioSlug, showLocation = false, brandColor, stripeAccountId, paymentsEnabled, timeZone,
 }: {
   occ: BookableOccurrence
   studioSlug: string
@@ -50,11 +36,13 @@ export default function SessionRow({
   brandColor?: string
   stripeAccountId: string | null
   paymentsEnabled: boolean
+  // Studio IANA zone; class times are shown on the studio's clock, not the server's or visitor's.
+  timeZone?: string | null
 }) {
   const thumb = occ.photo_url ?? occ.instructor_photo_url
   const duration = durationLabel(occ.starts_at, occ.ends_at)
   const mode = occ.delivery_mode === 'online' ? 'Online' : 'In-person'
-  const meta = [`${dayLabel(occ.starts_at)}, ${timeLabel(occ.starts_at)}`, duration, mode].filter(Boolean).join(' · ')
+  const meta = [`${formatDayLabel(occ.starts_at, timeZone)}, ${formatTime(occ.starts_at, timeZone)}`, duration, mode].filter(Boolean).join(' · ')
   const s = spots(occ)
 
   return (
@@ -82,6 +70,7 @@ export default function SessionRow({
           brandColor={brandColor}
           stripeAccountId={stripeAccountId}
           paymentsEnabled={paymentsEnabled}
+          timeZone={timeZone}
         />
       </div>
     </article>

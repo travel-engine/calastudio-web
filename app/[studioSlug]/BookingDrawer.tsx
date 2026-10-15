@@ -5,18 +5,18 @@ import { createClient } from '@/lib/supabase'
 import { useBookingFlow, type PassTemplateOption } from '@/lib/store/bookingFlow'
 import { displayName, splitName } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
-import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
+import { formatDate, formatDateTimeWithWeekday, formatTime } from '@/lib/dates'
 import styles from './photofirst.module.css'
 import { studioPath } from '@/lib/seo'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
-function formatDateTime(iso: string) {
-  return formatDateTimeWithWeekday(iso)
+function formatDateTime(iso: string, timeZone: string | null) {
+  return formatDateTimeWithWeekday(iso, timeZone)
 }
 
-function timeOnly(iso: string) {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+function timeOnly(iso: string, timeZone: string | null) {
+  return formatTime(iso, timeZone)
 }
 
 function durationMinutes(startIso: string, endIso: string) {
@@ -73,7 +73,7 @@ const STEP_LABELS: Record<string, string> = {
 
 export default function BookingDrawer() {
   const {
-    studioSlug, occurrence, step, bookedMode, accessToken, orgId, stripeAccountId, paymentsEnabled,
+    studioSlug, occurrence, step, bookedMode, accessToken, orgId, stripeAccountId, paymentsEnabled, timeZone,
     bookingOptions, confirmedBooking, errorMessage, joiningWaitlist, joinedWaitlistEntry,
     close, setStep, setAuth, setBookingOptions, setConfirmedBooking, setError,
     goToWaitlist, setJoinedWaitlist,
@@ -575,7 +575,7 @@ export default function BookingDrawer() {
   const durationMins = durationMinutes(occurrence.starts_at, occurrence.ends_at)
   const spots = spotsLabel(occurrence.spots_remaining)
   const drawerMeta = [
-    formatDateTime(occurrence.starts_at) + ' – ' + timeOnly(occurrence.ends_at),
+    formatDateTime(occurrence.starts_at, timeZone) + ' – ' + timeOnly(occurrence.ends_at, timeZone),
     durationMins ? `${durationMins} min` : null,
     occurrence.delivery_mode === 'online' ? 'Online' : (occurrence.location_name || 'In person'),
   ].filter(Boolean).join(' · ')
@@ -728,7 +728,7 @@ export default function BookingDrawer() {
               <div className={`${styles.resultCircle} ${styles.resultCircleSolid}`}>✓</div>
               <h3 className={styles.resultTitle}>You&apos;re already booked in</h3>
               <p className={styles.drawerText}>
-                You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
+                You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at, timeZone)}.
               </p>
               <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
                 View my bookings
@@ -873,7 +873,7 @@ export default function BookingDrawer() {
               <div className={`${styles.resultCircle} ${styles.resultCircleSolid}`}>✓</div>
               <h3 className={styles.resultTitle}>You&apos;re already booked in</h3>
               <p className={styles.drawerText}>
-                You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
+                You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at, timeZone)}.
               </p>
               <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
                 View my bookings
@@ -921,7 +921,7 @@ export default function BookingDrawer() {
             <div className={`${styles.resultCircle} ${styles.resultCircleOutline}`}>{joinedWaitlistEntry.position}</div>
             <h3 className={styles.resultTitle}>You&apos;re on the waitlist</h3>
             <p className={styles.drawerText}>
-              You&apos;re #{joinedWaitlistEntry.position} in line for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
+              You&apos;re #{joinedWaitlistEntry.position} in line for {occurrence.session_name} on {formatDateTime(occurrence.starts_at, timeZone)}.
               If a place opens we&apos;ll hold it for you — nothing is charged until you accept.
             </p>
             <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
@@ -939,7 +939,7 @@ export default function BookingDrawer() {
             <div className={`${styles.resultCircle} ${styles.resultCircleSolid}`}>✓</div>
             <h3 className={styles.resultTitle}>You&apos;re booked</h3>
             <p className={styles.drawerText}>
-              You&apos;re booked for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}. A confirmation email is on its way.
+              You&apos;re booked for {occurrence.session_name} on {formatDateTime(occurrence.starts_at, timeZone)}. A confirmation email is on its way.
             </p>
             <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
               View my bookings

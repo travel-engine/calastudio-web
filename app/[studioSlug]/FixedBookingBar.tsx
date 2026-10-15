@@ -1,25 +1,25 @@
 'use client'
 
 import { useBookingFlow, type BookableOccurrence } from '@/lib/store/bookingFlow'
+import { dayKey, safeZone } from '@/lib/dates'
 import styles from './photofirst.module.css'
 
 // This is a Client Component that renders during SSR *and* re-renders on hydration, so every
 // formatter here pins its locale — an `undefined` (runtime-default) locale formats differently on
 // the Node server vs. the browser and trips a hydration mismatch. Same reasoning as PricingList.
+// The studio timeZone is pinned for the same reason (Vercel renders in UTC), and because class
+// times belong on the studio's clock.
 const LOCALE = 'en-AU'
 
-function dayLabel(iso: string) {
-  const d = new Date(iso)
-  const today = new Date()
-  const tomorrow = new Date(today)
-  tomorrow.setDate(today.getDate() + 1)
-  if (d.toDateString() === today.toDateString()) return 'Today'
-  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
-  return d.toLocaleDateString(LOCALE, { weekday: 'short', day: '2-digit', month: 'short' })
+function dayLabel(iso: string, timeZone?: string | null) {
+  const key = dayKey(iso, timeZone)
+  if (key === dayKey(Date.now(), timeZone)) return 'Today'
+  if (key === dayKey(Date.now() + 24 * 60 * 60 * 1000, timeZone)) return 'Tomorrow'
+  return new Date(iso).toLocaleDateString(LOCALE, { weekday: 'short', day: '2-digit', month: 'short', timeZone: safeZone(timeZone) })
 }
 
-function timeLabel(iso: string) {
-  return new Date(iso).toLocaleTimeString(LOCALE, { hour: 'numeric', minute: '2-digit' })
+function timeLabel(iso: string, timeZone?: string | null) {
+  return new Date(iso).toLocaleTimeString(LOCALE, { hour: 'numeric', minute: '2-digit', timeZone: safeZone(timeZone) })
 }
 
 function formatMoney(amount: number, currency: string) {
@@ -31,13 +31,14 @@ function formatMoney(amount: number, currency: string) {
 // booking drawer for it (handoff §"Fixed booking bar"). Rendered only when there's an upcoming
 // bookable occurrence.
 export default function FixedBookingBar({
-  studioSlug, next, brandColor, stripeAccountId, paymentsEnabled,
+  studioSlug, next, brandColor, stripeAccountId, paymentsEnabled, timeZone,
 }: {
   studioSlug: string
   next: BookableOccurrence | null
   brandColor?: string
   stripeAccountId: string | null
   paymentsEnabled: boolean
+  timeZone?: string | null
 }) {
   const openOccurrence = useBookingFlow(s => s.openOccurrence)
   if (!next) return null
@@ -49,13 +50,13 @@ export default function FixedBookingBar({
       <div style={{ minWidth: 0 }}>
         <div className={styles.fixedBarLabel}>Next class</div>
         <div className={styles.fixedBarNext}>
-          {dayLabel(next.starts_at)}, {timeLabel(next.starts_at)} · {next.session_name}
+          {dayLabel(next.starts_at, timeZone)}, {timeLabel(next.starts_at, timeZone)} · {next.session_name}
         </div>
       </div>
       <button
         type="button"
         className={styles.fixedBarBtn}
-        onClick={() => openOccurrence(studioSlug, next, { brandColor, stripeAccountId, paymentsEnabled })}
+        onClick={() => openOccurrence(studioSlug, next, { brandColor, stripeAccountId, paymentsEnabled, timeZone })}
       >
         {price ? `Book · ${price}` : 'Book'}
       </button>

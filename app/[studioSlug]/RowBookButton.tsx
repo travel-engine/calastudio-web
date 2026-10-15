@@ -9,13 +9,14 @@ import styles from './photofirst.module.css'
 // "Booked" marker instead (cancellation lives in the member's account area, matching the design —
 // the row itself has no cancel affordance).
 export default function RowBookButton({
-  studioSlug, occurrence, brandColor, stripeAccountId, paymentsEnabled,
+  studioSlug, occurrence, brandColor, stripeAccountId, paymentsEnabled, timeZone,
 }: {
   studioSlug: string
   occurrence: BookableOccurrence
   brandColor?: string
   stripeAccountId: string | null
   paymentsEnabled: boolean
+  timeZone?: string | null
 }) {
   const openOccurrence = useBookingFlow(s => s.openOccurrence)
   const booked = useMemberSchedule(s => s.byOccurrence[occurrence.occurrence_id])
@@ -36,7 +37,7 @@ export default function RowBookButton({
       type="button"
       className={`${styles.rowBtn} ${full && !occurrence.is_cancelled ? styles.rowBtnWaitlist : ''}`}
       disabled={occurrence.is_cancelled}
-      onClick={() => openOccurrence(studioSlug, occurrence, { brandColor, stripeAccountId, paymentsEnabled })}
+      onClick={() => openOccurrence(studioSlug, occurrence, { brandColor, stripeAccountId, paymentsEnabled, timeZone })}
     >
       {label}
     </button>

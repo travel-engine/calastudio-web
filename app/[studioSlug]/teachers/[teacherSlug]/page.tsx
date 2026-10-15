@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import styles from '../../photofirst.module.css'
-import { formatDateTimeWithWeekday } from '@/lib/dates'
+import { formatDateTimeWithWeekday, safeZone } from '@/lib/dates'
 import { metaDescription, studioOpenGraph, studioOrigin, studioPath } from '@/lib/seo'
 import { JsonLd, personLd, breadcrumbLd, eventLd } from '@/lib/jsonLd'
 import Gallery from '../../Gallery'
@@ -55,13 +55,14 @@ interface TeacherPageData {
 
 interface PublicOrgInfo {
   name: string
+  timezone?: string | null
   theme?: string | null
   page_content?: PageContentDto | null
   contactEmail?: string | null
 }
 
-function timeRange(startIso: string, endIso: string) {
-  const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }
+function timeRange(startIso: string, endIso: string, timeZone?: string | null) {
+  const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', timeZone: safeZone(timeZone) }
   return `${new Date(startIso).toLocaleTimeString('en-AU', opts)} – ${new Date(endIso).toLocaleTimeString('en-AU', opts)}`
 }
 
@@ -207,8 +208,8 @@ export default async function TeacherLandingPage({ params }: Props) {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    <div className={styles.rowMeta}>{formatDateTimeWithWeekday(c.starts_at)}</div>
-                    <div className={styles.rowLoc}>{timeRange(c.starts_at, c.ends_at)}</div>
+                    <div className={styles.rowMeta}>{formatDateTimeWithWeekday(c.starts_at, org.timezone)}</div>
+                    <div className={styles.rowLoc}>{timeRange(c.starts_at, c.ends_at, org.timezone)}</div>
                   </div>
                 </div>
               ))}

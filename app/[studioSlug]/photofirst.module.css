@@ -24,7 +24,9 @@
   outline-offset: 3px;
 }
 
-.root a {
+/* :where() keeps this at class-level specificity, so a button class on a link (.smallBtn, .blockBtn,
+   .btnSolid…) sets its own text colour instead of being overridden to --ink. */
+.root :where(a) {
   color: var(--ink);
 }
 
