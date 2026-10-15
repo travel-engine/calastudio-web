@@ -100,6 +100,8 @@ interface BookingFlowState {
   // so it can't read these off the admin org endpoint). Set when the drawer opens.
   stripeAccountId: string | null
   paymentsEnabled: boolean
+  // Studio IANA timezone, so the drawer shows class times on the studio's clock.
+  timeZone: string | null
 
   // Resolved once the member is signed in — read by the payment step to call member-scoped endpoints.
   accessToken: string
@@ -117,7 +119,7 @@ interface BookingFlowState {
   openOccurrence: (
     studioSlug: string,
     occurrence: BookableOccurrence,
-    opts?: { brandColor?: string; stripeAccountId?: string | null; paymentsEnabled?: boolean },
+    opts?: { brandColor?: string; stripeAccountId?: string | null; paymentsEnabled?: boolean; timeZone?: string | null },
   ) => void
   close: () => void
   setStep: (step: BookingStep) => void
@@ -141,6 +143,7 @@ const initialFlowState = {
   orgId: '',
   stripeAccountId: null as string | null,
   paymentsEnabled: false,
+  timeZone: null as string | null,
   bookingOptions: null as BookingOptions | null,
   confirmedBooking: null as ConfirmedBooking | null,
   errorMessage: '',
@@ -158,6 +161,7 @@ export const useBookingFlow = create<BookingFlowState>((set) => ({
     brandColor: opts?.brandColor || DEFAULT_BRAND_COLOR,
     stripeAccountId: opts?.stripeAccountId ?? null,
     paymentsEnabled: opts?.paymentsEnabled ?? false,
+    timeZone: opts?.timeZone ?? null,
     step: 'auth',
     bookedMode: occurrence.delivery_mode,
     joiningWaitlist: isOccurrenceFull(occurrence),

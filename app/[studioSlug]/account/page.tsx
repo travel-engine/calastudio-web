@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { splitName } from '@/lib/names'
-import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
+import { formatDate, formatDateTimeWithWeekday, safeZone } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
@@ -15,6 +15,7 @@ interface OrgInfo {
   name: string
   logo_url: string | null
   brand_color: string | null
+  timezone?: string | null
 }
 
 interface Profile {
@@ -177,12 +178,12 @@ function formatMoney(amount: number, currency: string) {
   catch { return `${currency} ${amount.toFixed(2)}` }
 }
 
-function formatDateTime(iso: string) {
-  return formatDateTimeWithWeekday(iso)
+function formatDateTime(iso: string, timeZone?: string | null) {
+  return formatDateTimeWithWeekday(iso, timeZone)
 }
 
-function timeRange(startIso: string, endIso: string) {
-  const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }
+function timeRange(startIso: string, endIso: string, timeZone?: string | null) {
+  const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', timeZone: safeZone(timeZone) }
   return `${new Date(startIso).toLocaleTimeString(undefined, opts)} – ${new Date(endIso).toLocaleTimeString(undefined, opts)}`
 }
 
@@ -611,7 +612,7 @@ export default function MemberAccountPage() {
               {occ?.session?.name ?? 'Session'}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
-              {occ ? `${formatDateTime(occ.starts_at)} · ${timeRange(occ.starts_at, occ.ends_at)}` : '—'}
+              {occ ? `${formatDateTime(occ.starts_at, org?.timezone)} · ${timeRange(occ.starts_at, occ.ends_at, org?.timezone)}` : '—'}
               {w.preferred_mode === 'online' ? ' · Online' : ' · In person'}
               {w.intended_guest_count > 0 ? ` · ${w.intended_guest_count + 1} spots` : ''}
             </div>
@@ -620,7 +621,7 @@ export default function MemberAccountPage() {
             )}
             {w.status === 'promoted' && !holdExpired && (
               <div style={{ fontSize: '13px', color: 'var(--ink)', marginTop: '4px', fontWeight: 600 }}>
-                A spot opened — claim by {w.token_expires_at ? formatDateTime(w.token_expires_at) : 'soon'}
+                A spot opened — claim by {w.token_expires_at ? formatDateTime(w.token_expires_at, org?.timezone) : 'soon'}
               </div>
             )}
           </div>
@@ -670,7 +671,7 @@ export default function MemberAccountPage() {
             )}
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
-            {occ ? `${formatDateTime(occ.starts_at)} · ${timeRange(occ.starts_at, occ.ends_at)}` : '—'}
+            {occ ? `${formatDateTime(occ.starts_at, org?.timezone)} · ${timeRange(occ.starts_at, occ.ends_at, org?.timezone)}` : '—'}
             {b.booked_mode === 'online' ? ' · Online' : ' · In person'}
           </div>
           {b.booked_mode !== 'online' && sess?.location_name && (
@@ -1104,7 +1105,7 @@ export default function MemberAccountPage() {
                             }}>
                               <div>
                                 <div style={{ fontSize: '13px', fontWeight: 500 }}>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
-                                <div style={{ fontSize: '12px', color: 'var(--text-label)' }}>{formatDateTime(entry.created_at)}</div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-label)' }}>{formatDateTime(entry.created_at, org?.timezone)}</div>
                                 {entry.notes && <div style={{ fontSize: '12px', color: 'var(--text-meta)', marginTop: '2px' }}>{entry.notes}</div>}
                               </div>
                               <div style={{ textAlign: 'right' }}>
@@ -1146,7 +1147,7 @@ export default function MemberAccountPage() {
                         <span style={{ fontWeight: 400, color: 'var(--text-label)', marginLeft: '8px' }}>{formatMoney(p.amount, p.currency)}</span>
                       </div>
                       <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
-                        {formatDateTime(p.created_at)}{p.invoice_number ? ` · Invoice ${p.invoice_number}` : ''}
+                        {formatDateTime(p.created_at, org?.timezone)}{p.invoice_number ? ` · Invoice ${p.invoice_number}` : ''}
                       </div>
                       {p.refunded_amount > 0 && (
                         <div style={{ fontSize: '12px', color: '#e8a0a0', marginTop: '2px' }}>
@@ -1237,7 +1238,7 @@ export default function MemberAccountPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: '6px', columnGap: '16px', fontSize: '13px', marginBottom: '16px' }}>
                 {p.invoice_number && (<><span style={{ color: 'var(--text-label)' }}>Invoice number</span><span style={{ fontWeight: 600 }}>{p.invoice_number}</span></>)}
-                <span style={{ color: 'var(--text-label)' }}>Date</span><span>{formatDateTime(p.created_at)}</span>
+                <span style={{ color: 'var(--text-label)' }}>Date</span><span>{formatDateTime(p.created_at, org?.timezone)}</span>
               </div>
 
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: '12px', fontSize: '13px' }}>

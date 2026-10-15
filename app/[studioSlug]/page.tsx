@@ -29,6 +29,8 @@ interface PublicOrgInfo {
   banner_url: string | null
   brand_color: string | null
   currency: string
+  // IANA zone (e.g. Australia/Brisbane). Class times are shown on the studio's clock.
+  timezone?: string | null
   stripe_account_id: string | null
   payments_enabled: boolean
   theme?: string | null
@@ -115,6 +117,7 @@ export default async function StudioHomePage({ params }: Props) {
     brandColor,
     stripeAccountId: org.stripe_account_id,
     paymentsEnabled: org.payments_enabled,
+    timeZone: org.timezone ?? null,
   }
 
   const headline = content.heroHeadline ?? `Practise with ${org.name}`

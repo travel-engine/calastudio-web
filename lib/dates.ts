@@ -1,5 +1,10 @@
 // Shared date formatting. House style for a plain date is dd-mmm-yyyy (e.g. 05-Sep-2026)
 // — unambiguous across locales. Time is appended locale-formatted where a timestamp is shown.
+//
+// Every formatter takes an optional IANA `timeZone`. Pass the studio's timezone for class times
+// and anything else tied to the studio's clock: without it the runtime's zone is used, which on
+// the server (Vercel) is UTC and in the browser is wherever the visitor is. Omit it for date-only
+// values like '2026-09-05' (join dates, expiry dates) — those aren't instants.
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -10,34 +15,81 @@ function toDate(input: DateInput): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
+// An unknown zone throws in Intl; fall back to the runtime zone rather than crash a page.
+export function safeZone(timeZone: string | null | undefined): string | undefined {
+  if (!timeZone) return undefined
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone })
+    return timeZone
+  } catch {
+    return undefined
+  }
+}
+
+/** Calendar day/month/year of `d` as seen in `timeZone` (runtime zone if omitted). */
+function ymd(d: Date, timeZone?: string): { y: number; m: number; day: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: safeZone(timeZone), year: 'numeric', month: 'numeric', day: 'numeric',
+  }).formatToParts(d)
+  const get = (t: string) => Number(parts.find(p => p.type === t)?.value)
+  return { y: get('year'), m: get('month'), day: get('day') }
+}
+
 /** 05-Sep-2026 */
-export function formatDate(input: DateInput): string {
+export function formatDate(input: DateInput, timeZone?: string | null): string {
   const d = toDate(input)
   if (!d) return ''
-  return `${String(d.getDate()).padStart(2, '0')}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`
+  const { y, m, day } = ymd(d, timeZone ?? undefined)
+  return `${String(day).padStart(2, '0')}-${MONTHS[m - 1]}-${y}`
+}
+
+/** 9:00 AM */
+export function formatTime(input: DateInput, timeZone?: string | null): string {
+  const d = toDate(input)
+  if (!d) return ''
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: safeZone(timeZone) })
 }
 
 /** 05-Sep-2026 9:00 AM */
-export function formatDateTime(input: DateInput): string {
+export function formatDateTime(input: DateInput, timeZone?: string | null): string {
   const d = toDate(input)
   if (!d) return ''
-  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-  return `${formatDate(d)} ${time}`
+  return `${formatDate(d, timeZone)} ${formatTime(d, timeZone)}`
 }
 
 /** Sat 05-Sep-2026 */
-export function formatDateWithWeekday(input: DateInput): string {
+export function formatDateWithWeekday(input: DateInput, timeZone?: string | null): string {
   const d = toDate(input)
   if (!d) return ''
-  return `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${formatDate(d)}`
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'short', timeZone: safeZone(timeZone) })
+  return `${weekday} ${formatDate(d, timeZone)}`
 }
 
 /** Sat 05-Sep-2026 9:00 AM */
-export function formatDateTimeWithWeekday(input: DateInput): string {
+export function formatDateTimeWithWeekday(input: DateInput, timeZone?: string | null): string {
   const d = toDate(input)
   if (!d) return ''
-  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-  return `${formatDateWithWeekday(d)} ${time}`
+  return `${formatDateWithWeekday(d, timeZone)} ${formatTime(d, timeZone)}`
+}
+
+/** '2026-09-05' — the calendar day `input` falls on in `timeZone`. Use to group by day. */
+export function dayKey(input: DateInput, timeZone?: string | null): string {
+  const d = toDate(input)
+  if (!d) return ''
+  const { y, m, day } = ymd(d, timeZone ?? undefined)
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+/** "Today", "Tomorrow", else "Sat 05-Sep-2026" — relative to now, in `timeZone`. */
+export function formatDayLabel(input: DateInput, timeZone?: string | null): string {
+  const d = toDate(input)
+  if (!d) return ''
+  const key = dayKey(d, timeZone)
+  const now = Date.now()
+  if (key === dayKey(now, timeZone)) return 'Today'
+  // +24h lands on tomorrow's date in any zone (DST shifts are ≤1h, never a whole day).
+  if (key === dayKey(now + 24 * 60 * 60 * 1000, timeZone)) return 'Tomorrow'
+  return formatDateWithWeekday(d, timeZone)
 }
 
 /** Compact "time since": "just now", "5m ago", "3h ago", "2d ago", then falls back to 05-Sep-2026 */
