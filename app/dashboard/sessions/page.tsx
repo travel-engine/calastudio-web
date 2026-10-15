@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { getOrgContext } from '@/lib/orgContext'
 import { useRouter } from 'next/navigation'
@@ -230,7 +231,11 @@ export default function SessionsPage() {
                   borderBottom: i < sessions.length - 1 ? '1px solid #f4f4f4' : 'none'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* The whole Session cell opens the session — same target as the Edit/View button. */}
+                <Link
+                  href={`/dashboard/sessions/${session.id}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'inherit', textDecoration: 'none' }}
+                >
                   <div style={{
                     width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#f4f4f4',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0
@@ -243,7 +248,7 @@ export default function SessionsPage() {
                   </div>
                   <div>
                     <div
-                      style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', cursor: 'default' }}
+                      style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}
                       title={(session as any).description ?? undefined}
                     >
                       {session.name}
@@ -254,7 +259,7 @@ export default function SessionsPage() {
                       {(session as any).is_recurring ? ' · Weekly' : ' · One-off'}
                     </div>
                   </div>
-                </div>
+                </Link>
                 <div><Badge text={session.session_type} /></div>
                 <div><Badge text={session.delivery_mode} /></div>
                 <div style={{ fontSize: '14px', color: '#444' }}>
