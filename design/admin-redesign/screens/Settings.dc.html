@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CalaStudio · Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F3F4F1;font-family:'Figtree',system-ui,sans-serif;color:#17201C}
+a{color:#14513F}a:hover{color:#0C3A2D}
+.shell{display:flex;flex-wrap:wrap;min-height:100vh}
+.side{flex:1 1 236px;max-width:100%;background:#FFFFFF;border-right:1px solid #E1E3DE;padding:20px 14px;display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 12px 8px;font-weight:700;font-size:18px;letter-spacing:-0.01em}
+.grp{padding:18px 12px 6px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6A726E}
+.navlink{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:10px;color:#3C4541;text-decoration:none;font-weight:500;font-size:15px}
+.navlink:hover{background:#F3F4F1;color:#17201C}
+.navlink.on{background:#E2EEE9;color:#0C3A2D;font-weight:600}
+.navlink svg{width:20px;height:20px;flex:none}
+.signout{margin-top:auto;padding-top:24px}
+.main{flex:999 1 560px;min-width:0}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid #E1E3DE}
+.search{display:flex;align-items:center;gap:10px;flex:0 1 420px;min-height:44px;padding:0 14px;background:#FFFFFF;border:1px solid #DADDD7;border-radius:10px;box-sizing:border-box}
+.search input{border:0;outline:0;font:400 15px 'Figtree',sans-serif;width:100%;background:transparent;color:#17201C}
+.iconbtn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid #DADDD7;background:#FFFFFF;color:#3C4541;cursor:pointer}
+.avatar{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:none}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 32px 56px;display:flex;flex-direction:column;gap:20px}
+.card{background:#FFFFFF;border:1px solid #E1E3DE;border-radius:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:10px;font:600 15px 'Figtree',sans-serif;border:1px solid #CDD1CB;background:#FFFFFF;color:#17201C;cursor:pointer;text-decoration:none;white-space:nowrap;box-sizing:border-box}
+.btn.pri{background:#14513F;border-color:#14513F;color:#FFFFFF}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px}
+.label{font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5A635F}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;background:#EDEEEA;color:#3C4541}
+.h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:44px;line-height:1.05}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.num{font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:4px;border-bottom:1px solid #E1E3DE;flex-wrap:wrap}
+.tabs button{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;font:600 15px 'Figtree',sans-serif;color:#5A635F;background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
+.tabs button[aria-pressed="true"]{color:#0C3A2D;border-bottom-color:#14513F}
+.toc{display:flex;flex-direction:column;gap:2px;padding:10px}
+.toc a{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px;padding:0 12px;border-radius:8px;font-size:14px;font-weight:500;color:#3C4541;text-decoration:none}
+.toc a:hover{background:#F3F4F1;color:#17201C}
+.sec{padding:22px 24px;display:flex;flex-direction:column;gap:18px}
+.sechd{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px}
+.sechd h2{margin:0;font-size:18px;font-weight:600}
+.sechd p{margin:4px 0 0;font-size:14px;line-height:1.45;color:#5A635F;max-width:560px}
+.f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.f > span{font-size:14px;font-weight:600}
+.f small{font-size:13px;color:#5A635F;line-height:1.4}
+.in{min-height:44px;padding:0 12px;border:1px solid #CDD1CB;border-radius:10px;font:400 15px 'Figtree',sans-serif;color:#17201C;background:#FFFFFF;box-sizing:border-box;width:100%}
+textarea.in{padding:10px 12px;min-height:96px;resize:vertical;line-height:1.45}
+.ro{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:0 12px;border:1px dashed #CDD1CB;border-radius:10px;font-size:15px;color:#3C4541;background:#F7F8F5}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}
+.sw{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid #EDEEEA}
+.sw strong{font-size:15px;font-weight:600}
+.sw small{display:block;margin-top:2px;font-size:13px;color:#5A635F;line-height:1.4}
+.toggle{position:relative;width:48px;height:28px;border-radius:14px;border:0;flex:none;cursor:pointer;padding:0}
+.toggle i{position:absolute;top:3px;width:22px;height:22px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 2px rgba(23,32,28,0.25)}
+.foot{display:flex;justify-content:flex-end;gap:10px;padding-top:4px}
+.theme{display:flex;flex-direction:column;gap:10px;padding:10px;border-radius:12px;background:#FFFFFF;cursor:pointer;text-align:left;font-family:'Figtree',sans-serif;color:#17201C}
+.pv{height:84px;border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box}
+.crow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:14px 0;border-top:1px solid #EDEEEA}
+</style>
+</helmet>
+<div class="shell">
+  <nav class="side" aria-label="Main">
+    <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#14513F"></rect><path d="M6 17c2.5-3 5-3 8 0s5.5 3 8 0" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"></path><circle cx="14" cy="10" r="2.4" fill="#FFFFFF"></circle></svg>CalaStudio</div>
+    <div class="grp">Studio</div>
+    <a class="navlink" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>Dashboard</a>
+    <a class="navlink" href="Schedule.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg>Schedule</a>
+    <a class="navlink" href="Sessions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 7.5l9 4.5 9-4.5z"></path><path d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5"></path></svg>Sessions</a>
+    <a class="navlink" href="Member.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.4 3.5 5.2"></path></svg>Members</a>
+    <div class="grp">Revenue</div>
+    <a class="navlink" href="Passes.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h15A1.5 1.5 0 0 1 21 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5V14a2 2 0 0 0 0-4z"></path><path d="M14 6v12" stroke-dasharray="2 2.5"></path></svg>Passes</a>
+    <a class="navlink" href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-6M2 20h20"></path></svg>Reports</a>
+    <div class="grp">Settings</div>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="8" r="3.5"></circle><path d="M3.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M19 8v6M16 11h6"></path></svg>Team</a>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Activity log</a>
+    <a class="navlink on" href="Settings.dc.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg>Settings</a>
+    <div class="signout"><button class="btn" type="button" style="width: 100%; justify-content: center">Sign out</button></div>
+  </nav>
+
+  <main class="main">
+    <header class="top">
+      <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A635F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span class="sr">Search</span><input type="search" placeholder="Search members, sessions, passes"></label>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <button class="iconbtn" type="button" aria-label="Help"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"></path></svg></button>
+        <button class="iconbtn" type="button" aria-label="Account" style="border-radius: 50%; padding: 0"><span class="avatar" style="background: #14513F; color: #FFFFFF">RM</span></button>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="label">Yoga with Ravi</span>
+          <h1 class="h1">Settings</h1>
+        </div>
+        <a class="btn" href="#">View booking page</a>
+      </div>
+
+      <div class="tabs" role="group" aria-label="Settings area">
+        <button type="button" aria-pressed="{{studioPressed}}" onClick="{{showStudio}}">Studio</button>
+        <button type="button" aria-pressed="{{pagePressed}}" onClick="{{showPage}}">Booking page</button>
+      </div>
+
+      <sc-if value="{{onStudio}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+          <nav class="card toc" aria-label="Settings sections" style="flex: 1 1 220px; min-width: 0">
+            <a href="#profile">Studio profile</a>
+            <a href="#region">Region &amp; time zone<span class="chip" style="background: #FBEFD9; color: #7A4508; min-height: 22px; font-size: 12px">Fix</span></a>
+            <a href="#policy">Booking policy</a>
+            <a href="#waiver">Liability waiver</a>
+            <a href="#payments">Payments</a>
+            <a href="#tax">Tax (GST)</a>
+          </nav>
+
+          <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+            <section class="card" style="padding: 16px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; background: #FBF4E6; border-color: #EBD9B4">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A4F08" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20z"></path><path d="M12 10v4M12 17h.01"></path></svg>
+              <span style="flex: 1 1 320px; font-size: 15px; line-height: 1.45; color: #4A2E05"><strong style="font-weight: 600">Your time zone isn't set.</strong> Class times, pass expiry and email times depend on it.</span>
+              <a class="btn sm" href="#region">Set to Brisbane</a>
+            </section>
+
+            <section id="profile" class="card sec">
+              <div class="sechd"><div><h2>Studio profile</h2><p>Shown on your booking page, receipts and emails.</p></div></div>
+              <label class="f"><span>Studio name</span><input class="in" type="text" value="Yoga with Ravi"></label>
+              <label class="f"><span>Description</span><textarea class="in">Yoga with Ravi - Community Yoga Classes @ North Lakes &amp; Brighton. Hatha &amp; Vinyasa - We will be practicing a mix of basic &amp; intermediate postures.</textarea></label>
+              <div class="grid2">
+                <label class="f"><span>Contact email</span><input class="in" type="email" placeholder="[Contact email]"></label>
+                <label class="f"><span>Phone</span><input class="in" type="tel" placeholder="Optional"></label>
+              </div>
+              <div class="f"><span>Business address</span><small style="margin-top: -2px">Printed on the receipts members download.</small></div>
+              <label class="f"><span class="sr">Address line 1</span><input class="in" type="text" placeholder="[Address line 1]"></label>
+              <div class="grid3">
+                <label class="f"><span>Suburb</span><input class="in" type="text" placeholder="[Suburb]"></label>
+                <label class="f"><span>State</span><select class="in"><option>QLD</option><option>NSW</option><option>VIC</option></select></label>
+                <label class="f"><span>Postcode</span><input class="in num" type="text" placeholder="[Postcode]"></label>
+              </div>
+              <div class="foot"><button class="btn pri" type="button">Save profile</button></div>
+            </section>
+
+            <section id="region" class="card sec">
+              <div class="sechd"><div><h2>Region &amp; time zone</h2><p>Country and currency were set when you signed up and drive tax rules and Stripe payouts.</p></div></div>
+              <div class="grid2">
+                <label class="f"><span>Time zone</span><select class="in" style="border-color: #C77A12"><option>Choose a time zone…</option><option>Australia/Brisbane (UTC+10)</option><option>Australia/Sydney</option><option>Australia/Melbourne</option><option>Australia/Perth</option></select><small>Suggested: Australia/Brisbane. Type to search all time zones.</small></label>
+                <label class="f"><span>Date &amp; number format</span><select class="in"><option>English (Australia) · 18 Oct 2026</option><option>English (US) · Oct 18, 2026</option></select></label>
+              </div>
+              <div class="grid2">
+                <div class="f"><span>Country</span><div class="ro">Australia<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A635F" stroke-width="2" stroke-linecap="round" aria-label="Locked" role="img"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></div></div>
+                <div class="f"><span>Currency</span><div class="ro">AUD · Australian dollar<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A635F" stroke-width="2" stroke-linecap="round" aria-label="Locked" role="img"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></div></div>
+              </div>
+              <div class="foot"><button class="btn pri" type="button">Save</button></div>
+            </section>
+
+            <section id="policy" class="card sec">
+              <div class="sechd"><div><h2>Booking policy</h2><p>Studio-wide defaults. A session can override these on its own page.</p></div></div>
+              <div class="grid3">
+                <label class="f"><span>Free cancellation until</span><input class="in" type="text" placeholder="[N] hours before"><small>After this, it's a late cancel.</small></label>
+                <label class="f"><span>Booking closes</span><input class="in" type="text" placeholder="e.g. 1 hour before"><small>Latest time someone can book.</small></label>
+                <label class="f"><span>Book up to</span><input class="in" type="text" placeholder="e.g. 30 days ahead"><small>How far ahead members can book.</small></label>
+              </div>
+              <div class="sw"><span><strong>Late cancellations use up the pass credit</strong><small>When a member cancels after the free window closes.</small></span><button class="toggle" type="button" role="switch" aria-checked="{{lateOn}}" aria-label="Late cancellations use up the pass credit" onClick="{{toggleLate}}" style="{{lateStyle}}"><i style="{{lateKnob}}"></i></button></div>
+              <div class="foot"><button class="btn pri" type="button">Save policy</button></div>
+            </section>
+
+            <section id="waiver" class="card sec">
+              <div class="sechd"><div><h2>Liability waiver</h2><p>Your studio's own waiver. CalaStudio's platform terms are separate and the same for every studio.</p></div><span class="chip" style="background: #E2EEE9; color: #0C3A2D">Version 3 live</span></div>
+              <div class="sw" style="border-top: 0; padding-top: 0"><span><strong>Require a waiver before a member's first booking</strong><small>Turn off if your studio doesn't run physical activity.</small></span><button class="toggle" type="button" role="switch" aria-checked="{{waiverOn}}" aria-label="Require a waiver" onClick="{{toggleWaiver}}" style="{{waiverStyle}}"><i style="{{waiverKnob}}"></i></button></div>
+              <label class="f"><span>Waiver text</span><textarea class="in" style="min-height: 140px">[Your waiver: house rules, risk acknowledgement, medical declaration, photo consent]</textarea></label>
+              <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 10px; background: #F4F9F6">
+                <span style="flex: 1 1 300px; font-size: 14px; line-height: 1.45; color: #3C4541">Publishing new wording creates version 4. Every member re-accepts it before their next booking.</span>
+                <div style="display: flex; gap: 10px"><button class="btn sm" type="button">See past versions</button><button class="btn pri sm" type="button">Publish version 4</button></div>
+              </div>
+            </section>
+
+            <section id="payments" class="card sec">
+              <div class="sechd"><div><h2>Payments</h2><p>Members pay by card and the money goes straight to your bank. CalaStudio takes no commission.</p></div></div>
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid #E1E3DE; border-radius: 12px">
+                <span style="width: 44px; height: 44px; border-radius: 10px; background: #EEEBFB; color: #4B3BB0; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px">S</span>
+                <span style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px"><strong style="font-size: 16px; font-weight: 600">Stripe</strong><span style="font-size: 14px; color: #5A635F">Account ending …1gwa</span></span>
+                <span class="chip" style="background: #E2EEE9; color: #0C3A2D"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>Connected</span>
+                <a class="btn sm" href="#">Open Stripe dashboard</a>
+              </div>
+            </section>
+
+            <section id="tax" class="card sec">
+              <div class="sechd"><div><h2>Tax (GST)</h2><p>Shown on prices and receipts.</p></div></div>
+              <div class="sw" style="border-top: 0; padding-top: 0"><span><strong>Charge GST on bookings</strong></span><button class="toggle" type="button" role="switch" aria-checked="{{taxOn}}" aria-label="Charge GST on bookings" onClick="{{toggleTax}}" style="{{taxStyle}}"><i style="{{taxKnob}}"></i></button></div>
+              <div class="grid2">
+                <label class="f"><span>Tax name</span><input class="in" type="text" value="GST"></label>
+                <label class="f"><span>ABN</span><input class="in num" type="text" placeholder="[ABN]"><small>Printed on receipts.</small></label>
+              </div>
+              <div class="f">
+                <span>Rates</span>
+                <div style="border: 1px solid #E1E3DE; border-radius: 12px; overflow: hidden">
+                  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 14px">
+                    <span class="num" style="font-size: 18px; font-weight: 600; width: 56px">10%</span>
+                    <span class="num" style="flex: 1 1 200px; font-size: 14px; color: #3C4541">From 1 Jan 2026 · note: “QA test rate”</span>
+                    <span class="chip" style="background: #E2EEE9; color: #0C3A2D">Current</span>
+                  </div>
+                </div>
+                <small>A new rate takes over on its start date; the old one ends the day before.</small>
+              </div>
+              <div class="foot" style="justify-content: space-between"><button class="btn sm" type="button">Add a future rate</button><button class="btn pri" type="button">Save tax settings</button></div>
+            </section>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{onPage}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 20px">
+          <section class="card sec">
+            <div class="sechd"><div><h2>Branding</h2><p>Your logo and colour appear across your public pages.</p></div></div>
+            <div class="grid2">
+              <div class="f"><span>Logo</span><div style="display: flex; align-items: center; gap: 12px"><span style="width: 56px; height: 56px; border-radius: 12px; background: #E2EEE9; display: inline-flex; align-items: center; justify-content: center; color: #14513F" role="img" aria-label="Logo placeholder"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="m21 16-5-5-8 8"></path></svg></span><button class="btn sm" type="button">Replace</button><button class="btn sm" type="button" style="color: #8F1F17">Remove</button></div></div>
+              <label class="f"><span>Brand colour</span><span style="display: flex; align-items: center; gap: 10px"><span style="width: 44px; height: 44px; border-radius: 10px; background: #085041; flex: none" aria-hidden="true"></span><input class="in num" type="text" value="#085041"></span></label>
+            </div>
+          </section>
+
+          <section class="card sec">
+            <div class="sechd"><div><h2>Page style</h2><p>One layout, six looks. Your logo and colour carry across all of them.</p></div><a class="btn sm" href="#">Preview</a></div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px">
+              <sc-for list="{{themes}}" as="t" hint-placeholder-count="6">
+                <button type="button" class="theme" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}" style="{{t.ring}}">
+                  <span class="pv" style="{{t.pv}}"><span style="{{t.title}}">Vinyasa · all levels</span><span style="display: flex; align-items: center; gap: 8px"><span style="{{t.book}}">Book</span><span style="{{t.meta}}">6:30 am · 75 min</span></span></span>
+                  <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px"><strong style="font-size: 15px; font-weight: 600">{{t.name}}</strong><sc-if value="{{t.sel}}" hint-placeholder-val="{{ false }}"><span class="chip" style="background: #E2EEE9; color: #0C3A2D; min-height: 22px; font-size: 12px">In use</span></sc-if></span>
+                  <span style="font-size: 13px; line-height: 1.4; color: #5A635F; padding: 0 4px 4px">{{t.desc}}</span>
+                </button>
+              </sc-for>
+            </div>
+          </section>
+
+          <section class="card sec">
+            <div class="sechd"><div><h2>Page content</h2><p>The words and photos around your schedule. Class times, prices and teacher bios fill in automatically.</p></div></div>
+            <div>
+              <sc-for list="{{content}}" as="c" hint-placeholder-count="6">
+                <div class="crow">
+                  <span style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px"><strong style="font-size: 15px; font-weight: 600">{{c.name}}</strong><span style="font-size: 14px; color: #5A635F">{{c.val}}</span></span>
+                  <button class="btn sm" type="button">Edit</button>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2200}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'studio', late: true, waiver: true, tax: true, theme: 'Classic' };
+  }
+  renderVals() {
+    const st = this.state;
+    const sw = (on) => ({ style: 'background:' + (on ? '#14513F' : '#C4C9C5'), knob: 'left:' + (on ? '23px' : '3px') });
+    const late = sw(st.late), waiver = sw(st.waiver), tax = sw(st.tax);
+    const T = [
+      { name: 'Classic', desc: 'Light and familiar. Gets out of the way.', pv: 'background:#FFFFFF;border:1px solid #E1E3DE', title: 'font-size:14px;font-weight:600;color:#17201C', book: 'padding:3px 8px;border-radius:5px;background:#085041;color:#FFFFFF;font-size:11px;font-weight:700', meta: 'font-size:11px;color:#5A635F' },
+      { name: 'Night', desc: 'Dark and photo-led. Best with strong images.', pv: 'background:#131614', title: 'font-size:14px;font-weight:600;color:#FFFFFF', book: 'padding:3px 8px;border-radius:5px;background:#FFFFFF;color:#131614;font-size:11px;font-weight:700', meta: 'font-size:11px;color:#C9CFCB' },
+      { name: 'Clay', desc: 'Warm and quiet. Serif headings on sand.', pv: 'background:#EDE4D6', title: 'font-size:15px;font-family:Instrument Serif,Georgia,serif;color:#3A2A1C', book: 'padding:3px 8px;border-radius:5px;background:#6B3E22;color:#FFFFFF;font-size:11px;font-weight:700', meta: 'font-size:11px;color:#6B5A48' },
+      { name: 'Grid', desc: 'Crisp and businesslike, one signal colour.', pv: 'background:#FAFAF7;border:1px solid #17201C', title: 'font-size:13px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;color:#17201C', book: 'padding:3px 8px;background:#D2401C;color:#FFFFFF;font-size:11px;font-weight:700', meta: 'font-size:11px;color:#3C4541' },
+      { name: 'Poster', desc: 'Loud colour blocks for workshops and courses.', pv: 'background:#F2C230', title: 'font-size:15px;font-weight:800;color:#1B1B1B', book: 'padding:3px 8px;border-radius:5px;background:#1B1B1B;color:#F2C230;font-size:11px;font-weight:700', meta: 'font-size:11px;color:#3B3216' },
+      { name: 'Photo First', desc: 'One full-screen photo with your name over it.', pv: 'background:#2E3B35', title: 'font-size:15px;font-weight:600;color:#FFFFFF', book: 'padding:3px 8px;border-radius:5px;background:#FFFFFF;color:#2E3B35;font-size:11px;font-weight:700', meta: 'font-size:11px;color:#D7DDD9' }
+    ];
+    const themes = T.map((t) => ({ ...t, sel: st.theme === t.name, pressed: st.theme === t.name ? 'true' : 'false',
+      ring: st.theme === t.name ? 'border:2px solid #14513F' : 'border:1px solid #E1E3DE',
+      pick: () => this.setState({ theme: t.name }) }));
+    const done = 'background:#E2EEE9;color:#0C3A2D', todo = 'background:#FBEFD9;color:#7A4508';
+    const content = [
+      { name: 'Hero', val: 'Tagline, headline, intro and button', state: '[Check]', style: done },
+      { name: 'Hero photo', val: 'Portrait works best', state: 'Added', style: done },
+      { name: 'About', val: 'Heading, text and photo', state: '[Check]', style: done },
+      { name: 'Passes intro', val: 'Defaults to “Passes, or pay as you go”', state: 'Default', style: 'background:#EDEEEA;color:#3C4541' },
+      { name: 'Photo gallery', val: '12 photos', state: 'Added', style: done },
+      { name: 'Social links', val: 'Instagram, Facebook, TikTok, YouTube', state: '[Check]', style: todo }
+    ];
+    return {
+      onStudio: st.tab === 'studio', onPage: st.tab === 'page',
+      studioPressed: st.tab === 'studio' ? 'true' : 'false', pagePressed: st.tab === 'page' ? 'true' : 'false',
+      showStudio: () => this.setState({ tab: 'studio' }), showPage: () => this.setState({ tab: 'page' }),
+      lateOn: st.late ? 'true' : 'false', lateStyle: late.style, lateKnob: late.knob, toggleLate: () => this.setState({ late: !st.late }),
+      waiverOn: st.waiver ? 'true' : 'false', waiverStyle: waiver.style, waiverKnob: waiver.knob, toggleWaiver: () => this.setState({ waiver: !st.waiver }),
+      taxOn: st.tax ? 'true' : 'false', taxStyle: tax.style, taxKnob: tax.knob, toggleTax: () => this.setState({ tax: !st.tax }),
+      themes, content
+    };
+  }
+}
+</script>
+</body>
+</html>

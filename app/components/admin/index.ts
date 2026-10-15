@@ -1,0 +1,12 @@
+// Shared admin components (design/admin-redesign handoff §4). Tokens: lib/ui/tokens.ts.
+export { default as Button, buttonStyle } from './Button'
+export { default as Card, cardStyle } from './Card'
+export { default as Chip, type ChipTone } from './Chip'
+export { default as PageHeader, smallCapsStyle } from './PageHeader'
+export { default as StatTile } from './StatTile'
+export { default as CapacityBar, capacityColor } from './CapacityBar'
+export { default as Field, controlStyle } from './Field'
+export { default as Segmented } from './Segmented'
+export { default as Toggle } from './Toggle'
+export { default as Breadcrumb } from './Breadcrumb'
+export { default as EmptyState } from './EmptyState'

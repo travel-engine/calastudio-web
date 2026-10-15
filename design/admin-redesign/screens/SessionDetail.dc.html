@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CalaStudio · Session</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F3F4F1;font-family:'Figtree',system-ui,sans-serif;color:#17201C}
+a{color:#14513F}a:hover{color:#0C3A2D}
+.shell{display:flex;flex-wrap:wrap;min-height:100vh}
+.side{flex:1 1 236px;max-width:100%;background:#FFFFFF;border-right:1px solid #E1E3DE;padding:20px 14px;display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 12px 8px;font-weight:700;font-size:18px;letter-spacing:-0.01em}
+.grp{padding:18px 12px 6px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6A726E}
+.navlink{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:10px;color:#3C4541;text-decoration:none;font-weight:500;font-size:15px}
+.navlink:hover{background:#F3F4F1;color:#17201C}
+.navlink.on{background:#E2EEE9;color:#0C3A2D;font-weight:600}
+.navlink svg{width:20px;height:20px;flex:none}
+.signout{margin-top:auto;padding-top:24px}
+.main{flex:999 1 560px;min-width:0}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid #E1E3DE}
+.search{display:flex;align-items:center;gap:10px;flex:0 1 420px;min-height:44px;padding:0 14px;background:#FFFFFF;border:1px solid #DADDD7;border-radius:10px;box-sizing:border-box}
+.search input{border:0;outline:0;font:400 15px 'Figtree',sans-serif;width:100%;background:transparent;color:#17201C}
+.iconbtn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid #DADDD7;background:#FFFFFF;color:#3C4541;cursor:pointer}
+.avatar{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:none}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 32px 56px;display:flex;flex-direction:column;gap:20px}
+.card{background:#FFFFFF;border:1px solid #E1E3DE;border-radius:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:10px;font:600 15px 'Figtree',sans-serif;border:1px solid #CDD1CB;background:#FFFFFF;color:#17201C;cursor:pointer;text-decoration:none;white-space:nowrap;box-sizing:border-box}
+.btn.pri{background:#14513F;border-color:#14513F;color:#FFFFFF}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px}
+.label{font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5A635F}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;background:#EDEEEA;color:#3C4541}
+.h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:40px;line-height:1.05}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.num{font-variant-numeric:tabular-nums}
+.sec{padding:22px 24px;display:flex;flex-direction:column;gap:18px}
+.sec h2{margin:0;font-size:18px;font-weight:600}
+.sec .lead{margin:-12px 0 0;font-size:14px;color:#5A635F}
+.f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.f > span{font-size:14px;font-weight:600}
+.f small{font-size:13px;color:#5A635F;line-height:1.4}
+.in{min-height:44px;padding:0 12px;border:1px solid #CDD1CB;border-radius:10px;font:400 15px 'Figtree',sans-serif;color:#17201C;background:#FFFFFF;box-sizing:border-box;width:100%}
+textarea.in{padding:10px 12px;min-height:88px;resize:vertical;line-height:1.45}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.seg{display:inline-flex;padding:4px;border-radius:12px;background:#E7EAE5;gap:4px;flex-wrap:wrap;align-self:flex-start}
+.seg button{min-height:36px;padding:0 14px;border-radius:8px;border:0;background:transparent;font:600 14px 'Figtree',sans-serif;color:#3C4541;cursor:pointer}
+.seg button[aria-pressed="true"]{background:#FFFFFF;color:#17201C;box-shadow:0 1px 2px rgba(23,32,28,0.12)}
+.chk{display:flex;align-items:center;gap:10px;min-height:40px;font-size:15px;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:#14513F;flex:none}
+.occ{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid #EDEEEA}
+</style>
+</helmet>
+<div class="shell">
+  <nav class="side" aria-label="Main">
+    <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#14513F"></rect><path d="M6 17c2.5-3 5-3 8 0s5.5 3 8 0" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"></path><circle cx="14" cy="10" r="2.4" fill="#FFFFFF"></circle></svg>CalaStudio</div>
+    <div class="grp">Studio</div>
+    <a class="navlink" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>Dashboard</a>
+    <a class="navlink" href="Schedule.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg>Schedule</a>
+    <a class="navlink on" href="Sessions.dc.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 7.5l9 4.5 9-4.5z"></path><path d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5"></path></svg>Sessions</a>
+    <a class="navlink" href="Member.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.4 3.5 5.2"></path></svg>Members</a>
+    <div class="grp">Revenue</div>
+    <a class="navlink" href="Passes.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h15A1.5 1.5 0 0 1 21 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5V14a2 2 0 0 0 0-4z"></path><path d="M14 6v12" stroke-dasharray="2 2.5"></path></svg>Passes</a>
+    <a class="navlink" href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-6M2 20h20"></path></svg>Reports</a>
+    <div class="grp">Settings</div>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="8" r="3.5"></circle><path d="M3.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M19 8v6M16 11h6"></path></svg>Team</a>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Activity log</a>
+    <a class="navlink" href="Settings.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg>Settings</a>
+    <div class="signout"><button class="btn" type="button" style="width: 100%; justify-content: center">Sign out</button></div>
+  </nav>
+
+  <main class="main">
+    <header class="top">
+      <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A635F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span class="sr">Search</span><input type="search" placeholder="Search members, sessions, passes"></label>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <button class="iconbtn" type="button" aria-label="Help"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"></path></svg></button>
+        <button class="iconbtn" type="button" aria-label="Account" style="border-radius: 50%; padding: 0"><span class="avatar" style="background: #14513F; color: #FFFFFF">RM</span></button>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <nav aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600"><a href="Sessions.dc.html" style="text-decoration: none">Sessions</a><span style="color: #8A918D">/</span><span style="color: #5A635F">Saturday Morning Yoga · North Lakes</span></nav>
+
+      <section class="card" style="padding: 22px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px">
+        <div style="width: 96px; height: 96px; border-radius: 14px; background: #E2EEE9; color: #14513F; display: flex; align-items: center; justify-content: center; flex: none" role="img" aria-label="Session photo placeholder"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="1.6"></circle><path d="m21 16-5-5-8 8"></path></svg></div>
+        <div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+          <h1 class="h1">Saturday Morning Yoga · North Lakes</h1>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px">
+            <span class="chip" style="background: #E2EEE9; color: #0C3A2D">Public</span>
+            <span class="chip">Every Sat · 7:00 am · 60 min</span>
+            <span class="chip">Base Training Centre</span>
+            <span class="chip">Ravi Platray</span>
+            <span class="chip">A$6.00 drop-in</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px">
+          <a class="btn" href="#">View booking page</a>
+          <button class="btn" type="button">Duplicate</button>
+        </div>
+      </section>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+        <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+
+          <section class="card sec">
+            <h2>Basics</h2>
+            <label class="f"><span>Session name</span><input class="in" type="text" value="Saturday Morning Yoga - North lakes"></label>
+            <label class="f"><span>Description</span><textarea class="in">Workshop style class - we will be working on yoga arm balances and variations</textarea><small>Shown on your booking page.</small></label>
+            <div class="grid2">
+              <div class="f"><span>Type</span><div class="seg" role="group" aria-label="Type"><button type="button" aria-pressed="true">Class</button><button type="button" aria-pressed="false">Workshop</button></div></div>
+              <label class="f"><span>Duration</span><select class="in"><option>45 minutes</option><option selected>60 minutes</option><option>75 minutes</option><option>90 minutes</option></select></label>
+            </div>
+            <label class="f"><span>Teacher</span><select class="in"><option>Unassigned</option><option>Sarah Jones</option><option selected>Ravi Platray</option><option>Test Teacher</option></select><small>The class appears in this teacher's own schedule and bookings.</small></label>
+            <div class="f"><span>Photo</span><div style="display: flex; gap: 10px"><button class="btn sm" type="button">Replace photo</button><button class="btn sm" type="button" style="color: #8F1F17">Remove</button></div></div>
+          </section>
+
+          <section class="card sec">
+            <h2>Where</h2>
+            <div class="f"><span>Delivery</span><div class="seg" role="group" aria-label="Delivery"><button type="button" aria-pressed="true">In person</button><button type="button" aria-pressed="false">Online</button></div></div>
+            <div class="grid2">
+              <label class="f"><span>Venue</span><input class="in" type="text" value="Base Training Centre"></label>
+              <label class="f"><span>Capacity</span><input class="in num" type="number" value="20"><small>Leave blank for unlimited.</small></label>
+            </div>
+            <label class="f"><span>Address</span><input class="in" type="text" placeholder="[Street, North Lakes QLD]"></label>
+          </section>
+
+          <section class="card sec">
+            <h2>When</h2>
+            <p class="lead">Every Saturday at 7:00 am. Classes are created 60 days ahead automatically.</p>
+            <div class="grid2">
+              <label class="f"><span>First class</span><input class="in num" type="text" value="Sat 12 Sep 2026, 7:00 am"><small>Changing the time re-times all upcoming classes. The weekday can't change once classes exist.</small></label>
+              <div class="f"><span>Repeats</span><div class="seg" role="group" aria-label="Repeats"><button type="button" aria-pressed="false">One-off</button><button type="button" aria-pressed="true">Weekly</button></div></div>
+            </div>
+            <div class="f"><span>Ends</span><div class="seg" role="group" aria-label="Ends"><button type="button" aria-pressed="true">Never</button><button type="button" aria-pressed="false">On a date</button><button type="button" aria-pressed="false">After a number of classes</button></div></div>
+          </section>
+
+          <section class="card sec">
+            <h2>Price &amp; who can book</h2>
+            <div class="grid2">
+              <label class="f"><span>Drop-in price</span><input class="in num" type="text" value="A$6.00"></label>
+              <label class="f"><span>Tax rate</span><input class="in" type="text" placeholder="Studio default"><small>Enter 0 to make this class tax-exempt.</small></label>
+            </div>
+            <div class="grid2">
+              <div class="f"><span>Visibility</span><div class="seg" role="group" aria-label="Visibility"><button type="button" aria-pressed="true">Public</button><button type="button" aria-pressed="false">Private</button><button type="button" aria-pressed="false">Draft</button></div></div>
+              <div class="f"><span>Booking access</span><div class="seg" role="group" aria-label="Booking access"><button type="button" aria-pressed="true">Open</button><button type="button" aria-pressed="false">Free</button><button type="button" aria-pressed="false">Restricted</button></div></div>
+            </div>
+            <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 2px">
+              <legend style="font-size: 14px; font-weight: 600; padding: 0 0 6px">Passes that can be used</legend>
+              <label class="chk"><input type="checkbox" checked>10-Class Pack · North Lakes</label>
+              <label class="chk"><input type="checkbox" checked>5 Class Passes · council subsidised, North Lakes only</label>
+              <label class="chk"><input type="checkbox" checked>Single Pass · North Lakes Council Class</label>
+              <label class="chk"><input type="checkbox">10 Class Pack for $98</label>
+              <label class="chk"><input type="checkbox">10 Class Pass · handstands</label>
+              <label class="chk" style="border-top: 1px solid #EDEEEA; margin-top: 6px; padding-top: 6px"><input type="checkbox" checked>Also allow drop-in payment</label>
+              <small style="font-size: 13px; color: #5A635F">Bookings you add as admin skip this list.</small>
+            </fieldset>
+          </section>
+
+          <section class="card sec">
+            <h2>Booking rules</h2>
+            <p class="lead">Leave blank to use your studio defaults.</p>
+            <div class="grid2">
+              <label class="f"><span>Cancellation window</span><input class="in" type="text" placeholder="Studio default · hours"></label>
+              <label class="f"><span>Guests per booking</span><select class="in"><option>No guests</option><option selected>1 guest</option><option>2 guests</option><option>3 guests</option></select></label>
+              <label class="f"><span>Book up to</span><input class="in" type="text" placeholder="Studio default · days ahead"></label>
+              <label class="f"><span>Booking closes</span><input class="in" type="text" placeholder="Studio default · hours before"></label>
+            </div>
+          </section>
+
+          <div class="card" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px">
+            <button class="btn" type="button" style="color: #8F1F17; border-color: #E8C4BF">Delete session</button>
+            <div style="display: flex; gap: 10px"><button class="btn" type="button">Discard</button><button class="btn pri" type="button">Save changes</button></div>
+          </div>
+        </div>
+
+        <div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+          <section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px; background: #F4F9F6; border-color: #CFE2D8">
+            <span class="label">Next class</span>
+            <span style="font-size: 22px; font-weight: 600">Tomorrow, 7:00 am</span>
+            <div style="display: flex; align-items: center; gap: 10px"><span style="flex: 1 1 auto; height: 8px; border-radius: 4px; background: #DCE7E1; overflow: hidden"><span style="display: block; width: 60%; height: 100%; border-radius: 4px; background: #14513F"></span></span><span class="num" style="font-weight: 600">12 / 20</span></div>
+            <a class="btn pri" href="Roster.dc.html" style="justify-content: center">Open roster</a>
+          </section>
+
+          <section class="card" style="overflow: hidden">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 18px 12px"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Upcoming classes</h2><button class="btn sm" type="button">Add a date</button></div>
+            <sc-for list="{{occ}}" as="o" hint-placeholder-count="6">
+              <div class="occ">
+                <span style="flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px"><span class="num" style="font-weight: 600">{{o.date}}</span><span class="num" style="font-size: 13px; color: #5A635F">7:00 – 8:00 am · {{o.booked}} / 20 booked</span></span>
+                <a href="Roster.dc.html" style="font-size: 14px; font-weight: 600; text-decoration: none; min-height: 36px; display: inline-flex; align-items: center">Roster</a>
+              </div>
+            </sc-for>
+            <div style="display: flex; justify-content: space-between; padding: 12px 18px; border-top: 1px solid #EDEEEA; font-size: 14px"><a href="#" style="font-weight: 600; text-decoration: none">Show all 9</a><a href="#" style="font-weight: 600; text-decoration: none; color: #5A635F">Past classes (5)</a></div>
+          </section>
+
+          <section class="card" style="padding: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px">
+            <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 600">Change history</span><span style="font-size: 14px; color: #5A635F">3 changes recorded</span></span>
+            <button class="btn sm" type="button">View</button>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      occ: [
+        { date: 'Sat 17 Oct', booked: 12 },
+        { date: 'Sat 24 Oct', booked: 7 },
+        { date: 'Sat 31 Oct', booked: 4 },
+        { date: 'Sat 7 Nov', booked: 2 },
+        { date: 'Sat 14 Nov', booked: 1 },
+        { date: 'Sat 21 Nov', booked: 0 }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

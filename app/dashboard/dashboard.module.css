@@ -1,7 +1,7 @@
 .shell {
   display: flex;
   min-height: 100vh;
-  background-color: #f4f4f4;
+  background-color: #F3F4F1; /* lib/ui/tokens color.bg */
 }
 
 .main {
@@ -30,7 +30,7 @@
 .tableHeaderRow {
   display: grid;
   padding: 12px 24px;
-  background-color: #f4f4f4;
+  background-color: #F3F4F1; /* lib/ui/tokens color.bg */
   border-bottom: 1px solid #e2e2e2;
   font-size: 12px;
   font-weight: 600;
