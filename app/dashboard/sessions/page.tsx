@@ -6,7 +6,7 @@ import { getOrgContext } from '@/lib/orgContext'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewSessions, canManageSessions } from '@/lib/roles'
+import { canViewSessions, canManageSessions, seesOnlyOwnSessions } from '@/lib/roles'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Session {
@@ -144,7 +144,7 @@ export default function SessionsPage() {
           <div>
             <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Sessions</h1>
             <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-              {sessions.length} session{sessions.length !== 1 ? 's' : ''} in your studio
+              {sessions.length} session{sessions.length !== 1 ? 's' : ''} {seesOnlyOwnSessions(roles) ? 'assigned to you' : 'in your studio'}
             </p>
           </div>
           {canManageSessions(roles) && (
@@ -174,11 +174,15 @@ export default function SessionsPage() {
             boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
           }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No sessions yet</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>
+              {seesOnlyOwnSessions(roles) ? 'No sessions assigned to you yet' : 'No sessions yet'}
+            </h3>
             <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
               {canManageSessions(roles)
                 ? 'Create your first session and your booking page will go live immediately.'
-                : "Your studio hasn't added any sessions yet."}
+                : seesOnlyOwnSessions(roles)
+                  ? "When the studio makes you the teacher on a session, it'll show up here."
+                  : "Your studio hasn't added any sessions yet."}
             </p>
             {canManageSessions(roles) && (
               <a href="/dashboard/sessions/new"

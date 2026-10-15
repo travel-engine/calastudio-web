@@ -16,17 +16,23 @@ interface SidebarProps {
   roles?: string[]
 }
 
+const SECTIONS = [
+  { key: 'studio', label: 'Studio' },
+  { key: 'revenue', label: 'Revenue' },
+  { key: 'settings', label: 'Settings' },
+] as const
+
 const navItems = [
-  { href: '/dashboard', icon: '🏠', label: 'Dashboard', key: 'dashboard', canView: undefined },
-  { href: '/dashboard/schedule', icon: '🗓', label: 'Schedule', key: 'schedule', canView: canViewOccurrences },
-  { href: '/dashboard/sessions', icon: '📅', label: 'Sessions', key: 'sessions', canView: canViewSessions },
-  { href: '/dashboard/members', icon: '👥', label: 'Members', key: 'members', canView: canViewMembers },
-  { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings', key: 'bookings', canView: canViewBookings },
-  { href: '/dashboard/passes', icon: '💳', label: 'Passes', key: 'passes', canView: canViewPassTemplates },
-  { href: '/dashboard/reports', icon: '📊', label: 'Reports', key: 'reports', canView: canViewReports },
-  { href: '/dashboard/team', icon: '👤', label: 'Team', key: 'team', canView: canViewTeam },
-  { href: '/dashboard/audit-log', icon: '🕘', label: 'Activity log', key: 'audit-log', canView: canViewAuditLog },
-  { href: '/dashboard/settings', icon: '⚙️', label: 'Settings', key: 'settings', canView: canManageSettings },
+  { href: '/dashboard', icon: '🏠', label: 'Dashboard', key: 'dashboard', section: 'studio', canView: undefined },
+  { href: '/dashboard/schedule', icon: '🗓', label: 'Schedule', key: 'schedule', section: 'studio', canView: canViewOccurrences },
+  { href: '/dashboard/sessions', icon: '📅', label: 'Sessions', key: 'sessions', section: 'studio', canView: canViewSessions },
+  { href: '/dashboard/members', icon: '👥', label: 'Members', key: 'members', section: 'studio', canView: canViewMembers },
+  { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings', key: 'bookings', section: 'studio', canView: canViewBookings },
+  { href: '/dashboard/passes', icon: '💳', label: 'Passes', key: 'passes', section: 'revenue', canView: canViewPassTemplates },
+  { href: '/dashboard/reports', icon: '📊', label: 'Reports', key: 'reports', section: 'revenue', canView: canViewReports },
+  { href: '/dashboard/team', icon: '👤', label: 'Team', key: 'team', section: 'settings', canView: canViewTeam },
+  { href: '/dashboard/audit-log', icon: '🕘', label: 'Activity log', key: 'audit-log', section: 'settings', canView: canViewAuditLog },
+  { href: '/dashboard/settings', icon: '⚙️', label: 'Settings', key: 'settings', section: 'settings', canView: canManageSettings },
 ]
 
 export default function Sidebar({ active, roles }: SidebarProps) {
@@ -98,55 +104,30 @@ export default function Sidebar({ active, roles }: SidebarProps) {
 
       {/* Nav */}
       <nav style={{ flex: 1 }}>
-        <div style={{
-          fontSize: '11px',
-          fontWeight: 600,
-          color: '#999',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          marginBottom: '8px',
-          padding: '0 16px'
-        }}>
-          Studio
-        </div>
-
-        {navItems.slice(0, 5).filter(visible).map(item => (
-          <NavLink key={item.key} item={item} active={active === item.key} onNavigate={() => setOpen(false)} />
-        ))}
-
-        <div style={{
-          fontSize: '11px',
-          fontWeight: 600,
-          color: '#999',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          marginBottom: '8px',
-          marginTop: '24px',
-          padding: '0 16px'
-        }}>
-          Revenue
-        </div>
-
-        {navItems.slice(5, 8).filter(visible).map(item => (
-          <NavLink key={item.key} item={item} active={active === item.key} onNavigate={() => setOpen(false)} />
-        ))}
-
-        <div style={{
-          fontSize: '11px',
-          fontWeight: 600,
-          color: '#999',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          marginBottom: '8px',
-          marginTop: '24px',
-          padding: '0 16px'
-        }}>
-          Settings
-        </div>
-
-        {navItems.slice(8).filter(visible).map(item => (
-          <NavLink key={item.key} item={item} active={active === item.key} onNavigate={() => setOpen(false)} />
-        ))}
+        {/* A heading only renders when its section has something this role can see. */}
+        {SECTIONS.map((section, i) => {
+          const items = navItems.filter(item => item.section === section.key && visible(item))
+          if (items.length === 0) return null
+          return (
+            <div key={section.key}>
+              <div style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#999',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: '8px',
+                marginTop: i === 0 ? 0 : '24px',
+                padding: '0 16px'
+              }}>
+                {section.label}
+              </div>
+              {items.map(item => (
+                <NavLink key={item.key} item={item} active={active === item.key} onNavigate={() => setOpen(false)} />
+              ))}
+            </div>
+          )
+        })}
       </nav>
 
       {/* Sign out */}

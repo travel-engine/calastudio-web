@@ -17,6 +17,10 @@ const has = (roles: string[], allowed: string[]) => roles.some(r => allowed.incl
 // to replicate — it only needs to know whether to show the page/nav item at all.
 export const canViewSessions = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK, TEACHER_GENERAL, TEACHER_BASIC])
 export const canManageSessions = (roles: string[]) => has(roles, [ADMIN])
+// The API scopes sessions/occurrences/rosters to the ones they instruct for these two roles, unless
+// they also hold a studio-wide role. Wording only ("assigned to you" vs "in your studio").
+export const seesOnlyOwnSessions = (roles: string[]) =>
+  has(roles, [TEACHER_GENERAL, TEACHER_BASIC]) && !has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK])
 
 // Session occurrences (SessionOccurrenceEndpoints.cs) — same ownership-scoping note as sessions above
 export const canViewOccurrences = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, FRONT_DESK, TEACHER_GENERAL, TEACHER_BASIC])

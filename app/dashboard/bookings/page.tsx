@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewBookings, canManageBookings, canMarkAttended, canAddStudent, canAddMember } from '@/lib/roles'
+import { canViewBookings, canManageBookings, canMarkAttended, canAddStudent, canAddMember, seesOnlyOwnSessions } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
 import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
@@ -528,16 +528,20 @@ function BookingsPageContent() {
             boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
           }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎟</div>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No upcoming occurrences</h3>
-            <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
-              Add occurrences to your sessions so members have dates and times to book.
+            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>
+              {seesOnlyOwnSessions(roles) ? 'No upcoming classes' : 'No upcoming occurrences'}
+            </h3>
+            <p style={{ color: '#666', fontSize: '14px', marginBottom: seesOnlyOwnSessions(roles) ? 0 : '24px' }}>
+              {seesOnlyOwnSessions(roles)
+                ? "Classes you teach will show here, with who's booked in."
+                : 'Add occurrences to your sessions so members have dates and times to book.'}
             </p>
-            <a href="/dashboard/sessions" style={{
+            {!seesOnlyOwnSessions(roles) && <a href="/dashboard/sessions" style={{
               display: 'inline-block', padding: '10px 24px', backgroundColor: '#085041', color: 'white',
               borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none'
             }}>
               Go to sessions
-            </a>
+            </a>}
           </div>
         ) : (
           <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
