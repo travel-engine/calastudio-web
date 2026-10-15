@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
+import { Check, Download, Plus, UserPlus, X } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
@@ -10,7 +12,10 @@ import { displayName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
 import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
 import EntityActivity from '@/app/components/EntityActivity'
-import { formatDate, formatDateTime, formatDateWithWeekday } from '@/lib/dates'
+import { dayKey, formatClock, formatDateTime, formatShortDate } from '@/lib/dates'
+import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
+import { Breadcrumb, Button, Card, Chip, EmptyState, PageHeader, buttonStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface SessionDetail {
@@ -182,62 +187,33 @@ function occupancy(occurrence: OccurrenceDetail, bookings: Booking[]) {
   return { booked, capacity: capacity as number | null }
 }
 
-function OccurrenceStatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    scheduled: { bg: '#e8f5ee', color: '#085041', label: 'Scheduled' },
-    cancelled: { bg: '#fdecea', color: '#8b1a1a', label: 'Cancelled' },
-    completed: { bg: '#f4f4f4', color: '#666', label: 'Completed' },
-  }
-  const s = map[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
-    }}>
-      {s.label}
-    </span>
-  )
+// Status words carry the meaning; the tone reinforces it (handoff §4: never colour-only).
+const occurrenceStatusChip: Record<string, { label: string; tone: ChipTone }> = {
+  scheduled: { label: 'Scheduled', tone: 'primary' },
+  cancelled: { label: 'Cancelled', tone: 'danger' },
+  completed: { label: 'Completed', tone: 'neutral' },
 }
 
-const bookingStatusLabels: Record<string, { bg: string; color: string; label: string }> = {
-  confirmed: { bg: '#e8f5ee', color: '#085041', label: 'Confirmed' },
-  attended: { bg: '#e8eef8', color: '#1B4F8A', label: 'Attended' },
-  cancelled: { bg: '#f4f4f4', color: '#666', label: 'Cancelled' },
-  late_cancel: { bg: '#fff3cd', color: '#7a4f00', label: 'Late cancel' },
-  waitlisted: { bg: '#f0ecf8', color: '#4B2D8A', label: 'Waitlisted' },
+const bookingStatusChip: Record<string, { label: string; tone: ChipTone }> = {
+  confirmed: { label: 'Booked', tone: 'info' },
+  attended: { label: 'Attended', tone: 'primary' },
+  no_show: { label: 'No show', tone: 'neutral' },
+  cancelled: { label: 'Cancelled', tone: 'neutral' },
+  late_cancel: { label: 'Late cancel', tone: 'warn' },
+  waitlisted: { label: 'Waitlisted', tone: 'info' },
 }
 
-function BookingStatusBadge({ status }: { status: string }) {
-  const s = bookingStatusLabels[status]
-  if (!s) return null // no_show and any unknown status carry no badge
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
-    }}>
-      {s.label}
-    </span>
-  )
+const waitlistStatusChip: Record<string, { label: string; tone: ChipTone }> = {
+  waiting: { label: 'Waiting', tone: 'warn' },
+  promoted: { label: 'Spot held', tone: 'primary' },
+  booked: { label: 'Booked', tone: 'primary' },
+  expired: { label: 'Expired', tone: 'neutral' },
+  removed: { label: 'Left', tone: 'neutral' },
 }
 
-const waitlistStatusLabels: Record<string, { bg: string; color: string; label: string }> = {
-  waiting: { bg: '#fff3cd', color: '#7a4f00', label: 'Waiting' },
-  promoted: { bg: '#e8f5ee', color: '#085041', label: 'Spot held' },
-  booked: { bg: '#e8f5ee', color: '#085041', label: 'Booked' },
-  expired: { bg: '#f4f4f4', color: '#666', label: 'Expired' },
-  removed: { bg: '#f4f4f4', color: '#666', label: 'Left' },
-}
-
-function WaitlistStatusBadge({ status }: { status: string }) {
-  const s = waitlistStatusLabels[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
-    }}>
-      {s.label}
-    </span>
-  )
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?'
 }
 
 const paymentTypeLabels: Record<string, string> = {
@@ -248,24 +224,17 @@ const paymentTypeLabels: Record<string, string> = {
   free: 'Free',
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-  fontSize: '14px', outline: 'none', backgroundColor: 'white'
-}
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }
-const secondaryButtonStyle: React.CSSProperties = {
-  padding: '10px 16px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-  borderRadius: '8px', fontSize: '13px', cursor: 'pointer', color: '#444', fontWeight: 500
-}
+const inputStyle: React.CSSProperties = { ...controlStyle, padding: '10px 12px' }
+const labelStyle: React.CSSProperties = { display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: color.ink, padding: 0 }
 const paymentChoiceRow = (active: boolean): React.CSSProperties => ({
-  display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer',
-  border: `1px solid ${active ? '#085041' : '#e2e2e2'}`, borderRadius: '8px',
-  backgroundColor: active ? '#f2f9f5' : 'white',
+  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', minHeight: space.target, cursor: 'pointer', boxSizing: 'border-box',
+  border: `1px solid ${active ? color.primary : color.control}`, borderRadius: radius.control,
+  background: active ? color.primarySoft : color.surface,
 })
 const tabStyle = (active: boolean): React.CSSProperties => ({
-  padding: '10px 4px', marginRight: '24px', background: 'none', border: 'none', cursor: 'pointer',
-  fontSize: '14px', fontWeight: 600, color: active ? '#085041' : '#666',
-  borderBottom: active ? '2px solid #085041' : '2px solid transparent'
+  minHeight: space.target, padding: '0 12px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+  fontSize: 15, fontWeight: 600, color: active ? color.primaryInk : color.muted, marginBottom: -1,
+  borderBottom: active ? `2px solid ${color.primary}` : '2px solid transparent',
 })
 
 type Tab = 'booked' | 'waitlist' | 'cancelled'
@@ -280,6 +249,7 @@ export default function OccurrenceDetailPage() {
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [forbidden, setForbidden] = useState(false)
+  const [timeZone, setTimeZone] = useState<string | null>(null)
 
   const [occurrence, setOccurrence] = useState<OccurrenceDetail | null>(null)
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -402,6 +372,7 @@ export default function OccurrenceDetailPage() {
       setToken(t)
       const org = ctx.org
       setOrgId(org.id)
+      setTimeZone(org.timezone ?? null)
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
@@ -674,7 +645,7 @@ export default function OccurrenceDetailPage() {
       <div className={styles.shell}>
         <Sidebar active="schedule" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
@@ -694,7 +665,10 @@ export default function OccurrenceDetailPage() {
       <div className={styles.shell}>
         <Sidebar active="schedule" roles={roles} />
         <div className={styles.main}>
-          <p style={{ color: '#666', fontSize: '14px' }}>This occurrence couldn't be found.</p>
+          <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            <Breadcrumb items={[{ label: 'Schedule', href: '/dashboard/schedule' }, { label: 'Class not found' }]} />
+            <Card><EmptyState message="This class couldn't be found. It may have been removed." action={<Button href="/dashboard/schedule">Back to schedule</Button>} /></Card>
+          </div>
         </div>
       </div>
     )
@@ -709,7 +683,11 @@ export default function OccurrenceDetailPage() {
 
   const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show')
   const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel')
-  const rowsForTab = tab === 'booked' ? bookedRows : cancelledRows
+  const checkedIn = bookings.filter(b => b.status === 'attended').length
+  const guestCount = bookings
+    .filter(b => b.status === 'confirmed' || b.status === 'attended')
+    .reduce((sum, b) => sum + (b.guest_count ?? 0), 0)
+  const waitingCount = waitlist.filter(w => w.status === 'waiting' || w.status === 'promoted').length
 
   // Guests cancelled one-by-one (admin per-guest cancel) — the owning booking is still Confirmed,
   // so it isn't in cancelledRows. Surface each here, tied back to its booking's member.
@@ -720,221 +698,253 @@ export default function OccurrenceDetailPage() {
       memberName: displayName(b.user) || b.member_name || 'Unknown member',
     })))
 
+  const canAdd = occurrence.status === 'scheduled' && (canManageBookings(roles) || canAddStudent(roles))
+  const statusChip = occurrenceStatusChip[occurrence.status] ?? { label: occurrence.status, tone: 'neutral' as const }
+  const dateLabel = formatShortDate(occurrence.starts_at, timeZone)
+  const memberName = (b: Booking) => displayName(b.user) || b.member_name || 'Unknown member'
+
+  // A printable sign-in sheet: the booked list as CSV (names, payment, guests, status).
+  const exportSignInSheet = () => {
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`
+    const lines = [['Name', 'Pass / payment', 'Guests', 'Status', 'Signed in'].map(esc).join(',')]
+    for (const b of bookedRows) {
+      const guests = parseGuests(b).filter(g => g.status !== 'cancelled')
+        .map((g, i) => [g.first_name, g.last_name].filter(Boolean).join(' ') || `Guest ${i + 1}`).join('; ')
+      lines.push([
+        memberName(b),
+        b.payment_type ? (paymentTypeLabels[b.payment_type] ?? b.payment_type) : '',
+        guests,
+        bookingStatusChip[b.status]?.label ?? b.status,
+        '',
+      ].map(esc).join(','))
+    }
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${(session?.name ?? 'class').replace(/[^\w-]+/g, '-')}-${dayKey(occurrence.starts_at, timeZone)}-sign-in.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const th: React.CSSProperties = {
+    textAlign: 'left', padding: '12px 16px', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em',
+    textTransform: 'uppercase', color: color.muted, background: '#FAFAF8', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap',
+  }
+  const td: React.CSSProperties = { padding: '12px 16px', borderTop: `1px solid ${color.divider}`, verticalAlign: 'middle', fontSize: 15 }
+  const smallAction = { ...buttonStyle('secondary', 'sm') }
+  const smallDanger = { ...buttonStyle('destructive', 'sm') }
+
+  const nameCell = (b: Booking) => (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+      <span aria-hidden style={{
+        width: 36, height: 36, borderRadius: '50%', flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: color.primarySoft, color: color.primaryInk, fontWeight: 600, fontSize: 13,
+      }}>{initials(memberName(b))}</span>
+      <span style={{ display: 'flex', flexDirection: 'column' }}>
+        {canViewMembers(roles) && b.user_id ? (
+          <Link href={`/dashboard/members/${b.user_id}`} className={ui.focusable} style={{ fontWeight: 600, color: color.ink, textDecoration: 'none' }}>{memberName(b)}</Link>
+        ) : (
+          <span style={{ fontWeight: 600 }}>{memberName(b)}</span>
+        )}
+        <span style={{ fontSize: 13, color: color.muted }}>
+          {b.user?.email ? `${b.user.email} · ` : ''}{b.booked_mode === 'online' ? 'Online' : 'In person'}
+        </span>
+      </span>
+    </div>
+  )
+
+  const paymentCell = (b: Booking) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, color: color.ink2 }}>
+      <span>
+        {b.payment_type ? (paymentTypeLabels[b.payment_type] ?? b.payment_type) : '—'}
+        {b.payment_type === 'card' && b.amount_paid != null ? ` · ${formatMoney(b.amount_paid, b.currency ?? 'AUD')}` : ''}
+      </span>
+      {b.payment_type === 'admin_waived' && b.comp_reason && (
+        <span style={{ fontSize: 13, color: color.muted }}>{b.comp_reason}{b.comp_added_by_name ? ` · ${b.comp_added_by_name}` : ''}</span>
+      )}
+    </div>
+  )
+
   return (
     <div className={styles.shell}>
       <Sidebar active="schedule" roles={roles} />
 
-      <div className={styles.main} style={{ maxWidth: '760px' }}>
-        {/* Header */}
-        <button
-          onClick={() => router.back()}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none',
-            cursor: 'pointer', color: '#666', fontSize: '13px', marginBottom: '16px', padding: 0
-          }}
-        >
-          ← Back
-        </button>
+      <div className={styles.main}>
+        <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+          <Breadcrumb items={[{ label: 'Schedule', href: '/dashboard/schedule' }, { label: dateLabel }]} />
 
-        <div style={{
-          backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: '24px', marginBottom: '20px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
-            <div>
-              <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{session?.name ?? 'Session'}</h1>
-              <div style={{ fontSize: '13px', color: '#666', marginTop: '6px' }}>
-                {formatDateWithWeekday(occurrence.starts_at)}
-                {' • '}
-                {new Date(occurrence.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                {' – '}
-                {new Date(occurrence.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                {session?.location_name && ` · ${session.location_name}`}
-                {session?.delivery_mode && ` · ${session.delivery_mode.replace('_', ' ')}`}
-              </div>
+          <PageHeader
+            title={session?.name ?? 'Session'}
+            actions={<>
+              {occurrence.status === 'scheduled' && canManageOccurrences(roles) && (
+                <Button variant="destructive" onClick={() => setShowCancelOccurrence(true)}>Cancel class</Button>
+              )}
+              {occurrence.status === 'scheduled' && canManageOccurrences(roles) && (
+                <Button onClick={openEdit}>Edit class</Button>
+              )}
+              {bookedRows.length > 0 && (
+                <Button onClick={exportSignInSheet} icon={<Download size={18} strokeWidth={1.8} aria-hidden />}>Export sign-in sheet</Button>
+              )}
+              {canAdd && (
+                <Button variant="primary" onClick={openAddBooking} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Add booking</Button>
+              )}
+            </>}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+              <Chip tone={statusChip.tone}>{statusChip.label}</Chip>
+              <Chip>{dateLabel} · {formatClock(occurrence.starts_at, timeZone)} – {formatClock(occurrence.ends_at, timeZone)}</Chip>
+              {session?.location_name && <Chip>{session.location_name}</Chip>}
+              {occurrence.instructor_name ? <Chip>{occurrence.instructor_name}</Chip> : <Chip tone="warn">No teacher</Chip>}
+              {session?.delivery_mode && <Chip>{session.delivery_mode === 'online' ? 'Online' : 'In person'}</Chip>}
             </div>
-            <OccurrenceStatusBadge status={occurrence.status} />
-          </div>
-
-          {/* Teacher */}
-          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f4f4f4' }}>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
-              Teacher
-            </div>
-            <div style={{ fontSize: '14px', color: '#1a1a1a' }}>
-              {occurrence.instructor_name ?? 'Unassigned'}
-            </div>
-          </div>
+          </PageHeader>
 
           {manageError && (
-            <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginTop: '16px' }}>
+            <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>
               {manageError}
             </div>
           )}
 
-          {occurrence.status === 'scheduled' && (canManageBookings(roles) || canAddStudent(roles) || canManageOccurrences(roles)) && (
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
-              {(canManageBookings(roles) || canAddStudent(roles)) && (
-                <button onClick={openAddBooking} style={{
-                  padding: '8px 16px', backgroundColor: '#085041', color: 'white', border: 'none',
-                  borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
-                }}>
-                  + Add {canManageBookings(roles) ? 'member' : 'student'}
-                </button>
-              )}
-              {canManageOccurrences(roles) && (
-                <button onClick={openEdit} style={secondaryButtonStyle}>
-                  Edit
-                </button>
-              )}
-              {canManageOccurrences(roles) && (
-                <button onClick={() => setShowCancelOccurrence(true)} style={{
-                  padding: '8px 16px', backgroundColor: 'transparent', border: '1px solid #fdecea',
-                  borderRadius: '8px', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
-                }}>
-                  Cancel occurrence
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Edit panel */}
-        {showEdit && (
-          <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: '24px', marginBottom: '20px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '14px' }}>Edit occurrence</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={labelStyle}>Date</label>
-                  <input type="date" value={editForm.date} onChange={e => setEditForm(p => ({ ...p, date: e.target.value }))} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Start time</label>
-                  <input type="time" value={editForm.startTime} onChange={e => setEditForm(p => ({ ...p, startTime: e.target.value }))} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>End time</label>
-                  <input type="time" value={editForm.endTime} onChange={e => setEditForm(p => ({ ...p, endTime: e.target.value }))} style={inputStyle} />
-                </div>
+          {/* Stat strip */}
+          <Card style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }} aria-label="Class summary">
+            {[
+              { label: 'Booked', value: capacity === null ? `${booked}` : `${booked} / ${capacity}`, ink: color.ink },
+              { label: 'Checked in', value: `${checkedIn}`, ink: color.primaryInk },
+              { label: 'Guests', value: `${guestCount}`, ink: color.ink },
+              { label: 'On waitlist', value: `${waitingCount}`, ink: waitingCount > 0 ? color.warnInk : color.ink },
+            ].map((s, i) => (
+              <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '16px 20px', borderLeft: i ? `1px solid ${color.divider}` : 'none' }}>
+                <span style={smallCapsStyle}>{s.label}</span>
+                <span style={{ fontSize: 26, fontWeight: 600, color: s.ink, ...tabularNums }}>{s.value}</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={labelStyle}>Capacity</label>
-                  <input type="number" min="0" placeholder="Unlimited" value={editForm.capacity}
-                    onChange={e => setEditForm(p => ({ ...p, capacity: e.target.value }))} style={inputStyle} />
-                </div>
-              </div>
+            ))}
+          </Card>
 
-              <div>
-                <label style={labelStyle}>Teacher</label>
-                {teachersLoading ? (
-                  <p style={{ fontSize: '13px', color: '#666' }}>Loading teachers...</p>
-                ) : (
-                  <select
-                    value={editForm.instructorId}
-                    onChange={e => setEditForm(p => ({ ...p, instructorId: e.target.value }))}
-                    style={inputStyle}
-                  >
-                    <option value="">Unassigned</option>
-                    {teachers.map(t => (
-                      <option key={t.id} value={t.id}>{displayName(t)}</option>
-                    ))}
-                  </select>
+          {/* Edit panel */}
+          {showEdit && (
+            <Card padded aria-labelledby="edit-class-heading">
+              <h2 id="edit-class-heading" style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>Edit this class</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+                <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label htmlFor="edit-date" style={labelStyle}>Date</label>
+                    <input id="edit-date" type="date" value={editForm.date} onChange={e => setEditForm(p => ({ ...p, date: e.target.value }))} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-start" style={labelStyle}>Start time</label>
+                    <input id="edit-start" type="time" value={editForm.startTime} onChange={e => setEditForm(p => ({ ...p, startTime: e.target.value }))} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-end" style={labelStyle}>End time</label>
+                    <input id="edit-end" type="time" value={editForm.endTime} onChange={e => setEditForm(p => ({ ...p, endTime: e.target.value }))} style={inputStyle} />
+                  </div>
+                </div>
+                <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label htmlFor="edit-capacity" style={labelStyle}>Capacity</label>
+                    <input id="edit-capacity" type="number" min="0" placeholder="Unlimited" value={editForm.capacity}
+                      onChange={e => setEditForm(p => ({ ...p, capacity: e.target.value }))} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-teacher" style={labelStyle}>Teacher</label>
+                    {teachersLoading ? (
+                      <p style={{ margin: 0, fontSize: 15, color: color.muted }}>Loading teachers…</p>
+                    ) : (
+                      <select id="edit-teacher" value={editForm.instructorId} onChange={e => setEditForm(p => ({ ...p, instructorId: e.target.value }))} style={inputStyle}>
+                        <option value="">No teacher</option>
+                        {teachers.map(t => <option key={t.id} value={t.id}>{displayName(t)}</option>)}
+                      </select>
+                    )}
+                  </div>
+                </div>
+
+                {editError && (
+                  <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{editError}</div>
                 )}
-              </div>
 
-              {editError && (
-                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
-                  {editError}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  <Button onClick={() => setShowEdit(false)}>Cancel</Button>
+                  <Button variant="primary" onClick={handleSaveEdit} disabled={editBusy}>{editBusy ? 'Saving…' : 'Save changes'}</Button>
                 </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button onClick={() => setShowEdit(false)} style={secondaryButtonStyle}>Cancel</button>
-                <button
-                  onClick={handleSaveEdit}
-                  disabled={editBusy}
-                  style={{
-                    flex: 1, padding: '10px', backgroundColor: editBusy ? '#9fd6b8' : '#085041', color: 'white',
-                    border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                    cursor: editBusy ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {editBusy ? 'Saving...' : 'Save changes'}
-                </button>
               </div>
-            </div>
-          </div>
-        )}
+            </Card>
+          )}
 
-        {/* Add booking panel */}
-        {showAddBooking && (
-          <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: '24px', marginBottom: '20px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '14px' }}>
-              {canManageBookings(roles) ? 'Add a member' : 'Add a student'}
-            </div>
+          {/* Add booking panel */}
+          {showAddBooking && (
+            <Card padded aria-labelledby="add-booking-heading">
+              <h2 id="add-booking-heading" style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>
+                {canManageBookings(roles) ? 'Add a booking' : 'Add a student'}
+              </h2>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
                 {isRestricted && (
-                  <p style={{ fontSize: '12px', color: '#7a4f00', backgroundColor: '#fff3cd', borderRadius: '8px', padding: '8px 10px', margin: 0 }}>
-                    This session is restricted for self-booking — adding a member here bypasses the approved-pass list.
+                  <p style={{ margin: 0, fontSize: 14, color: color.warnInk, background: color.warnBg, borderRadius: radius.control, padding: '10px 12px' }}>
+                    This class is restricted for self-booking. Adding someone here bypasses the approved-pass list.
                   </p>
                 )}
                 <div>
-                  <label style={labelStyle}>Member</label>
+                  <label htmlFor="add-member-search" style={labelStyle}>Member</label>
                   {selectedMember ? (
                     <div style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '10px 14px', border: '1px solid #085041', borderRadius: '8px', backgroundColor: '#e8f5ee'
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                      padding: '10px 14px', border: `1px solid ${color.primary}`, borderRadius: radius.control, background: color.primarySoft,
                     }}>
                       <div>
-                        <div style={{ fontSize: '14px', fontWeight: 600 }}>{displayName(selectedMember)}</div>
-                        {selectedMember.email && <div style={{ fontSize: '12px', color: '#666' }}>{selectedMember.email}</div>}
+                        <div style={{ fontSize: 15, fontWeight: 600 }}>{displayName(selectedMember)}</div>
+                        {selectedMember.email && <div style={{ fontSize: 13, color: color.muted }}>{selectedMember.email}</div>}
                       </div>
                       <button
+                        type="button"
+                        aria-label={`Remove ${displayName(selectedMember)}`}
                         onClick={() => { setAddForm(p => ({ ...p, userId: '', choice: '', compNote: '' })); setMemberPasses([]) }}
-                        style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#666' }}
+                        className={ui.focusable}
+                        style={{ ...buttonStyle('secondary', 'sm'), width: 36, padding: 0 }}
                       >
-                        ×
+                        <X size={16} strokeWidth={2} aria-hidden />
                       </button>
                     </div>
                   ) : (
                     <>
                       <input
-                        type="text"
-                        placeholder={members[0]?.email ? "Search members by name or email..." : "Search members by name..."}
+                        id="add-member-search"
+                        type="search"
+                        placeholder={members[0]?.email ? 'Search members by name or email' : 'Search members by name'}
                         value={memberSearch}
                         onChange={e => setMemberSearch(e.target.value)}
                         style={inputStyle}
                       />
-                      <div style={{ maxHeight: '140px', overflowY: 'auto', border: '1px solid #e2e2e2', borderRadius: '8px', marginTop: '8px' }}>
+                      <div style={{ maxHeight: 200, overflowY: 'auto', border: `1px solid ${color.border}`, borderRadius: radius.control, marginTop: 8 }}>
                         {membersLoading ? (
-                          <div style={{ padding: '12px', fontSize: '13px', color: '#666' }}>Loading members...</div>
+                          <div style={{ padding: 12, fontSize: 14, color: color.muted }}>Loading members…</div>
                         ) : filteredMembers.length === 0 ? (
-                          <div style={{ padding: '12px', fontSize: '13px', color: '#666' }}>No members found</div>
+                          <div style={{ padding: 12, fontSize: 14, color: color.muted }}>No members found</div>
                         ) : (
                           filteredMembers.map(m => (
                             <button
                               key={m.id}
+                              type="button"
                               onClick={() => selectMember(m.id)}
+                              className={`${ui.rowLink} ${ui.focusable}`}
                               style={{
-                                display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px',
-                                border: 'none', borderBottom: '1px solid #f4f4f4', backgroundColor: 'white', cursor: 'pointer'
+                                display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', minHeight: space.target,
+                                border: 'none', borderBottom: `1px solid ${color.divider}`, background: color.surface, cursor: 'pointer',
+                                fontFamily: 'inherit', ['--hover-bg' as string]: '#F7F8F5',
                               }}
                             >
-                              <div style={{ fontSize: '13px', fontWeight: 600 }}>{displayName(m)}</div>
-                              {m.email && <div style={{ fontSize: '12px', color: '#666' }}>{m.email}</div>}
+                              <div style={{ fontSize: 15, fontWeight: 600, color: color.ink }}>{displayName(m)}</div>
+                              {m.email && <div style={{ fontSize: 13, color: color.muted }}>{m.email}</div>}
                             </button>
                           ))
                         )}
                       </div>
                       {canAddMember(roles) && (
                         <button
+                          type="button"
                           onClick={() => setShowAddMember(true)}
-                          style={{
-                            marginTop: '8px', background: 'none', border: 'none', padding: 0,
-                            color: '#085041', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
-                          }}
+                          className={ui.focusable}
+                          style={{ marginTop: 8, background: 'none', border: 'none', padding: '6px 0', color: color.primary, fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
                         >
                           + Add a new member
                         </button>
@@ -944,366 +954,346 @@ export default function OccurrenceDetailPage() {
                 </div>
 
                 {!canManageBookings(roles) ? (
-                  <p style={{ fontSize: '13px', color: '#666' }}>Added at no charge — payment isn't part of this action.</p>
+                  <p style={{ margin: 0, fontSize: 15, color: color.muted }}>Added at no charge. Payment isn&apos;t part of this action.</p>
                 ) : isFreeSession ? (
-                  <p style={{ fontSize: '13px', color: '#666' }}>This session is free — no payment required.</p>
+                  <p style={{ margin: 0, fontSize: 15, color: color.muted }}>This class is free. No payment required.</p>
                 ) : addForm.userId ? (
-                  <div>
-                    <label style={labelStyle}>Payment</label>
+                  <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
+                    <legend style={labelStyle}>Payment</legend>
                     {passesLoading ? (
-                      <p style={{ fontSize: '13px', color: '#666' }}>Loading passes...</p>
+                      <p style={{ margin: 0, fontSize: 15, color: color.muted }}>Loading passes…</p>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {usablePasses.map(p => (
                           <label key={p.id} style={paymentChoiceRow(addForm.choice === p.id)}>
-                            <input
-                              type="radio"
-                              name="add-payment"
-                              checked={addForm.choice === p.id}
-                              onChange={() => setAddForm(f => ({ ...f, choice: p.id }))}
-                            />
-                            <span style={{ fontSize: '13px' }}>
+                            <input type="radio" name="add-payment" checked={addForm.choice === p.id} onChange={() => setAddForm(f => ({ ...f, choice: p.id }))} />
+                            <span style={{ fontSize: 15 }}>
                               {p.pass_template?.name ?? 'Pass'}
-                              <span style={{ color: '#666' }}>
-                                {' · '}{p.credits_remaining === null ? 'unlimited' : `${p.credits_remaining}/${p.credits_total} credits`}
-                                {' · expires '}{formatDate(p.expires_at)}
+                              <span style={{ color: color.muted }}>
+                                {' · '}{p.credits_remaining === null ? 'unlimited' : `${p.credits_remaining} of ${p.credits_total} credits`}
+                                {' · expires '}{formatShortDate(p.expires_at, timeZone)}
                               </span>
                             </span>
                           </label>
                         ))}
                         {usablePasses.length === 0 && (
-                          <p style={{ fontSize: '12px', color: '#999', margin: '2px 0' }}>
-                            {memberPasses.length > 0
-                              ? 'No pass valid for this session — comp it below.'
-                              : 'This member has no usable passes — comp it below.'}
+                          <p style={{ fontSize: 14, color: color.muted, margin: '2px 0' }}>
+                            {memberPasses.length > 0 ? 'No pass is valid for this class. Comp it below.' : 'This member has no usable passes. Comp it below.'}
                           </p>
                         )}
-
                         <label style={paymentChoiceRow(addForm.choice === 'comp')}>
-                          <input
-                            type="radio"
-                            name="add-payment"
-                            checked={addForm.choice === 'comp'}
-                            onChange={() => setAddForm(f => ({ ...f, choice: 'comp' }))}
-                          />
-                          <span style={{ fontSize: '13px' }}>Comp (no charge)</span>
+                          <input type="radio" name="add-payment" checked={addForm.choice === 'comp'} onChange={() => setAddForm(f => ({ ...f, choice: 'comp' }))} />
+                          <span style={{ fontSize: 15 }}>Comp (no charge)</span>
                         </label>
                         {addForm.choice === 'comp' && (
                           <input
                             type="text"
-                            placeholder="Reason for the comp — e.g. makeup class, staff comp"
+                            aria-label="Reason for the comp"
+                            placeholder="Reason for the comp, e.g. makeup class, staff comp"
                             value={addForm.compNote}
                             onChange={e => setAddForm(f => ({ ...f, compNote: e.target.value }))}
-                            style={{ ...inputStyle, marginLeft: '26px', width: 'calc(100% - 26px)' }}
+                            style={{ ...inputStyle, marginLeft: 26, width: 'calc(100% - 26px)' }}
                           />
                         )}
                       </div>
                     )}
-                  </div>
+                  </fieldset>
                 ) : null}
 
                 {addBookingError && (
-                  <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
-                    {addBookingError}
-                  </div>
+                  <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{addBookingError}</div>
                 )}
 
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button onClick={() => setShowAddBooking(false)} style={secondaryButtonStyle}>Cancel</button>
-                  <button
-                    onClick={handleAddBooking}
-                    disabled={addingBooking}
-                    style={{
-                      flex: 1, padding: '10px', backgroundColor: addingBooking ? '#9fd6b8' : '#085041', color: 'white',
-                      border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                      cursor: addingBooking ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    {addingBooking ? 'Adding...' : (canManageBookings(roles) ? 'Confirm booking' : 'Add student')}
-                  </button>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  <Button onClick={() => setShowAddBooking(false)}>Cancel</Button>
+                  <Button variant="primary" onClick={handleAddBooking} disabled={addingBooking}>
+                    {addingBooking ? 'Adding…' : (canManageBookings(roles) ? 'Confirm booking' : 'Add student')}
+                  </Button>
                 </div>
-            </div>
-          </div>
-        )}
-
-        {showAddMember && (
-          <AddMemberModal
-            orgId={orgId}
-            token={token}
-            onClose={() => setShowAddMember(false)}
-            onCreated={m => {
-              setShowAddMember(false)
-              setMembers(prev => [...prev, { id: m.id, first_name: m.first_name, last_name: m.last_name }])
-              setMemberSearch('')
-              selectMember(m.id)
-            }}
-          />
-        )}
-
-        {showCancelOccurrence && (
-          <CancelOccurrenceModal
-            occurrenceId={occurrence.id}
-            orgId={orgId}
-            token={token}
-            onClose={() => setShowCancelOccurrence(false)}
-            onCancelled={handleOccurrenceCancelled}
-          />
-        )}
-
-        {/* Tabs + roster */}
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: '24px' }}>
-          <div style={{ display: 'flex', borderBottom: '1px solid #e2e2e2', marginBottom: '16px' }}>
-            <button style={tabStyle(tab === 'booked')} onClick={() => setTab('booked')}>
-              Booked ({capacity === null ? booked : `${booked}/${capacity}`})
-            </button>
-            <button style={tabStyle(tab === 'waitlist')} onClick={() => setTab('waitlist')}>
-              On waitlist ({waitlist.length})
-            </button>
-            <button style={tabStyle(tab === 'cancelled')} onClick={() => setTab('cancelled')}>
-              Cancelled ({cancelledRows.length})
-            </button>
-          </div>
-
-          {bookingsLoading ? (
-            <p style={{ fontSize: '13px', color: '#666' }}>Loading...</p>
-          ) : tab === 'waitlist' ? (
-            waitlist.length === 0 ? (
-              <p style={{ fontSize: '13px', color: '#666' }}>No one on the waitlist.</p>
-            ) : (
-              <div>
-                {waitlist.map((w, i) => (
-                  <div key={w.id} style={{
-                    padding: '10px 0', borderBottom: i < waitlist.length - 1 ? '1px solid #f4f4f4' : 'none'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{w.member_name || 'Unknown member'}</div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          {w.email && `${w.email} · `}{w.preferred_mode.replace('_', ' ')}
-                          {w.intended_guest_count > 0 && ` · +${w.intended_guest_count} guest${w.intended_guest_count > 1 ? 's' : ''}`}
-                          {w.status === 'waiting' && ` · #${w.position} in line`}
-                        </div>
-                        {w.status === 'promoted' && (
-                          <div style={{ fontSize: '12px', color: '#7a4f00', marginTop: '2px' }}>
-                            {w.is_fast_track ? 'Fast-track blast' : 'Holding a spot'}
-                            {w.hold_expires_at && ` · expires ${formatWhen(w.hold_expires_at)}`}
-                          </div>
-                        )}
-                      </div>
-                      <WaitlistStatusBadge status={w.status} />
-                    </div>
-                  </div>
-                ))}
               </div>
-            )
-          ) : (rowsForTab.length === 0 && (tab !== 'cancelled' || cancelledGuestEntries.length === 0)) ? (
-            <p style={{ fontSize: '13px', color: '#666' }}>
-              {tab === 'booked' ? "No one's booked in yet." : 'No cancellations.'}
-            </p>
-          ) : (
-            <div>
-              {rowsForTab.map((b, i) => {
-                const guests = parseGuests(b)
-                return (
-                  <div key={b.id} style={{
-                    padding: '10px 0', borderBottom: i < rowsForTab.length - 1 ? '1px solid #f4f4f4' : 'none'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>
-                          {canViewMembers(roles) && b.user_id ? (
-                            <a href={`/dashboard/members/${b.user_id}`} style={{ color: '#085041', textDecoration: 'none' }}>
-                              {displayName(b.user) || b.member_name || 'Unknown member'}
-                            </a>
-                          ) : (
-                            displayName(b.user) || b.member_name || 'Unknown member'
-                          )}
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          {b.user?.email && `${b.user.email} · `}{b.booked_mode.replace('_', ' ')}
-                          {b.payment_type && ` · ${paymentTypeLabels[b.payment_type] ?? b.payment_type}`}
-                          {!!b.guest_count && ` · +${b.guest_count} guest${b.guest_count > 1 ? 's' : ''}`}
-                        </div>
-                        {b.payment_type === 'admin_waived' && b.comp_reason && (
-                          <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-                            Comp: {b.comp_reason}{b.comp_added_by_name ? ` — ${b.comp_added_by_name}` : ''}
-                          </div>
-                        )}
-                        {(b.status === 'cancelled' || b.status === 'late_cancel') && cancellationHistory(b).map((line, li) => (
-                          <div key={li} style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-                            {line}
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {/* confirmed/attended/no_show are all implied here — which tab the row is in, and
-                            the Attended checkbox's own state, already say it; a badge would be noise. */}
-                        {!['confirmed', 'attended', 'no_show'].includes(b.status) && <BookingStatusBadge status={b.status} />}
-                        {(b.status === 'cancelled' || b.status === 'late_cancel') && !b.credits_refunded
-                          && b.payment_type === 'pass' && b.member_pass_id && canManageBookings(roles) && (
-                          <button onClick={() => handleRefundCredit(b)} disabled={manageBusy} style={{
-                            padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2', borderRadius: '6px',
-                            fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
-                          }}>
-                            Refund credit
-                          </button>
-                        )}
-                        {(b.status === 'confirmed' || b.status === 'attended') && canMarkAttended(roles) && (
-                          <label style={{
-                            display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px',
-                            color: '#444', fontWeight: 500, cursor: manageBusy ? 'not-allowed' : 'pointer'
-                          }}>
-                            <input
-                              type="checkbox"
-                              checked={b.status === 'attended'}
-                              disabled={manageBusy}
-                              onChange={() => b.status === 'attended' ? handleUnmarkAttended(b.id) : handleMarkAttended(b.id)}
-                            />
-                            Attended
-                          </label>
-                        )}
-                        {b.status === 'confirmed' && canManageBookings(roles) && (
-                          <button onClick={() => handleCancelBooking(b.id)} disabled={manageBusy} style={{
-                            padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #fdecea', borderRadius: '6px',
-                            fontSize: '11px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
-                          }}>
-                            Cancel
-                          </button>
-                        )}
-                        {b.payment_type === 'card' && canManageBookings(roles) && (
-                          <button onClick={() => openRefund(b)} disabled={manageBusy} style={{
-                            padding: '5px 10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2', borderRadius: '6px',
-                            fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
-                          }}>
-                            Refund
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {guests.length > 0 && (
-                      <div style={{ marginTop: '8px', paddingLeft: '14px', borderLeft: '2px solid #f4f4f4' }}>
-                        {guests.map((g, gi) => {
-                          const guestLabel = [g.first_name, g.last_name].filter(Boolean).join(' ') || `Guest ${gi + 1}`
-                          return (
-                            <div key={gi} style={{
-                              display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: '12px'
-                            }}>
-                              <div style={{ color: g.status === 'cancelled' ? '#999' : '#666' }}>
-                                {guestLabel}{g.status === 'cancelled' && ' · Cancelled'}
-                              </div>
-                              {g.status === 'confirmed' && b.status === 'confirmed' && canManageBookings(roles) && (
-                                <button onClick={() => handleCancelGuest(b.id, gi, guestLabel)} disabled={manageBusy} style={{
-                                  padding: '3px 8px', backgroundColor: 'transparent', border: '1px solid #fdecea', borderRadius: '5px',
-                                  fontSize: '10px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
-                                }}>
-                                  Cancel
-                                </button>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-
-              {tab === 'cancelled' && cancelledGuestEntries.length > 0 && (
-                <div style={{ marginTop: rowsForTab.length > 0 ? '18px' : '0' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-                    Cancelled guests
-                  </div>
-                  {cancelledGuestEntries.map((g, i) => (
-                    <div key={`${g.bookingId}-${i}`} style={{
-                      padding: '10px 0', borderBottom: i < cancelledGuestEntries.length - 1 ? '1px solid #f4f4f4' : 'none'
-                    }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{g.name}</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Guest of {g.memberName}</div>
-                      <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
-                        Cancelled{g.cancelled_at ? ` ${formatWhen(g.cancelled_at)}` : ''}
-                        {g.cancelled_by_name ? ` by ${g.cancelled_by_name}` : ''}
-                        {g.credits_refunded > 0 ? ` · ${g.credits_refunded} credit${g.credits_refunded > 1 ? 's' : ''} refunded` : ''}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            </Card>
           )}
-        </div>
 
-        <EntityActivity orgId={orgId} token={token} entityType="session_occurrence" entityId={occurrence.id} noun="occurrence" refreshKey={activityKey} />
+          {showAddMember && (
+            <AddMemberModal
+              orgId={orgId}
+              token={token}
+              onClose={() => setShowAddMember(false)}
+              onCreated={m => {
+                setShowAddMember(false)
+                setMembers(prev => [...prev, { id: m.id, first_name: m.first_name, last_name: m.last_name }])
+                setMemberSearch('')
+                selectMember(m.id)
+              }}
+            />
+          )}
+
+          {showCancelOccurrence && (
+            <CancelOccurrenceModal
+              occurrenceId={occurrence.id}
+              orgId={orgId}
+              token={token}
+              onClose={() => setShowCancelOccurrence(false)}
+              onCancelled={handleOccurrenceCancelled}
+            />
+          )}
+
+          {/* Tabs + roster */}
+          <Card style={{ overflow: 'hidden' }} aria-label="Roster">
+            <div role="tablist" aria-label="Roster" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '8px 12px 0', borderBottom: `1px solid ${color.border}` }}>
+              {([
+                ['booked', `Booked (${capacity === null ? booked : `${booked}/${capacity}`})`],
+                ['waitlist', `Waitlist (${waitlist.length})`],
+                ['cancelled', `Cancelled (${cancelledRows.length})`],
+              ] as [Tab, string][]).map(([key, label]) => (
+                <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={ui.focusable} style={tabStyle(tab === key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {bookingsLoading ? (
+              <p style={{ margin: 0, padding: 20, fontSize: 15, color: color.muted }}>Loading…</p>
+            ) : tab === 'waitlist' ? (
+              waitlist.length === 0 ? (
+                <EmptyState message="No one is on the waitlist." />
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
+                    <thead><tr><th style={th}>Name</th><th style={th}>Wants</th><th style={th}>Place</th><th style={th}>Status</th></tr></thead>
+                    <tbody>
+                      {waitlist.map(w => {
+                        const s = waitlistStatusChip[w.status] ?? { label: w.status, tone: 'neutral' as const }
+                        return (
+                          <tr key={w.id}>
+                            <td style={td}>
+                              <span style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 600 }}>{w.member_name || 'Unknown member'}</span>
+                                {w.email && <span style={{ fontSize: 13, color: color.muted }}>{w.email}</span>}
+                              </span>
+                            </td>
+                            <td style={{ ...td, color: color.ink2 }}>
+                              {w.preferred_mode === 'online' ? 'Online' : 'In person'}
+                              {w.intended_guest_count > 0 && ` · +${w.intended_guest_count} guest${w.intended_guest_count > 1 ? 's' : ''}`}
+                            </td>
+                            <td style={{ ...td, ...tabularNums }}>{w.status === 'waiting' ? `#${w.position}` : '—'}</td>
+                            <td style={td}>
+                              <span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                                <Chip tone={s.tone}>{s.label}</Chip>
+                                {w.status === 'promoted' && (
+                                  <span style={{ fontSize: 13, color: color.warnInk }}>
+                                    {w.is_fast_track ? 'Fast-track blast' : 'Holding a spot'}
+                                    {w.hold_expires_at && ` · until ${formatWhen(w.hold_expires_at)}`}
+                                  </span>
+                                )}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : tab === 'booked' ? (
+              bookedRows.length === 0 ? (
+                <EmptyState
+                  icon={<UserPlus size={22} strokeWidth={1.8} />}
+                  message="No one's booked yet."
+                  action={canAdd ? <Button variant="primary" onClick={openAddBooking}>Add booking</Button> : undefined}
+                />
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={th}>Name</th><th style={th}>Pass / payment</th><th style={th}>Guests</th><th style={th}>Status</th>
+                        <th style={th}><span className={styles.srOnly}>Actions</span></th>
+                        <th style={{ ...th, textAlign: 'right' }}>Check-in</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bookedRows.map(b => {
+                        const guests = parseGuests(b)
+                        const s = bookingStatusChip[b.status] ?? { label: b.status, tone: 'neutral' as const }
+                        return (
+                          <tr key={b.id}>
+                            <td style={td}>{nameCell(b)}</td>
+                            <td style={td}>{paymentCell(b)}</td>
+                            <td style={td}>
+                              {guests.length === 0 ? <span style={{ color: '#8A918D' }}>—</span> : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
+                                  {guests.map((g, gi) => {
+                                    const guestLabel = [g.first_name, g.last_name].filter(Boolean).join(' ') || `Guest ${gi + 1}`
+                                    const cancelled = g.status === 'cancelled'
+                                    return (
+                                      <span key={gi} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                        <span style={cancelled ? { textDecoration: 'line-through', color: color.muted } : undefined}>{guestLabel}</span>
+                                        {cancelled && <span style={{ fontSize: 13, color: color.muted }}>cancelled</span>}
+                                        {g.status === 'confirmed' && b.status === 'confirmed' && canManageBookings(roles) && (
+                                          <button type="button" onClick={() => handleCancelGuest(b.id, gi, guestLabel)} disabled={manageBusy}
+                                            aria-label={`Cancel guest ${guestLabel}`} className={ui.focusable}
+                                            style={{ background: 'none', border: 0, padding: '4px 0', color: color.dangerInk, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                            Cancel
+                                          </button>
+                                        )}
+                                      </span>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </td>
+                            <td style={td}><Chip tone={s.tone}>{s.label}</Chip></td>
+                            <td style={td}>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                {b.status === 'confirmed' && canManageBookings(roles) && (
+                                  <button type="button" onClick={() => handleCancelBooking(b.id)} disabled={manageBusy}
+                                    aria-label={`Cancel booking for ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
+                                    Cancel
+                                  </button>
+                                )}
+                                {b.payment_type === 'card' && canManageBookings(roles) && (
+                                  <button type="button" onClick={() => openRefund(b)} disabled={manageBusy}
+                                    aria-label={`Refund ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
+                                    Refund
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ ...td, textAlign: 'right' }}>
+                              {(b.status === 'confirmed' || b.status === 'attended') && canMarkAttended(roles) && (
+                                b.status === 'attended' ? (
+                                  <button type="button" onClick={() => handleUnmarkAttended(b.id)} disabled={manageBusy}
+                                    aria-label={`Undo check-in for ${memberName(b)}`} className={ui.focusable}
+                                    style={{
+                                      display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 40, padding: '0 12px', border: 0,
+                                      borderRadius: radius.control, background: 'transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+                                      color: color.primaryInk, cursor: manageBusy ? 'not-allowed' : 'pointer',
+                                    }}>
+                                    <Check size={16} strokeWidth={2.5} aria-hidden />Checked in
+                                  </button>
+                                ) : (
+                                  <Button variant="primary" size="sm" onClick={() => handleMarkAttended(b.id)} disabled={manageBusy}>
+                                    Check in<span className={styles.srOnly}> {memberName(b)}</span>
+                                  </Button>
+                                )
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : (cancelledRows.length === 0 && cancelledGuestEntries.length === 0) ? (
+              <EmptyState message="No cancellations." />
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                {cancelledRows.length > 0 && (
+                  <table style={{ width: '100%', minWidth: 820, borderCollapse: 'collapse' }}>
+                    <thead><tr><th style={th}>Name</th><th style={th}>Pass / payment</th><th style={th}>Status</th><th style={th}>What happened</th><th style={th}><span className={styles.srOnly}>Actions</span></th></tr></thead>
+                    <tbody>
+                      {cancelledRows.map(b => {
+                        const s = bookingStatusChip[b.status] ?? { label: b.status, tone: 'neutral' as const }
+                        return (
+                          <tr key={b.id}>
+                            <td style={td}>{nameCell(b)}</td>
+                            <td style={td}>{paymentCell(b)}</td>
+                            <td style={td}><Chip tone={s.tone}>{s.label}</Chip></td>
+                            <td style={{ ...td, fontSize: 14, color: color.muted }}>
+                              {cancellationHistory(b).map((line, li) => <div key={li}>{line}</div>)}
+                            </td>
+                            <td style={td}>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                {!b.credits_refunded && b.payment_type === 'pass' && b.member_pass_id && canManageBookings(roles) && (
+                                  <button type="button" onClick={() => handleRefundCredit(b)} disabled={manageBusy} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
+                                    Refund credit
+                                  </button>
+                                )}
+                                {b.payment_type === 'card' && canManageBookings(roles) && (
+                                  <button type="button" onClick={() => openRefund(b)} disabled={manageBusy} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
+                                    Refund
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )}
+
+                {cancelledGuestEntries.length > 0 && (
+                  <div style={{ padding: '16px 20px', borderTop: cancelledRows.length > 0 ? `1px solid ${color.border}` : 'none' }}>
+                    <div style={{ ...smallCapsStyle, marginBottom: 8 }}>Cancelled guests</div>
+                    {cancelledGuestEntries.map((g, i) => (
+                      <div key={`${g.bookingId}-${i}`} style={{ padding: '10px 0', borderTop: i ? `1px solid ${color.divider}` : 'none' }}>
+                        <div style={{ fontSize: 15, fontWeight: 600 }}>{g.name}</div>
+                        <div style={{ fontSize: 14, color: color.ink2 }}>Guest of {g.memberName}</div>
+                        <div style={{ fontSize: 13, color: color.muted, marginTop: 2 }}>
+                          Cancelled{g.cancelled_at ? ` ${formatWhen(g.cancelled_at)}` : ''}
+                          {g.cancelled_by_name ? ` by ${g.cancelled_by_name}` : ''}
+                          {g.credits_refunded > 0 ? ` · ${g.credits_refunded} credit${g.credits_refunded > 1 ? 's' : ''} refunded` : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+
+          <EntityActivity orgId={orgId} token={token} entityType="session_occurrence" entityId={occurrence.id} noun="class" refreshKey={activityKey} />
+        </div>
       </div>
 
       {/* Refund modal */}
       {refundTarget && (
         <div style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: '24px'
+          position: 'fixed', inset: 0, background: 'rgba(23, 32, 28, 0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 24,
         }}>
-          <div style={{
-            backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
-            maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          <div role="dialog" aria-modal="true" aria-labelledby="refund-heading" style={{
+            background: color.surface, borderRadius: radius.card, padding: 28, width: '100%', maxWidth: 460,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', fontFamily: font.body,
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Issue refund</h2>
-              <button
-                onClick={() => setRefundTarget(null)}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}
-              >
-                ×
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 id="refund-heading" style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Issue refund</h2>
+              <button type="button" aria-label="Close" onClick={() => setRefundTarget(null)} className={ui.focusable}
+                style={{ ...buttonStyle('secondary', 'sm'), width: 36, padding: 0 }}>
+                <X size={16} strokeWidth={2} aria-hidden />
               </button>
             </div>
 
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
-              {displayName(refundTarget.user) || refundTarget.member_name || 'This member'} paid{' '}
-              {refundTarget.amount_paid != null
-                ? formatMoney(refundTarget.amount_paid, refundTarget.currency ?? 'AUD')
-                : 'by card'} for this booking. Partial refunds are allowed; the amount can't exceed what's left unrefunded.
+            <p style={{ margin: '0 0 20px', fontSize: 15, lineHeight: 1.45, color: color.ink2 }}>
+              {memberName(refundTarget) === 'Unknown member' ? 'This member' : memberName(refundTarget)} paid{' '}
+              {refundTarget.amount_paid != null ? formatMoney(refundTarget.amount_paid, refundTarget.currency ?? 'AUD') : 'by card'} for this booking.
+              Partial refunds are allowed; the amount can&apos;t exceed what&apos;s left unrefunded.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Refund amount</label>
-                <input
-                  type="number" min="0" step="0.01"
-                  value={refundAmount}
-                  onChange={e => setRefundAmount(e.target.value)}
-                  style={inputStyle}
-                />
+                <label htmlFor="refund-amount" style={labelStyle}>Refund amount</label>
+                <input id="refund-amount" type="number" min="0" step="0.01" value={refundAmount} onChange={e => setRefundAmount(e.target.value)} style={{ ...inputStyle, ...tabularNums }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Reason</label>
-                <textarea
-                  value={refundReason}
-                  onChange={e => setRefundReason(e.target.value)}
+                <label htmlFor="refund-reason" style={labelStyle}>Reason</label>
+                <textarea id="refund-reason" value={refundReason} onChange={e => setRefundReason(e.target.value)}
                   placeholder="e.g. Goodwill refund for a late cancellation"
-                  style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }}
-                />
+                  style={{ ...inputStyle, minHeight: 88, resize: 'vertical' }} />
               </div>
 
               {refundError && (
-                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
-                  {refundError}
-                </div>
+                <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{refundError}</div>
               )}
 
-              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                <button onClick={() => setRefundTarget(null)} style={{ ...secondaryButtonStyle, flex: 1 }}>
-                  Cancel
-                </button>
-                <button
-                  onClick={handleIssueRefund}
-                  disabled={refundBusy}
-                  style={{
-                    flex: 1, padding: '10px', backgroundColor: refundBusy ? '#9fd6b8' : '#085041', color: 'white',
-                    border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                    cursor: refundBusy ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {refundBusy ? 'Issuing...' : 'Issue refund'}
-                </button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <Button onClick={() => setRefundTarget(null)} style={{ flex: 1 }}>Cancel</Button>
+                <Button variant="primary" onClick={handleIssueRefund} disabled={refundBusy} style={{ flex: 1 }}>
+                  {refundBusy ? 'Issuing…' : 'Issue refund'}
+                </Button>
               </div>
             </div>
           </div>
