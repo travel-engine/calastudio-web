@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import styles from '../../photofirst.module.css'
 import { formatDateTimeWithWeekday } from '@/lib/dates'
-import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
+import { metaDescription, studioOpenGraph, studioOrigin, studioPath } from '@/lib/seo'
 import { JsonLd, personLd, breadcrumbLd, eventLd } from '@/lib/jsonLd'
 import Gallery from '../../Gallery'
 import StudioFooter from '../../StudioFooter'
@@ -135,7 +135,7 @@ export default async function TeacherLandingPage({ params }: Props) {
         <section className={styles.teacherGrid}>
           <div>
             <div style={{ marginBottom: '18px' }}>
-              <Link href={`/${studioSlug}/teachers`} className={styles.navLink}>← All teachers</Link>
+              <Link href={studioPath(studioSlug, '/teachers')} className={styles.navLink}>← All teachers</Link>
             </div>
             {(tags.length > 0 || p.is_primary) && (
               <div className={styles.tagRow}>
@@ -151,7 +151,7 @@ export default async function TeacherLandingPage({ params }: Props) {
             ))}
             {!bioParas.length && p.tagline && <p className={styles.bioLead}>{p.tagline}</p>}
 
-            <Link href={`/${studioSlug}/schedule`} className={styles.btnSolid} style={{ marginTop: '12px' }}>
+            <Link href={studioPath(studioSlug, '/schedule')} className={styles.btnSolid} style={{ marginTop: '12px' }}>
               See {firstName}&apos;s classes
             </Link>
 
@@ -212,7 +212,7 @@ export default async function TeacherLandingPage({ params }: Props) {
                   </div>
                 </div>
               ))}
-              <Link href={`/${studioSlug}/schedule`} className={styles.navLink} style={{ marginTop: '4px' }}>
+              <Link href={studioPath(studioSlug, '/schedule')} className={styles.navLink} style={{ marginTop: '4px' }}>
                 See the full schedule →
               </Link>
             </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { type ThemeKey } from '@/lib/studioTheme'
 import ThemePicker from '@/app/components/ThemePicker'
+import { STUDIO_DOMAIN, studioOrigin } from '@/lib/seo'
 
 // ── Step components ──────────────────────────────────────
 function ProgressBar({ step, total }: { step: number; total: number }) {
@@ -485,7 +486,7 @@ function Step4({ onNext, onSkip, onBack, loading }: {
 
 // ── Step 5: Done! ─────────────────────────────────────────
 function Step5({ data, orgSlug, stripeNote }: { data: StudioData; orgSlug: string; stripeNote?: string }) {
-  const bookingUrl = `${orgSlug}.calastudio.app`
+  const bookingUrl = `${orgSlug}.${STUDIO_DOMAIN}`
 
   return (
     <div style={{ textAlign: 'center' }}>
@@ -524,7 +525,7 @@ function Step5({ data, orgSlug, stripeNote }: { data: StudioData; orgSlug: strin
           {bookingUrl}
         </span>
         <button
-          onClick={() => navigator.clipboard.writeText(`https://${bookingUrl}`)}
+          onClick={() => navigator.clipboard.writeText(studioOrigin(orgSlug))}
           style={{
             padding: '6px 14px',
             backgroundColor: '#085041',

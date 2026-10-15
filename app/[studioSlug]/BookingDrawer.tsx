@@ -7,6 +7,7 @@ import { displayName, splitName } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
 import { formatDate, formatDateTimeWithWeekday } from '@/lib/dates'
 import styles from './photofirst.module.css'
+import { studioPath } from '@/lib/seo'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -77,6 +78,7 @@ export default function BookingDrawer() {
     close, setStep, setAuth, setBookingOptions, setConfirmedBooking, setError,
     goToWaitlist, setJoinedWaitlist,
   } = useBookingFlow()
+  const accountHref = studioSlug ? studioPath(studioSlug, '/account') : '/'
 
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
@@ -314,7 +316,7 @@ export default function BookingDrawer() {
       email, password,
       options: {
         data: { full_name: fullName, phone: null },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/${studioSlug}/account`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${accountHref}`,
       },
     })
     if (error) { setAuthMessage(error.message); setAuthBusy(false); return }
@@ -728,7 +730,7 @@ export default function BookingDrawer() {
               <p className={styles.drawerText}>
                 You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
               </p>
-              <a href={`/${studioSlug}/account`} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
+              <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
                 View my bookings
               </a>
             </div>
@@ -873,7 +875,7 @@ export default function BookingDrawer() {
               <p className={styles.drawerText}>
                 You have a confirmed booking for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
               </p>
-              <a href={`/${studioSlug}/account`} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
+              <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
                 View my bookings
               </a>
             </div>
@@ -922,7 +924,7 @@ export default function BookingDrawer() {
               You&apos;re #{joinedWaitlistEntry.position} in line for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}.
               If a place opens we&apos;ll hold it for you — nothing is charged until you accept.
             </p>
-            <a href={`/${studioSlug}/account`} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
+            <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
               View my waitlist
             </a>
           </div>
@@ -939,7 +941,7 @@ export default function BookingDrawer() {
             <p className={styles.drawerText}>
               You&apos;re booked for {occurrence.session_name} on {formatDateTime(occurrence.starts_at)}. A confirmation email is on its way.
             </p>
-            <a href={`/${studioSlug}/account`} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
+            <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
               View my bookings
             </a>
           </div>

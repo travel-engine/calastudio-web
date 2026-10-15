@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
+import { studioPath } from '@/lib/seo'
 import styles from './studionav.module.css'
 
 interface Props {
@@ -34,7 +35,10 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
   const [navOpen, setNavOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const home = `/${studioSlug}`
+  // usePathname() is the browser URL, so on a studio subdomain it's '/schedule' etc. Compare
+  // against the same studioPath() the links use.
+  const at = (path: string) => studioPath(studioSlug, path)
+  const home = at('/')
   const onHome = pathname === home
 
   useEffect(() => {
@@ -82,15 +86,15 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
     window.location.href = home
   }
 
-  const onAccountPage = pathname === `/${studioSlug}/account`
+  const onAccountPage = pathname === at('/account')
   const initial = (email?.[0] ?? '?').toUpperCase()
 
   const navLinks = [
     // The themed layout leads with the studio name as "home" and drops the explicit Home link.
     ...(themed ? [] : [{ href: home, label: 'Home', active: onHome }]),
-    { href: `${home}/schedule`, label: 'Schedule', active: pathname === `${home}/schedule` },
-    { href: `${home}/teachers`, label: 'Teachers', active: pathname.startsWith(`${home}/teachers`) },
-    { href: `${home}/pricing`, label: 'Pricing', active: pathname === `${home}/pricing` },
+    { href: at('/schedule'), label: 'Schedule', active: pathname === at('/schedule') },
+    { href: at('/teachers'), label: 'Teachers', active: pathname.startsWith(at('/teachers')) },
+    { href: at('/pricing'), label: 'Pricing', active: pathname === at('/pricing') },
   ]
 
   return (
@@ -136,7 +140,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
           </div>
 
           {themed && (
-            <Link href={`${home}/schedule`} className={styles.navCta} onClick={() => setNavOpen(false)}>
+            <Link href={at('/schedule')} className={styles.navCta} onClick={() => setNavOpen(false)}>
               Book a class
             </Link>
           )}
@@ -175,7 +179,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
                     {email}
                   </div>
                   <Link
-                    href={`/${studioSlug}/account`}
+                    href={at('/account')}
                     role="menuitem"
                     onClick={() => setMenuOpen(false)}
                     style={{ display: 'block', padding: '9px 10px', borderRadius: '8px', fontSize: '13px', color: 'var(--ink)', textDecoration: 'none' }}
@@ -197,7 +201,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
             </div>
           ) : onAccountPage ? null : (
             <Link
-              href={`/${studioSlug}/account`}
+              href={at('/account')}
               style={{
                 padding: '9px 18px', background: 'var(--accent)', color: 'var(--accent-ink)', borderRadius: 'var(--pill)',
                 fontSize: '13px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',

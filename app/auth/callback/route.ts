@@ -13,12 +13,19 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const tokenHash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
-  const next = searchParams.get('next') ?? '/dashboard'
+  // Same-site paths only — '//evil.com' or 'https://…' would make this an open redirect.
+  const nextParam = searchParams.get('next')
+  const next = nextParam?.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/dashboard'
   const providerError = searchParams.get('error_description') || searchParams.get('error')
+
+  // Resolve against the host the browser is actually on (a studio subdomain, via proxy.ts), so the
+  // session cookie set below and the page it lands on share a host. request.url carries Next's own
+  // bound hostname outside Vercel.
+  const origin = `${request.nextUrl.protocol}//${request.headers.get('host') ?? request.nextUrl.host}`
 
   // Where to send someone when the link can't be exchanged — back to whatever page asked for
   // the callback (its own sign-in gate), or the studio signup page as a last resort.
-  const failUrl = new URL(next !== '/dashboard' ? next : '/register', request.url)
+  const failUrl = new URL(next !== '/dashboard' ? next : '/register', origin)
   failUrl.searchParams.set('error', 'auth')
 
   if (providerError) {
@@ -43,10 +50,10 @@ export async function GET(request: NextRequest) {
 
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
-    if (!error) return NextResponse.redirect(new URL(next, request.url))
+    if (!error) return NextResponse.redirect(new URL(next, origin))
   } else if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) return NextResponse.redirect(new URL(next, request.url))
+    if (!error) return NextResponse.redirect(new URL(next, origin))
   }
 
   return NextResponse.redirect(failUrl)

@@ -9,7 +9,35 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://calastudio
 
 /** Canonical origin for a studio's public site. */
 export function studioOrigin(slug: string): string {
-  return `https://${slug}.${STUDIO_DOMAIN}`
+  // http for a local subdomain test (a domain with a port, e.g. lvh.me:3000), https everywhere real.
+  const scheme = STUDIO_DOMAIN.includes(':') ? 'http' : 'https'
+  return `${scheme}://${slug}.${STUDIO_DOMAIN}`
+}
+
+// Whether studio sites are actually being served per subdomain (proxy.ts rewrites
+// {slug}.{STUDIO_DOMAIN}/x → /{slug}/x). Build-time, so ISR pages can render links without
+// looking at the request host. Off in local dev / LAN phone testing / Vercel previews, where the
+// site is reached path-based at /{slug}/x on whatever host.
+export const STUDIO_SUBDOMAINS = process.env.NEXT_PUBLIC_STUDIO_SUBDOMAINS === 'true'
+
+/** Link from one page of a studio's public site to another (`path` starts with `/`). */
+export function studioPath(slug: string, path = '/'): string {
+  if (STUDIO_SUBDOMAINS) return path
+  return path === '/' ? `/${slug}` : `/${slug}${path}`
+}
+
+/** Link to a studio's public site from outside it (dashboard, apex auth pages). */
+export function studioUrl(slug: string, path = '/'): string {
+  return STUDIO_SUBDOMAINS ? `${studioOrigin(slug)}${path}` : studioPath(slug, path)
+}
+
+/** The studio slug when the browser is on a studio subdomain, else null. Client-only. */
+export function studioSlugFromHost(host: string): string | null {
+  const suffix = `.${STUDIO_DOMAIN.toLowerCase()}`
+  const h = host.toLowerCase()
+  if (!STUDIO_SUBDOMAINS || !h.endsWith(suffix)) return null
+  const sub = h.slice(0, -suffix.length)
+  return sub && !sub.includes('.') && sub !== 'www' ? sub : null
 }
 
 /** Clean free text down to a meta-description-sized string. */
