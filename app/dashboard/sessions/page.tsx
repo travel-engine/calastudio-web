@@ -25,6 +25,14 @@ interface Session {
   photo_url?: string | null
 }
 
+function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`
+  }
+}
+
 function Badge({ text }: { text: string | null | undefined; color?: string }) {
     if (!text) return null
   
@@ -59,6 +67,7 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState<string | null>(null)
+  const [currency, setCurrency] = useState('AUD')
   const [roles, setRoles] = useState<string[]>([])
   const [forbidden, setForbidden] = useState(false)
 
@@ -71,6 +80,7 @@ export default function SessionsPage() {
       const token = ctx.token
       const org = ctx.org
       setOrgId(org.id)
+      setCurrency(org.currency ?? 'AUD')
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
@@ -266,7 +276,7 @@ export default function SessionsPage() {
                   {session.capacity ?? '∞'}
                 </div>
                 <div style={{ fontSize: '14px', color: '#444' }}>
-                  {session.price ? `$${session.price}` : 'Free'}
+                  {session.price ? formatMoney(session.price, currency) : 'Free'}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
 
