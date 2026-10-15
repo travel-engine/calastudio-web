@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { getOrgContext } from '@/lib/orgContext'
 import { useRouter } from 'next/navigation'
@@ -22,6 +23,14 @@ interface Session {
   location_name: string | null
   is_active: boolean
   photo_url?: string | null
+}
+
+function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`
+  }
 }
 
 function Badge({ text }: { text: string | null | undefined; color?: string }) {
@@ -58,6 +67,7 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState<string | null>(null)
+  const [currency, setCurrency] = useState('AUD')
   const [roles, setRoles] = useState<string[]>([])
   const [forbidden, setForbidden] = useState(false)
 
@@ -70,6 +80,7 @@ export default function SessionsPage() {
       const token = ctx.token
       const org = ctx.org
       setOrgId(org.id)
+      setCurrency(org.currency ?? 'AUD')
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
@@ -230,7 +241,11 @@ export default function SessionsPage() {
                   borderBottom: i < sessions.length - 1 ? '1px solid #f4f4f4' : 'none'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* The whole Session cell opens the session — same target as the Edit/View button. */}
+                <Link
+                  href={`/dashboard/sessions/${session.id}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'inherit', textDecoration: 'none' }}
+                >
                   <div style={{
                     width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#f4f4f4',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0
@@ -243,7 +258,7 @@ export default function SessionsPage() {
                   </div>
                   <div>
                     <div
-                      style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', cursor: 'default' }}
+                      style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}
                       title={(session as any).description ?? undefined}
                     >
                       {session.name}
@@ -254,14 +269,14 @@ export default function SessionsPage() {
                       {(session as any).is_recurring ? ' · Weekly' : ' · One-off'}
                     </div>
                   </div>
-                </div>
+                </Link>
                 <div><Badge text={session.session_type} /></div>
                 <div><Badge text={session.delivery_mode} /></div>
                 <div style={{ fontSize: '14px', color: '#444' }}>
                   {session.capacity ?? '∞'}
                 </div>
                 <div style={{ fontSize: '14px', color: '#444' }}>
-                  {session.price ? `$${session.price}` : 'Free'}
+                  {session.price ? formatMoney(session.price, currency) : 'Free'}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
 
