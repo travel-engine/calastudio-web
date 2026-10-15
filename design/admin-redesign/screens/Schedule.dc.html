@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CalaStudio · Schedule</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F3F4F1;font-family:'Figtree',system-ui,sans-serif;color:#17201C}
+a{color:#14513F}a:hover{color:#0C3A2D}
+.shell{display:flex;flex-wrap:wrap;min-height:100vh}
+.side{flex:1 1 236px;max-width:100%;background:#FFFFFF;border-right:1px solid #E1E3DE;padding:20px 14px;display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 12px 8px;font-weight:700;font-size:18px;letter-spacing:-0.01em}
+.grp{padding:18px 12px 6px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6A726E}
+.navlink{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:10px;color:#3C4541;text-decoration:none;font-weight:500;font-size:15px}
+.navlink:hover{background:#F3F4F1;color:#17201C}
+.navlink.on{background:#E2EEE9;color:#0C3A2D;font-weight:600}
+.navlink svg{width:20px;height:20px;flex:none}
+.signout{margin-top:auto;padding-top:24px}
+.main{flex:999 1 560px;min-width:0}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid #E1E3DE}
+.search{display:flex;align-items:center;gap:10px;flex:0 1 420px;min-height:44px;padding:0 14px;background:#FFFFFF;border:1px solid #DADDD7;border-radius:10px}
+.search input{border:0;outline:0;font:400 15px 'Figtree',sans-serif;width:100%;background:transparent;color:#17201C}
+.iconbtn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid #DADDD7;background:#FFFFFF;color:#3C4541;cursor:pointer}
+.avatar{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:none}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 32px 56px;display:flex;flex-direction:column;gap:20px}
+.card{background:#FFFFFF;border:1px solid #E1E3DE;border-radius:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:10px;font:600 15px 'Figtree',sans-serif;border:1px solid #CDD1CB;background:#FFFFFF;color:#17201C;cursor:pointer;text-decoration:none;white-space:nowrap;box-sizing:border-box}
+.btn.pri{background:#14513F;border-color:#14513F;color:#FFFFFF}
+.label{font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5A635F}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;background:#EDEEEA;color:#3C4541}
+.h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:44px;line-height:1.05}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.num{font-variant-numeric:tabular-nums}
+.occ{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:12px 14px;border-radius:10px;text-decoration:none;color:#17201C;border:1px solid #EDEEEA;background:#FFFFFF}
+.occ:hover{border-color:#B9C9C1;background:#F7FAF8}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
+</style>
+</helmet>
+<div class="shell">
+  <nav class="side" aria-label="Main">
+    <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#14513F"></rect><path d="M6 17c2.5-3 5-3 8 0s5.5 3 8 0" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"></path><circle cx="14" cy="10" r="2.4" fill="#FFFFFF"></circle></svg>CalaStudio</div>
+    <div class="grp">Studio</div>
+    <a class="navlink" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>Dashboard</a>
+    <a class="navlink on" href="Schedule.dc.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg>Schedule</a>
+    <a class="navlink" href="Sessions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 7.5l9 4.5 9-4.5z"></path><path d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5"></path></svg>Sessions</a>
+    <a class="navlink" href="Member.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.4 3.5 5.2"></path></svg>Members</a>
+    <div class="grp">Revenue</div>
+    <a class="navlink" href="Passes.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h15A1.5 1.5 0 0 1 21 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5V14a2 2 0 0 0 0-4z"></path><path d="M14 6v12" stroke-dasharray="2 2.5"></path></svg>Passes</a>
+    <a class="navlink" href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-6M2 20h20"></path></svg>Reports</a>
+    <div class="grp">Settings</div>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="8" r="3.5"></circle><path d="M3.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M19 8v6M16 11h6"></path></svg>Team</a>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Activity log</a>
+    <a class="navlink" href="Settings.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg>Settings</a>
+    <div class="signout"><button class="btn" type="button" style="width: 100%; justify-content: center">Sign out</button></div>
+  </nav>
+
+  <main class="main">
+    <header class="top">
+      <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A635F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span class="sr">Search</span><input type="search" placeholder="Search members, sessions, passes"></label>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <button class="iconbtn" type="button" aria-label="Help"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"></path></svg></button>
+        <button class="iconbtn" type="button" aria-label="Account" style="border-radius: 50%; padding: 0"><span class="avatar" style="background: #14513F; color: #FFFFFF">RM</span></button>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="label">Schedule · bookings &amp; rosters</span>
+          <h1 class="h1">12 – 18 October</h1>
+        </div>
+        <a class="btn pri" href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New session</a>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <button class="iconbtn" type="button" aria-label="Previous week"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></button>
+          <button class="btn" type="button">This week</button>
+          <button class="iconbtn" type="button" aria-label="Next week"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></button>
+        </div>
+        <label style="display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px; cursor: pointer"><input type="checkbox" checked="{{showCancelled}}" onChange="{{toggleCancelled}}" style="width: 18px; height: 18px; accent-color: #14513F">Show cancelled (73)</label>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+        <section class="card" style="flex: 999 1 560px; min-width: 0; overflow: hidden">
+          <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+            <div style="{{d.rowStyle}}">
+              <div style="width: 84px; flex: none; display: flex; flex-direction: column; gap: 2px; padding-top: 10px">
+                <span style="{{d.dowStyle}}">{{d.dow}}</span>
+                <span style="font-size: 14px; color: #5A635F">{{d.date}}</span>
+              </div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+                <sc-for list="{{d.items}}" as="o" hint-placeholder-count="1">
+                  <a class="occ" href="Roster.dc.html" style="{{o.occStyle}}">
+                    <span class="num" style="width: 72px; flex: none; font-size: 15px; font-weight: 600">{{o.time}}</span>
+                    <span style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                      <span style="{{o.nameStyle}}">{{o.name}}</span>
+                      <span style="font-size: 14px; color: #5A635F">{{o.place}} · {{o.teacher}}</span>
+                    </span>
+                    <sc-if value="{{o.flag}}" hint-placeholder-val="{{ false }}"><span class="chip" style="{{o.flagStyle}}">{{o.flag}}</span></sc-if>
+                    <span style="display: inline-flex; align-items: center; gap: 10px; flex: none">
+                      <span style="width: 90px; height: 6px; border-radius: 3px; background: #E7EAE5; overflow: hidden"><span style="{{o.barStyle}}"></span></span>
+                      <span class="num" style="width: 52px; text-align: right; font-size: 14px; font-weight: 600">{{o.booked}} / {{o.cap}}</span>
+                    </span>
+                  </a>
+                </sc-for>
+                <sc-if value="{{d.empty}}" hint-placeholder-val="{{ false }}">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 0 14px; border: 1px dashed #CDD1CB; border-radius: 10px; font-size: 14px; color: #5A635F"><span>No classes</span><a href="#" style="font-weight: 600; text-decoration: none">Add one</a></div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </section>
+
+        <aside class="card" style="flex: 1 1 280px; min-width: 0; padding: 18px; display: flex; flex-direction: column; gap: 14px" aria-label="Month">
+          <div style="display: flex; align-items: center; justify-content: space-between">
+            <button class="iconbtn" type="button" aria-label="Previous month" style="width: 36px; height: 36px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></button>
+            <span style="font-size: 16px; font-weight: 600">October 2026</span>
+            <button class="iconbtn" type="button" aria-label="Next month" style="width: 36px; height: 36px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg></button>
+          </div>
+          <div class="cal" style="font-size: 12px; font-weight: 600; color: #5A635F"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+          <div class="cal">
+            <sc-for list="{{cal}}" as="c" hint-placeholder-count="35">
+              <span style="{{c.style}}">{{c.d}}<span style="{{c.dot}}"></span></span>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 16px; font-size: 13px; color: #5A635F; padding-top: 4px; border-top: 1px solid #EDEEEA">
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding-top: 10px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #14513F"></span>Has classes</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding-top: 10px"><span style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid #14513F; box-sizing: border-box"></span>Today</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { showCancelled: false };
+  }
+  renderVals() {
+    const sc = this.state.showCancelled;
+    const o = (time, name, place, teacher, booked, cap, extra) => ({ time, name, place, teacher, booked, cap, ...(extra || {}) });
+    const raw = [
+      { dow: 'Mon', date: '12 Oct', past: true, items: [o('6:00 am', 'Monday morning Ashtanga · Brighton', 'Yoga 4 life', 'No teacher', 7, 12, { noTeacher: true })] },
+      { dow: 'Tue', date: '13 Oct', past: true, items: [o('9:00 am', 'Tuesday Morning Vinyasa · North Lakes', 'Base Training Centre', 'Ravi Platray', 11, 20)] },
+      { dow: 'Wed', date: '14 Oct', past: true, items: [o('6:00 am', 'Wednesday Morning Backbends · Brighton', 'Yoga 4 life', 'No teacher', 6, 12, { noTeacher: true })] },
+      { dow: 'Thu', date: '15 Oct', past: true, items: [o('9:00 am', 'Thursday Morning Vinyasa · North Lakes', 'Base Training Centre', 'Ravi Platray', 9, 20)] },
+      { dow: 'Fri', date: '16 Oct', today: true, items: [o('3:35 pm', 'Tuesday Vinyasa · North Lakes', 'Base Training Centre', 'Ravi Platray', 0, 20, { cancelled: true })] },
+      { dow: 'Sat', date: '17 Oct', items: [o('7:00 am', 'Saturday Morning Yoga · North Lakes', 'Base Training Centre', 'Ravi Platray', 12, 20), o('9:00 am', 'Saturday Inversions and handstands', 'Yoga 4 life', 'Ravi Platray', 10, 12), o('9:00 am', 'Saturday · Yoga Inversions and Handstands 2', 'Yoga 4 life', 'Ravi Platray', 0, 12, { cancelled: true }), o('3:57 pm', 'Evening Pilates', 'Base Training Centre', 'Ravi Platray', 0, 15, { cancelled: true })] },
+      { dow: 'Sun', date: '18 Oct', items: [o('8:00 am', 'Sunday Yoga · North Lakes Council Session', 'Base Training Centre', 'Ravi Platray', 30, 30), o('9:30 am', 'Sunday Second Session Yoga · North Lakes', 'Base Training Centre', 'Ravi Platray', 8, 20)] }
+    ];
+    const days = raw.map((d, i) => {
+      const items = d.items.filter((x) => sc || !x.cancelled).map((x) => {
+        const r = x.booked / x.cap, full = r >= 1, low = !full && r >= 0.8;
+        const color = full ? '#B3261E' : low ? '#C77A12' : '#14513F';
+        const flag = x.cancelled ? 'Cancelled' : x.noTeacher ? 'No teacher' : full ? 'Full' : low ? 'Almost full' : '';
+        return { ...x, flag,
+          flagStyle: x.cancelled ? 'background:#EDEEEA;color:#4A524E' : full ? 'background:#FBE4E1;color:#8F1F17' : 'background:#FBEFD9;color:#7A4508',
+          occStyle: x.cancelled ? 'background:#F7F8F5;opacity:0.75' : d.past ? 'background:#FAFAF8' : '',
+          nameStyle: 'font-size:16px;font-weight:600;' + (x.cancelled ? 'text-decoration:line-through;color:#5A635F' : ''),
+          barStyle: 'display:block;height:100%;border-radius:3px;width:' + Math.round(r * 100) + '%;background:' + (d.past ? '#8FA79D' : color) };
+      });
+      return { ...d, items, empty: items.length === 0,
+        rowStyle: 'display:flex;gap:16px;padding:14px 20px;' + (i ? 'border-top:1px solid #EDEEEA;' : '') + (d.today ? 'background:#F4F9F6;' : ''),
+        dowStyle: 'font-size:16px;font-weight:600;' + (d.today ? 'color:#14513F' : d.past ? 'color:#5A635F' : 'color:#17201C') };
+    });
+    const cal = [];
+    for (let i = 0; i < 35; i++) {
+      const date = new Date(2026, 8, 28 + i);
+      const d = date.getDate(), m = date.getMonth(), dow = (date.getDay() + 6) % 7;
+      const inMonth = m === 9, today = inMonth && d === 16, past = date < new Date(2026, 9, 16);
+      const has = inMonth && dow !== 4;
+      cal.push({ d,
+        style: 'position:relative;display:inline-flex;align-items:center;justify-content:center;height:36px;border-radius:50%;font-size:14px;font-variant-numeric:tabular-nums;' +
+          (today ? 'border:2px solid #14513F;font-weight:700;color:#0C3A2D;' : '') +
+          (!inMonth ? 'color:#B4BAB6;' : past ? 'color:#6A726E;' : 'color:#17201C;font-weight:500;'),
+        dot: has ? 'position:absolute;bottom:3px;left:50%;margin-left:-2.5px;width:5px;height:5px;border-radius:50%;background:' + (past ? '#A9BDB4' : '#14513F') : 'display:none' });
+    }
+    return { days, cal, showCancelled: sc, toggleCancelled: () => this.setState({ showCancelled: !this.state.showCancelled }) };
+  }
+}
+</script>
+</body>
+</html>

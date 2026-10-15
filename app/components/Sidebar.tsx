@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import type { LucideIcon } from 'lucide-react'
+import { CalendarDays, ChartColumn, ClipboardList, Clock, House, Layers, LogOut, Menu, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
 import { clearOrgContext } from '@/lib/orgContext'
 import { canViewSessions, canViewOccurrences, canViewBookings, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
+import { color } from '@/lib/ui/tokens'
+import { buttonStyle } from '@/app/components/admin/Button'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from './sidebar.module.css'
 
 interface SidebarProps {
@@ -22,23 +27,51 @@ const SECTIONS = [
   { key: 'settings', label: 'Settings' },
 ] as const
 
-const navItems = [
-  { href: '/dashboard', icon: '🏠', label: 'Dashboard', key: 'dashboard', section: 'studio', canView: undefined },
-  { href: '/dashboard/schedule', icon: '🗓', label: 'Schedule', key: 'schedule', section: 'studio', canView: canViewOccurrences },
-  { href: '/dashboard/sessions', icon: '📅', label: 'Sessions', key: 'sessions', section: 'studio', canView: canViewSessions },
-  { href: '/dashboard/members', icon: '👥', label: 'Members', key: 'members', section: 'studio', canView: canViewMembers },
-  { href: '/dashboard/bookings', icon: '🎟', label: 'Bookings', key: 'bookings', section: 'studio', canView: canViewBookings },
-  { href: '/dashboard/passes', icon: '💳', label: 'Passes', key: 'passes', section: 'revenue', canView: canViewPassTemplates },
-  { href: '/dashboard/reports', icon: '📊', label: 'Reports', key: 'reports', section: 'revenue', canView: canViewReports },
-  { href: '/dashboard/team', icon: '👤', label: 'Team', key: 'team', section: 'settings', canView: canViewTeam },
-  { href: '/dashboard/audit-log', icon: '🕘', label: 'Activity log', key: 'audit-log', section: 'settings', canView: canViewAuditLog },
-  { href: '/dashboard/settings', icon: '⚙️', label: 'Settings', key: 'settings', section: 'settings', canView: canManageSettings },
+type NavItem = {
+  href: string
+  icon: LucideIcon
+  label: string
+  key: string
+  section: (typeof SECTIONS)[number]['key']
+  canView?: (roles: string[]) => boolean
+}
+
+// Bookings stays until the Schedule + Roster redesign lands (handoff §2 retires it then, with a
+// redirect to Schedule) so nobody loses the page in between.
+const navItems: NavItem[] = [
+  { href: '/dashboard', icon: House, label: 'Dashboard', key: 'dashboard', section: 'studio' },
+  { href: '/dashboard/schedule', icon: CalendarDays, label: 'Schedule', key: 'schedule', section: 'studio', canView: canViewOccurrences },
+  { href: '/dashboard/sessions', icon: Layers, label: 'Sessions', key: 'sessions', section: 'studio', canView: canViewSessions },
+  { href: '/dashboard/members', icon: Users, label: 'Members', key: 'members', section: 'studio', canView: canViewMembers },
+  { href: '/dashboard/bookings', icon: ClipboardList, label: 'Bookings', key: 'bookings', section: 'studio', canView: canViewBookings },
+  { href: '/dashboard/passes', icon: Ticket, label: 'Passes', key: 'passes', section: 'revenue', canView: canViewPassTemplates },
+  { href: '/dashboard/reports', icon: ChartColumn, label: 'Reports', key: 'reports', section: 'revenue', canView: canViewReports },
+  { href: '/dashboard/team', icon: UserPlus, label: 'Team', key: 'team', section: 'settings', canView: canViewTeam },
+  { href: '/dashboard/audit-log', icon: Clock, label: 'Activity log', key: 'audit-log', section: 'settings', canView: canViewAuditLog },
+  { href: '/dashboard/settings', icon: SlidersHorizontal, label: 'Settings', key: 'settings', section: 'settings', canView: canManageSettings },
 ]
+
+function BrandMark({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" aria-hidden="true">
+      <rect width="28" height="28" rx="8" fill={color.primary} />
+      <path d="M6 17c2.5-3 5-3 8 0s5.5 3 8 0" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="14" cy="10" r="2.4" fill="#FFFFFF" />
+    </svg>
+  )
+}
 
 export default function Sidebar({ active, roles }: SidebarProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const visible = (item: typeof navItems[0]) => !item.canView || !roles || item.canView(roles)
+  const visible = (item: NavItem) => !item.canView || !roles || item.canView(roles)
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -53,129 +86,70 @@ export default function Sidebar({ active, roles }: SidebarProps) {
       {/* Mobile topbar */}
       <div className={styles.topbar}>
         <button
+          type="button"
           onClick={() => setOpen(true)}
           aria-label="Open menu"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            fontSize: '22px',
-            cursor: 'pointer',
-            padding: '4px 8px',
-            lineHeight: 1
-          }}
+          aria-expanded={open}
+          className={ui.focusable}
+          style={{ ...buttonStyle('secondary'), width: 44, padding: 0 }}
         >
-          ☰
+          <Menu size={20} strokeWidth={1.8} aria-hidden />
         </button>
-        <Link href="/dashboard" style={{
-          backgroundColor: '#085041',
-          color: 'white',
-          fontWeight: 700,
-          fontSize: '14px',
-          padding: '6px 12px',
-          borderRadius: '8px',
-          textDecoration: 'none'
-        }}>
-          CalaStudio
+        <Link href="/dashboard" className={`${styles.brand} ${ui.focusable}`}>
+          <BrandMark size={24} />CalaStudio
         </Link>
       </div>
 
       {/* Mobile backdrop */}
       {open && <div className={styles.overlay} onClick={() => setOpen(false)} />}
 
-      <div className={`${styles.panel} ${open ? styles.open : ''}`}>
-      {/* Logo */}
+      <nav aria-label="Main" className={`${styles.panel} ${open ? styles.open : ''}`}>
+        <Link href="/dashboard" className={`${styles.brand} ${ui.focusable}`} onClick={() => setOpen(false)}>
+          <BrandMark />CalaStudio
+        </Link>
 
-        <Link href="/dashboard"
-        style={{
-          display: 'block',
-          backgroundColor: '#085041',
-          color: 'white',
-          fontWeight: 700,
-          fontSize: '16px',
-          padding: '8px 16px',
-          borderRadius: '8px',
-          marginBottom: '32px',
-          textAlign: 'center',
-          textDecoration: 'none'
-        }}
-      >
-        CalaStudio
-      </Link>
-
-      {/* Nav */}
-      <nav style={{ flex: 1 }}>
         {/* A heading only renders when its section has something this role can see. */}
-        {SECTIONS.map((section, i) => {
+        {SECTIONS.map(section => {
           const items = navItems.filter(item => item.section === section.key && visible(item))
           if (items.length === 0) return null
           return (
             <div key={section.key}>
-              <div style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                color: '#999',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                marginBottom: '8px',
-                marginTop: i === 0 ? 0 : '24px',
-                padding: '0 16px'
-              }}>
-                {section.label}
-              </div>
+              <div className={styles.group}>{section.label}</div>
               {items.map(item => (
                 <NavLink key={item.key} item={item} active={active === item.key} onNavigate={() => setOpen(false)} />
               ))}
             </div>
           )
         })}
-      </nav>
 
-      {/* Sign out */}
-      <div style={{ borderTop: '1px solid #e2e2e2', paddingTop: '16px', marginTop: '16px' }}>
-        <button
-          onClick={handleSignOut}
-          style={{
-            width: '100%',
-            padding: '8px',
-            backgroundColor: 'transparent',
-            border: '1px solid #e2e2e2',
-            borderRadius: '6px',
-            fontSize: '13px',
-            cursor: 'pointer',
-            color: '#666'
-          }}
-        >
-          Sign out
-        </button>
-      </div>
-      </div>
+        <div className={styles.signout}>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className={`${ui.button} ${ui.focusable}`}
+            style={{ ...buttonStyle('secondary'), width: '100%' }}
+          >
+            <LogOut size={18} strokeWidth={1.8} aria-hidden />Sign out
+          </button>
+        </div>
+      </nav>
     </>
   )
 }
 
-function NavLink({ item, active, onNavigate }: { item: typeof navItems[0]; active: boolean; onNavigate?: () => void }) {
+function NavLink({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
+  const Icon = item.icon
   return (
-
-      // next/link: client-side navigation keeps the cached org/roles (lib/orgContext), so a page
-      // switch only waits on that page's own data.
-      <Link href={item.href}
+    // next/link: client-side navigation keeps the cached org/roles (lib/orgContext), so a page
+    // switch only waits on that page's own data.
+    <Link
+      href={item.href}
       onClick={onNavigate}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        padding: '10px 16px',
-        borderRadius: '8px',
-        backgroundColor: active ? '#e8f5ee' : 'transparent',
-        color: active ? '#085041' : '#444',
-        textDecoration: 'none',
-        fontSize: '14px',
-        fontWeight: active ? 600 : 400,
-        marginBottom: '2px'
-      }}
+      aria-current={active ? 'page' : undefined}
+      className={`${styles.navlink} ${active ? styles.active : ''} ${ui.focusable}`}
     >
-      <span>{item.icon}</span>
-      <span>{item.label}</span>
+      <Icon size={20} strokeWidth={1.8} aria-hidden />
+      {item.label}
     </Link>
   )
 }

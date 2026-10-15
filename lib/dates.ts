@@ -92,6 +92,39 @@ export function formatDayLabel(input: DateInput, timeZone?: string | null): stri
   return formatDateWithWeekday(d, timeZone)
 }
 
+// ── Admin redesign formats (design/admin-redesign handoff §3) ─────────────────────────────────
+// Locale pinned to en-AU so server and browser render identically (no hydration mismatch) and
+// times read "7:00 am". Pass the studio's timezone wherever the value is on the studio's clock.
+const ADMIN_LOCALE = 'en-AU'
+
+/** "7:00 am" */
+export function formatClock(input: DateInput, timeZone?: string | null): string {
+  const d = toDate(input)
+  if (!d) return ''
+  return d.toLocaleTimeString(ADMIN_LOCALE, { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: safeZone(timeZone) })
+}
+
+/** "Sat 17 Oct", with the year only when it isn't this year: "Sat 2 Jan 2027" */
+export function formatShortDate(input: DateInput, timeZone?: string | null): string {
+  const d = toDate(input)
+  if (!d) return ''
+  const zone = safeZone(timeZone)
+  const { y } = ymd(d, zone)
+  const thisYear = ymd(new Date(), zone).y
+  const weekday = d.toLocaleDateString(ADMIN_LOCALE, { weekday: 'short', timeZone: zone })
+  const { m, day } = ymd(d, zone)
+  return `${weekday} ${day} ${MONTHS[m - 1]}${y === thisYear ? '' : ` ${y}`}`
+}
+
+/** "Today, 7:00 am" · "Tomorrow, 7:00 am" · "Sat 17 Oct, 7:00 am" */
+export function formatWhen(input: DateInput, timeZone?: string | null): string {
+  const d = toDate(input)
+  if (!d) return ''
+  const label = formatDayLabel(d, timeZone)
+  const day = label === 'Today' || label === 'Tomorrow' ? label : formatShortDate(d, timeZone)
+  return `${day}, ${formatClock(d, timeZone)}`
+}
+
 /** Compact "time since": "just now", "5m ago", "3h ago", "2d ago", then falls back to 05-Sep-2026 */
 export function formatRelativeShort(input: DateInput): string {
   const d = toDate(input)

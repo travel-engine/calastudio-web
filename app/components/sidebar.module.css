@@ -1,10 +1,14 @@
+/* Admin sidebar — design/admin-redesign handoff §2/§3. Colours mirror lib/ui/tokens. */
+
 .panel {
   width: 240px;
-  background-color: white;
-  border-right: 1px solid #e2e2e2;
-  padding: 24px 16px;
+  box-sizing: border-box;
+  background-color: #FFFFFF; /* surface */
+  border-right: 1px solid #E1E3DE; /* border */
+  padding: 20px 14px;
   display: flex;
   flex-direction: column;
+  gap: 2px;
   position: fixed;
   top: 0;
   left: 0;
@@ -12,6 +16,61 @@
   overflow-y: auto;
   z-index: 50;
   transition: transform 0.2s ease;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px 8px;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: #17201C; /* ink */
+  text-decoration: none;
+  border-radius: 10px;
+}
+
+.group {
+  padding: 18px 12px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5A635F; /* muted */
+}
+
+.navlink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: #3C4541; /* ink2 */
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.navlink:hover {
+  background: #F3F4F1; /* bg */
+  color: #17201C;
+}
+
+.navlink.active {
+  background: #E2EEE9; /* primarySoft */
+  color: #0C3A2D; /* primaryInk */
+  font-weight: 600;
+}
+
+.navlink svg {
+  flex: none;
+}
+
+.signout {
+  margin-top: auto;
+  padding-top: 24px;
 }
 
 .topbar {
@@ -41,16 +100,21 @@
     right: 0;
     height: 56px;
     padding: 0 16px;
-    background: white;
-    border-bottom: 1px solid #e2e2e2;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E1E3DE;
     z-index: 40;
+  }
+
+  .topbar .brand {
+    padding: 4px 8px;
+    font-size: 16px;
   }
 
   .overlay {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(23, 32, 28, 0.4);
     z-index: 45;
   }
 }

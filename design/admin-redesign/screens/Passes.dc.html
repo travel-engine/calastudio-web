@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CalaStudio · Passes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F3F4F1;font-family:'Figtree',system-ui,sans-serif;color:#17201C}
+a{color:#14513F}a:hover{color:#0C3A2D}
+.shell{display:flex;flex-wrap:wrap;min-height:100vh}
+.side{flex:1 1 236px;max-width:100%;background:#FFFFFF;border-right:1px solid #E1E3DE;padding:20px 14px;display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 12px 8px;font-weight:700;font-size:18px;letter-spacing:-0.01em}
+.grp{padding:18px 12px 6px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6A726E}
+.navlink{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:10px;color:#3C4541;text-decoration:none;font-weight:500;font-size:15px}
+.navlink:hover{background:#F3F4F1;color:#17201C}
+.navlink.on{background:#E2EEE9;color:#0C3A2D;font-weight:600}
+.navlink svg{width:20px;height:20px;flex:none}
+.signout{margin-top:auto;padding-top:24px}
+.main{flex:999 1 560px;min-width:0}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid #E1E3DE}
+.search{display:flex;align-items:center;gap:10px;flex:0 1 420px;min-height:44px;padding:0 14px;background:#FFFFFF;border:1px solid #DADDD7;border-radius:10px}
+.search input{border:0;outline:0;font:400 15px 'Figtree',sans-serif;width:100%;background:transparent;color:#17201C}
+.iconbtn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid #DADDD7;background:#FFFFFF;color:#3C4541;cursor:pointer}
+.avatar{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:none}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 32px 56px;display:flex;flex-direction:column;gap:20px}
+.card{background:#FFFFFF;border:1px solid #E1E3DE;border-radius:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:10px;font:600 15px 'Figtree',sans-serif;border:1px solid #CDD1CB;background:#FFFFFF;color:#17201C;cursor:pointer;text-decoration:none;white-space:nowrap;box-sizing:border-box}
+.btn.pri{background:#14513F;border-color:#14513F;color:#FFFFFF}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px}
+.label{font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5A635F}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;background:#EDEEEA;color:#3C4541}
+.h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:44px;line-height:1.05}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.num{font-variant-numeric:tabular-nums}
+.tabs{display:inline-flex;padding:4px;border-radius:12px;background:#E7EAE5;gap:4px}
+th{text-align:left;font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5A635F;padding:12px 20px;border-bottom:1px solid #E1E3DE;white-space:nowrap}
+td{padding:14px 20px;border-bottom:1px solid #EDEEEA}
+</style>
+</helmet>
+<div class="shell">
+  <nav class="side" aria-label="Main">
+    <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#14513F"></rect><path d="M6 17c2.5-3 5-3 8 0s5.5 3 8 0" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"></path><circle cx="14" cy="10" r="2.4" fill="#FFFFFF"></circle></svg>CalaStudio</div>
+    <div class="grp">Studio</div>
+    <a class="navlink" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>Dashboard</a>
+    <a class="navlink" href="Schedule.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg>Schedule</a>
+    <a class="navlink" href="Sessions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 7.5l9 4.5 9-4.5z"></path><path d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5"></path></svg>Sessions</a>
+    <a class="navlink" href="Member.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.4 3.5 5.2"></path></svg>Members</a>
+    <div class="grp">Revenue</div>
+    <a class="navlink on" href="Passes.dc.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h15A1.5 1.5 0 0 1 21 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5V14a2 2 0 0 0 0-4z"></path><path d="M14 6v12" stroke-dasharray="2 2.5"></path></svg>Passes</a>
+    <a class="navlink" href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-6M2 20h20"></path></svg>Reports</a>
+    <div class="grp">Settings</div>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="8" r="3.5"></circle><path d="M3.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M19 8v6M16 11h6"></path></svg>Team</a>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Activity log</a>
+    <a class="navlink" href="Settings.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg>Settings</a>
+    <div class="signout"><button class="btn" type="button" style="width: 100%; justify-content: center">Sign out</button></div>
+  </nav>
+
+  <main class="main">
+    <header class="top">
+      <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A635F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span class="sr">Search</span><input type="search" placeholder="Search members, sessions, passes"></label>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <button class="iconbtn" type="button" aria-label="Help"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"></path></svg></button>
+        <button class="iconbtn" type="button" aria-label="Account" style="border-radius: 50%; padding: 0"><span class="avatar" style="background: #14513F; color: #FFFFFF">RM</span></button>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="label">Revenue</span>
+          <h1 class="h1">Passes</h1>
+        </div>
+        <button class="btn pri" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New pass</button>
+      </div>
+
+      <div class="tabs" role="group" aria-label="View">
+        <button type="button" onClick="{{showTemplates}}" aria-pressed="{{tplPressed}}" style="{{tplStyle}}">Pass types (5)</button>
+        <button type="button" onClick="{{showIssued}}" aria-pressed="{{issPressed}}" style="{{issStyle}}">Issued to members (13)</button>
+      </div>
+
+      <sc-if value="{{onTemplates}}" hint-placeholder-val="{{ true }}">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px">
+          <sc-for list="{{templates}}" as="t" hint-placeholder-count="5">
+            <article class="card" style="display: flex; flex-direction: column; gap: 14px; padding: 20px 22px">
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <h2 style="margin: 0; font-size: 17px; font-weight: 600; line-height: 1.3">{{t.name}}</h2>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px"><span class="chip">{{t.creditsText}}</span><span class="chip">{{t.expiry}}</span></div>
+              </div>
+              <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid #EDEEEA">
+                <span class="num" style="font-size: 28px; font-weight: 600">{{t.price}}</span>
+                <span class="num" style="font-size: 14px; color: #5A635F">{{t.per}} per class</span>
+              </div>
+              <div style="display: flex; gap: 8px"><button class="btn sm" type="button">Edit</button><button class="btn sm" type="button">Duplicate</button></div>
+            </article>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{onIssued}}" hint-placeholder-val="{{ false }}">
+        <div class="card" style="overflow-x: auto">
+          <table style="width: 100%; min-width: 860px; border-collapse: collapse; font-size: 15px">
+            <thead><tr><th>Member</th><th>Pass</th><th>Credits left</th><th>Expires</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <sc-for list="{{issued}}" as="p" hint-placeholder-count="6">
+                <tr>
+                  <td style="font-weight: 600">{{p.member}}</td>
+                  <td style="color: #3C4541">{{p.pass}}</td>
+                  <td><span style="display: inline-flex; align-items: center; gap: 10px"><span style="width: 80px; height: 6px; border-radius: 3px; background: #E7EAE5; overflow: hidden"><span style="{{p.bar}}"></span></span><span class="num" style="font-size: 14px">{{p.left}} / {{p.total}}</span></span></td>
+                  <td class="num" style="{{p.expStyle}}">{{p.expires}}</td>
+                  <td><span class="chip" style="{{p.style}}">{{p.status}}</span></td>
+                  <td style="text-align: right"><a href="Member.dc.html" style="font-size: 14px; font-weight: 600; text-decoration: none">View member</a></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          <div style="padding: 12px 20px; font-size: 14px; color: #5A635F">Showing 6 of 13</div>
+        </div>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'templates' };
+  }
+  renderVals() {
+    const tpl = this.state.tab === 'templates';
+    const on = 'min-height:40px;padding:0 16px;border-radius:8px;border:0;font:600 14px Figtree,sans-serif;cursor:pointer;background:#FFFFFF;color:#17201C;box-shadow:0 1px 2px rgba(23,32,28,0.12)';
+    const off = 'min-height:40px;padding:0 16px;border-radius:8px;border:0;font:600 14px Figtree,sans-serif;cursor:pointer;background:transparent;color:#3C4541';
+    const t = (name, credits, days, price) => ({ name, creditsText: credits + (credits === 1 ? ' credit' : ' credits'), expiry: 'Expires ' + days + ' days after purchase', price: 'A$' + price.toFixed(2), per: 'A$' + (price / credits).toFixed(2) });
+    const templates = [
+      t('10 Class Pack for $98', 10, 90, 98),
+      t('10 Class Pass · handstands', 10, 180, 180),
+      t('10-Class Pack · North Lakes', 10, 180, 58),
+      t('5 Class Passes · council subsidised, North Lakes only', 5, 90, 20),
+      t('Single Pass · North Lakes Council Class', 1, 15, 4)
+    ];
+    const act = 'background:#E2EEE9;color:#0C3A2D', soon = 'background:#FBEFD9;color:#7A4508', used = 'background:#EDEEEA;color:#4A524E';
+    const p = (member, pass, left, total, expires, status) => ({ member, pass, left, total, expires,
+      status: status === 'soon' ? 'Expiring soon' : status === 'used' ? 'Used up' : 'Active',
+      style: status === 'soon' ? soon : status === 'used' ? used : act,
+      expStyle: status === 'soon' ? 'color:#7A4508;font-weight:600' : 'color:#3C4541',
+      bar: 'display:block;height:100%;border-radius:3px;background:#14513F;width:' + Math.round(left / total * 100) + '%' });
+    const issued = [
+      p('Emma Thompson', '10-Class Pack · North Lakes', 7, 10, '14 Apr 2027', 'act'),
+      p('Ravi Student34', '5 Class Passes · council subsidised', 4, 5, '9 Dec 2026', 'act'),
+      p('Ravi Student34', 'Single Pass · North Lakes Council Class', 0, 1, '26 Sep 2026', 'used'),
+      p('Ravi Student34', '10 Class Pass · handstands', 6, 10, '6 Mar 2027', 'act'),
+      p('Ravi Student33', '10 Class Pass · handstands', 9, 10, '6 Mar 2027', 'act'),
+      p('Ravi Student10', '10 Class Pack for $98', 2, 10, '21 Oct 2026', 'soon')
+    ];
+    return {
+      onTemplates: tpl, onIssued: !tpl, templates, issued,
+      tplPressed: tpl ? 'true' : 'false', issPressed: tpl ? 'false' : 'true',
+      tplStyle: tpl ? on : off, issStyle: tpl ? off : on,
+      showTemplates: () => this.setState({ tab: 'templates' }),
+      showIssued: () => this.setState({ tab: 'issued' })
+    };
+  }
+}
+</script>
+</body>
+</html>

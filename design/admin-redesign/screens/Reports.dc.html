@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CalaStudio · Reports</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F3F4F1;font-family:'Figtree',system-ui,sans-serif;color:#17201C}
+a{color:#14513F}a:hover{color:#0C3A2D}
+.shell{display:flex;flex-wrap:wrap;min-height:100vh}
+.side{flex:1 1 236px;max-width:100%;background:#FFFFFF;border-right:1px solid #E1E3DE;padding:20px 14px;display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 12px 8px;font-weight:700;font-size:18px;letter-spacing:-0.01em}
+.grp{padding:18px 12px 6px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6A726E}
+.navlink{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:10px;color:#3C4541;text-decoration:none;font-weight:500;font-size:15px}
+.navlink:hover{background:#F3F4F1;color:#17201C}
+.navlink.on{background:#E2EEE9;color:#0C3A2D;font-weight:600}
+.navlink svg{width:20px;height:20px;flex:none}
+.signout{margin-top:auto;padding-top:24px}
+.main{flex:999 1 560px;min-width:0}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid #E1E3DE}
+.search{display:flex;align-items:center;gap:10px;flex:0 1 420px;min-height:44px;padding:0 14px;background:#FFFFFF;border:1px solid #DADDD7;border-radius:10px;box-sizing:border-box}
+.search input{border:0;outline:0;font:400 15px 'Figtree',sans-serif;width:100%;background:transparent;color:#17201C}
+.iconbtn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid #DADDD7;background:#FFFFFF;color:#3C4541;cursor:pointer}
+.avatar{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:none}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 32px 56px;display:flex;flex-direction:column;gap:20px}
+.card{background:#FFFFFF;border:1px solid #E1E3DE;border-radius:14px}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:10px;font:600 15px 'Figtree',sans-serif;border:1px solid #CDD1CB;background:#FFFFFF;color:#17201C;cursor:pointer;text-decoration:none;white-space:nowrap;box-sizing:border-box}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px}
+.label{font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5A635F}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap;background:#EDEEEA;color:#3C4541}
+.h1{margin:0;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:44px;line-height:1.05}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.num{font-variant-numeric:tabular-nums}
+.seg{display:inline-flex;padding:4px;border-radius:12px;background:#E7EAE5;gap:4px;flex-wrap:wrap}
+.seg button{min-height:36px;padding:0 14px;border-radius:8px;border:0;background:transparent;font:600 14px 'Figtree',sans-serif;color:#3C4541;cursor:pointer}
+.seg button[aria-pressed="true"]{background:#FFFFFF;color:#17201C;box-shadow:0 1px 2px rgba(23,32,28,0.12)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid #E1E3DE;flex-wrap:wrap}
+.tabs a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;font-size:15px;font-weight:600;color:#5A635F;text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a[aria-current="page"]{color:#0C3A2D;border-bottom-color:#14513F}
+.kpi{display:flex;flex-direction:column;gap:6px;padding:18px 20px}
+.kpi b{font-size:30px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
+.kpi small{font-size:13px;color:#5A635F}
+.bar{flex:1 1 0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.bar span{display:block;width:70%;max-width:26px;border-radius:4px 4px 0 0;background:#14513F}
+.bar:hover span{background:#0C3A2D}
+th{text-align:left;font-size:13px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5A635F;padding:10px 20px;border-bottom:1px solid #E1E3DE;white-space:nowrap}
+td{padding:12px 20px;border-bottom:1px solid #EDEEEA}
+.hm{display:grid;grid-template-columns:44px repeat(5,minmax(0,1fr));gap:6px;align-items:center}
+.cell{height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+</style>
+</helmet>
+<div class="shell">
+  <nav class="side" aria-label="Main">
+    <div class="brand"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" fill="#14513F"></rect><path d="M6 17c2.5-3 5-3 8 0s5.5 3 8 0" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"></path><circle cx="14" cy="10" r="2.4" fill="#FFFFFF"></circle></svg>CalaStudio</div>
+    <div class="grp">Studio</div>
+    <a class="navlink" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg>Dashboard</a>
+    <a class="navlink" href="Schedule.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg>Schedule</a>
+    <a class="navlink" href="Sessions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 7.5l9 4.5 9-4.5z"></path><path d="m3 12 9 4.5 9-4.5M3 16.5 12 21l9-4.5"></path></svg>Sessions</a>
+    <a class="navlink" href="Member.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.4 3.5 5.2"></path></svg>Members</a>
+    <div class="grp">Revenue</div>
+    <a class="navlink" href="Passes.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h15A1.5 1.5 0 0 1 21 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16.5V14a2 2 0 0 0 0-4z"></path><path d="M14 6v12" stroke-dasharray="2 2.5"></path></svg>Passes</a>
+    <a class="navlink on" href="Reports.dc.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-6M2 20h20"></path></svg>Reports</a>
+    <div class="grp">Settings</div>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="8" r="3.5"></circle><path d="M3.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5M19 8v6M16 11h6"></path></svg>Team</a>
+    <a class="navlink" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Activity log</a>
+    <a class="navlink" href="Settings.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg>Settings</a>
+    <div class="signout"><button class="btn" type="button" style="width: 100%; justify-content: center">Sign out</button></div>
+  </nav>
+
+  <main class="main">
+    <header class="top">
+      <label class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A635F" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span class="sr">Search</span><input type="search" placeholder="Search members, sessions, passes"></label>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <button class="iconbtn" type="button" aria-label="Help"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"></path></svg></button>
+        <button class="iconbtn" type="button" aria-label="Account" style="border-radius: 50%; padding: 0"><span class="avatar" style="background: #14513F; color: #FFFFFF">RM</span></button>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span class="label">1 – 16 October 2026</span>
+          <h1 class="h1">Reports</h1>
+        </div>
+        <button class="btn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>Export CSV</button>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+        <div class="seg" role="group" aria-label="Date range"><button type="button" aria-pressed="false">Last 7 days</button><button type="button" aria-pressed="false">Last 30 days</button><button type="button" aria-pressed="true">This month</button><button type="button" aria-pressed="false">Last month</button></div>
+        <button class="btn sm" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M3 9.5h18M8 2.5v4M16 2.5v4"></path></svg>Custom range</button>
+      </div>
+
+      <nav class="tabs" aria-label="Report"><a href="#" aria-current="page">Overview</a><a href="#">Revenue</a><a href="#">Attendance</a><a href="#">Passes</a><a href="#">Members</a></nav>
+
+      <div class="card" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))">
+        <div class="kpi"><span class="label">Revenue</span><b>{{k.rev}}</b><small>{{k.revSub}}</small></div>
+        <div class="kpi" style="border-left: 1px solid #EDEEEA"><span class="label">Booked spots</span><b>{{k.booked}}</b><small>{{k.bookedSub}}</small></div>
+        <div class="kpi" style="border-left: 1px solid #EDEEEA"><span class="label">Attended</span><b>{{k.att}}</b><small>{{k.attSub}}</small></div>
+        <div class="kpi" style="border-left: 1px solid #EDEEEA"><span class="label">New members</span><b>3</b><small>45 active in total</small></div>
+        <div class="kpi" style="border-left: 1px solid #EDEEEA"><span class="label">Active passes</span><b>8</b><small>72 credits not yet used</small></div>
+      </div>
+
+      <sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+        <section class="card" style="padding: 36px 28px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#14513F" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-6M2 20h20"></path></svg>
+          <h2 style="margin: 0; font-size: 20px; font-weight: 600">No bookings in this range yet</h2>
+          <p style="margin: 0; max-width: 460px; font-size: 15px; line-height: 1.5; color: #5A635F">Once members start booking, you'll see bookings by day, which classes fill best and how passes are being used.</p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center"><button class="btn sm" type="button">Try last 30 days</button><a class="btn sm" href="#">Copy booking page link</a></div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{hasData}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch">
+          <section class="card" style="flex: 999 1 520px; min-width: 0; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Booked spots by day</h2><span style="font-size: 13px; color: #5A635F">Busiest: Sun 11 Oct · 36</span></div>
+            <div style="display: flex; gap: 8px">
+              <div class="num" style="display: flex; flex-direction: column; justify-content: space-between; height: 200px; font-size: 12px; color: #6A726E; text-align: right; width: 22px"><span>40</span><span>30</span><span>20</span><span>10</span><span>0</span></div>
+              <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+                <div style="position: relative; height: 200px">
+                  <div style="position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between" aria-hidden="true"><span style="border-top: 1px solid #EDEEEA"></span><span style="border-top: 1px solid #EDEEEA"></span><span style="border-top: 1px solid #EDEEEA"></span><span style="border-top: 1px solid #EDEEEA"></span><span style="border-top: 1px solid #CDD1CB"></span></div>
+                  <div style="position: absolute; inset: 0; display: flex; gap: 4px" role="img" aria-label="Booked spots per day, 1 to 16 October">
+                    <sc-for list="{{days}}" as="d" hint-placeholder-count="16"><div class="bar" title="{{d.tip}}"><span style="{{d.h}}"></span></div></sc-for>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 4px">
+                  <sc-for list="{{days}}" as="d" hint-placeholder-count="16"><span class="num" style="flex: 1 1 0; min-width: 0; text-align: center; font-size: 12px; color: #6A726E">{{d.lab}}</span></sc-for>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" style="flex: 1 1 340px; min-width: 0; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px">
+            <div style="display: flex; flex-direction: column; gap: 2px"><h2 style="margin: 0; font-size: 18px; font-weight: 600">How full classes are</h2><span style="font-size: 13px; color: #5A635F">Average fill by day and start time</span></div>
+            <div class="hm" style="font-size: 12px; font-weight: 600; color: #5A635F"><span></span><span style="text-align: center">6 am</span><span style="text-align: center">7 am</span><span style="text-align: center">8 am</span><span style="text-align: center">9 am</span><span style="text-align: center">9:30</span></div>
+            <sc-for list="{{heat}}" as="r" hint-placeholder-count="7">
+              <div class="hm">
+                <span style="font-size: 13px; font-weight: 600; color: #3C4541">{{r.day}}</span>
+                <sc-for list="{{r.cells}}" as="c" hint-placeholder-count="5"><span class="cell" style="{{c.style}}" title="{{c.tip}}">{{c.v}}</span></sc-for>
+              </div>
+            </sc-for>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #5A635F"><span>Emptier</span><span style="width: 18px; height: 10px; border-radius: 3px; background: #E2EEE9"></span><span style="width: 18px; height: 10px; border-radius: 3px; background: #A9CBBB"></span><span style="width: 18px; height: 10px; border-radius: 3px; background: #5E9480"></span><span style="width: 18px; height: 10px; border-radius: 3px; background: #14513F"></span><span>Fuller</span></div>
+          </section>
+        </div>
+
+        <section class="card" style="overflow-x: auto">
+          <div style="padding: 18px 20px 10px"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Class performance</h2></div>
+          <table style="width: 100%; min-width: 820px; border-collapse: collapse; font-size: 15px">
+            <thead><tr><th>Session</th><th style="text-align: right">Classes</th><th style="text-align: right">Avg booked</th><th>Fill</th><th style="text-align: right">Attended</th><th style="text-align: right">No-shows</th></tr></thead>
+            <tbody>
+              <sc-for list="{{perf}}" as="p" hint-placeholder-count="8">
+                <tr>
+                  <td><a href="SessionDetail.dc.html" style="color: #17201C; font-weight: 600; text-decoration: none">{{p.name}}</a></td>
+                  <td class="num" style="text-align: right">{{p.n}}</td>
+                  <td class="num" style="text-align: right">{{p.avg}} / {{p.cap}}</td>
+                  <td><span style="display: inline-flex; align-items: center; gap: 10px"><span style="width: 110px; height: 6px; border-radius: 3px; background: #E7EAE5; overflow: hidden"><span style="{{p.bar}}"></span></span><span class="num" style="font-size: 14px; font-weight: 600">{{p.fill}}</span></span></td>
+                  <td class="num" style="text-align: right">{{p.att}}</td>
+                  <td class="num" style="text-align: right">{{p.ns}}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </section>
+      </sc-if>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+        <section class="card" style="flex: 999 1 460px; min-width: 0; overflow-x: auto">
+          <div style="padding: 18px 20px 10px"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Pass types</h2></div>
+          <table style="width: 100%; min-width: 480px; border-collapse: collapse; font-size: 15px">
+            <thead><tr><th>Pass</th><th style="text-align: right">Sold (all time)</th><th style="text-align: right">Active now</th></tr></thead>
+            <tbody>
+              <tr><td>10 Class Pack for $98</td><td class="num" style="text-align: right">4</td><td class="num" style="text-align: right">4</td></tr>
+              <tr><td>10 Class Pass · handstands</td><td class="num" style="text-align: right">3</td><td class="num" style="text-align: right">3</td></tr>
+              <tr><td>5 Class Passes · council subsidised</td><td class="num" style="text-align: right">1</td><td class="num" style="text-align: right">1</td></tr>
+              <tr><td>Single Pass · Council Class</td><td class="num" style="text-align: right">1</td><td class="num" style="text-align: right">0</td></tr>
+              <tr><td style="border-bottom: 0">10-Class Pack · North Lakes</td><td class="num" style="text-align: right; border-bottom: 0; color: #5A635F">0</td><td class="num" style="text-align: right; border-bottom: 0; color: #5A635F">0</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card" style="flex: 1 1 340px; min-width: 0; overflow: hidden">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 18px 20px 10px; gap: 12px"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Members to win back</h2><span style="font-size: 13px; color: #5A635F">No booking in 30 days</span></div>
+          <sc-for list="{{atRisk}}" as="m" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; border-top: 1px solid #EDEEEA">
+              <a href="Member.dc.html" style="color: #17201C; font-weight: 600; text-decoration: none">{{m.name}}</a>
+              <span style="font-size: 14px; color: #5A635F">{{m.last}}</span>
+            </div>
+          </sc-for>
+          <div style="padding: 12px 20px; border-top: 1px solid #EDEEEA"><a href="#" style="font-size: 14px; font-weight: 600; text-decoration: none">See all</a></div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"showEmpty":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const empty = !!this.props.showEmpty;
+    const vals = [9, 0, 19, 33, 7, 10, 5, 8, 0, 21, 36, 7, 11, 6, 9, 0];
+    const dows = ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed'];
+    const days = vals.map((v, i) => ({
+      lab: String(i + 1),
+      tip: dows[i % 7] + ' ' + (i + 1) + ' Oct · ' + v + ' booked',
+      h: 'height:' + (v / 40 * 100) + '%;' + (v === 0 ? 'display:none' : '')
+    }));
+    const shade = (p) => p >= 85 ? ['#14513F', '#FFFFFF'] : p >= 60 ? ['#5E9480', '#FFFFFF'] : p >= 45 ? ['#A9CBBB', '#0C3A2D'] : ['#E2EEE9', '#0C3A2D'];
+    const cell = (p, day, t) => p == null
+      ? { v: '', tip: 'No class', style: 'border:1px dashed #DADDD7' }
+      : { v: p + '%', tip: day + ' ' + t + ' · ' + p + '% full', style: 'background:' + shade(p)[0] + ';color:' + shade(p)[1] };
+    const times = ['6 am', '7 am', '8 am', '9 am', '9:30 am'];
+    const _ = null;
+    const grid = { Mon: [58, _, _, _, _], Tue: [_, _, _, 55, _], Wed: [50, _, _, _, _], Thu: [_, _, _, 45, _], Fri: [_, _, _, _, _], Sat: [_, 60, _, 83, _], Sun: [_, _, 100, _, 40] };
+    const heat = Object.keys(grid).map((d) => ({ day: d, cells: grid[d].map((p, i) => cell(p, d, times[i])) }));
+    const pr = (name, n, avg, cap, att, ns) => {
+      const f = Math.round(avg / cap * 100);
+      return { name, n, avg, cap, att, ns, fill: f + '%', bar: 'display:block;height:100%;border-radius:3px;background:' + (f >= 100 ? '#B3261E' : f >= 80 ? '#C77A12' : '#14513F') + ';width:' + Math.min(f, 100) + '%' };
+    };
+    return {
+      isEmpty: empty, hasData: !empty,
+      k: empty
+        ? { rev: 'A$0.00', revSub: 'No sales in this range', booked: '0', bookedSub: '146 spots a week available', att: '—', attSub: 'Nothing to count yet' }
+        : { rev: 'A$1,086', revSub: 'A$426 drop-in · A$660 passes', booked: '181', bookedSub: '54% of spots filled', att: '158', attSub: '87% showed up · 23 no-shows' },
+      days, heat,
+      perf: [
+        pr('Sunday Yoga · North Lakes Council Session', 2, 30, 30, 54, 6),
+        pr('Saturday Inversions and handstands', 2, 10, 12, 18, 2),
+        pr('Saturday Morning Yoga · North Lakes', 2, 12, 20, 21, 3),
+        pr('Monday morning Ashtanga · Brighton', 3, 7, 12, 18, 3),
+        pr('Tuesday Morning Vinyasa · North Lakes', 2, 11, 20, 18, 3),
+        pr('Wednesday Morning Backbends · Brighton', 3, 6, 12, 15, 2),
+        pr('Thursday Morning Vinyasa · North Lakes', 3, 9, 20, 23, 3),
+        pr('Sunday Second Session Yoga · North Lakes', 2, 8, 20, 14, 1)
+      ],
+      atRisk: [
+        { name: 'Ravi Student6', last: 'Never booked' },
+        { name: 'Ravi Student1', last: 'Never booked' },
+        { name: 'Ravi Student11', last: 'Never booked' },
+        { name: 'Ravi Student10', last: 'Last booked 7 Sep' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
