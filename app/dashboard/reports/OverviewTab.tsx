@@ -90,7 +90,7 @@ export default function OverviewTab({ ctx, range, onRange, onShowMembers }: {
   const att = useReport<AttendanceReport>(ctx, '/reports/attendance', range)
   const pas = useReport<PassReport>(ctx, '/reports/passes', range)
   const mem = useReport<MemberReport>(ctx, '/reports/members', range)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'yes' | 'failed' | null>(null)
 
   const all = [ins, rev, att, pas, mem]
   const state = ReportState({ loading: all.some(r => r.loading), error: all.find(r => r.error)?.error ?? '' })
@@ -107,9 +107,11 @@ export default function OverviewTab({ ctx, range, onRange, onShowMembers }: {
     if (!ctx.slug) return
     try {
       await navigator.clipboard.writeText(studioUrl(ctx.slug))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch { /* clipboard blocked — nothing useful to show */ }
+      setCopied('yes')
+      setTimeout(() => setCopied(null), 2000)
+    } catch {
+      setCopied('failed') // clipboard blocked: show the link to copy by hand
+    }
   }
 
   const perfCols: Col<SessionPerf>[] = [
@@ -153,7 +155,12 @@ export default function OverviewTab({ ctx, range, onRange, onShowMembers }: {
             action={
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
                 <Button variant="primary" onClick={() => onRange(RANGE_PRESETS[1].make())}>Try last 30 days</Button>
-                {ctx.slug && <Button onClick={copyLink}>{copied ? 'Link copied' : 'Copy booking page link'}</Button>}
+                {ctx.slug && <Button onClick={copyLink}>{copied === 'yes' ? 'Link copied' : 'Copy booking page link'}</Button>}
+                {copied === 'failed' && ctx.slug && (
+                  <p role="status" style={{ flexBasis: '100%', margin: 0, fontSize: 14, color: color.ink2 }}>
+                    Your booking page: <a href={studioUrl(ctx.slug)} target="_blank" rel="noreferrer" style={{ color: color.primary, fontWeight: 600 }}>{studioUrl(ctx.slug)}</a>
+                  </p>
+                )}
               </div>
             }
           />

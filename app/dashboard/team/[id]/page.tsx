@@ -54,6 +54,9 @@ const ROLE_INFO: Record<string, { label: string; tone: ChipTone; description: st
   member: { label: 'Member', tone: 'neutral', description: 'Can book sessions and manage their own passes and bookings.' },
 }
 
+// Staff roles first, Member last.
+const ROLE_ORDER = Object.keys(ROLE_INFO)
+
 function SectionCard({ id, title, description, children }: { id: string; title: string; description?: string; children: React.ReactNode }) {
   return (
     <section aria-labelledby={`${id}-heading`} style={{ ...cardStyle, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: space.formGap }}>
@@ -312,7 +315,7 @@ export default function EditTeacherPage() {
 
           <SectionCard id="roles" title="Roles" description="What this person can see and do in the dashboard. A person can hold more than one role.">
             <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, overflow: 'hidden' }}>
-              {form.roles.map((r, i) => {
+              {[...form.roles].sort((x, y) => ROLE_ORDER.indexOf(x) - ROLE_ORDER.indexOf(y)).map((r, i) => {
                 const info = ROLE_INFO[r] ?? { label: r, tone: 'neutral' as ChipTone, description: '' }
                 return (
                   <div key={r} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', padding: '12px 16px', borderTop: i ? `1px solid ${color.divider}` : 'none' }}>

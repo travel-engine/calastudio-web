@@ -41,7 +41,11 @@ const entityTypeLabels: Record<string, string> = {
   organisation: 'Organisation',
   organisation_member: 'Team member',
   teacher_profile: 'Teacher profile',
+  payment: 'Payment',
+  order: 'Order',
 }
+// Types not in the list above still read as words: "tax_rate" → "Tax rate".
+const entityLabel = (t: string) => entityTypeLabels[t] ?? (t.charAt(0).toUpperCase() + t.slice(1)).replace(/_/g, ' ')
 
 const actionStyles: Record<string, { tone: ChipTone; label: string }> = {
   create: { tone: 'primary', label: 'Created' },
@@ -321,7 +325,7 @@ export default function AuditLogPage() {
                                 )}
                               </td>
                               <td style={td}><ActionBadge action={effectiveAction(entry)} /></td>
-                              <td style={{ ...td, color: color.ink2 }}>{entityTypeLabels[entry.entity_type] ?? entry.entity_type}</td>
+                              <td style={{ ...td, color: color.ink2 }}>{entityLabel(entry.entity_type)}</td>
                               <td style={{ ...td, textAlign: 'right' }}>
                                 {hasDetail && (
                                   <Button size="sm" onClick={() => setExpandedId(isExpanded ? '' : entry.id)} aria-expanded={isExpanded}>

@@ -58,6 +58,8 @@ export function RangeControl({ range, onChange }: { range: Range; onChange: (r: 
     return r.from === range.from && r.to === range.to
   })?.key
   const [custom, setCustom] = useState(false)
+  // Landing on a preset from elsewhere (e.g. "Try last 30 days") closes the custom dates.
+  useEffect(() => { if (activeKey) setCustom(false) }, [activeKey])
   const showDates = custom || !activeKey
 
   return (
