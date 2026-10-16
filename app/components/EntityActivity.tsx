@@ -109,10 +109,13 @@ function formatValue(v: unknown) {
   return String(v)
 }
 
-function formatFieldValue(field: string, v: unknown) {
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/
+function formatFieldValue(field: string, v: unknown, timeZone: string | null = null) {
   if (field === 'status' && v != null && v !== '') {
     return statusLabels[String(v).toLowerCase()] ?? formatValue(v)
   }
+  // Timestamps arrive as raw ISO strings — show them as studio-time dates.
+  if (typeof v === 'string' && ISO_DATETIME.test(v)) return `${formatShortDate(v, timeZone)} · ${formatClock(v, timeZone)}`
   return formatValue(v)
 }
 
@@ -121,7 +124,7 @@ function ActionBadge({ action }: { action: string }) {
   return <Chip tone={s.tone}>{s.label}</Chip>
 }
 
-function ChangesDetail({ changes }: { changes: string }) {
+function ChangesDetail({ changes, timeZone }: { changes: string; timeZone: string | null }) {
   let parsed: Record<string, { old: unknown; new: unknown }>
   try {
     parsed = JSON.parse(changes)
@@ -153,8 +156,8 @@ function ChangesDetail({ changes }: { changes: string }) {
             return (
               <tr key={field}>
                 <td style={{ ...td, fontWeight: 600, color: color.ink2, width: '32%' }}>{fieldLabel(field)}</td>
-                <td style={{ ...td, color: color.muted }}>{formatFieldValue(field, oldVal)}</td>
-                <td style={{ ...td, color: color.ink }}>{formatFieldValue(field, newVal)}</td>
+                <td style={{ ...td, color: color.muted }}>{formatFieldValue(field, oldVal, timeZone)}</td>
+                <td style={{ ...td, color: color.ink }}>{formatFieldValue(field, newVal, timeZone)}</td>
               </tr>
             )
           })}
@@ -254,7 +257,7 @@ export default function EntityActivity({
                                   <strong style={{ fontWeight: 600 }}>Reason:</strong> {entry.reason}
                                 </div>
                               )}
-                              {entry.changes && <ChangesDetail changes={entry.changes} />}
+                              {entry.changes && <ChangesDetail changes={entry.changes} timeZone={timeZone} />}
                             </div>
                           </td>
                         </tr>
