@@ -2,27 +2,32 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { format, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns'
+import { format, startOfMonth, endOfMonth, subMonths, subDays, parseISO } from 'date-fns'
 import { ResponsiveContainer } from 'recharts'
 import { getOrgContext } from '@/lib/orgContext'
+import { formatMoney } from '@/lib/money'
+import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
+import { Button, EmptyState, Segmented, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
 // ── formatting ────────────────────────────────────────────
-export const money = (n: number, currency: string) => {
-  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(n) }
-  catch { return `${currency} ${n.toFixed(2)}` }
-}
-export const num = (n: number) => new Intl.NumberFormat().format(n)
+export const money = (n: number, currency: string) => formatMoney(n, currency)
+export const num = (n: number) => new Intl.NumberFormat('en-AU').format(n)
 export const pct = (frac: number) => `${Math.round(frac * 100)}%`
-// Loosely typed so it satisfies both recharts' tickFormatter and labelFormatter signatures.
+// Report days arrive as plain "YYYY-MM-DD". Loosely typed so it satisfies both recharts'
+// tickFormatter and labelFormatter signatures.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const tickDate = (d: any) => String(d ?? '').slice(5) // "2026-09-04" -> "09-04"
+export const tickDate = (d: any) => { const s = String(d ?? ''); return s.length >= 10 ? format(parseISO(s.slice(0, 10)), 'd MMM') : s }
+export const dayLabel = (d: string) => format(parseISO(d.slice(0, 10)), 'EEE d MMM')
+// "2026-03" → "Mar 26"
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const monthLabel = (m: any) => { const s = String(m ?? ''); return /^\d{4}-\d{2}$/.test(s) ? format(parseISO(`${s}-01`), 'MMM yy') : s }
 
-// Chart palette — deliberately not the semantic greens/reds the dashboard uses for status badges.
-export const SERIES = ['#085041', '#1B4F8A', '#7a4f00', '#6d3f8b', '#4a5d52']
-export const AXIS = { fontSize: 11, fill: '#999' }
-export const GRID = '#ececec'
+// Chart palette: brand green first; the others only where a chart needs a second series.
+export const SERIES = [color.primary, color.infoInk, color.warnInk, '#6d3f8b', color.muted]
+export const AXIS = { fontSize: 12, fill: color.muted }
+export const GRID = color.divider
 
 // ── date range ────────────────────────────────────────────
 export type Range = { from: string; to: string }
@@ -38,42 +43,50 @@ export const RANGE_PRESETS: { key: string; label: string; make: () => Range }[] 
   } },
 ]
 
+// "1 – 16 October 2026", "17 Sep – 16 Oct 2026", "20 Dec 2025 – 5 Jan 2026"
+export function rangeLabel(r: Range): string {
+  const a = parseISO(r.from), b = parseISO(r.to)
+  if (r.from === r.to) return format(a, 'd MMMM yyyy')
+  if (format(a, 'yyyy-MM') === format(b, 'yyyy-MM')) return `${format(a, 'd')} – ${format(b, 'd MMMM yyyy')}`
+  if (format(a, 'yyyy') === format(b, 'yyyy')) return `${format(a, 'd MMM')} – ${format(b, 'd MMM yyyy')}`
+  return `${format(a, 'd MMM yyyy')} – ${format(b, 'd MMM yyyy')}`
+}
+
 export function RangeControl({ range, onChange }: { range: Range; onChange: (r: Range) => void }) {
   const activeKey = RANGE_PRESETS.find(p => {
     const r = p.make()
     return r.from === range.from && r.to === range.to
   })?.key
-
-  const dateInput: React.CSSProperties = {
-    padding: '7px 10px', border: '1px solid #e2e2e2', borderRadius: 8, fontSize: 13, backgroundColor: 'white',
-  }
+  const [custom, setCustom] = useState(false)
+  const showDates = custom || !activeKey
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-      {RANGE_PRESETS.map(p => (
-        <button
-          key={p.key}
-          onClick={() => onChange(p.make())}
-          style={{
-            padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            border: '1px solid ' + (activeKey === p.key ? '#085041' : '#e2e2e2'),
-            backgroundColor: activeKey === p.key ? '#e8f5ee' : 'white',
-            color: activeKey === p.key ? '#085041' : '#444',
-          }}
-        >
-          {p.label}
-        </button>
-      ))}
-      <span style={{ color: '#ccc' }}>|</span>
-      <input type="date" value={range.from} max={range.to} onChange={e => onChange({ ...range, from: e.target.value })} style={dateInput} />
-      <span style={{ color: '#999', fontSize: 13 }}>to</span>
-      <input type="date" value={range.to} min={range.from} onChange={e => onChange({ ...range, to: e.target.value })} style={dateInput} />
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+      <Segmented
+        label="Date range"
+        value={showDates ? 'custom' : activeKey!}
+        onChange={k => { setCustom(false); const p = RANGE_PRESETS.find(x => x.key === k); if (p) onChange(p.make()) }}
+        options={RANGE_PRESETS.map(p => ({ value: p.key, label: p.label }))}
+      />
+      <Button size="sm" onClick={() => setCustom(c => !c)} aria-expanded={showDates}
+        style={showDates ? { borderColor: color.primary, color: color.primaryInk, background: color.primarySoft } : undefined}>
+        Custom range
+      </Button>
+      {showDates && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          <input id="range-from" type="date" aria-label="From" value={range.from} max={range.to}
+            onChange={e => e.target.value && onChange({ ...range, from: e.target.value })} style={{ ...controlStyle, width: 'auto', minHeight: 36 }} />
+          <span style={{ color: color.muted, fontSize: 14 }}>to</span>
+          <input id="range-to" type="date" aria-label="To" value={range.to} min={range.from}
+            onChange={e => e.target.value && onChange({ ...range, to: e.target.value })} style={{ ...controlStyle, width: 'auto', minHeight: 36 }} />
+        </div>
+      )}
     </div>
   )
 }
 
 // ── org / roles bootstrap (same shape as the other dashboard pages) ──
-export interface OrgCtx { orgId: string; token: string; roles: string[]; currency: string }
+export interface OrgCtx { orgId: string; token: string; roles: string[]; currency: string; slug: string | null }
 
 export function useOrgCtx() {
   const router = useRouter()
@@ -85,10 +98,8 @@ export function useOrgCtx() {
       const ctx = await getOrgContext()
       if (ctx.status === 'signed-out') { router.push('/login'); return }
       if (ctx.status === 'no-org') { router.push('/onboarding'); return }
-      const token = ctx.token
       const org = ctx.org
-      const roles: string[] = ctx.roles
-      setCtx({ orgId: org.id, token, roles, currency: org.currency ?? 'AUD' })
+      setCtx({ orgId: org.id, token: ctx.token, roles: ctx.roles, currency: org.currency ?? 'AUD', slug: org.slug ?? null })
       setLoading(false)
     }
     load()
@@ -125,31 +136,34 @@ export function useReport<T>(ctx: OrgCtx | null, path: string, range: Range, ext
 }
 
 // ── shared presentational bits ────────────────────────────
-export function Panel({ title, subtitle, right, children }: {
-  title?: string; subtitle?: string; right?: React.ReactNode; children: React.ReactNode
+/** A report card: 18px heading, optional muted subtitle and right-hand slot. `flush` drops the
+ *  body padding so a table can run edge to edge. */
+export function Panel({ title, subtitle, right, flush = false, children }: {
+  title?: string; subtitle?: string; right?: React.ReactNode; flush?: boolean; children: React.ReactNode
 }) {
   return (
-    <div style={{ backgroundColor: 'white', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: 20 }}>
+    <section style={{ ...cardStyle, minWidth: 0, overflow: 'hidden' }}>
       {(title || right) && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
-          <div>
-            {title && <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>}
-            {subtitle && <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{subtitle}</div>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', padding: '18px 20px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            {title && <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h2>}
+            {subtitle && <span style={{ fontSize: 14, color: color.muted }}>{subtitle}</span>}
           </div>
           {right}
         </div>
       )}
-      {children}
-    </div>
+      <div style={{ padding: flush ? '12px 0 0' : '16px 20px 20px' }}>{children}</div>
+    </section>
   )
 }
 
-export function StatTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
+/** KPI tile: small-caps label, big number, one muted line under it. */
+export function StatTile({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
   return (
-    <div style={{ backgroundColor: 'white', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: '16px 18px' }}>
-      <div style={{ fontSize: 12, color: '#999', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{sub}</div>}
+    <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 6, padding: '18px 20px', minWidth: 0 }}>
+      <span style={smallCapsStyle}>{label}</span>
+      <span style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.15, ...tabularNums }}>{value}</span>
+      {sub && <span style={{ fontSize: 13, lineHeight: 1.4, color: color.muted, ...tabularNums }}>{sub}</span>}
     </div>
   )
 }
@@ -167,25 +181,28 @@ export function ChartFrame({ height = 220, children }: { height?: number; childr
   )
 }
 
+export const tooltipStyle = {
+  contentStyle: { borderRadius: radius.control, border: `1px solid ${color.border}`, fontSize: 14, fontFamily: 'inherit' },
+  labelStyle: { fontWeight: 600, color: color.ink },
+}
+
 // Ranked horizontal bars for the "most X" lists.
 export function RankedList({ items, format: fmt }: {
   items: { label: string; value: number }[]
   format?: (v: number) => string
 }) {
-  if (items.length === 0) return <div style={{ padding: '16px 0', color: '#999', fontSize: 13 }}>Nothing in this range.</div>
+  if (items.length === 0) return <p style={{ margin: 0, padding: '8px 0', color: color.muted, fontSize: 14 }}>Nothing in this range.</p>
   const max = Math.max(...items.map(i => i.value), 1)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {items.map((it, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, marginBottom: 3 }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</span>
-              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmt ? fmt(it.value) : num(it.value)}</span>
-            </div>
-            <div style={{ height: 6, borderRadius: 999, backgroundColor: '#f0f0f0', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${(it.value / max) * 100}%`, backgroundColor: '#085041', borderRadius: 999 }} />
-            </div>
+        <div key={i}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 15, marginBottom: 5 }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</span>
+            <span style={{ fontWeight: 600, ...tabularNums }}>{fmt ? fmt(it.value) : num(it.value)}</span>
+          </div>
+          <div style={{ height: 6, borderRadius: 3, background: color.track, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${(it.value / max) * 100}%`, background: color.primary, borderRadius: 3 }} />
           </div>
         </div>
       ))}
@@ -193,48 +210,56 @@ export function RankedList({ items, format: fmt }: {
   )
 }
 
-// Minimal responsive-ish table: CSS grid on desktop, honours per-column width + right align.
+// Report table: real <table> inside a horizontal scroller, so wide tables scroll inside their card.
 export interface Col<T> { label: string; width?: string; align?: 'right'; render: (row: T) => React.ReactNode }
 
-export function Table<T>({ cols, rows, empty, keyOf }: {
-  cols: Col<T>[]; rows: T[]; empty: string; keyOf: (row: T, i: number) => string | number
+export function Table<T>({ cols, rows, empty, keyOf, minWidth = 560 }: {
+  cols: Col<T>[]; rows: T[]; empty: string; keyOf: (row: T, i: number) => string | number; minWidth?: number
 }) {
-  const grid = cols.map(c => c.width ?? '1fr').join(' ')
   if (rows.length === 0) {
-    return <div style={{ padding: 24, textAlign: 'center', color: '#999', fontSize: 13 }}>{empty}</div>
+    return <p style={{ margin: 0, padding: '20px', textAlign: 'center', color: color.muted, fontSize: 14 }}>{empty}</p>
   }
   return (
     <div style={{ overflowX: 'auto' }}>
-      <div style={{ minWidth: 560 }}>
-        <div style={{
-          display: 'grid', gridTemplateColumns: grid, gap: 12, padding: '0 4px 8px',
-          fontSize: 11, fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.05em',
-          borderBottom: '1px solid #eee',
-        }}>
-          {cols.map((c, i) => <div key={i} style={{ textAlign: c.align }}>{c.label}</div>)}
-        </div>
-        {rows.map((row, ri) => (
-          <div key={keyOf(row, ri)} style={{
-            display: 'grid', gridTemplateColumns: grid, gap: 12, padding: '10px 4px',
-            fontSize: 13, borderBottom: ri < rows.length - 1 ? '1px solid #f4f4f4' : 'none', alignItems: 'center',
-          }}>
-            {cols.map((c, ci) => (
-              <div key={ci} style={{ textAlign: c.align, fontVariantNumeric: c.align === 'right' ? 'tabular-nums' : undefined, minWidth: 0 }}>
-                {c.render(row)}
-              </div>
+      <table style={{ width: '100%', minWidth, borderCollapse: 'collapse', fontSize: 15 }}>
+        <thead>
+          <tr>
+            {cols.map((c, i) => (
+              <th key={i} scope="col" style={{
+                ...smallCapsStyle, textAlign: c.align ?? 'left', width: c.width && !c.width.endsWith('fr') ? c.width : undefined,
+                padding: '10px 20px', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap',
+              }}>{c.label}</th>
             ))}
-          </div>
-        ))}
-      </div>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={keyOf(row, ri)}>
+              {cols.map((c, ci) => (
+                <td key={ci} style={{
+                  padding: '12px 20px', borderBottom: ri < rows.length - 1 ? `1px solid ${color.divider}` : 'none',
+                  textAlign: c.align, ...(c.align === 'right' ? tabularNums : {}), verticalAlign: 'middle',
+                }}>
+                  {c.render(row)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
 
 export function ReportState({ loading, error, empty }: { loading: boolean; error: string; empty?: boolean }) {
-  if (loading) return <div style={{ padding: 48, textAlign: 'center', color: '#666', fontSize: 14 }}>Loading…</div>
+  if (loading) return <div style={{ padding: 48, textAlign: 'center', color: color.muted, fontSize: 15 }}>Loading…</div>
   if (error) return (
-    <div style={{ padding: '12px 16px', backgroundColor: '#fdecea', borderRadius: 8, color: '#8b1a1a', fontSize: 13 }}>{error}</div>
+    <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{error}</div>
   )
-  if (empty) return <div style={{ padding: 48, textAlign: 'center', color: '#999', fontSize: 14 }}>No data for this range.</div>
+  if (empty) return <div style={cardStyle}><EmptyState message="No data for this range." /></div>
   return null
+}
+
+export const tilesGrid: React.CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: space.cardGap,
 }
