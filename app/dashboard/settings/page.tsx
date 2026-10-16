@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Building2, ChevronDown, ChevronRight, Lock, TriangleAlert, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getOrgContext, clearOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
@@ -10,9 +11,13 @@ import { canManageSettings } from '@/lib/roles'
 import { scanForMojibake } from '@/lib/mojibake'
 import ThemePicker from '@/app/components/ThemePicker'
 import type { ThemeKey } from '@/lib/studioTheme'
+import { formatDayMonth } from '@/lib/dates'
+import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
+import { Button, Chip, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
-// IANA zone names straight from the runtime — an empty list (older browser) falls back to a text input.
+// IANA zone names straight from the runtime — an empty list (older browser) falls back to free text.
 const TIMEZONES: string[] = (() => {
   try {
     return (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? []
@@ -20,6 +25,10 @@ const TIMEZONES: string[] = (() => {
     return []
   }
 })()
+
+const browserZone = (): string => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone ?? '' } catch { return '' }
+}
 
 // ISO 3166-1 alpha-2 → display name, for showing the onboarding-set country read-only.
 const COUNTRY_NAMES: Record<string, string> = {
@@ -35,50 +44,133 @@ const countryLabel = (code: string) => {
   }
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, hint, htmlFor, children }: { label: string; hint?: string; htmlFor?: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: '24px' }}>
-      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
-        {label}
-      </label>
-      {hint && <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>{hint}</p>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label htmlFor={htmlFor} style={{ fontSize: 14, fontWeight: 600, color: color.ink }}>{label}</label>
       {children}
+      {hint && <p style={{ margin: 0, fontSize: 13, lineHeight: 1.4, color: color.muted }}>{hint}</p>}
     </div>
   )
 }
 
 function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      style={{
-        width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-        fontSize: '14px', outline: 'none', backgroundColor: 'white'
-      }}
-    />
-  )
+  return <input {...props} style={{ ...controlStyle, ...(props.type === 'number' ? tabularNums : {}), ...props.style }} />
 }
 
 function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      style={{
-        width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-        fontSize: '14px', outline: 'none', backgroundColor: 'white', minHeight: '80px', resize: 'vertical'
-      }}
-    />
-  )
+  return <textarea {...props} style={{ ...controlStyle, padding: '10px 12px', minHeight: 88, resize: 'vertical', lineHeight: 1.5, ...props.style }} />
 }
 
-function SectionHeader({ title, description }: { title: string; description?: string }) {
-  return (
-    <div style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e2e2e2' }}>
-      <h2 style={{ fontSize: '17px', fontWeight: 600, color: '#1a1a1a' }}>{title}</h2>
-      {description && <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{description}</p>}
-    </div>
-  )
+const grid2: React.CSSProperties = { gridTemplateColumns: '1fr 1fr', gap: space.formGap }
+const smallLinkButton: React.CSSProperties = {
+  background: 'none', border: 0, padding: '6px 0', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, cursor: 'pointer',
 }
+
+type FormState = {
+  name: string; description: string; email: string; phone: string
+  logoUrl: string; bannerUrl: string; brandColor: string; theme: string
+  tagline: string; heroHeadline: string; heroHeadlineEmphasis: string; heroLead: string; heroCtaLabel: string; heroImageUrl: string
+  aboutHeading: string; aboutBody: string; aboutImageUrl: string; aboutCtaLabel: string
+  passesHeading: string; passesBlurb: string; contactEmail: string
+  instagramUrl: string; facebookUrl: string; tiktokUrl: string; youtubeUrl: string
+  galleryUrls: string[]
+  taxEnabled: boolean; taxLabel: string; taxRegistrationNumber: string
+  addressLine1: string; addressLine2: string; addressCity: string; addressState: string; addressPostcode: string
+  timezone: string; locale: string; country: string
+  cancellationHours: string; bookingWindowDays: string; minAdvanceBookingHours: string
+  lateCancelCreditsForfeited: boolean; liabilityWaiverRequired: boolean
+}
+type Key = keyof FormState
+
+const EMPTY_FORM: FormState = {
+  name: '', description: '', email: '', phone: '',
+  logoUrl: '', bannerUrl: '', brandColor: '#085041', theme: 'classic',
+  tagline: '', heroHeadline: '', heroHeadlineEmphasis: '', heroLead: '', heroCtaLabel: '', heroImageUrl: '',
+  aboutHeading: '', aboutBody: '', aboutImageUrl: '', aboutCtaLabel: '',
+  passesHeading: '', passesBlurb: '', contactEmail: '',
+  instagramUrl: '', facebookUrl: '', tiktokUrl: '', youtubeUrl: '',
+  galleryUrls: [],
+  taxEnabled: false, taxLabel: '', taxRegistrationNumber: '',
+  addressLine1: '', addressLine2: '', addressCity: '', addressState: '', addressPostcode: '',
+  timezone: '', locale: '', country: '',
+  cancellationHours: '', bookingWindowDays: '', minAdvanceBookingHours: '',
+  lateCancelCreditsForfeited: true, liabilityWaiverRequired: true,
+}
+
+// Which fields each card saves. Every save still sends the whole organisation (see saveSection).
+const SECTION_KEYS = {
+  profile: ['name', 'description', 'email', 'phone', 'addressLine1', 'addressLine2', 'addressCity', 'addressState', 'addressPostcode'],
+  region: ['timezone', 'locale'],
+  policy: ['cancellationHours', 'bookingWindowDays', 'minAdvanceBookingHours', 'lateCancelCreditsForfeited'],
+  waiver: ['liabilityWaiverRequired'],
+  tax: ['taxEnabled', 'taxLabel', 'taxRegistrationNumber'],
+  branding: ['logoUrl', 'brandColor'],
+  theme: ['theme'],
+  content: ['tagline', 'heroHeadline', 'heroHeadlineEmphasis', 'heroLead', 'heroCtaLabel', 'heroImageUrl', 'aboutHeading', 'aboutBody',
+    'aboutImageUrl', 'aboutCtaLabel', 'passesHeading', 'passesBlurb', 'contactEmail', 'instagramUrl', 'facebookUrl', 'tiktokUrl',
+    'youtubeUrl', 'galleryUrls'],
+} satisfies Record<string, Key[]>
+type SectionId = keyof typeof SECTION_KEYS
+
+// The full PATCH body (UpdateOrganisationRequest). Always sent whole, never partially.
+function orgBody(f: FormState) {
+  return {
+    name: f.name,
+    description: f.description || null,
+    email: f.email || null,
+    phone: f.phone || null,
+    logo_url: f.logoUrl || null,
+    banner_url: f.bannerUrl || null,
+    brand_color: f.brandColor || null,
+    theme: f.theme || null,
+    // Public-page content — nested `page_content` object (PageContentDto, snake_case).
+    page_content: {
+      tagline: f.tagline || null,
+      hero_headline: f.heroHeadline || null,
+      hero_headline_emphasis: f.heroHeadlineEmphasis || null,
+      hero_lead: f.heroLead || null,
+      hero_cta_label: f.heroCtaLabel || null,
+      hero_image_url: f.heroImageUrl || null,
+      about_heading: f.aboutHeading || null,
+      about_body: f.aboutBody.split(/\n{2,}/).map(s => s.trim()).filter(Boolean),
+      about_image_url: f.aboutImageUrl || null,
+      about_cta_label: f.aboutCtaLabel || null,
+      passes_heading: f.passesHeading || null,
+      passes_blurb: f.passesBlurb || null,
+      contact_email: f.contactEmail || null,
+      instagram_url: f.instagramUrl || null,
+      facebook_url: f.facebookUrl || null,
+      tiktok_url: f.tiktokUrl || null,
+      youtube_url: f.youtubeUrl || null,
+      gallery: f.galleryUrls.map(url => ({ url, alt: f.name })),
+    },
+    tax_enabled: f.taxEnabled,
+    tax_label: f.taxLabel || null,
+    tax_registration_number: f.taxRegistrationNumber || null,
+    address_line1: f.addressLine1 || null,
+    address_line2: f.addressLine2 || null,
+    address_city: f.addressCity || null,
+    address_state: f.addressState || null,
+    address_postcode: f.addressPostcode || null,
+    timezone: f.timezone || null,
+    locale: f.locale || null,
+    cancellation_hours: f.cancellationHours !== '' ? parseInt(f.cancellationHours, 10) : null,
+    booking_window_days: f.bookingWindowDays !== '' ? parseInt(f.bookingWindowDays, 10) : null,
+    min_advance_booking_hours: f.minAdvanceBookingHours !== '' ? parseInt(f.minAdvanceBookingHours, 10) : null,
+    late_cancel_credits_forfeited: f.lateCancelCreditsForfeited,
+    liability_waiver_required: f.liabilityWaiverRequired,
+  }
+}
+
+const STUDIO_SECTIONS: { id: string; label: string }[] = [
+  { id: 'profile', label: 'Studio profile' },
+  { id: 'region', label: 'Region & time zone' },
+  { id: 'policy', label: 'Booking policy' },
+  { id: 'waiver', label: 'Liability waiver' },
+  { id: 'payments', label: 'Payments' },
+  { id: 'tax', label: 'Tax (GST)' },
+]
 
 export default function SettingsPage() {
   return (
@@ -86,7 +178,7 @@ export default function SettingsPage() {
       <div className={styles.shell}>
         <Sidebar active="settings" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     }>
@@ -99,61 +191,19 @@ function SettingsPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [tab, setTab] = useState<'general' | 'content'>('general')
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [tab, setTab] = useState<'studio' | 'page'>('studio')
+  const [error, setError] = useState('') // upload problems; section saves report on their own card
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [forbidden, setForbidden] = useState(false)
 
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    email: '',
-    phone: '',
-    logoUrl: '',
-    bannerUrl: '', // no longer edited here (design uses the hero photo); kept as an OG-image fallback
-    brandColor: '#085041',
-    theme: 'classic',
-    // Public-page content (design handoff). Drives the studio's home + section copy.
-    tagline: '',
-    heroHeadline: '',
-    heroHeadlineEmphasis: '',
-    heroLead: '',
-    heroCtaLabel: '',
-    heroImageUrl: '',
-    aboutHeading: '',
-    aboutBody: '', // blank-line-separated paragraphs
-    aboutImageUrl: '',
-    aboutCtaLabel: '',
-    passesHeading: '',
-    passesBlurb: '',
-    contactEmail: '',
-    instagramUrl: '',
-    facebookUrl: '',
-    tiktokUrl: '',
-    youtubeUrl: '',
-    galleryUrls: [] as string[],
-    taxEnabled: false,
-    taxLabel: '',
-    taxRegistrationNumber: '',
-    addressLine1: '',
-    addressLine2: '',
-    addressCity: '',
-    addressState: '',
-    addressPostcode: '',
-    timezone: '',
-    locale: '',
-    country: '', // onboarding-only; shown read-only, never sent
-    cancellationHours: '',
-    bookingWindowDays: '',
-    minAdvanceBookingHours: '',
-    lateCancelCreditsForfeited: true,
-    liabilityWaiverRequired: true,
-  })
+  // `form` is what's on screen; `savedForm` is what the server has. A card's Save sends the saved
+  // values with only that card's fields replaced, so unsaved edits elsewhere never ride along.
+  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [savedForm, setSavedForm] = useState<FormState>(EMPTY_FORM)
+  const [sectionState, setSectionState] = useState<Partial<Record<SectionId, { busy?: boolean; ok?: boolean; msg?: string }>>>({})
 
   // The waiver text is edited and saved on its own — PATCH /liability-waiver, separate from the
   // main settings save, because every edit bumps the version and re-prompts every member to accept.
@@ -169,7 +219,7 @@ function SettingsPageContent() {
   const [addingRate, setAddingRate] = useState(false)
   const [rateError, setRateError] = useState('')
 
-  // Set at onboarding, not editable here — shown read-only for context alongside timezone/locale.
+  // Set at onboarding, not editable here — shown read-only alongside timezone/locale.
   const [currency, setCurrency] = useState('')
 
   const [stripeOnboardingComplete, setStripeOnboardingComplete] = useState(false)
@@ -178,7 +228,12 @@ function SettingsPageContent() {
   const [stripeError, setStripeError] = useState('')
   const [stripeBanner, setStripeBanner] = useState<'success' | 'failure' | null>(null)
 
-  const update = (key: string, value: string | boolean) => setForm(prev => ({ ...prev, [key]: value }))
+  const [openContentRow, setOpenContentRow] = useState<string | null>(null)
+  const [zone, setZone] = useState('')
+  useEffect(() => { setZone(browserZone()) }, [])
+
+  const update = (key: Key, value: string | boolean) => setForm(prev => ({ ...prev, [key]: value }))
+  const isDirty = (id: SectionId) => (SECTION_KEYS[id] as Key[]).some(k => JSON.stringify(form[k]) !== JSON.stringify(savedForm[k]))
 
   // Flag any free-text field that looks like it has an encoding problem — usually text pasted from
   // a source where a character was already double-encoded (see lib/mojibake). Warn, don't block.
@@ -217,10 +272,9 @@ function SettingsPageContent() {
       setToken(t)
       const org = ctx.org
       setOrgId(org.id)
-      const myRoles: string[] = ctx.roles
-      setRoles(myRoles)
+      setRoles(ctx.roles)
 
-      if (!canManageSettings(myRoles)) {
+      if (!canManageSettings(ctx.roles)) {
         setForbidden(true)
         setLoading(false)
         return
@@ -231,19 +285,18 @@ function SettingsPageContent() {
       // preferring `mine`'s values when it actually provides them.
       let theme = org.theme
       let pageContent = org.page_content
-      if (org.slug) {
-        try {
-          const pubRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${org.slug}`)
-          if (pubRes.ok) {
-            const pub = await pubRes.json()
-            theme = theme ?? pub.theme
-            pageContent = pageContent ?? pub.page_content
-          }
-        } catch { /* keep whatever `mine` gave us */ }
+      const [pubRes, ratesRes] = await Promise.all([
+        org.slug ? fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${org.slug}`).catch(() => null) : Promise.resolve(null),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/tax-rates`, { headers: { Authorization: `Bearer ${t}` } }),
+      ])
+      if (pubRes?.ok) {
+        const pub = await pubRes.json()
+        theme = theme ?? pub.theme
+        pageContent = pageContent ?? pub.page_content
       }
 
       const pc = pageContent ?? {}
-      setForm({
+      const loaded: FormState = {
         name: org.name ?? '',
         description: org.description ?? '',
         email: org.email ?? '',
@@ -252,7 +305,6 @@ function SettingsPageContent() {
         bannerUrl: org.banner_url ?? '',
         brandColor: org.brand_color ?? '#085041',
         theme: theme ?? 'classic',
-        // Public-page content lives in a nested `page_content` object (snake_case) on the API.
         tagline: pc.tagline ?? '',
         heroHeadline: pc.hero_headline ?? '',
         heroHeadlineEmphasis: pc.hero_headline_emphasis ?? '',
@@ -287,17 +339,15 @@ function SettingsPageContent() {
         minAdvanceBookingHours: org.min_advance_booking_hours != null ? String(org.min_advance_booking_hours) : '',
         lateCancelCreditsForfeited: org.late_cancel_credits_forfeited ?? true,
         liabilityWaiverRequired: org.liability_waiver_required ?? true,
-      })
+      }
+      setForm(loaded)
+      setSavedForm(loaded)
       setWaiverText(org.liability_waiver_text ?? '')
       setInitialWaiverText(org.liability_waiver_text ?? '')
       setWaiverVersion(org.liability_waiver_version ?? null)
       setCurrency(org.currency ?? '')
       setStripeOnboardingComplete(org.stripe_onboarding_complete ?? false)
       setStripeAccountId(org.stripe_account_id ?? null)
-
-      const ratesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/tax-rates`, {
-        headers: { Authorization: `Bearer ${t}` }
-      })
       if (ratesRes.ok) setTaxRates(await ratesRes.json())
 
       setLoading(false)
@@ -344,7 +394,7 @@ function SettingsPageContent() {
 
   const handleAddRate = async () => {
     if (!addRateForm.rate || !addRateForm.effectiveFrom) {
-      setRateError('Rate and effective date are both required')
+      setRateError('Rate and start date are both required')
       return
     }
 
@@ -439,76 +489,38 @@ function SettingsPageContent() {
     setContentImgBusy('')
   }
 
+  // Save one card. The request is the full organisation — the last saved values with only this
+  // card's fields taken from the screen — so a field can never be dropped or nulled by omission,
+  // and other cards' unsaved edits stay unsaved. `override` lets an action save a value directly.
+  const saveSection = async (id: SectionId, override?: Partial<FormState>) => {
+    const setState = (s: { busy?: boolean; ok?: boolean; msg?: string }) => setSectionState(prev => ({ ...prev, [id]: s }))
+    const fromScreen = Object.fromEntries((SECTION_KEYS[id] as Key[]).map(k => [k, form[k]])) as Partial<FormState>
+    const next: FormState = { ...savedForm, ...fromScreen, ...override }
 
-  const handleSave = async () => {
-    if (!form.name.trim()) { setError('Studio name is required'); return }
-    setSaving(true)
-    setError('')
-    setSuccess('')
+    if (id === 'profile' && !next.name.trim()) { setState({ ok: false, msg: 'Studio name is required.' }); return }
+    if (id === 'region' && next.timezone && TIMEZONES.length > 0 && !TIMEZONES.includes(next.timezone)) {
+      setState({ ok: false, msg: `"${next.timezone}" isn't a time zone. Pick one from the list, e.g. Australia/Brisbane.` })
+      return
+    }
 
+    setState({ busy: true })
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          name: form.name,
-          description: form.description || null,
-          email: form.email || null,
-          phone: form.phone || null,
-          logo_url: form.logoUrl || null,
-          banner_url: form.bannerUrl || null,
-          brand_color: form.brandColor || null,
-          theme: form.theme || null,
-          // Public-page content — nested `page_content` object (PageContentDto, snake_case).
-          page_content: {
-            tagline: form.tagline || null,
-            hero_headline: form.heroHeadline || null,
-            hero_headline_emphasis: form.heroHeadlineEmphasis || null,
-            hero_lead: form.heroLead || null,
-            hero_cta_label: form.heroCtaLabel || null,
-            hero_image_url: form.heroImageUrl || null,
-            about_heading: form.aboutHeading || null,
-            about_body: form.aboutBody.split(/\n{2,}/).map(s => s.trim()).filter(Boolean),
-            about_image_url: form.aboutImageUrl || null,
-            about_cta_label: form.aboutCtaLabel || null,
-            passes_heading: form.passesHeading || null,
-            passes_blurb: form.passesBlurb || null,
-            contact_email: form.contactEmail || null,
-            instagram_url: form.instagramUrl || null,
-            facebook_url: form.facebookUrl || null,
-            tiktok_url: form.tiktokUrl || null,
-            youtube_url: form.youtubeUrl || null,
-            gallery: form.galleryUrls.map(url => ({ url, alt: form.name })),
-          },
-          tax_enabled: form.taxEnabled,
-          tax_label: form.taxLabel || null,
-          tax_registration_number: form.taxRegistrationNumber || null,
-          address_line1: form.addressLine1 || null,
-          address_line2: form.addressLine2 || null,
-          address_city: form.addressCity || null,
-          address_state: form.addressState || null,
-          address_postcode: form.addressPostcode || null,
-          timezone: form.timezone || null,
-          locale: form.locale || null,
-          cancellation_hours: form.cancellationHours !== '' ? parseInt(form.cancellationHours, 10) : null,
-          booking_window_days: form.bookingWindowDays !== '' ? parseInt(form.bookingWindowDays, 10) : null,
-          min_advance_booking_hours: form.minAdvanceBookingHours !== '' ? parseInt(form.minAdvanceBookingHours, 10) : null,
-          late_cancel_credits_forfeited: form.lateCancelCreditsForfeited,
-          liability_waiver_required: form.liabilityWaiverRequired,
-        })
+        body: JSON.stringify(orgBody(next)),
       })
-
       if (res.ok) {
         clearOrgContext() // other pages re-read currency, timezone etc.
-        setSuccess('Settings saved.')
+        setSavedForm(next)
+        if (override) setForm(prev => ({ ...prev, ...override }))
+        setState({ ok: true, msg: 'Saved.' })
       } else {
         const data = await res.json().catch(() => null)
-        setError(data?.error ?? 'Failed to save. Please try again.')
+        setState({ ok: false, msg: data?.error ?? 'Could not save. Please try again.' })
       }
     } catch {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setSaving(false)
+      setState({ ok: false, msg: 'Something went wrong. Please try again.' })
     }
   }
 
@@ -527,13 +539,13 @@ function SettingsPageContent() {
         const org = await res.json().catch(() => null)
         setInitialWaiverText(waiverText)
         setWaiverVersion(org?.liability_waiver_version ?? (waiverVersion != null ? waiverVersion + 1 : null))
-        setWaiverMsg({ ok: true, text: 'Waiver saved. Members will be asked to accept the new version before their next booking.' })
+        setWaiverMsg({ ok: true, text: 'Published. Members will be asked to accept the new version before their next booking.' })
       } else {
         const data = await res.json().catch(() => null)
-        setWaiverMsg({ ok: false, text: data?.error ?? 'Could not save the waiver. Please try again.' })
+        setWaiverMsg({ ok: false, text: data?.error ?? 'Could not publish the waiver. Please try again.' })
       }
     } catch {
-      setWaiverMsg({ ok: false, text: 'Could not save the waiver. Please try again.' })
+      setWaiverMsg({ ok: false, text: 'Could not publish the waiver. Please try again.' })
     } finally {
       setSavingWaiver(false)
     }
@@ -544,597 +556,505 @@ function SettingsPageContent() {
       <div className={styles.shell}>
         <Sidebar active="settings" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
   }
 
+  // A card with its own Save. `saveId` wires the button to that section's fields; it's enabled
+  // only when the section has unsaved changes.
+  const sectionCard = (id: string, title: string, description: string | null, body: React.ReactNode, saveId?: SectionId, extraFooter?: React.ReactNode) => {
+    const st = saveId ? sectionState[saveId] : undefined
+    const dirty = saveId ? isDirty(saveId) : false
+    return (
+      <section id={id} aria-labelledby={`${id}-heading`} style={{ ...cardStyle, scrollMarginTop: 24 }}>
+        <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+          <div>
+            <h2 id={`${id}-heading`} style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h2>
+            {description && <p style={{ margin: '4px 0 0', fontSize: 14, color: color.muted, lineHeight: 1.45 }}>{description}</p>}
+          </div>
+          {body}
+        </div>
+        {(saveId || extraFooter) && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 12, padding: '14px 24px', borderTop: `1px solid ${color.divider}` }}>
+            {st?.msg && !st.busy && (
+              <span role={st.ok ? 'status' : 'alert'} style={{ fontSize: 14, color: st.ok ? color.primaryInk : color.dangerInk, marginRight: 'auto' }}>{st.msg}</span>
+            )}
+            {extraFooter}
+            {saveId && (
+              <>
+                {dirty && !st?.busy && (
+                  <button type="button" className={ui.focusable} style={{ ...smallLinkButton, color: color.muted }}
+                    onClick={() => setForm(prev => ({ ...prev, ...Object.fromEntries((SECTION_KEYS[saveId] as Key[]).map(k => [k, savedForm[k]])) }))}>
+                    Discard
+                  </button>
+                )}
+                <Button variant="primary" onClick={() => saveSection(saveId)} disabled={!dirty || st?.busy}>
+                  {st?.busy ? 'Saving…' : 'Save'}
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </section>
+    )
+  }
+
+  const imageBox = (url: string, w: number, h: number, label: string) => (
+    <div style={{ width: w, height: h, borderRadius: radius.control, background: color.bg, border: `1px solid ${color.border}`, overflow: 'hidden', flex: 'none',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', color: color.muted }}>
+      {url ? <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Building2 size={22} strokeWidth={1.6} aria-hidden />}
+    </div>
+  )
+  const uploadLabel = (text: string, busy: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, multiple = false) => (
+    <label className={`${ui.button} ${ui.focusable}`} style={{ ...buttonStyle('secondary', 'sm'), cursor: busy ? 'not-allowed' : 'pointer' }}>
+      {busy ? 'Uploading…' : text}
+      <input type="file" accept="image/*" multiple={multiple} onChange={onChange} disabled={busy} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
+    </label>
+  )
+  const removeButton = (onClick: () => void) => (
+    <button type="button" onClick={onClick} className={ui.focusable} style={{ ...smallLinkButton, color: color.dangerInk }}>Remove</button>
+  )
+
+  const zones = zone && TIMEZONES.includes(zone) ? [zone, ...TIMEZONES.filter(z => z !== zone)] : TIMEZONES
+  const currentRateId = taxRates.find(r => !r.effective_until)?.id
+  const tabs = [['studio', 'Studio'], ['page', 'Booking page']] as const
+
+  // Booking page content as rows — each opens its group of fields.
+  const contentRows: { id: string; label: string; summary: string; fields: React.ReactNode }[] = [
+    {
+      id: 'hero', label: 'Hero', summary: form.heroHeadline || 'Not written yet',
+      fields: (
+        <>
+          <Field label="Tagline" htmlFor="c-tagline" hint="Small line above the headline, e.g. “Mysore · Ashtanga · Vinyasa · Workshops”">
+            <Input id="c-tagline" value={form.tagline} onChange={e => update('tagline', e.target.value)} />
+          </Field>
+          <div className={styles.formGrid} style={grid2}>
+            <Field label="Headline" htmlFor="c-headline" hint="The big line in your hero.">
+              <Input id="c-headline" value={form.heroHeadline} onChange={e => update('heroHeadline', e.target.value)} />
+            </Field>
+            <Field label="Emphasised word" htmlFor="c-emph" hint="A word inside the headline shown bolder (optional).">
+              <Input id="c-emph" value={form.heroHeadlineEmphasis} onChange={e => update('heroHeadlineEmphasis', e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Intro paragraph" htmlFor="c-lead">
+            <Textarea id="c-lead" value={form.heroLead} onChange={e => update('heroLead', e.target.value)} rows={3} />
+          </Field>
+          <Field label="Hero button label" htmlFor="c-cta" hint="Second hero button, links to your teacher page, e.g. “About Ravi”">
+            <Input id="c-cta" value={form.heroCtaLabel} onChange={e => update('heroCtaLabel', e.target.value)} />
+          </Field>
+        </>
+      ),
+    },
+    {
+      id: 'heroPhoto', label: 'Hero photo', summary: form.heroImageUrl ? 'Photo added' : 'No photo',
+      fields: (
+        <Field label="Hero photo" hint="Portrait works best. Shown full-screen on the Photo First theme, beside the text on the others.">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            {imageBox(form.heroImageUrl, 96, 120, 'Hero photo')}
+            {uploadLabel(form.heroImageUrl ? 'Replace photo' : 'Upload photo', contentImgBusy === 'heroImageUrl', e => handleContentImage(e, 'heroImageUrl'))}
+            {form.heroImageUrl && removeButton(() => update('heroImageUrl', ''))}
+          </div>
+        </Field>
+      ),
+    },
+    {
+      id: 'about', label: 'About', summary: form.aboutHeading || 'Not written yet',
+      fields: (
+        <>
+          <Field label="About heading" htmlFor="c-about-h">
+            <Input id="c-about-h" value={form.aboutHeading} onChange={e => update('aboutHeading', e.target.value)} />
+          </Field>
+          <Field label="About text" htmlFor="c-about-b" hint="Leave a blank line between paragraphs.">
+            <Textarea id="c-about-b" value={form.aboutBody} onChange={e => update('aboutBody', e.target.value)} rows={5} />
+          </Field>
+          <div className={styles.formGrid} style={grid2}>
+            <Field label="About button label" htmlFor="c-about-cta" hint="Optional, e.g. “Read more”">
+              <Input id="c-about-cta" value={form.aboutCtaLabel} onChange={e => update('aboutCtaLabel', e.target.value)} />
+            </Field>
+            <Field label="About photo">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                {imageBox(form.aboutImageUrl, 72, 72, 'About photo')}
+                {uploadLabel(form.aboutImageUrl ? 'Replace' : 'Upload', contentImgBusy === 'aboutImageUrl', e => handleContentImage(e, 'aboutImageUrl'))}
+                {form.aboutImageUrl && removeButton(() => update('aboutImageUrl', ''))}
+              </div>
+            </Field>
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'passes', label: 'Passes intro', summary: form.passesHeading || 'Default heading',
+      fields: (
+        <>
+          <div className={styles.formGrid} style={grid2}>
+            <Field label="Passes heading" htmlFor="c-pass-h" hint="Above the pass prices. Defaults to “Passes, or pay as you go”.">
+              <Input id="c-pass-h" value={form.passesHeading} onChange={e => update('passesHeading', e.target.value)} />
+            </Field>
+            <Field label="Contact email" htmlFor="c-contact" hint="Shown in the page footer.">
+              <Input id="c-contact" type="email" value={form.contactEmail} onChange={e => update('contactEmail', e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Passes blurb" htmlFor="c-pass-b">
+            <Textarea id="c-pass-b" value={form.passesBlurb} onChange={e => update('passesBlurb', e.target.value)} rows={2} />
+          </Field>
+        </>
+      ),
+    },
+    {
+      id: 'gallery', label: 'Photo gallery', summary: form.galleryUrls.length ? `${form.galleryUrls.length} photo${form.galleryUrls.length === 1 ? '' : 's'}` : 'No photos',
+      fields: (
+        <Field label="Photo gallery" hint="Square photos shown on your home and teacher pages.">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {form.galleryUrls.map((url, i) => (
+              <div key={url + i} style={{ position: 'relative', width: 84, height: 84, borderRadius: radius.control, overflow: 'hidden', border: `1px solid ${color.border}` }}>
+                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, galleryUrls: prev.galleryUrls.filter((_, j) => j !== i) }))}
+                  aria-label={`Remove photo ${i + 1}`}
+                  className={ui.focusable}
+                  style={{ position: 'absolute', top: 4, right: 4, width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(23,32,28,0.7)', color: '#FFFFFF', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                ><X size={14} strokeWidth={2.5} aria-hidden /></button>
+              </div>
+            ))}
+            <label className={ui.focusable} style={{ position: 'relative', width: 84, height: 84, borderRadius: radius.control, border: `1px dashed ${color.control}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: color.muted, cursor: 'pointer', textAlign: 'center' }}>
+              {contentImgBusy === 'gallery' ? '…' : '+ Add'}
+              <input type="file" accept="image/*" multiple onChange={handleGalleryAdd} disabled={contentImgBusy === 'gallery'} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
+            </label>
+          </div>
+        </Field>
+      ),
+    },
+    {
+      id: 'social', label: 'Social links', summary: [form.instagramUrl && 'Instagram', form.facebookUrl && 'Facebook', form.tiktokUrl && 'TikTok', form.youtubeUrl && 'YouTube'].filter(Boolean).join(', ') || 'None added',
+      fields: (
+        <>
+          <p style={{ margin: 0, fontSize: 14, color: color.muted }}>Shown in the footer of your public pages. Leave any blank to hide it.</p>
+          <div className={styles.formGrid} style={grid2}>
+            <Field label="Instagram" htmlFor="s-ig"><Input id="s-ig" type="url" placeholder="https://instagram.com/yourstudio" value={form.instagramUrl} onChange={e => update('instagramUrl', e.target.value)} /></Field>
+            <Field label="Facebook" htmlFor="s-fb"><Input id="s-fb" type="url" placeholder="https://facebook.com/yourstudio" value={form.facebookUrl} onChange={e => update('facebookUrl', e.target.value)} /></Field>
+          </div>
+          <div className={styles.formGrid} style={grid2}>
+            <Field label="TikTok" htmlFor="s-tt"><Input id="s-tt" type="url" placeholder="https://tiktok.com/@yourstudio" value={form.tiktokUrl} onChange={e => update('tiktokUrl', e.target.value)} /></Field>
+            <Field label="YouTube" htmlFor="s-yt"><Input id="s-yt" type="url" placeholder="https://youtube.com/@yourstudio" value={form.youtubeUrl} onChange={e => update('youtubeUrl', e.target.value)} /></Field>
+          </div>
+        </>
+      ),
+    },
+  ]
+
   return (
     <div className={styles.shell}>
       <Sidebar active="settings" roles={roles} />
 
-      <div className={styles.main} style={{ maxWidth: '760px' }}>
-        {forbidden ? <Forbidden /> : <>
+      <div className={styles.main}>
+        {forbidden ? <Forbidden /> : (
+          <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            <PageHeader eyebrow="Settings" title={tab === 'studio' ? 'Studio settings' : 'Booking page'} />
 
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Settings</h1>
-          <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-            Your studio's profile — what members see on your booking page
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '1px solid #e2e2e2' }}>
-          {([['general', 'Studio settings'], ['content', 'Public page']] as const).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => setTab(k)}
-              style={{
-                padding: '10px 16px', border: 'none', background: 'none', cursor: 'pointer',
-                fontSize: '14px', fontWeight: tab === k ? 600 : 500,
-                color: tab === k ? '#085041' : '#666',
-                borderBottom: `2px solid ${tab === k ? '#085041' : 'transparent'}`,
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-
-          {tab === 'content' && (<>
-
-          <SectionHeader title="Branding" description="Your logo and brand colour appear on your public pages" />
-
-          <Field label="Logo">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                width: '72px', height: '72px', borderRadius: '12px', backgroundColor: '#f4f4f4',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                border: '1px solid #e2e2e2', flexShrink: 0
+            {/* A live-data problem worth fixing first: everything time-related uses this zone. */}
+            {!savedForm.timezone && (
+              <div role="alert" style={{
+                display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '14px 18px',
+                background: '#FBF4E6', border: '1px solid #EBD9B4', borderRadius: radius.card,
               }}>
-                {form.logoUrl ? (
-                  <img src={form.logoUrl} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: '24px' }}>🏢</span>
+                <TriangleAlert size={20} strokeWidth={2} color={color.warnInk} aria-hidden />
+                <span style={{ flex: '1 1 280px', fontSize: 15, color: '#4A2E05' }}>
+                  <strong style={{ fontWeight: 600 }}>Your studio has no time zone set.</strong> Class times, pass expiry and emails need one.
+                </span>
+                {zone && TIMEZONES.includes(zone) && (
+                  <Button size="sm" onClick={() => saveSection('region', { timezone: zone })} disabled={sectionState.region?.busy}>Set to {zone}</Button>
                 )}
               </div>
-              <label style={{
-                padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px',
-                fontSize: '13px', fontWeight: 500, color: '#444', cursor: uploadingLogo ? 'not-allowed' : 'pointer'
-              }}>
-                {uploadingLogo ? 'Uploading...' : form.logoUrl ? 'Replace logo' : 'Upload logo'}
-                <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={uploadingLogo} style={{ display: 'none' }} />
-              </label>
-              {form.logoUrl && (
-                <button
-                  onClick={() => update('logoUrl', '')}
-                  style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          </Field>
+            )}
 
-          <Field label="Brand colour" hint="Used as the accent colour on your public pages">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <input
-                type="color"
-                value={form.brandColor}
-                onChange={e => update('brandColor', e.target.value)}
-                style={{ width: '44px', height: '36px', border: '1px solid #e2e2e2', borderRadius: '8px', padding: '2px', cursor: 'pointer' }}
-              />
-              <Input value={form.brandColor} onChange={e => update('brandColor', e.target.value)} style={{ maxWidth: '140px' }} />
-            </div>
-          </Field>
-
-          <Field label="Page theme" hint="The look of your public studio pages. One layout, six styles — your logo and brand colour carry across all of them.">
-            <ThemePicker value={form.theme as ThemeKey} onChange={k => update('theme', k)} />
-          </Field>
-
-          <SectionHeader title="Public page content" description="The words and photos on your public home page. Class times, prices and teacher bios come from your schedule and team — this is just the framing." />
-
-          <Field label="Tagline" hint="Small line above the headline. e.g. “Mysore · Ashtanga · Vinyasa · Workshops”">
-            <Input value={form.tagline} onChange={e => update('tagline', e.target.value)} />
-          </Field>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Headline" hint="The big line in your hero.">
-              <Input value={form.heroHeadline} onChange={e => update('heroHeadline', e.target.value)} />
-            </Field>
-            <Field label="Emphasised word" hint="A word inside the headline shown bolder (optional).">
-              <Input value={form.heroHeadlineEmphasis} onChange={e => update('heroHeadlineEmphasis', e.target.value)} />
-            </Field>
-          </div>
-
-          <Field label="Intro paragraph">
-            <Textarea value={form.heroLead} onChange={e => update('heroLead', e.target.value)} rows={3} />
-          </Field>
-
-          <Field label="Hero button label" hint="Second hero button, links to your teacher page. e.g. “About Ravi”">
-            <Input value={form.heroCtaLabel} onChange={e => update('heroCtaLabel', e.target.value)} />
-          </Field>
-
-          <Field label="Hero photo" hint="Portrait works best. Shown full-screen on the Photo First theme, beside the text on the others.">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-              <div style={{ width: '96px', height: '120px', borderRadius: '10px', backgroundColor: '#f4f4f4', border: '1px solid #e2e2e2', overflow: 'hidden', flexShrink: 0 }}>
-                {form.heroImageUrl && <img src={form.heroImageUrl} alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-              </div>
-              <label style={{ padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#444', cursor: contentImgBusy === 'heroImageUrl' ? 'not-allowed' : 'pointer' }}>
-                {contentImgBusy === 'heroImageUrl' ? 'Uploading…' : form.heroImageUrl ? 'Replace photo' : 'Upload photo'}
-                <input type="file" accept="image/*" onChange={e => handleContentImage(e, 'heroImageUrl')} disabled={contentImgBusy === 'heroImageUrl'} style={{ display: 'none' }} />
-              </label>
-              {form.heroImageUrl && (
-                <button onClick={() => update('heroImageUrl', '')} style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}>Remove</button>
-              )}
-            </div>
-          </Field>
-
-          <Field label="About heading">
-            <Input value={form.aboutHeading} onChange={e => update('aboutHeading', e.target.value)} />
-          </Field>
-
-          <Field label="About text" hint="Leave a blank line between paragraphs.">
-            <Textarea value={form.aboutBody} onChange={e => update('aboutBody', e.target.value)} rows={4} />
-          </Field>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="About button label" hint="Optional. e.g. “Read more”">
-              <Input value={form.aboutCtaLabel} onChange={e => update('aboutCtaLabel', e.target.value)} />
-            </Field>
-            <Field label="About photo">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ width: '72px', height: '72px', borderRadius: '10px', backgroundColor: '#f4f4f4', border: '1px solid #e2e2e2', overflow: 'hidden', flexShrink: 0 }}>
-                  {form.aboutImageUrl && <img src={form.aboutImageUrl} alt="About" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                </div>
-                <label style={{ padding: '8px 14px', backgroundColor: '#f4f4f4', borderRadius: '8px', fontSize: '13px', fontWeight: 500, color: '#444', cursor: 'pointer' }}>
-                  {contentImgBusy === 'aboutImageUrl' ? 'Uploading…' : form.aboutImageUrl ? 'Replace' : 'Upload'}
-                  <input type="file" accept="image/*" onChange={e => handleContentImage(e, 'aboutImageUrl')} disabled={contentImgBusy === 'aboutImageUrl'} style={{ display: 'none' }} />
-                </label>
-                {form.aboutImageUrl && (
-                  <button onClick={() => update('aboutImageUrl', '')} style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}>Remove</button>
-                )}
-              </div>
-            </Field>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Passes heading" hint="Above the pass prices. Defaults to “Passes, or pay as you go”.">
-              <Input value={form.passesHeading} onChange={e => update('passesHeading', e.target.value)} />
-            </Field>
-            <Field label="Contact email" hint="Shown in the page footer.">
-              <Input type="email" value={form.contactEmail} onChange={e => update('contactEmail', e.target.value)} />
-            </Field>
-          </div>
-
-          <Field label="Passes blurb">
-            <Textarea value={form.passesBlurb} onChange={e => update('passesBlurb', e.target.value)} rows={2} />
-          </Field>
-
-          <Field label="Photo gallery" hint="Square photos shown on your home and teacher pages.">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              {form.galleryUrls.map((url, i) => (
-                <div key={url + i} style={{ position: 'relative', width: '84px', height: '84px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e2e2e2' }}>
-                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <button
-                    onClick={() => setForm(prev => ({ ...prev, galleryUrls: prev.galleryUrls.filter((_, j) => j !== i) }))}
-                    aria-label="Remove photo"
-                    style={{ position: 'absolute', top: '4px', right: '4px', width: '20px', height: '20px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '12px', cursor: 'pointer', lineHeight: 1 }}
-                  >×</button>
-                </div>
-              ))}
-              <label style={{ width: '84px', height: '84px', borderRadius: '10px', border: '1px dashed #c2c2c2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#666', cursor: 'pointer', textAlign: 'center' }}>
-                {contentImgBusy === 'gallery' ? '…' : '+ Add'}
-                <input type="file" accept="image/*" multiple onChange={handleGalleryAdd} disabled={contentImgBusy === 'gallery'} style={{ display: 'none' }} />
-              </label>
-            </div>
-          </Field>
-
-          <SectionHeader title="Social links" description="Shown in the footer of your public pages. Leave any blank to hide it." />
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Instagram">
-              <Input type="url" placeholder="https://instagram.com/yourstudio" value={form.instagramUrl} onChange={e => update('instagramUrl', e.target.value)} />
-            </Field>
-            <Field label="Facebook">
-              <Input type="url" placeholder="https://facebook.com/yourstudio" value={form.facebookUrl} onChange={e => update('facebookUrl', e.target.value)} />
-            </Field>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="TikTok">
-              <Input type="url" placeholder="https://tiktok.com/@yourstudio" value={form.tiktokUrl} onChange={e => update('tiktokUrl', e.target.value)} />
-            </Field>
-            <Field label="YouTube">
-              <Input type="url" placeholder="https://youtube.com/@yourstudio" value={form.youtubeUrl} onChange={e => update('youtubeUrl', e.target.value)} />
-            </Field>
-          </div>
-
-          </>)}
-
-          {tab === 'general' && (<>
-
-          <SectionHeader title="Studio profile" />
-
-          <Field label="Studio name">
-            <Input value={form.name} onChange={e => update('name', e.target.value)} />
-          </Field>
-
-          <Field label="Description" hint="Shown on your public booking page">
-            <Textarea value={form.description} onChange={e => update('description', e.target.value)} />
-          </Field>
-
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Contact email">
-              <Input type="email" value={form.email} onChange={e => update('email', e.target.value)} />
-            </Field>
-            <Field label="Phone">
-              <Input value={form.phone} onChange={e => update('phone', e.target.value)} />
-            </Field>
-          </div>
-
-          <SectionHeader title="Business address" description="Appears on the receipts and invoices members download" />
-
-          <Field label="Address line 1">
-            <Input value={form.addressLine1} onChange={e => update('addressLine1', e.target.value)} />
-          </Field>
-          <Field label="Address line 2">
-            <Input value={form.addressLine2} onChange={e => update('addressLine2', e.target.value)} />
-          </Field>
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: '16px' }}>
-            <Field label="City / suburb">
-              <Input value={form.addressCity} onChange={e => update('addressCity', e.target.value)} />
-            </Field>
-            <Field label="State">
-              <Input value={form.addressState} onChange={e => update('addressState', e.target.value)} />
-            </Field>
-            <Field label="Postcode">
-              <Input value={form.addressPostcode} onChange={e => update('addressPostcode', e.target.value)} />
-            </Field>
-          </div>
-
-          <SectionHeader title="Region & locale" description="Timezone drives class times, pass expiry, and the local time shown in every email. Country and currency are fixed at onboarding." />
-
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Timezone">
-              {TIMEZONES.length > 0 ? (
-                <select
-                  value={form.timezone}
-                  onChange={e => update('timezone', e.target.value)}
+            <div role="tablist" aria-label="Settings" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: `1px solid ${color.border}` }}>
+              {tabs.map(([k, label]) => (
+                <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={ui.focusable}
                   style={{
-                    width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-                    fontSize: '14px', outline: 'none', backgroundColor: 'white'
-                  }}
-                >
-                  <option value="">Not set</option>
-                  {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
-                </select>
-              ) : (
-                <Input placeholder="Australia/Brisbane" value={form.timezone} onChange={e => update('timezone', e.target.value)} />
-              )}
-            </Field>
-            <Field label="Locale" hint="IETF language tag — controls date and number formatting on receipts and emails.">
-              <Input placeholder="en-AU" value={form.locale} onChange={e => update('locale', e.target.value)} />
-            </Field>
-          </div>
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Country" hint="Set at onboarding — it drives tax rules and your Stripe payout account.">
-              <Input value={countryLabel(form.country)} disabled style={{ maxWidth: '220px', backgroundColor: '#f4f4f4', color: '#666' }} />
-            </Field>
-            <Field label="Currency" hint="Set at onboarding — it's baked into every stored price and Stripe charge.">
-              <Input value={currency || '—'} disabled style={{ maxWidth: '120px', backgroundColor: '#f4f4f4', color: '#666' }} />
-            </Field>
-          </div>
-
-          <SectionHeader title="Booking policy" description="Studio-wide defaults. Individual sessions can override the cancellation window." />
-
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Cancellation window (hours)" hint="Members can cancel for free up to this many hours before a class starts.">
-              <Input type="number" min="0" value={form.cancellationHours} onChange={e => update('cancellationHours', e.target.value)} />
-            </Field>
-            <Field label="Minimum notice (hours)" hint="Members can't book a class starting sooner than this. Blank keeps the current setting.">
-              <Input type="number" min="0" value={form.minAdvanceBookingHours} onChange={e => update('minAdvanceBookingHours', e.target.value)} />
-            </Field>
-          </div>
-          <Field label="Booking window (days)" hint="How far ahead members can book. Blank keeps the current setting.">
-            <Input type="number" min="0" value={form.bookingWindowDays} onChange={e => update('bookingWindowDays', e.target.value)} style={{ maxWidth: '200px' }} />
-          </Field>
-          <Field label="Late cancellations">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={form.lateCancelCreditsForfeited}
-                onChange={e => update('lateCancelCreditsForfeited', e.target.checked)}
-              />
-              Forfeit the pass credit when a member cancels after the window closes
-            </label>
-          </Field>
-
-          <SectionHeader title="Legal" description="Your studio's own liability waiver. The platform Terms & Conditions are CalaStudio's, identical for every studio, and aren't editable here." />
-
-          <Field label="Require a liability waiver" hint="Turn this off if your studio doesn't run physical activity. Members then only accept the platform Terms & Conditions.">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={form.liabilityWaiverRequired}
-                onChange={e => update('liabilityWaiverRequired', e.target.checked)}
-              />
-              Members must accept this waiver before their first booking
-            </label>
-          </Field>
-
-          <Field
-            label="Liability waiver text"
-            hint="House rules, risk acknowledgement, medical declaration, photo/video consent — whatever a member agrees to when they join. This is a starting template; review it for your studio and jurisdiction."
-          >
-            {waiverVersion != null && (
-              <p style={{ fontSize: '12px', color: '#999', marginBottom: '8px' }}>Current version: {waiverVersion}</p>
-            )}
-            <textarea
-              value={waiverText}
-              onChange={e => setWaiverText(e.target.value)}
-              style={{
-                width: '100%', padding: '12px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-                fontSize: '13px', lineHeight: 1.6, outline: 'none', backgroundColor: 'white',
-                minHeight: '220px', resize: 'vertical', fontFamily: 'inherit',
-              }}
-            />
-            <p style={{ fontSize: '12px', color: '#7a4f00', marginTop: '8px' }}>
-              Saving new wording publishes the next version. Every member is asked to accept it again before their next booking.
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '10px' }}>
-              <button
-                onClick={handleSaveWaiver}
-                disabled={savingWaiver || waiverText === initialWaiverText || !waiverText.trim()}
-                style={{
-                  padding: '9px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                  border: '1px solid #d2d2d2', color: '#1a1a1a',
-                  backgroundColor: (savingWaiver || waiverText === initialWaiverText || !waiverText.trim()) ? '#f4f4f4' : 'white',
-                  cursor: (savingWaiver || waiverText === initialWaiverText || !waiverText.trim()) ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {savingWaiver ? 'Saving...' : 'Save waiver text'}
-              </button>
-              {waiverText !== initialWaiverText && !savingWaiver && (
-                <button
-                  onClick={() => { setWaiverText(initialWaiverText); setWaiverMsg(null) }}
-                  style={{ background: 'none', border: 'none', fontSize: '13px', color: '#666', cursor: 'pointer' }}
-                >
-                  Discard changes
-                </button>
-              )}
-              {waiverMsg && (
-                <span style={{ fontSize: '13px', color: waiverMsg.ok ? '#085041' : '#8b1a1a' }}>{waiverMsg.text}</span>
-              )}
-            </div>
-          </Field>
-
-          <SectionHeader title="Payments" description="Connect Stripe so members can pay for drop-in classes and passes — money goes straight to your bank account, CalaStudio takes no commission" />
-
-          {stripeBanner === 'success' && (
-            <div style={{ padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px', color: '#085041', fontSize: '14px', marginBottom: '20px' }}>
-              Stripe connected successfully.
-            </div>
-          )}
-          {stripeBanner === 'failure' && (
-            <div style={{ padding: '12px 16px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '14px', marginBottom: '20px' }}>
-              Stripe connection failed or was cancelled. Please try again.
-            </div>
-          )}
-
-          <Field label="Stripe">
-            <div style={{
-              border: '1px solid #e2e2e2', borderRadius: '12px', padding: '20px',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{
-                  width: '44px', height: '44px', backgroundColor: '#635bff', borderRadius: '10px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
-                  fontWeight: 700, fontSize: '17px', flexShrink: 0
-                }}>S</div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '14px' }}>Stripe</div>
-                  {stripeOnboardingComplete ? (
-                    <div style={{ fontSize: '13px', color: '#085041', marginTop: '2px' }}>
-                      ✓ Connected{stripeAccountId ? ` — ${stripeAccountId}` : ''}
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>Not connected</div>
-                  )}
-                </div>
-              </div>
-
-              {!stripeOnboardingComplete && (
-                <button
-                  onClick={handleConnectStripe}
-                  disabled={connectingStripe}
-                  style={{
-                    padding: '10px 20px', backgroundColor: connectingStripe ? '#9fd6b8' : '#085041', color: 'white',
-                    border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                    cursor: connectingStripe ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap'
-                  }}
-                >
-                  {connectingStripe ? 'Connecting...' : 'Connect with Stripe'}
-                </button>
-              )}
-            </div>
-            {stripeError && (
-              <p style={{ fontSize: '13px', color: '#8b1a1a', marginTop: '10px' }}>{stripeError}</p>
-            )}
-          </Field>
-
-          <SectionHeader title="Tax (GST/VAT)" description="Configure how tax is calculated and shown on bookings" />
-
-          <Field label="Tax collection">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={form.taxEnabled}
-                onChange={e => update('taxEnabled', e.target.checked)}
-              />
-              Charge tax on bookings
-            </label>
-            {taxRates.length === 0 && (
-              <p style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '8px' }}>
-                Add at least one tax rate below before enabling — tax can't be turned on with no rate configured.
-              </p>
-            )}
-          </Field>
-
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Tax label" hint='Shown on pricing and receipts, e.g. "GST" or "VAT"'>
-              <Input placeholder="GST" value={form.taxLabel} onChange={e => update('taxLabel', e.target.value)} />
-            </Field>
-            <Field label="Tax registration number" hint="Shown on receipts, e.g. your ABN or VAT number">
-              <Input value={form.taxRegistrationNumber} onChange={e => update('taxRegistrationNumber', e.target.value)} />
-            </Field>
-          </div>
-
-          <Field label="Tax rate schedule" hint="The rate in effect today applies automatically. Adding a new rate closes out the previous one the day before it starts.">
-            {taxRates.length === 0 ? (
-              <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>No tax rates configured yet.</p>
-            ) : (
-              <div style={{ border: '1px solid #e2e2e2', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px' }}>
-                {taxRates.map((r, i) => (
-                  <div key={r.id} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '10px 14px', borderBottom: i < taxRates.length - 1 ? '1px solid #f4f4f4' : 'none',
-                    fontSize: '13px'
+                    minHeight: space.target, padding: '0 12px', marginBottom: -1, border: 'none', background: 'transparent', cursor: 'pointer',
+                    borderBottom: `2px solid ${tab === k ? color.primary : 'transparent'}`,
+                    color: tab === k ? color.primaryInk : color.muted, fontFamily: 'inherit', fontSize: 15, fontWeight: 600,
                   }}>
-                    <div>
-                      <strong>{r.rate}%</strong>
-                      <span style={{ color: '#666', marginLeft: '8px' }}>
-                        from {r.effective_from}{r.effective_until ? ` to ${r.effective_until}` : ' (current)'}
-                      </span>
-                      {r.notes && <span style={{ color: '#999', marginLeft: '8px' }}>— {r.notes}</span>}
-                    </div>
-                  </div>
-                ))}
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {error && (
+              <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{error}</div>
+            )}
+            {encodingIssues.length > 0 && (
+              <div role="alert" style={{ padding: '12px 16px', background: color.warnBg, borderRadius: radius.control, color: color.warnInk, fontSize: 14 }}>
+                <strong>Possible encoding problem</strong> in {encodingIssues.join(', ')}: the text looks like it was pasted from a source
+                where a character was already garbled. Retype the affected value before saving.
               </div>
             )}
-            <button
-              onClick={openAddRate}
-              style={{
-                padding: '8px 16px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '8px',
-                fontSize: '13px', fontWeight: 500, color: '#444', cursor: 'pointer'
-              }}
-            >
-              + Add rate
-            </button>
-          </Field>
 
-          </>)}
+            {tab === 'studio' ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
+                {/* Section index */}
+                <nav aria-label="Settings sections" style={{ ...cardStyle, flex: '1 1 200px', maxWidth: 260, padding: 10, position: 'sticky', top: 24 }}>
+                  {STUDIO_SECTIONS.map(sct => (
+                    <a key={sct.id} href={`#${sct.id}`} className={`${ui.rowLink} ${ui.focusable}`}
+                      style={{ display: 'flex', alignItems: 'center', minHeight: 40, padding: '0 12px', borderRadius: radius.control, fontSize: 15, fontWeight: 500, color: color.ink2, textDecoration: 'none', ['--hover-bg' as string]: color.bg }}>
+                      {sct.label}
+                    </a>
+                  ))}
+                </nav>
 
-          {error && (
-            <div style={{ padding: '12px 16px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '14px', marginBottom: '24px' }}>
-              {error}
-            </div>
-          )}
-          {success && (
-            <div style={{ padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px', color: '#085041', fontSize: '14px', marginBottom: '24px' }}>
-              {success}
-            </div>
-          )}
-          {encodingIssues.length > 0 && (
-            <div style={{ padding: '12px 16px', backgroundColor: '#fff8e6', border: '1px solid #f0e0b0', borderRadius: '8px', color: '#7a4f00', fontSize: '13px', marginBottom: '24px' }}>
-              <strong>Possible encoding problem</strong> in {encodingIssues.join(', ')} — the text
-              looks like it was pasted from a source where a character was already garbled. Retype
-              the affected value before saving.
-            </div>
-          )}
+                <div style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+                  {sectionCard('profile', 'Studio profile', 'Your name, contact details and the business address on receipts and invoices.', (
+                    <>
+                      <Field label="Studio name" htmlFor="f-name"><Input id="f-name" value={form.name} onChange={e => update('name', e.target.value)} /></Field>
+                      <Field label="Description" htmlFor="f-desc" hint="Shown on your public booking page.">
+                        <Textarea id="f-desc" value={form.description} onChange={e => update('description', e.target.value)} />
+                      </Field>
+                      <div className={styles.formGrid} style={grid2}>
+                        <Field label="Contact email" htmlFor="f-email"><Input id="f-email" type="email" value={form.email} onChange={e => update('email', e.target.value)} /></Field>
+                        <Field label="Phone" htmlFor="f-phone"><Input id="f-phone" value={form.phone} onChange={e => update('phone', e.target.value)} /></Field>
+                      </div>
+                      <div style={{ ...smallCapsStyle, marginTop: 4 }}>Business address</div>
+                      <Field label="Address line 1" htmlFor="f-a1"><Input id="f-a1" value={form.addressLine1} onChange={e => update('addressLine1', e.target.value)} /></Field>
+                      <Field label="Address line 2" htmlFor="f-a2"><Input id="f-a2" value={form.addressLine2} onChange={e => update('addressLine2', e.target.value)} /></Field>
+                      <div className={styles.formGrid} style={{ gridTemplateColumns: '2fr 1fr 1fr', gap: space.formGap }}>
+                        <Field label="City / suburb" htmlFor="f-city"><Input id="f-city" value={form.addressCity} onChange={e => update('addressCity', e.target.value)} /></Field>
+                        <Field label="State" htmlFor="f-state"><Input id="f-state" value={form.addressState} onChange={e => update('addressState', e.target.value)} /></Field>
+                        <Field label="Postcode" htmlFor="f-post"><Input id="f-post" value={form.addressPostcode} onChange={e => update('addressPostcode', e.target.value)} /></Field>
+                      </div>
+                    </>
+                  ), 'profile')}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '24px', borderTop: '1px solid #e2e2e2' }}>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding: '10px 24px', backgroundColor: saving ? '#9fd6b8' : '#085041', color: 'white',
-                border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                cursor: saving ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {saving ? 'Saving...' : 'Save changes'}
-            </button>
+                  {sectionCard('region', 'Region & time zone', 'The time zone drives class times, pass expiry and the times in every email.', (
+                    <>
+                      <div className={styles.formGrid} style={grid2}>
+                        <Field label="Time zone" htmlFor="f-tz" hint={zone ? `Your computer is on ${zone}.` : undefined}>
+                          <Input id="f-tz" list="tz-options" placeholder="Start typing, e.g. Brisbane" value={form.timezone} onChange={e => update('timezone', e.target.value)} />
+                          <datalist id="tz-options">{zones.map(z => <option key={z} value={z} />)}</datalist>
+                        </Field>
+                        <Field label="Locale" htmlFor="f-locale" hint="Controls date and number formatting on receipts and emails, e.g. en-AU.">
+                          <Input id="f-locale" placeholder="en-AU" value={form.locale} onChange={e => update('locale', e.target.value)} />
+                        </Field>
+                      </div>
+                      <div className={styles.formGrid} style={grid2}>
+                        {[['Country', countryLabel(form.country), 'Set at sign-up. It drives tax rules and your Stripe payout account.'],
+                          ['Currency', currency || '—', 'Set at sign-up. Every price and Stripe charge uses it.']].map(([label, value, hint]) => (
+                          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
+                            <span style={{ ...controlStyle, display: 'inline-flex', alignItems: 'center', gap: 8, background: color.bg, color: color.ink2 }}>
+                              <Lock size={16} strokeWidth={1.8} aria-hidden />{value}<span className={styles.srOnly}> (can't be changed)</span>
+                            </span>
+                            <span style={{ fontSize: 13, color: color.muted, lineHeight: 1.4 }}>{hint}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ), 'region')}
+
+                  {sectionCard('policy', 'Booking policy', 'Studio-wide defaults. Individual sessions can override them.', (
+                    <>
+                      <div className={styles.formGrid} style={grid2}>
+                        <Field label="Cancellation window (hours)" htmlFor="f-cancel" hint="Members can cancel free of charge up to this many hours before a class.">
+                          <Input id="f-cancel" type="number" min="0" value={form.cancellationHours} onChange={e => update('cancellationHours', e.target.value)} />
+                        </Field>
+                        <Field label="Booking closes (hours before)" htmlFor="f-minadv" hint="Members can't book a class starting sooner than this.">
+                          <Input id="f-minadv" type="number" min="0" value={form.minAdvanceBookingHours} onChange={e => update('minAdvanceBookingHours', e.target.value)} />
+                        </Field>
+                      </div>
+                      <Field label="Book up to (days ahead)" htmlFor="f-window" hint="How far ahead members can book.">
+                        <Input id="f-window" type="number" min="0" value={form.bookingWindowDays} onChange={e => update('bookingWindowDays', e.target.value)} style={{ maxWidth: 200 }} />
+                      </Field>
+                      <Toggle checked={form.lateCancelCreditsForfeited} onChange={v => update('lateCancelCreditsForfeited', v)}
+                        label="Late cancellations forfeit the pass credit" />
+                    </>
+                  ), 'policy')}
+
+                  {sectionCard('waiver', 'Liability waiver', "Your studio's own waiver. The platform Terms & Conditions are CalaStudio's and the same for every studio.", (
+                    <>
+                      <Toggle checked={form.liabilityWaiverRequired} onChange={v => update('liabilityWaiverRequired', v)}
+                        label="Members must accept the waiver before their first booking" />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                          <label htmlFor="f-waiver" style={{ fontSize: 14, fontWeight: 600 }}>Waiver wording</label>
+                          {waiverVersion != null && <Chip tone="primary">Version {waiverVersion} live</Chip>}
+                        </div>
+                        <Textarea id="f-waiver" value={waiverText} onChange={e => setWaiverText(e.target.value)} style={{ minHeight: 220, fontSize: 14, lineHeight: 1.6 }} />
+                        <p style={{ margin: 0, fontSize: 13, color: color.warnInk, lineHeight: 1.4 }}>
+                          Publishing new wording creates the next version, and every member is asked to accept it again before their next booking.
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                          <Button onClick={handleSaveWaiver} disabled={savingWaiver || waiverText === initialWaiverText || !waiverText.trim()}>
+                            {savingWaiver ? 'Publishing…' : `Publish version ${waiverVersion != null ? waiverVersion + 1 : 1}`}
+                          </Button>
+                          {waiverText !== initialWaiverText && !savingWaiver && (
+                            <button type="button" onClick={() => { setWaiverText(initialWaiverText); setWaiverMsg(null) }} className={ui.focusable} style={{ ...smallLinkButton, color: color.muted }}>
+                              Discard wording changes
+                            </button>
+                          )}
+                          {waiverMsg && <span role={waiverMsg.ok ? 'status' : 'alert'} style={{ fontSize: 14, color: waiverMsg.ok ? color.primaryInk : color.dangerInk }}>{waiverMsg.text}</span>}
+                        </div>
+                      </div>
+                    </>
+                  ), 'waiver')}
+
+                  {sectionCard('payments', 'Payments', 'Members pay for classes and passes through Stripe. Money goes straight to your bank account; CalaStudio takes no commission.', (
+                    <>
+                      {stripeBanner === 'success' && (
+                        <div role="status" style={{ padding: '12px 16px', background: color.primarySoft, borderRadius: radius.control, color: color.primaryInk, fontSize: 15 }}>Stripe connected.</div>
+                      )}
+                      {stripeBanner === 'failure' && (
+                        <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>Stripe connection failed or was cancelled. Please try again.</div>
+                      )}
+                      <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.card, padding: 18, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                          <span aria-hidden style={{ width: 44, height: 44, background: '#635BFF', borderRadius: radius.control, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', fontWeight: 700, fontSize: 18, flex: 'none' }}>S</span>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 15 }}>Stripe</div>
+                            {stripeOnboardingComplete ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                                <Chip tone="primary">Connected</Chip>
+                                {stripeAccountId && <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>Account ending {stripeAccountId.slice(-4)}</span>}
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: 14, color: color.muted, marginTop: 2 }}>Not connected</div>
+                            )}
+                          </div>
+                        </div>
+                        {!stripeOnboardingComplete && (
+                          <Button variant="primary" onClick={handleConnectStripe} disabled={connectingStripe}>{connectingStripe ? 'Connecting…' : 'Connect with Stripe'}</Button>
+                        )}
+                      </div>
+                      {stripeError && <p role="alert" style={{ margin: 0, fontSize: 14, color: color.dangerInk }}>{stripeError}</p>}
+                    </>
+                  ))}
+
+                  {sectionCard('tax', 'Tax (GST)', 'How tax is calculated and shown on bookings and receipts.', (
+                    <>
+                      <div>
+                        <Toggle checked={form.taxEnabled} onChange={v => update('taxEnabled', v)} label="Charge tax on bookings" />
+                        {taxRates.length === 0 && (
+                          <p style={{ margin: '4px 0 0', fontSize: 13, color: color.dangerInk }}>Add a tax rate below before turning tax on.</p>
+                        )}
+                      </div>
+                      <div className={styles.formGrid} style={grid2}>
+                        <Field label="Tax name" htmlFor="f-taxlabel" hint='Shown on prices and receipts, e.g. "GST".'>
+                          <Input id="f-taxlabel" placeholder="GST" value={form.taxLabel} onChange={e => update('taxLabel', e.target.value)} />
+                        </Field>
+                        <Field label="ABN / tax number" htmlFor="f-taxreg" hint="Shown on receipts.">
+                          <Input id="f-taxreg" value={form.taxRegistrationNumber} onChange={e => update('taxRegistrationNumber', e.target.value)} />
+                        </Field>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>Rates</span>
+                        {taxRates.length === 0 ? (
+                          <p style={{ margin: 0, fontSize: 14, color: color.muted }}>No tax rates yet.</p>
+                        ) : (
+                          <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, overflow: 'hidden' }}>
+                            {taxRates.map((r, i) => (
+                              <div key={r.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 12px', padding: '10px 14px', borderTop: i ? `1px solid ${color.divider}` : 'none', fontSize: 15 }}>
+                                <strong style={{ fontWeight: 600, ...tabularNums }}>{r.rate}%</strong>
+                                <span style={{ color: color.ink2, ...tabularNums }}>
+                                  from {formatDayMonth(r.effective_from)}{r.effective_until ? ` to ${formatDayMonth(r.effective_until)}` : ''}
+                                </span>
+                                {r.id === currentRateId && <Chip tone="primary">Current</Chip>}
+                                {r.notes && <span style={{ color: color.muted, fontSize: 14 }}>{r.notes}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div><Button size="sm" onClick={openAddRate}>{taxRates.length ? 'Add a future rate' : 'Add a rate'}</Button></div>
+                        <p style={{ margin: 0, fontSize: 13, color: color.muted }}>The rate in effect today applies automatically. A new rate closes the previous one the day before it starts.</p>
+                      </div>
+                    </>
+                  ), 'tax')}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+                {sectionCard('branding', 'Branding', 'Your logo and brand colour appear across your public pages.', (
+                  <>
+                    <Field label="Logo">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                        {imageBox(form.logoUrl, 72, 72, 'Logo')}
+                        {uploadLabel(form.logoUrl ? 'Replace logo' : 'Upload logo', uploadingLogo, handleLogoUpload)}
+                        {form.logoUrl && removeButton(() => update('logoUrl', ''))}
+                      </div>
+                    </Field>
+                    <Field label="Brand colour" htmlFor="f-brand" hint="The accent colour on your public pages.">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <input type="color" aria-label="Pick brand colour" value={form.brandColor} onChange={e => update('brandColor', e.target.value)}
+                          style={{ width: 52, height: 44, border: `1px solid ${color.control}`, borderRadius: radius.control, padding: 3, cursor: 'pointer', background: color.surface }} />
+                        <Input id="f-brand" value={form.brandColor} onChange={e => update('brandColor', e.target.value)} style={{ maxWidth: 140 }} />
+                      </div>
+                    </Field>
+                  </>
+                ), 'branding')}
+
+                {sectionCard('theme', 'Page style', 'One layout, six styles. Your logo and brand colour carry across all of them.', (
+                  <ThemePicker value={form.theme as ThemeKey} onChange={k => update('theme', k)} />
+                ), 'theme')}
+
+                {sectionCard('content', 'Page content', 'The words and photos on your public home page. Class times, prices and teacher bios come from your schedule and team.', (
+                  <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, overflow: 'hidden' }}>
+                    {contentRows.map((row, i) => {
+                      const open = openContentRow === row.id
+                      return (
+                        <div key={row.id} style={{ borderTop: i ? `1px solid ${color.divider}` : 'none' }}>
+                          <button type="button" aria-expanded={open} onClick={() => setOpenContentRow(open ? null : row.id)}
+                            className={`${ui.rowLink} ${ui.focusable}`}
+                            style={{
+                              width: '100%', display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, padding: '0 16px', border: 0, cursor: 'pointer',
+                              background: 'transparent', fontFamily: 'inherit', textAlign: 'left', color: color.ink, ['--hover-bg' as string]: '#F7F8F5',
+                            }}>
+                            {open ? <ChevronDown size={18} aria-hidden /> : <ChevronRight size={18} aria-hidden />}
+                            <span style={{ width: 130, flex: 'none', fontSize: 15, fontWeight: 600 }}>{row.label}</span>
+                            <span style={{ flex: '1 1 auto', minWidth: 0, fontSize: 14, color: color.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.summary}</span>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: color.primary }}>{open ? 'Close' : 'Edit'}</span>
+                          </button>
+                          {open && (
+                            <div style={{ padding: '4px 16px 18px 46px', display: 'flex', flexDirection: 'column', gap: space.formGap }}>{row.fields}</div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ), 'content')}
+              </div>
+            )}
           </div>
-        </div>
-        </>}
+        )}
       </div>
 
-      {/* Add tax rate modal */}
+      {/* Add tax rate dialog */}
       {showAddRate && (
-        <div style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
-        }}>
-          <div style={{
-            backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
-            maxWidth: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(23, 32, 28, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 24 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="rate-heading" style={{
+            background: color.surface, borderRadius: radius.card, padding: 28, width: '100%', maxWidth: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', fontFamily: font.body,
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Add tax rate</h2>
-              <button
-                onClick={() => setShowAddRate(false)}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}
-              >
-                ×
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 id="rate-heading" style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{taxRates.length ? 'Add a future rate' : 'Add a tax rate'}</h2>
+              <button type="button" aria-label="Close" onClick={() => setShowAddRate(false)} className={ui.focusable} style={{ ...buttonStyle('secondary', 'sm'), width: 36, padding: 0 }}>
+                <X size={16} strokeWidth={2} aria-hidden />
               </button>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <Field label="Rate (%)">
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  placeholder="10"
-                  value={addRateForm.rate}
-                  onChange={e => setAddRateForm(p => ({ ...p, rate: e.target.value }))}
-                />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+              <Field label="Rate (%)" htmlFor="r-rate">
+                <Input id="r-rate" type="number" min="0" step="0.1" placeholder="10" value={addRateForm.rate} onChange={e => setAddRateForm(p => ({ ...p, rate: e.target.value }))} />
               </Field>
-              <Field label="Effective from" hint="Must be after the currently active rate's start date">
-                <Input
-                  type="date"
-                  value={addRateForm.effectiveFrom}
-                  onChange={e => setAddRateForm(p => ({ ...p, effectiveFrom: e.target.value }))}
-                />
+              <Field label="Starts" htmlFor="r-from" hint="Must be after the current rate's start date.">
+                <Input id="r-from" type="date" value={addRateForm.effectiveFrom} onChange={e => setAddRateForm(p => ({ ...p, effectiveFrom: e.target.value }))} />
               </Field>
-              <Field label="Notes" hint="Optional">
-                <Input
-                  placeholder="e.g. Rate change effective July 1"
-                  value={addRateForm.notes}
-                  onChange={e => setAddRateForm(p => ({ ...p, notes: e.target.value }))}
-                />
+              <Field label="Notes (optional)" htmlFor="r-notes">
+                <Input id="r-notes" placeholder="e.g. Rate change from 1 July" value={addRateForm.notes} onChange={e => setAddRateForm(p => ({ ...p, notes: e.target.value }))} />
               </Field>
-
               {rateError && (
-                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
-                  {rateError}
-                </div>
+                <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{rateError}</div>
               )}
-
-              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                <button
-                  onClick={() => setShowAddRate(false)}
-                  style={{
-                    flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                    borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#444'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddRate}
-                  disabled={addingRate}
-                  style={{
-                    flex: 1, padding: '10px', backgroundColor: addingRate ? '#9fd6b8' : '#085041', color: 'white',
-                    border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                    cursor: addingRate ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {addingRate ? 'Adding...' : 'Add rate'}
-                </button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <Button onClick={() => setShowAddRate(false)} style={{ flex: 1 }}>Cancel</Button>
+                <Button variant="primary" onClick={handleAddRate} disabled={addingRate} style={{ flex: 1 }}>{addingRate ? 'Adding…' : 'Add rate'}</Button>
               </div>
             </div>
           </div>
