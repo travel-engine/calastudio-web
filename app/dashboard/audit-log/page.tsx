@@ -90,8 +90,10 @@ const roleLabels: Record<string, string> = {
   member: 'Member',
 }
 
-function formatFieldValue(field: string, v: unknown) {
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/
+function formatFieldValue(field: string, v: unknown, timeZone: string | null = null) {
   if (v === null || v === undefined) return '—'
+  if (typeof v === 'string' && ISO_DATETIME.test(v)) return `${formatShortDate(v, timeZone)} · ${formatClock(v, timeZone)}`
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
   if (field === 'status' && v !== '') return statusLabels[String(v).toLowerCase()] ?? String(v)
   return String(v)
@@ -100,7 +102,7 @@ function formatFieldValue(field: string, v: unknown) {
 // "booking_window_days" → "Booking window days"
 const fieldLabel = (f: string) => { const t = f.replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1) }
 
-function ChangesDiff({ changes }: { changes: string }) {
+function ChangesDiff({ changes, timeZone }: { changes: string; timeZone: string | null }) {
   let parsed: Record<string, { old: unknown; new: unknown }>
   try {
     parsed = JSON.parse(changes)
@@ -127,8 +129,8 @@ function ChangesDiff({ changes }: { changes: string }) {
             return (
               <tr key={field}>
                 <td style={{ ...td, fontWeight: 600, color: color.ink2, width: '30%' }}>{fieldLabel(field)}</td>
-                <td style={{ ...td, color: color.muted }}>{formatFieldValue(field, oldVal)}</td>
-                <td style={{ ...td, color: color.ink }}>{formatFieldValue(field, newVal)}</td>
+                <td style={{ ...td, color: color.muted }}>{formatFieldValue(field, oldVal, timeZone)}</td>
+                <td style={{ ...td, color: color.ink }}>{formatFieldValue(field, newVal, timeZone)}</td>
               </tr>
             )
           })}
@@ -343,7 +345,7 @@ export default function AuditLogPage() {
                                         <strong style={{ fontWeight: 600 }}>Reason:</strong> {entry.reason}
                                       </div>
                                     )}
-                                    {entry.changes && <ChangesDiff changes={entry.changes} />}
+                                    {entry.changes && <ChangesDiff changes={entry.changes} timeZone={timeZone} />}
                                   </div>
                                 </td>
                               </tr>
