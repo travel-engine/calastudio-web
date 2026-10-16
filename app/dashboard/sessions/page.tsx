@@ -193,7 +193,8 @@ export default function SessionsPage() {
                     </div>
                     {list.map(s => {
                       const next = nextBySession[s.id]
-                      const teacher = next?.instructor_name
+                      // The next class's own teacher (a class can differ from its session's default).
+      const teacher = next?.instructor_name
                       return (
                         <Link
                           key={s.id}
@@ -222,7 +223,7 @@ export default function SessionsPage() {
                             <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>{scheduleLine(s)}</span>
                           </span>
                           <span style={{ width: 150, flex: 'none' }}>
-                            {s.instructor_id == null ? <Chip tone="warn">No teacher</Chip> : teacher ? <Chip>{teacher}</Chip> : null}
+                            {next ? (teacher ? <Chip>{teacher}</Chip> : <Chip tone="warn">No teacher</Chip>) : s.instructor_id == null ? <Chip tone="warn">No teacher</Chip> : null}
                           </span>
                           <span style={{ width: 90, flex: 'none', fontSize: 15, fontWeight: 600, ...tabularNums }}>
                             {s.price ? formatMoney(s.price, s.currency ?? currency) : 'Free'}
