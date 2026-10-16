@@ -26,8 +26,8 @@ Drop-in pricing only applies when a member pays directly for a single booking. I
 
 ## Restricting to pass/membership only
 
-If you don't want members paying drop-in at all — for example, a members-only class — set the session's **Booking access** to **Restricted** so only specific passes or memberships can be used to book it. Restricted sessions can't be booked yet, by staff or members — this is still being built.
+If you don't want members paying drop-in at all — for example, a members-only class — set the session's **Booking access** to **Restricted** and choose which passes can be used under **Passes that can be used**. Members can then only book it with one of those passes. Bookings you add yourself from the roster skip that list.
 
-## Card payment isn't live yet
+## Paying by card
 
-Right now, bookings can only be made with an existing pass or comped by staff (see **Managing bookings**) — paying the drop-in price by card isn't wired up yet, so setting a price here doesn't yet mean it can be charged.
+Once Stripe is connected (see **Payments → Connecting Stripe**), members can pay the drop-in price by card when they book from your booking page, or buy a pass online. Bookings you add yourself from the roster use a pass or a comp instead — see **Managing bookings**.
