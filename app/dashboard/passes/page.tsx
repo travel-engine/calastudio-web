@@ -388,13 +388,14 @@ export default function PassesPage() {
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
                   {templates.map(t => {
-                    const perClass = t.pass_type === 'credit' && t.credit_count ? t.price / t.credit_count : null
+                    // Only worth showing when it differs from the price (a single-credit pass is its own per-class price).
+                    const perClass = t.pass_type === 'credit' && t.credit_count && t.credit_count > 1 ? t.price / t.credit_count : null
                     return (
                       <article key={t.id} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 14, padding: '20px 22px', opacity: t.is_active ? 1 : 0.6 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, lineHeight: 1.3 }}>{t.name}</h2>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                            <Chip>{t.pass_type === 'unlimited' ? 'Unlimited classes' : `${t.credit_count ?? '?'} credits`}</Chip>
+                            <Chip>{t.pass_type === 'unlimited' ? 'Unlimited classes' : `${t.credit_count ?? '?'} credit${t.credit_count === 1 ? '' : 's'}`}</Chip>
                             <Chip>{expiryRuleLabel(t)}</Chip>
                             {!t.is_active && <Chip tone="warn">Not on sale</Chip>}
                           </div>
@@ -457,11 +458,11 @@ export default function PassesPage() {
                                     <span aria-hidden style={{ width: 80, height: 6, borderRadius: 3, background: color.track, overflow: 'hidden' }}>
                                       <span style={{ display: 'block', width: `${Math.round(Math.min(ratio, 1) * 100)}%`, height: '100%', background: ratio <= 0.2 ? color.lowBar : color.primary }} />
                                     </span>
-                                    <span style={{ fontSize: 14, ...tabularNums }}>{p.credits_remaining} / {p.credits_total}</span>
+                                    <span style={{ fontSize: 14, whiteSpace: 'nowrap', ...tabularNums }}>{p.credits_remaining} / {p.credits_total}</span>
                                   </span>
                                 ) : <span style={{ fontSize: 14, color: color.ink2 }}>Unlimited</span>}
                               </td>
-                              <td style={{ ...td, ...tabularNums, color: expiringSoon ? color.warnInk : color.ink2, fontWeight: expiringSoon ? 600 : 400 }}>
+                              <td style={{ ...td, ...tabularNums, whiteSpace: 'nowrap', color: expiringSoon ? color.warnInk : color.ink2, fontWeight: expiringSoon ? 600 : 400 }}>
                                 {formatDayMonth(p.expires_at)}
                               </td>
                               <td style={td}>
