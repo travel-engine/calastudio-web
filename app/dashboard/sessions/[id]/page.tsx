@@ -1041,7 +1041,7 @@ export default function EditSessionPage() {
             </Card>
 
             {canViewAuditLog(roles) && orgId && token && (
-              <EntityActivity orgId={orgId} token={token} entityType="session" entityId={sessionId} noun="session" />
+              <EntityActivity orgId={orgId} token={token} entityType="session" entityId={sessionId} noun="session" timeZone={timeZone} />
             )}
           </div>
           </div>

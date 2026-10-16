@@ -1,13 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { Receipt } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewMembers } from '@/lib/roles'
 import { displayName } from '@/lib/names'
-import { formatDate } from '@/lib/dates'
+import { formatShortDate } from '@/lib/dates'
+import { formatMoney } from '@/lib/money'
+import { color, space, tabularNums } from '@/lib/ui/tokens'
+import { Breadcrumb, Card, Chip, EmptyState, PageHeader, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Order {
@@ -21,35 +27,18 @@ interface Order {
 }
 
 const orderTypeLabels: Record<string, string> = {
-  booking: 'Session', pass_purchase: 'Pass', membership_purchase: 'Membership',
+  booking: 'Class', pass_purchase: 'Pass', membership_purchase: 'Membership',
 }
 
-function Badge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    succeeded: { bg: '#e8f5ee', color: '#085041', label: 'Paid' },
-    pending: { bg: '#fff3cd', color: '#7a4f00', label: 'Pending' },
-    failed: { bg: '#fdecea', color: '#8b1a1a', label: 'Failed' },
-    refunded: { bg: '#f4f4f4', color: '#666', label: 'Refunded' },
-    partially_refunded: { bg: '#f4f4f4', color: '#666', label: 'Part. refunded' },
-  }
-  const s = map[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color,
-    }}>
-      {s.label}
-    </span>
-  )
+const orderStatusChip: Record<string, { label: string; tone: ChipTone }> = {
+  succeeded: { label: 'Paid', tone: 'primary' },
+  pending: { label: 'Awaiting payment', tone: 'warn' },
+  failed: { label: 'Failed', tone: 'danger' },
+  refunded: { label: 'Refunded', tone: 'neutral' },
+  partially_refunded: { label: 'Part refunded', tone: 'neutral' },
 }
 
-const th: React.CSSProperties = { textAlign: 'left', fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 0 8px' }
-const td: React.CSSProperties = { fontSize: '13px', color: '#444', padding: '11px 0', borderTop: '1px solid #f4f4f4' }
-
-function fmtMoney(amount: number, currency: string) {
-  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount) }
-  catch { return `${currency} ${amount.toFixed(2)}` }
-}
+const th: React.CSSProperties = { ...smallCapsStyle, textAlign: 'left', padding: '12px 20px', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap' }
 
 export default function MemberOrdersPage() {
   const router = useRouter()
@@ -60,6 +49,7 @@ export default function MemberOrdersPage() {
   const [roles, setRoles] = useState<string[]>([])
   const [memberName, setMemberName] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
+  const [timeZone, setTimeZone] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -68,6 +58,7 @@ export default function MemberOrdersPage() {
       if (ctx.status === 'no-org') { router.push('/onboarding'); return }
       const t = ctx.token
       const org = ctx.org
+      setTimeZone(org.timezone ?? null)
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
       if (!canViewMembers(myRoles)) { setForbidden(true); setLoading(false); return }
@@ -91,7 +82,7 @@ export default function MemberOrdersPage() {
       <div className={styles.shell}>
         <Sidebar active="members" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
@@ -100,48 +91,49 @@ export default function MemberOrdersPage() {
   return (
     <div className={styles.shell}>
       <Sidebar active="members" roles={roles} />
-      <div className={styles.main} style={{ maxWidth: '760px' }}>
+      <div className={styles.main}>
         {forbidden ? <Forbidden /> : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '6px' }}>
-              <a href={`/dashboard/members/${memberId}`} style={{ color: '#666', textDecoration: 'none', fontSize: '20px', lineHeight: 1 }}>←</a>
-              <h1 style={{ fontSize: '22px', fontWeight: 700 }}>Orders</h1>
-            </div>
-            {memberName && <p style={{ fontSize: '13px', color: '#666', marginBottom: '24px', marginLeft: '34px' }}>{memberName}</p>}
+          <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            <Breadcrumb items={[{ label: 'Members', href: '/dashboard/members' }, { label: memberName || 'Member', href: `/dashboard/members/${memberId}` }, { label: 'Orders' }]} />
+            <PageHeader eyebrow={memberName || undefined} title="Orders" />
 
-            <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              {orders.length === 0 ? (
-                <p style={{ fontSize: '13px', color: '#666' }}>No orders.</p>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ ...th, width: '110px' }}>Date</th>
-                      <th style={th}>Name</th>
-                      <th style={{ ...th, width: '90px' }}>Type</th>
-                      <th style={{ ...th, textAlign: 'right', width: '90px' }}>Amount</th>
-                      <th style={{ ...th, width: '100px' }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.map(o => (
-                      <tr
-                        key={o.id}
-                        onClick={() => router.push(`/dashboard/orders/${o.id}`)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <td style={td}>{formatDate(o.created_at)}</td>
-                        <td style={{ ...td, fontWeight: 600, color: '#085041' }}>{o.product_name}</td>
-                        <td style={td}>{orderTypeLabels[o.type] ?? o.type}</td>
-                        <td style={{ ...td, textAlign: 'right' }}>{fmtMoney(o.amount, o.currency)}</td>
-                        <td style={td}><Badge status={o.status} /></td>
+            {orders.length === 0 ? (
+              <Card><EmptyState icon={<Receipt size={22} strokeWidth={1.8} />} message="No orders yet." /></Card>
+            ) : (
+              <Card style={{ overflow: 'hidden' }} aria-label="Orders">
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', minWidth: 600, borderCollapse: 'collapse', fontSize: 15 }}>
+                    <thead>
+                      <tr>
+                        <th scope="col" style={th}>Date</th>
+                        <th scope="col" style={th}>Item</th>
+                        <th scope="col" style={th}>Type</th>
+                        <th scope="col" style={{ ...th, textAlign: 'right' }}>Amount</th>
+                        <th scope="col" style={th}>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </>
+                    </thead>
+                    <tbody>
+                      {orders.map((o, i) => {
+                        const td: React.CSSProperties = { padding: '12px 20px', borderBottom: i < orders.length - 1 ? `1px solid ${color.divider}` : 'none', verticalAlign: 'middle' }
+                        const st = orderStatusChip[o.status] ?? { label: o.status, tone: 'neutral' as ChipTone }
+                        return (
+                          <tr key={o.id}>
+                            <td style={{ ...td, whiteSpace: 'nowrap', color: color.ink2, ...tabularNums }}>{formatShortDate(o.created_at, timeZone)}</td>
+                            <td style={td}>
+                              <Link href={`/dashboard/orders/${o.id}`} className={ui.focusable} style={{ color: color.ink, fontWeight: 600, textDecoration: 'none' }}>{o.product_name}</Link>
+                            </td>
+                            <td style={{ ...td, color: color.ink2 }}>{orderTypeLabels[o.type] ?? o.type}</td>
+                            <td style={{ ...td, textAlign: 'right', ...tabularNums }}>{formatMoney(o.amount, o.currency)}</td>
+                            <td style={td}><Chip tone={st.tone}>{st.label}</Chip></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+          </div>
         )}
       </div>
     </div>

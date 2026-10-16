@@ -1,7 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { formatDateTime } from '@/lib/dates'
+import { Fragment, useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import { formatClock, formatShortDate } from '@/lib/dates'
+import { color, radius, tabularNums } from '@/lib/ui/tokens'
+import { Button, Chip, cardStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 
 // Scoped, read-only view of the org-wide activity log (app/dashboard/audit-log), pre-filtered to one
 // entity by (entity_type, entity_id) — the "Audit History" surface called for in
@@ -22,14 +26,14 @@ interface AuditEntry {
   created_at: string
 }
 
-const actionStyles: Record<string, { bg: string; color: string; label: string }> = {
-  create: { bg: '#e8f5ee', color: '#085041', label: 'Created' },
-  update: { bg: '#e8eef8', color: '#1B4F8A', label: 'Updated' },
-  delete: { bg: '#fdecea', color: '#8b1a1a', label: 'Deleted' },
-  override: { bg: '#fff3cd', color: '#7a4f00', label: 'Override' },
-  system: { bg: '#f4f4f4', color: '#666', label: 'System' },
-  cancelled: { bg: '#fdecea', color: '#8b1a1a', label: 'Cancelled' },
-  completed: { bg: '#f4f4f4', color: '#666', label: 'Completed' },
+const actionStyles: Record<string, { tone: ChipTone; label: string }> = {
+  create: { tone: 'primary', label: 'Created' },
+  update: { tone: 'info', label: 'Updated' },
+  delete: { tone: 'danger', label: 'Deleted' },
+  override: { tone: 'warn', label: 'Override' },
+  system: { tone: 'neutral', label: 'System' },
+  cancelled: { tone: 'danger', label: 'Cancelled' },
+  completed: { tone: 'neutral', label: 'Completed' },
 }
 
 // OccurrenceStatus serialises into audit `changes` as its raw enum ordinal (0/1/2). Map both that
@@ -95,7 +99,8 @@ const fieldLabels: Record<string, string> = {
 }
 
 function fieldLabel(key: string) {
-  return fieldLabels[key] ?? key.replace(/_/g, ' ')
+  const t = key.replace(/_/g, ' ')
+  return fieldLabels[key] ?? t.charAt(0).toUpperCase() + t.slice(1)
 }
 
 function formatValue(v: unknown) {
@@ -112,15 +117,8 @@ function formatFieldValue(field: string, v: unknown) {
 }
 
 function ActionBadge({ action }: { action: string }) {
-  const s = actionStyles[action] ?? { bg: '#f4f4f4', color: '#666', label: action }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color,
-    }}>
-      {s.label}
-    </span>
-  )
+  const s = actionStyles[action] ?? { tone: 'neutral' as ChipTone, label: action }
+  return <Chip tone={s.tone}>{s.label}</Chip>
 }
 
 function ChangesDetail({ changes }: { changes: string }) {
@@ -128,43 +126,47 @@ function ChangesDetail({ changes }: { changes: string }) {
   try {
     parsed = JSON.parse(changes)
   } catch {
-    return <p style={{ fontSize: '12px', color: '#666' }}>{changes}</p>
+    return <p style={{ margin: 0, fontSize: 14, color: color.muted }}>{changes}</p>
   }
 
   const fields = Object.entries(parsed)
   if (fields.length === 0) return null
 
-  // Generation summaries are already a human sentence — show them as-is, not as an old → new row.
+  // Generation summaries are already a human sentence — show them as-is, not as a before/after row.
   if (fields.length === 1 && fields[0][0] === 'occurrences_generated') {
-    return (
-      <p style={{ fontSize: '12px', color: '#444', marginTop: '8px' }}>
-        {formatValue(fields[0][1].new)}
-      </p>
-    )
+    return <p style={{ margin: 0, fontSize: 14, color: color.ink2 }}>{formatValue(fields[0][1].new)}</p>
   }
 
   return (
-    <div style={{ marginTop: '10px', border: '1px solid #f4f4f4', borderRadius: '8px', overflow: 'hidden' }}>
-      {fields.map(([field, { old: oldVal, new: newVal }], i) => (
-        <div key={field} style={{
-          display: 'grid', gridTemplateColumns: '160px 1fr 24px 1fr',
-          padding: '8px 12px', alignItems: 'center', fontSize: '12px',
-          borderBottom: i < fields.length - 1 ? '1px solid #f4f4f4' : 'none',
-          backgroundColor: i % 2 === 0 ? '#fafafa' : 'white',
-        }}>
-          <div style={{ fontWeight: 600, color: '#444' }}>{fieldLabel(field)}</div>
-          <div style={{ color: '#8b1a1a', wordBreak: 'break-word' }}>{formatFieldValue(field, oldVal)}</div>
-          <div style={{ textAlign: 'center', color: '#999' }}>→</div>
-          <div style={{ color: '#085041', wordBreak: 'break-word' }}>{formatFieldValue(field, newVal)}</div>
-        </div>
-      ))}
+    <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, overflowX: 'auto' }}>
+      <table style={{ width: '100%', minWidth: 460, borderCollapse: 'collapse', fontSize: 14 }}>
+        <thead>
+          <tr>
+            {['Field', 'Before', 'After'].map(h => (
+              <th key={h} scope="col" style={{ ...smallCapsStyle, textAlign: 'left', padding: '8px 14px', borderBottom: `1px solid ${color.border}` }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {fields.map(([field, { old: oldVal, new: newVal }], i) => {
+            const td: React.CSSProperties = { padding: '8px 14px', borderBottom: i < fields.length - 1 ? `1px solid ${color.divider}` : 'none', wordBreak: 'break-word', verticalAlign: 'top' }
+            return (
+              <tr key={field}>
+                <td style={{ ...td, fontWeight: 600, color: color.ink2, width: '32%' }}>{fieldLabel(field)}</td>
+                <td style={{ ...td, color: color.muted }}>{formatFieldValue(field, oldVal)}</td>
+                <td style={{ ...td, color: color.ink }}>{formatFieldValue(field, newVal)}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
 
 export default function EntityActivity({
-  orgId, token, entityType, entityId, noun, refreshKey = 0,
-}: { orgId: string; token: string; entityType: string; entityId: string; noun: string; refreshKey?: number }) {
+  orgId, token, entityType, entityId, noun, refreshKey = 0, timeZone = null,
+}: { orgId: string; token: string; entityType: string; entityId: string; noun: string; refreshKey?: number; timeZone?: string | null }) {
   const [entries, setEntries] = useState<AuditEntry[] | null>(null)
   const [open, setOpen] = useState(false)
   const [expandedId, setExpandedId] = useState('')
@@ -188,20 +190,11 @@ export default function EntityActivity({
   const count = entries?.length ?? 0
 
   return (
-    <div style={{
-      backgroundColor: 'white', borderRadius: '12px', padding: '32px',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginTop: '24px',
-    }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
-          background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left',
-        }}
-      >
+    <section aria-labelledby={`activity-${entityId}`} style={{ ...cardStyle, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px 20px' }}>
         <div>
-          <h2 style={{ fontSize: '17px', fontWeight: 600 }}>Activity</h2>
-          <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
+          <h2 id={`activity-${entityId}`} style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Activity</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 14, color: color.muted }}>
             {entries === null
               ? 'Loading…'
               : count === 0
@@ -210,86 +203,74 @@ export default function EntityActivity({
           </p>
         </div>
         {count > 0 && (
-          <span style={{ fontSize: '13px', color: '#085041', fontWeight: 600, whiteSpace: 'nowrap', marginLeft: '16px' }}>
-            {open ? 'Hide' : 'Show'}
-          </span>
+          <Button size="sm" onClick={() => setOpen(o => !o)} aria-expanded={open}>{open ? 'Hide' : 'Show'}</Button>
         )}
-      </button>
+      </div>
 
       {open && count > 0 && (
-        <div style={{ marginTop: '20px', border: '1px solid #f4f4f4', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{
-            display: 'grid', gridTemplateColumns: '150px 1.4fr 100px 80px',
-            padding: '10px 16px', backgroundColor: '#f4f4f4',
-            fontSize: '11px', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em',
-          }}>
-            <div>When</div>
-            <div>Who</div>
-            <div>Action</div>
-            <div>Details</div>
+        <>
+          <div style={{ overflowX: 'auto', borderTop: `1px solid ${color.border}` }}>
+            <table style={{ width: '100%', minWidth: 620, borderCollapse: 'collapse', fontSize: 15 }}>
+              <thead>
+                <tr>
+                  {['When', 'Who', 'Action', ''].map((h, i) => (
+                    <th key={i} scope="col" style={{ ...smallCapsStyle, textAlign: i === 3 ? 'right' : 'left', padding: '10px 20px', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap' }}>
+                      {h || <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clipPath: 'inset(50%)' }}>Details</span>}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {entries!.map((entry, i) => {
+                  const isExpanded = expandedId === entry.id
+                  const hasDetail = !!entry.changes || !!entry.reason
+                  const last = i === entries!.length - 1
+                  const td: React.CSSProperties = { padding: '12px 20px', borderBottom: last && !isExpanded ? 'none' : `1px solid ${color.divider}`, verticalAlign: 'middle' }
+                  return (
+                    <Fragment key={entry.id}>
+                      <tr>
+                        <td style={{ ...td, whiteSpace: 'nowrap', color: color.ink2, ...tabularNums }}>
+                          {formatShortDate(entry.created_at, timeZone)} · {formatClock(entry.created_at, timeZone)}
+                        </td>
+                        <td style={td}>
+                          <span style={{ display: 'block', fontWeight: 600 }}>{entry.actor_name ?? 'System'}</span>
+                          {entry.actor_role && <span style={{ display: 'block', fontSize: 14, color: color.muted }}>{roleLabels[entry.actor_role] ?? entry.actor_role}</span>}
+                        </td>
+                        <td style={td}><ActionBadge action={effectiveAction(entry)} /></td>
+                        <td style={{ ...td, textAlign: 'right' }}>
+                          {hasDetail && (
+                            <Button size="sm" onClick={() => setExpandedId(isExpanded ? '' : entry.id)} aria-expanded={isExpanded}>
+                              {isExpanded ? 'Hide' : 'Details'}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={4} style={{ padding: '4px 20px 16px', borderBottom: last ? 'none' : `1px solid ${color.divider}` }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              {entry.reason && (
+                                <div style={{ padding: '10px 14px', background: color.warnBg, borderRadius: radius.control, fontSize: 14, color: color.warnInk }}>
+                                  <strong style={{ fontWeight: 600 }}>Reason:</strong> {entry.reason}
+                                </div>
+                              )}
+                              {entry.changes && <ChangesDetail changes={entry.changes} />}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
-
-          {entries!.map((entry, i) => {
-            const isExpanded = expandedId === entry.id
-            const hasDetail = !!entry.changes || !!entry.reason
-            return (
-              <div key={entry.id} style={{ borderBottom: i < entries!.length - 1 ? '1px solid #f4f4f4' : 'none' }}>
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '150px 1.4fr 100px 80px',
-                  padding: '10px 16px', alignItems: 'center', fontSize: '13px',
-                }}>
-                  <div style={{ color: '#444' }}>
-                    {formatDateTime(entry.created_at)}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{entry.actor_name ?? 'System'}</div>
-                    {entry.actor_role && (
-                      <div style={{ fontSize: '11px', color: '#666' }}>
-                        {roleLabels[entry.actor_role] ?? entry.actor_role}
-                      </div>
-                    )}
-                  </div>
-                  <div><ActionBadge action={effectiveAction(entry)} /></div>
-                  <div>
-                    {hasDetail && (
-                      <button
-                        onClick={() => setExpandedId(isExpanded ? '' : entry.id)}
-                        style={{
-                          padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
-                          fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500,
-                        }}
-                      >
-                        {isExpanded ? 'Hide' : 'View'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div style={{ padding: '0 16px 14px' }}>
-                    {entry.reason && (
-                      <div style={{
-                        padding: '10px 12px', backgroundColor: '#fff3cd', borderRadius: '8px',
-                        fontSize: '12px', color: '#7a4f00', marginBottom: entry.changes ? '10px' : 0,
-                      }}>
-                        <strong>Reason:</strong> {entry.reason}
-                      </div>
-                    )}
-                    {entry.changes && <ChangesDetail changes={entry.changes} />}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+          <p style={{ margin: 0, padding: '12px 20px 16px', fontSize: 13, color: color.muted, borderTop: `1px solid ${color.divider}` }}>
+            Related booking and waitlist changes aren&apos;t folded in here yet — see the full{' '}
+            <Link href="/dashboard/audit-log" className={ui.focusable} style={{ color: color.primary, fontWeight: 600, textDecoration: 'none' }}>Activity log</Link>.
+          </p>
+        </>
       )}
-
-      {open && count > 0 && (
-        <p style={{ fontSize: '12px', color: '#999', marginTop: '12px' }}>
-          Related booking and waitlist changes aren&apos;t folded in here yet — see the
-          full <a href="/dashboard/audit-log" style={{ color: '#085041', fontWeight: 500 }}>Activity log</a>.
-        </p>
-      )}
-    </div>
+    </section>
   )
 }
