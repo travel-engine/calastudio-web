@@ -37,8 +37,8 @@ interface HomeDashboard {
 
 const rosterHref = (occurrenceId: string) => `/dashboard/occurrences/${occurrenceId}`
 
-function greeting() {
-  const h = new Date().getHours()
+function greeting(now: Date) {
+  const h = now.getHours()
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
 }
 
@@ -123,6 +123,11 @@ export default function DashboardPage() {
   const router = useRouter()
   const [roles, setRoles] = useState<string[]>([])
   const [timeZone, setTimeZone] = useState<string | null>(null)
+  const [firstName, setFirstName] = useState<string | null>(null)
+  // The greeting and date depend on the clock, so they're worked out in the browser after mount:
+  // this page is prerendered at build time, and baking them in caused a hydration mismatch.
+  const [now, setNow] = useState<Date | null>(null)
+  useEffect(() => { setNow(new Date()) }, [])
   const [home, setHome] = useState<HomeDashboard | null>(null)
   const [fallbackUpcoming, setFallbackUpcoming] = useState<UpcomingOccurrence[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -138,6 +143,7 @@ export default function DashboardPage() {
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
       setTimeZone(org.timezone ?? null)
+      setFirstName(ctx.firstName)
 
       if (canViewAllReports(myRoles)) {
         const res = await fetch(`${API}/api/organisations/${org.id}/dashboard/home`, auth)
@@ -173,7 +179,7 @@ export default function DashboardPage() {
   const week = home?.week_spots
   const next = upcoming[0]
   const noTeacher = home ? home.upcoming.filter(o => o.instructor_name == null) : []
-  const today = new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', timeZone: timeZone ?? undefined })
+  const today = now ? now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', timeZone: timeZone ?? undefined }) : ' '
 
   return (
     <div className={styles.shell}>
@@ -183,7 +189,7 @@ export default function DashboardPage() {
         <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
           <PageHeader
             eyebrow={today}
-            title={greeting()}
+            title={now ? `${greeting(now)}${firstName ? `, ${firstName}` : ''}` : 'Dashboard'}
             actions={<>
               {canManageBookings(roles) && <Button href="/dashboard/schedule">Add booking</Button>}
               {canManageSessions(roles) && (

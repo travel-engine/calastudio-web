@@ -19,23 +19,25 @@ const API = process.env.NEXT_PUBLIC_API_URL
 export type MyOrg = { id: string; slug: string; currency?: string; timezone?: string | null } & Record<string, any>
 
 export type OrgContext =
-  | { status: 'ok'; token: string; org: MyOrg; roles: string[] }
+  | { status: 'ok'; token: string; org: MyOrg; roles: string[]; firstName: string | null }
   | { status: 'signed-out' } // → /login
   | { status: 'no-org' }     // → /onboarding
 
-let cached: { userId: string; org: MyOrg; roles: string[] } | null = null
-let inflight: { userId: string; promise: Promise<{ org: MyOrg; roles: string[] } | null> } | null = null
+type Loaded = { org: MyOrg; roles: string[]; firstName: string | null }
+let cached: ({ userId: string } & Loaded) | null = null
+let inflight: { userId: string; promise: Promise<Loaded | null> } | null = null
 
-async function fetchOrgAndRoles(token: string): Promise<{ org: MyOrg; roles: string[] } | null> {
+async function fetchOrgAndRoles(token: string): Promise<Loaded | null> {
   const headers = { Authorization: `Bearer ${token}` }
   const orgRes = await fetch(`${API}/api/organisations/mine`, { headers })
   if (!orgRes.ok) return null
   const org: MyOrg = await orgRes.json()
-  // Use roles off the org response if the API includes them; otherwise one more call.
-  if (Array.isArray(org.roles)) return { org, roles: org.roles }
+  // Use roles off the org response if the API includes them; otherwise one more call (which also
+  // carries the signed-in person's first name, for the dashboard greeting).
+  if (Array.isArray(org.roles)) return { org, roles: org.roles, firstName: org.first_name ?? null }
   const roleRes = await fetch(`${API}/api/organisations/${org.id}/my-role`, { headers })
-  const roles: string[] = roleRes.ok ? (await roleRes.json()).roles : []
-  return { org, roles }
+  const me = roleRes.ok ? await roleRes.json() : null
+  return { org, roles: me?.roles ?? [], firstName: me?.first_name ?? null }
 }
 
 /**
@@ -49,7 +51,7 @@ export async function getOrgContext(opts: { fresh?: boolean } = {}): Promise<Org
   const userId = session.user.id
 
   if (!opts.fresh && cached?.userId === userId) {
-    return { status: 'ok', token, org: cached.org, roles: cached.roles }
+    return { status: 'ok', token, org: cached.org, roles: cached.roles, firstName: cached.firstName }
   }
 
   if (!inflight || inflight.userId !== userId || opts.fresh) {
@@ -60,7 +62,7 @@ export async function getOrgContext(opts: { fresh?: boolean } = {}): Promise<Org
   const result = await inflight.promise
   if (!result) return { status: 'no-org' }
   cached = { userId, ...result }
-  return { status: 'ok', token, org: result.org, roles: result.roles }
+  return { status: 'ok', token, org: result.org, roles: result.roles, firstName: result.firstName }
 }
 
 /** Drop the cached org/roles — after saving Settings, and on sign-out. */

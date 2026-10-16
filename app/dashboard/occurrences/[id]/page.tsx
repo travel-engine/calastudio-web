@@ -12,7 +12,7 @@ import { displayName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
 import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
 import EntityActivity from '@/app/components/EntityActivity'
-import { dayKey, formatClock, formatDateTime, formatShortDate } from '@/lib/dates'
+import { dayKey, formatClock, formatShortDate } from '@/lib/dates'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, Card, Chip, EmptyState, PageHeader, buttonStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
@@ -99,6 +99,9 @@ interface Booking {
   card_refund_amount?: number | null
   total_credits_used?: number
   member_pass_id?: string | null
+  attended_at?: string | null
+  // Against the studio's live waiver version (roster endpoint). Absent when the studio has none.
+  waiver_status?: 'current' | 'outdated' | 'not_signed' | null
   // Guests cancelled individually via the admin per-guest cancel — the owning booking stays
   // Confirmed, so these don't show up as their own rows. Roster endpoint only.
   cancelled_guests?: {
@@ -129,8 +132,9 @@ interface WaitlistRosterEntry {
   hold_expires_at: string | null
 }
 
+// "Sat 17 Oct, 7:02 am" — history lines (cancellations, refunds, waitlist holds).
 function formatWhen(iso: string) {
-  return formatDateTime(iso)
+  return `${formatShortDate(iso)}, ${formatClock(iso)}`
 }
 
 // Cancelled/late_cancel only — absent fields (front_desk/teacher_basic's redacted roster view never
@@ -201,6 +205,12 @@ const bookingStatusChip: Record<string, { label: string; tone: ChipTone }> = {
   cancelled: { label: 'Cancelled', tone: 'neutral' },
   late_cancel: { label: 'Late cancel', tone: 'warn' },
   waitlisted: { label: 'Waitlisted', tone: 'info' },
+}
+
+const waiverChip: Record<string, { label: string; tone: ChipTone }> = {
+  current: { label: 'Up to date', tone: 'primary' },
+  outdated: { label: 'Outdated', tone: 'warn' },
+  not_signed: { label: 'Not signed', tone: 'danger' },
 }
 
 const waitlistStatusChip: Record<string, { label: string; tone: ChipTone }> = {
@@ -688,6 +698,9 @@ export default function OccurrenceDetailPage() {
     .filter(b => b.status === 'confirmed' || b.status === 'attended')
     .reduce((sum, b) => sum + (b.guest_count ?? 0), 0)
   const waitingCount = waitlist.filter(w => w.status === 'waiting' || w.status === 'promoted').length
+  // Waiver data only exists when the studio requires a waiver; then count who still needs to sign.
+  const hasWaiverData = bookedRows.some(b => b.waiver_status != null)
+  const waiverToSort = bookedRows.filter(b => b.status !== 'no_show' && b.waiver_status != null && b.waiver_status !== 'current').length
 
   // Guests cancelled one-by-one (admin per-guest cancel) — the owning booking is still Confirmed,
   // so it isn't in cancelledRows. Surface each here, tied back to its booking's member.
@@ -813,6 +826,7 @@ export default function OccurrenceDetailPage() {
               { label: 'Checked in', value: `${checkedIn}`, ink: color.primaryInk },
               { label: 'Guests', value: `${guestCount}`, ink: color.ink },
               { label: 'On waitlist', value: `${waitingCount}`, ink: waitingCount > 0 ? color.warnInk : color.ink },
+              ...(hasWaiverData ? [{ label: 'Waiver to sort', value: `${waiverToSort}`, ink: waiverToSort > 0 ? color.warnInk : color.ink }] : []),
             ].map((s, i) => (
               <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '16px 20px', borderLeft: i ? `1px solid ${color.divider}` : 'none' }}>
                 <span style={smallCapsStyle}>{s.label}</span>
@@ -1108,6 +1122,7 @@ export default function OccurrenceDetailPage() {
                     <thead>
                       <tr>
                         <th style={th}>Name</th><th style={th}>Pass / payment</th><th style={th}>Guests</th><th style={th}>Status</th>
+                        {hasWaiverData && <th style={th}>Waiver</th>}
                         <th style={th}><span className={styles.srOnly}>Actions</span></th>
                         <th style={{ ...th, textAlign: 'right' }}>Check-in</th>
                       </tr>
@@ -1144,6 +1159,13 @@ export default function OccurrenceDetailPage() {
                               )}
                             </td>
                             <td style={td}><Chip tone={s.tone}>{s.label}</Chip></td>
+                            {hasWaiverData && (
+                              <td style={td}>
+                                {b.waiver_status && waiverChip[b.waiver_status]
+                                  ? <Chip tone={waiverChip[b.waiver_status].tone}>{waiverChip[b.waiver_status].label}</Chip>
+                                  : <span style={{ color: '#8A918D' }}>—</span>}
+                              </td>
+                            )}
                             <td style={td}>
                               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                 {b.status === 'confirmed' && canManageBookings(roles) && (
@@ -1170,7 +1192,8 @@ export default function OccurrenceDetailPage() {
                                       borderRadius: radius.control, background: 'transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
                                       color: color.primaryInk, cursor: manageBusy ? 'not-allowed' : 'pointer',
                                     }}>
-                                    <Check size={16} strokeWidth={2.5} aria-hidden />Checked in
+                                    <Check size={16} strokeWidth={2.5} aria-hidden />
+                                    <span style={tabularNums}>{b.attended_at ? formatClock(b.attended_at, timeZone) : 'Checked in'}</span>
                                   </button>
                                 ) : (
                                   <Button variant="primary" size="sm" onClick={() => handleMarkAttended(b.id)} disabled={manageBusy}>

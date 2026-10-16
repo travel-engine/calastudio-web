@@ -1,15 +1,21 @@
 'use client'
 
 import React, { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { ChevronDown, ChevronRight, X } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
-import { canViewMembers, canManageMemberPasses, canResendMemberWelcome } from '@/lib/roles'
+import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings } from '@/lib/roles'
 import { displayName } from '@/lib/names'
-import { formatDate as fmtDate, formatDateTime as fmtDateTime, formatRelativeShort } from '@/lib/dates'
+import { formatClock, formatDayMonth, formatRelativeShort, formatShortDate } from '@/lib/dates'
+import { formatMoney } from '@/lib/money'
 import { memberActivity, memberActivityLabel } from '@/lib/members'
+import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
+import { Breadcrumb, Button, Card, Chip, EmptyState, Field, buttonStyle, cardStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface MemberDetail {
@@ -77,10 +83,12 @@ interface Order {
 
 interface UpcomingBooking {
   id: string
+  session_occurrence_id?: string
   payment_type: string | null
   session_occurrence: {
+    id?: string
     starts_at: string
-    session: { name: string } | null
+    session: { name: string; location_name?: string | null } | null
   } | null
   member_pass: { pass_template: { name: string } | null } | null
 }
@@ -105,7 +113,7 @@ const movementLabels: Record<string, string> = {
 }
 
 const orderTypeLabels: Record<string, string> = {
-  booking: 'Session',
+  booking: 'Class',
   pass_purchase: 'Pass',
   membership_purchase: 'Membership',
 }
@@ -117,53 +125,47 @@ const personTypeLabels: Record<string, string> = {
   adult: 'Adult', child: 'Child', senior: 'Senior', student: 'Student',
 }
 
-function Badge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    active: { bg: '#e8f5ee', color: '#085041', label: 'Active' },
-    low: { bg: '#fff3cd', color: '#7a4f00', label: 'Low' },
-    frozen: { bg: '#e8eef8', color: '#1B4F8A', label: 'Frozen' },
-    expired: { bg: '#f4f4f4', color: '#666', label: 'Expired' },
-    exhausted: { bg: '#fdecea', color: '#8b1a1a', label: 'Exhausted' },
-    succeeded: { bg: '#e8f5ee', color: '#085041', label: 'Paid' },
-    pending: { bg: '#fff3cd', color: '#7a4f00', label: 'Pending' },
-    failed: { bg: '#fdecea', color: '#8b1a1a', label: 'Failed' },
-    refunded: { bg: '#f4f4f4', color: '#666', label: 'Refunded' },
-    partially_refunded: { bg: '#f4f4f4', color: '#666', label: 'Part. refunded' },
-  }
-  const s = map[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color,
-    }}>
-      {s.label}
-    </span>
-  )
+// Status words carry the meaning; tone reinforces it. "Pending" reads as "Awaiting payment" (handoff).
+const passStatusChip: Record<string, { label: string; tone: ChipTone }> = {
+  active: { label: 'Active', tone: 'primary' },
+  low: { label: 'Running low', tone: 'warn' },
+  frozen: { label: 'Frozen', tone: 'info' },
+  expired: { label: 'Expired', tone: 'neutral' },
+  exhausted: { label: 'Used up', tone: 'neutral' },
+}
+const orderStatusChip: Record<string, { label: string; tone: ChipTone }> = {
+  succeeded: { label: 'Paid', tone: 'primary' },
+  pending: { label: 'Awaiting payment', tone: 'warn' },
+  failed: { label: 'Failed', tone: 'danger' },
+  refunded: { label: 'Refunded', tone: 'neutral' },
+  partially_refunded: { label: 'Part refunded', tone: 'neutral' },
 }
 
-function Card({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+const labelStyle: React.CSSProperties = { display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: color.ink }
+const th: React.CSSProperties = {
+  textAlign: 'left', padding: '10px 16px', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
+  color: color.muted, background: '#FAFAF8', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap',
+}
+const td: React.CSSProperties = { padding: '12px 16px', borderTop: `1px solid ${color.divider}`, fontSize: 15, verticalAlign: 'middle' }
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?'
+}
+
+// "Oct 2026" — the joined chip.
+function monthYear(iso: string) {
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })
+}
+
+function SectionHead({ id, title, action }: { id: string; title: string; action?: React.ReactNode }) {
   return (
-    <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: 600 }}>{title}</h2>
-        {action}
-      </div>
-      {children}
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px 20px 12px' }}>
+      <h2 id={id} style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h2>
+      {action}
     </div>
   )
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-  fontSize: '14px', outline: 'none', backgroundColor: 'white',
-}
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }
-const th: React.CSSProperties = { textAlign: 'left', fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 0 8px' }
-const td: React.CSSProperties = { fontSize: '13px', color: '#444', padding: '9px 0', borderTop: '1px solid #f4f4f4' }
-
-function fmtMoney(amount: number, currency: string) {
-  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount) }
-  catch { return `${currency} ${amount.toFixed(2)}` }
 }
 
 export default function MemberDetailPage() {
@@ -175,16 +177,16 @@ export default function MemberDetailPage() {
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
+  const [timeZone, setTimeZone] = useState<string | null>(null)
 
   const [member, setMember] = useState<MemberDetail | null>(null)
   const [passes, setPasses] = useState<MemberPass[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [upcoming, setUpcoming] = useState<UpcomingBooking[]>([])
 
-  const [showMoreInfo, setShowMoreInfo] = useState(false)
   const [expandedPassId, setExpandedPassId] = useState<string | null>(null)
   const [passLedgers, setPassLedgers] = useState<Record<string, LedgerEntry[]>>({})
-  // booking_id -> "02-Sep-2026, 6:00 AM" for ledger rows tied to a booking.
+  // booking_id -> "Sat 17 Oct, 7:00 am" for ledger rows tied to a booking.
   const [bookingWhen, setBookingWhen] = useState<Record<string, string>>({})
 
   const [toast, setToast] = useState('')
@@ -228,13 +230,13 @@ export default function MemberDetailPage() {
           const next: Record<string, string> = {}
           results.forEach((b, i) => {
             const startsAt = b?.session_occurrence?.starts_at
-            if (startsAt) next[ids[i]] = fmtDateTime(startsAt)
+            if (startsAt) next[ids[i]] = `${formatShortDate(startsAt, timeZone)}, ${formatClock(startsAt, timeZone)}`
           })
           if (Object.keys(next).length) setBookingWhen(prev => ({ ...prev, ...next }))
         }
       }
     }
-  }, [authedFetch, expandedPassId, passLedgers, bookingWhen])
+  }, [authedFetch, expandedPassId, passLedgers, bookingWhen, timeZone])
 
   useEffect(() => {
     const load = async () => {
@@ -245,6 +247,7 @@ export default function MemberDetailPage() {
       setToken(t)
       const org = ctx.org
       setOrgId(org.id)
+      setTimeZone(org.timezone ?? null)
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
       if (!canViewMembers(myRoles)) { setForbidden(true); setLoading(false); return }
@@ -331,7 +334,7 @@ export default function MemberDetailPage() {
       <div className={styles.shell}>
         <Sidebar active="members" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
@@ -340,333 +343,329 @@ export default function MemberDetailPage() {
   const activePasses = passes.filter(p => p.status === 'active' || p.status === 'low' || p.status === 'frozen')
   const pricingOptionFor = (b: UpcomingBooking) =>
     b.member_pass?.pass_template?.name
-    ?? (b.payment_type === 'card' ? 'Drop-in' : b.payment_type === 'free' || b.payment_type === 'admin_waived' ? 'Free' : '—')
+    ?? (b.payment_type === 'card' ? 'Drop-in' : b.payment_type === 'free' || b.payment_type === 'admin_waived' ? 'Free' : null)
+  const name = (member && displayName(member)) || 'Member'
+  const activity = member ? memberActivity(member.auth_provisioned_at, member.last_seen_at) : null
+  const notSignedIn = activity != null && activity.kind !== 'seen'
+  const nowMs = Date.now()
 
   return (
     <div className={styles.shell}>
       <Sidebar active="members" roles={roles} />
-      <div className={styles.main} style={{ maxWidth: '760px' }}>
-        {forbidden ? <Forbidden /> : <>
+      <div className={styles.main}>
+        {forbidden ? <Forbidden /> : (
+          <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            <Breadcrumb items={[{ label: 'Members', href: '/dashboard/members' }, { label: name }]} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-          <a href="/dashboard/members" style={{ color: '#666', textDecoration: 'none', fontSize: '20px', lineHeight: 1 }}>←</a>
-          <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{(member && displayName(member)) || 'Member'}</h1>
-        </div>
-
-        {/* Profile */}
-        <Card
-          title="Profile"
-          action={canResendMemberWelcome(roles) && member &&
-            memberActivity(member.auth_provisioned_at, member.last_seen_at).kind !== 'seen' && (
-            <button
-              onClick={handleResendWelcome}
-              disabled={resendingWelcome}
-              style={{
-                padding: '7px 14px', backgroundColor: 'transparent', color: '#444',
-                border: '1px solid #e2e2e2', borderRadius: '8px', fontSize: '13px', fontWeight: 500,
-                cursor: resendingWelcome ? 'default' : 'pointer', whiteSpace: 'nowrap',
-              }}
-            >
-              {resendingWelcome ? 'Sending…' : 'Resend welcome email'}
-            </button>
-          )}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {member?.avatar_url ? (
-              <img src={member.avatar_url} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+            {!member ? (
+              <Card><EmptyState message="This member couldn't be found." action={<Button href="/dashboard/members">Back to members</Button>} /></Card>
             ) : (
-              <div style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: '#e2e2e2', flexShrink: 0 }} />
-            )}
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: '15px', fontWeight: 600 }}>{member && displayName(member)}</div>
-              <div style={{ fontSize: '13px', color: '#666' }}>
-                {member?.email}{member?.phone ? ` · ${member.phone}` : ''}
-              </div>
-              {member && (() => {
-                const activity = memberActivity(member.auth_provisioned_at, member.last_seen_at)
-                return (
-                  <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>
-                    Last active:{' '}
-                    <span style={{ color: activity.kind === 'seen' ? '#444' : '#999', fontWeight: 500 }}>
-                      {activity.kind === 'seen'
-                        ? `${formatRelativeShort(activity.at)} · ${fmtDateTime(activity.at)}`
-                        : memberActivityLabel(activity)}
-                    </span>
+              <>
+                {/* Header card */}
+                <section style={{ ...cardStyle, padding: 24, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20 }}>
+                  {member.avatar_url ? (
+                    <img src={member.avatar_url} alt="" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', flex: 'none' }} />
+                  ) : (
+                    <span aria-hidden style={{
+                      width: 72, height: 72, borderRadius: '50%', flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      background: color.primarySoft, color: color.primaryInk, fontSize: 24, fontWeight: 600,
+                    }}>{initials(name)}</span>
+                  )}
+                  <div style={{ flex: '1 1 300px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <h1 style={{ margin: 0, fontFamily: font.display, fontWeight: 400, fontSize: 40, lineHeight: 1.05 }}>{name}</h1>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px', fontSize: 15, color: color.ink2 }}>
+                      <span>{member.email}</span>
+                      {member.phone && <span>{member.phone}</span>}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                      {member.person_type && <Chip>{personTypeLabels[member.person_type] ?? member.person_type}</Chip>}
+                      {member.join_date && <Chip>Joined {monthYear(member.join_date)}</Chip>}
+                      {activity?.kind === 'seen'
+                        ? <Chip>Active {formatRelativeShort(activity.at)}</Chip>
+                        : activity && <Chip tone="warn">{activity.kind === 'pending' ? 'Invite pending' : "Hasn't signed in yet"}</Chip>}
+                    </div>
                   </div>
-                )
-              })()}
-              <button
-                onClick={() => setShowMoreInfo(v => !v)}
-                style={{ background: 'none', border: 'none', padding: 0, marginTop: '4px', color: '#085041', fontSize: '13px', fontWeight: 500, cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                {showMoreInfo ? 'Hide info' : 'Show more info'}
-              </button>
-            </div>
-          </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {canResendMemberWelcome(roles) && notSignedIn && (
+                      <Button onClick={handleResendWelcome} disabled={resendingWelcome}>{resendingWelcome ? 'Sending…' : 'Resend invite'}</Button>
+                    )}
+                    {canManageBookings(roles) && <Button variant="primary" href="/dashboard/schedule">Book a class</Button>}
+                  </div>
+                </section>
 
-          {showMoreInfo && member && (
-            <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '150px 1fr', rowGap: '8px', columnGap: '12px', fontSize: '13px' }}>
-              <div style={{ color: '#999' }}>Person type</div><div>{member.person_type ? personTypeLabels[member.person_type] ?? member.person_type : '—'}</div>
-              <div style={{ color: '#999' }}>Gender</div><div>{member.gender ? genderLabels[member.gender] ?? member.gender : '—'}</div>
-              <div style={{ color: '#999' }}>Date of birth</div><div>{member.date_of_birth ? fmtDate(member.date_of_birth) : '—'}</div>
-              <div style={{ color: '#999' }}>Address</div><div>{member.address || '—'}</div>
-              <div style={{ color: '#999' }}>Emergency contact</div><div>{member.emergency_contact_name ? `${member.emergency_contact_name}${member.emergency_contact_phone ? ` · ${member.emergency_contact_phone}` : ''}` : '—'}</div>
-              <div style={{ color: '#999' }}>Roles</div><div>{member.roles.join(', ') || '—'}</div>
-              <div style={{ color: '#999' }}>Joined</div><div>{fmtDate(member.join_date)} · {member.join_source.replace(/_/g, ' ')}</div>
-              <div style={{ color: '#999' }}>Sessions attended</div><div>{member.total_sessions_attended}</div>
-              <div style={{ color: '#999' }}>Health notes</div><div style={{ whiteSpace: 'pre-wrap' }}>{member.health_notes || '—'}</div>
-              <div style={{ color: '#999' }}>Notes</div><div style={{ whiteSpace: 'pre-wrap' }}>{member.notes || '—'}</div>
-            </div>
-          )}
-        </Card>
-
-        {/* Active passes */}
-        <Card
-          title="Active memberships and class passes"
-          action={canManageMemberPasses(roles) && (
-            <button onClick={openIssue} style={{
-              padding: '7px 14px', backgroundColor: '#085041', color: 'white', border: 'none',
-              borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-            }}>
-              Add pricing option
-            </button>
-          )}
-        >
-          {activePasses.length === 0 ? (
-            <p style={{ fontSize: '13px', color: '#666' }}>No active passes.</p>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={th}>Name</th>
-                  <th style={{ ...th, textAlign: 'center', width: '90px' }}>Credits left</th>
-                  <th style={{ ...th, textAlign: 'center', width: '120px' }}>Expires</th>
-                  <th style={{ ...th, width: '80px' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activePasses.map(p => {
-                  const isCredit = p.credits_total !== null
-                  const open = expandedPassId === p.id
-                  const entries = passLedgers[p.id]
-                  return (
-                    <React.Fragment key={p.id}>
-                      <tr
-                        onClick={isCredit ? () => togglePassHistory(p.id) : undefined}
-                        style={{ cursor: isCredit ? 'pointer' : 'default' }}
-                      >
-                        <td style={{ ...td, fontWeight: 600, color: isCredit ? '#085041' : '#444' }}>
-                          {isCredit && <span style={{ color: '#999', marginRight: '6px' }}>{open ? '▾' : '▸'}</span>}
-                          {p.pass_template?.name ?? 'Pass'}
-                          {p.notes ? <span style={{ fontWeight: 400, color: '#999' }}> · {p.notes}</span> : null}
-                        </td>
-                        <td style={{ ...td, textAlign: 'center' }}>{p.credits_total === null ? '∞' : p.credits_remaining}</td>
-                        <td style={{ ...td, textAlign: 'center' }}>{fmtDate(p.expires_at)}</td>
-                        <td style={td}><Badge status={p.status} /></td>
-                      </tr>
-                      {open && (
-                        <tr>
-                          <td colSpan={4} style={{ padding: '2px 0 12px 18px', borderTop: 'none' }}>
-                            {!entries ? (
-                              <p style={{ fontSize: '12px', color: '#999' }}>Loading history…</p>
-                            ) : entries.length === 0 ? (
-                              <p style={{ fontSize: '12px', color: '#999' }}>No credit movements.</p>
-                            ) : (
-                              entries.map((e, j) => (
-                                <div key={e.id} style={{
-                                  display: 'grid', gridTemplateColumns: '150px 1fr 55px 55px', gap: '8px', alignItems: 'center',
-                                  padding: '5px 0', fontSize: '12px',
-                                  borderBottom: j < entries.length - 1 ? '1px solid #f7f7f7' : 'none',
-                                }}>
-                                  <div style={{ color: '#444' }}>{fmtDateTime(e.created_at)}</div>
-                                  <div style={{ color: '#666' }}>
-                                    {movementLabels[e.movement_type] ?? e.movement_type}
-                                    {e.booking_id && bookingWhen[e.booking_id] ? ` (${bookingWhen[e.booking_id]})` : ''}
-                                    {e.notes ? ` — ${e.notes}` : ''}
-                                  </div>
-                                  <div style={{ textAlign: 'right', fontWeight: 600, color: e.credits_delta < 0 ? '#8b1a1a' : '#085041' }}>
-                                    {e.credits_delta > 0 ? '+' : ''}{e.credits_delta}
-                                  </div>
-                                  <div style={{ textAlign: 'right', color: '#999' }}>{e.credits_after}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
+                  {/* Left: passes, orders */}
+                  <div style={{ flex: '999 1 520px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+                    <Card style={{ overflow: 'hidden' }} aria-labelledby="passes-heading">
+                      <SectionHead id="passes-heading" title="Passes" action={canManageMemberPasses(roles) && (
+                        <Button size="sm" onClick={openIssue}>Add pricing option</Button>
+                      )} />
+                      {activePasses.length === 0 ? (
+                        <p style={{ margin: 0, padding: '4px 20px 18px', fontSize: 15, color: color.muted }}>No active passes.</p>
+                      ) : activePasses.map(p => {
+                        const isCredit = p.credits_total !== null
+                        const open = expandedPassId === p.id
+                        const entries = passLedgers[p.id]
+                        const ratio = isCredit && p.credits_total ? (p.credits_remaining ?? 0) / p.credits_total : 1
+                        const daysLeft = Math.ceil((Date.parse(p.expires_at) - nowMs) / 864e5)
+                        const s = passStatusChip[p.status] ?? { label: p.status, tone: 'neutral' as const }
+                        return (
+                          <div key={p.id} style={{ borderTop: `1px solid ${color.divider}` }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 16px', padding: '14px 20px' }}>
+                              <div style={{ flex: '1 1 240px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <span style={{ fontSize: 16, fontWeight: 600 }}>
+                                  {p.pass_template?.name ?? 'Pass'}
+                                  {p.notes ? <span style={{ fontWeight: 400, color: color.muted }}> · {p.notes}</span> : null}
+                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  {isCredit && (
+                                    <div aria-hidden style={{ width: 160, height: 6, borderRadius: 3, background: color.track, overflow: 'hidden' }}>
+                                      <div style={{ width: `${Math.round(Math.min(ratio, 1) * 100)}%`, height: '100%', background: ratio <= 0.2 ? color.lowBar : color.primary }} />
+                                    </div>
+                                  )}
+                                  <span style={{ fontSize: 14, color: color.ink2, ...tabularNums }}>
+                                    {isCredit ? `${p.credits_remaining} of ${p.credits_total} credits left` : 'Unlimited classes'}
+                                  </span>
                                 </div>
-                              ))
+                              </div>
+                              <span style={{ fontSize: 14, color: daysLeft <= 7 ? color.warnInk : color.ink2, fontWeight: daysLeft <= 7 ? 600 : 400, ...tabularNums }}>
+                                Expires {formatDayMonth(p.expires_at, timeZone)}
+                              </span>
+                              <Chip tone={s.tone}>{s.label}</Chip>
+                              {isCredit && (
+                                <button type="button" onClick={() => togglePassHistory(p.id)} aria-expanded={open}
+                                  className={`${ui.button} ${ui.focusable}`} style={buttonStyle('secondary', 'sm')}>
+                                  {open ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}History
+                                </button>
+                              )}
+                            </div>
+                            {open && (
+                              <div style={{ padding: '0 20px 14px 20px' }}>
+                                {!entries ? (
+                                  <p style={{ margin: 0, fontSize: 14, color: color.muted }}>Loading history…</p>
+                                ) : entries.length === 0 ? (
+                                  <p style={{ margin: 0, fontSize: 14, color: color.muted }}>No credit movements.</p>
+                                ) : (
+                                  <div style={{ border: `1px solid ${color.divider}`, borderRadius: radius.control, overflow: 'hidden' }}>
+                                    {entries.map((e, j) => (
+                                      <div key={e.id} style={{
+                                        display: 'grid', gridTemplateColumns: 'minmax(130px, 160px) 1fr 56px 56px', gap: 8, alignItems: 'center',
+                                        padding: '8px 12px', fontSize: 14, borderTop: j ? `1px solid ${color.divider}` : 'none',
+                                      }}>
+                                        <span style={{ color: color.ink2, ...tabularNums }}>{formatShortDate(e.created_at, timeZone)}, {formatClock(e.created_at, timeZone)}</span>
+                                        <span style={{ color: color.ink2 }}>
+                                          {movementLabels[e.movement_type] ?? e.movement_type}
+                                          {e.booking_id && bookingWhen[e.booking_id] ? ` (${bookingWhen[e.booking_id]})` : ''}
+                                          {e.notes ? ` · ${e.notes}` : ''}
+                                        </span>
+                                        <span style={{ textAlign: 'right', fontWeight: 600, color: e.credits_delta < 0 ? color.dangerInk : color.primaryInk, ...tabularNums }}>
+                                          {e.credits_delta > 0 ? '+' : ''}{e.credits_delta}
+                                        </span>
+                                        <span style={{ textAlign: 'right', color: color.muted, ...tabularNums }} title="Credits after">{e.credits_after}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             )}
-                          </td>
-                        </tr>
+                          </div>
+                        )
+                      })}
+                    </Card>
+
+                    <Card style={{ overflow: 'hidden' }} aria-labelledby="orders-heading">
+                      <SectionHead id="orders-heading" title="Orders" action={orders.length > 0 && (
+                        <Link href={`/dashboard/members/${memberId}/orders`} className={ui.focusable} style={{ fontSize: 14, fontWeight: 600, color: color.primary, textDecoration: 'none' }}>
+                          All orders
+                        </Link>
+                      )} />
+                      {orders.length === 0 ? (
+                        <p style={{ margin: 0, padding: '4px 20px 18px', fontSize: 15, color: color.muted }}>No orders yet.</p>
+                      ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
+                            <thead><tr><th style={th}>Date</th><th style={th}>Item</th><th style={{ ...th, textAlign: 'right' }}>Amount</th><th style={th}>Status</th></tr></thead>
+                            <tbody>
+                              {orders.slice(0, 15).map(o => {
+                                const s = orderStatusChip[o.status] ?? { label: o.status, tone: 'neutral' as const }
+                                return (
+                                  <tr key={o.id}>
+                                    <td style={{ ...td, color: color.ink2, whiteSpace: 'nowrap', ...tabularNums }}>{formatDayMonth(o.created_at, timeZone)}</td>
+                                    <td style={td}>
+                                      <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                        <Link href={`/dashboard/orders/${o.id}`} className={ui.focusable} style={{ color: color.ink, fontWeight: 600, textDecoration: 'none' }}>{o.product_name}</Link>
+                                        <span style={{ fontSize: 13, color: color.muted }}>{orderTypeLabels[o.type] ?? o.type}</span>
+                                      </span>
+                                    </td>
+                                    <td style={{ ...td, textAlign: 'right', ...tabularNums }}>{formatMoney(o.amount, o.currency)}</td>
+                                    <td style={td}><Chip tone={s.tone}>{s.label}</Chip></td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       )}
-                    </React.Fragment>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-        </Card>
+                    </Card>
+                  </div>
 
-        {/* Recent orders */}
-        <Card
-          title="Recent orders"
-          action={orders.length > 0 && (
-            <a href={`/dashboard/members/${memberId}/orders`} style={{ fontSize: '13px', fontWeight: 500, color: '#085041' }}>
-              All orders
-            </a>
-          )}
-        >
-          {orders.length === 0 ? (
-            <p style={{ fontSize: '13px', color: '#666' }}>No orders.</p>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ ...th, width: '110px' }}>Date</th>
-                  <th style={th}>Name</th>
-                  <th style={{ ...th, width: '90px' }}>Type</th>
-                  <th style={{ ...th, textAlign: 'right', width: '90px' }}>Amount</th>
-                  <th style={{ ...th, width: '90px' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.slice(0, 15).map(o => (
-                  <tr
-                    key={o.id}
-                    onClick={() => router.push(`/dashboard/orders/${o.id}`)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <td style={td}>{fmtDate(o.created_at)}</td>
-                    <td style={{ ...td, fontWeight: 600, color: '#085041' }}>{o.product_name}</td>
-                    <td style={td}>{orderTypeLabels[o.type] ?? o.type}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{fmtMoney(o.amount, o.currency)}</td>
-                    <td style={td}><Badge status={o.status} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Card>
+                  {/* Right: upcoming, details, notes */}
+                  <div style={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+                    <Card style={{ overflow: 'hidden' }} aria-labelledby="upcoming-heading">
+                      <SectionHead id="upcoming-heading" title="Upcoming" />
+                      {upcoming.length === 0 ? (
+                        <p style={{ margin: 0, padding: '4px 20px 18px', fontSize: 15, color: color.muted }}>No upcoming bookings.</p>
+                      ) : upcoming.map(b => {
+                        const occ = b.session_occurrence
+                        const occId = b.session_occurrence_id ?? occ?.id
+                        const starts = occ?.starts_at
+                        const weekday = starts ? formatShortDate(starts, timeZone).split(' ')[0].toUpperCase() : ''
+                        const dayNum = starts ? formatDayMonth(starts, timeZone).split(' ')[0] : ''
+                        const meta = [starts && formatClock(starts, timeZone), occ?.session?.location_name, pricingOptionFor(b)].filter(Boolean).join(' · ')
+                        const inner = (
+                          <>
+                            <span aria-hidden style={{
+                              width: 52, flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 0',
+                              borderRadius: radius.control, background: color.primarySoft, color: color.primaryInk,
+                            }}>
+                              <span style={{ fontSize: 12, fontWeight: 600 }}>{weekday}</span>
+                              <span style={{ fontSize: 20, fontWeight: 600, ...tabularNums }}>{dayNum}</span>
+                            </span>
+                            <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                              <span style={{ fontWeight: 600 }}>{occ?.session?.name ?? 'Class'}</span>
+                              <span style={{ fontSize: 14, color: color.ink2, ...tabularNums }}>
+                                {starts && <span className={styles.srOnly}>{formatShortDate(starts, timeZone)}, </span>}{meta}
+                              </span>
+                            </span>
+                          </>
+                        )
+                        const rowStyle: React.CSSProperties = {
+                          display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', borderTop: `1px solid ${color.divider}`,
+                          textDecoration: 'none', color: color.ink, ['--hover-bg' as string]: '#F7F8F5',
+                        }
+                        return occId ? (
+                          <Link key={b.id} href={`/dashboard/occurrences/${occId}`} className={`${ui.rowLink} ${ui.focusable}`} style={rowStyle}>{inner}</Link>
+                        ) : (
+                          <div key={b.id} style={rowStyle}>{inner}</div>
+                        )
+                      })}
+                    </Card>
 
-        {/* Upcoming bookings */}
-        <Card title="Upcoming bookings">
-          {upcoming.length === 0 ? (
-            <p style={{ fontSize: '13px', color: '#666' }}>No upcoming bookings.</p>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ ...th, width: '150px' }}>Date</th>
-                  <th style={th}>Title</th>
-                  <th style={{ ...th, width: '160px' }}>Pricing option</th>
-                </tr>
-              </thead>
-              <tbody>
-                {upcoming.map(b => (
-                  <tr key={b.id}>
-                    <td style={td}>{b.session_occurrence ? fmtDateTime(b.session_occurrence.starts_at) : '—'}</td>
-                    <td style={{ ...td, fontWeight: 600 }}>{b.session_occurrence?.session?.name ?? 'Session'}</td>
-                    <td style={td}>{pricingOptionFor(b)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Card>
-        </>}
+                    <Card padded aria-labelledby="details-heading">
+                      <h2 id="details-heading" style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600 }}>Details</h2>
+                      <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px 20px' }}>
+                        {[
+                          ['Date of birth', member.date_of_birth ? formatDayMonth(member.date_of_birth) : null],
+                          ['Emergency contact', member.emergency_contact_name
+                            ? `${member.emergency_contact_name}${member.emergency_contact_phone ? ` · ${member.emergency_contact_phone}` : ''}` : null],
+                          ['Address', member.address],
+                          ['Gender', member.gender ? genderLabels[member.gender] ?? member.gender : null],
+                          ['Joined via', member.join_source ? member.join_source.replace(/_/g, ' ') : null],
+                          ['Classes attended', String(member.total_sessions_attended)],
+                        ].map(([label, value]) => (
+                          <div key={label as string}>
+                            <dt style={{ ...smallCapsStyle, marginBottom: 4 }}>{label}</dt>
+                            <dd style={{ margin: 0, fontSize: 15, color: value ? color.ink : color.muted, ...tabularNums }}>{value || 'Not added'}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </Card>
+
+                    <section aria-labelledby="notes-heading" style={{ ...cardStyle, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 10, background: '#F7F8F5' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                        <h2 id="notes-heading" style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Notes</h2>
+                        <Chip>Staff only</Chip>
+                      </div>
+                      {member.health_notes || member.notes ? (
+                        <>
+                          {member.health_notes && (
+                            <div>
+                              <div style={{ ...smallCapsStyle, marginBottom: 4 }}>Health</div>
+                              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{member.health_notes}</p>
+                            </div>
+                          )}
+                          {member.notes && (
+                            <div>
+                              <div style={{ ...smallCapsStyle, marginBottom: 4 }}>General</div>
+                              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{member.notes}</p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.muted }}>No notes yet. Health and admin notes are never shown to the member.</p>
+                      )}
+                    </section>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {showIssue && (
         <div style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px',
+          position: 'fixed', inset: 0, background: 'rgba(23, 32, 28, 0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 24,
         }}>
-          <div style={{
-            backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
-            maxWidth: '460px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          <div role="dialog" aria-modal="true" aria-labelledby="issue-heading" style={{
+            background: color.surface, borderRadius: radius.card, padding: 28, width: '100%', maxWidth: 480,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', fontFamily: font.body,
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Add a pass for {(member && displayName(member)) || 'this member'}</h2>
-              <button onClick={() => setShowIssue(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>×</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <h2 id="issue-heading" style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Add a pass for {name}</h2>
+              <button type="button" aria-label="Close" onClick={() => setShowIssue(false)} className={ui.focusable}
+                style={{ ...buttonStyle('secondary', 'sm'), width: 36, padding: 0 }}>
+                <X size={16} strokeWidth={2} aria-hidden />
+              </button>
             </div>
 
             {issueError && (
-              <div style={{ padding: '10px 12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
+              <div role="alert" style={{ padding: '10px 12px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15, marginBottom: 16 }}>
                 {issueError}
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={labelStyle}>Pass</label>
-                <select
-                  value={issueForm.passTemplateId}
-                  onChange={e => setIssueForm(f => ({ ...f, passTemplateId: e.target.value }))}
-                  style={inputStyle}
-                >
-                  <option value="">Select a pass template…</option>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+              <Field label="Pass" htmlFor="issue-pass" hint={templates.length === 0 ? 'No active pass types yet. Create one on the Passes page.' : undefined}>
+                <select id="issue-pass" value={issueForm.passTemplateId} onChange={e => setIssueForm(f => ({ ...f, passTemplateId: e.target.value }))} style={controlStyle}>
+                  <option value="">Choose a pass type…</option>
                   {templates.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} — {t.pass_type === 'credit' ? `${t.credit_count} credits` : 'unlimited'}
-                    </option>
+                    <option key={t.id} value={t.id}>{t.name} · {t.pass_type === 'credit' ? `${t.credit_count} credits` : 'unlimited'}</option>
                   ))}
                 </select>
-                {templates.length === 0 && (
-                  <p style={{ fontSize: '12px', color: '#666', marginTop: '6px' }}>No active pass templates — create one on the Passes page.</p>
-                )}
-              </div>
+              </Field>
+
+              <Field label="Starts" htmlFor="issue-from" hint="Leave blank for today. Expiry comes from the pass type.">
+                <input id="issue-from" type="date" value={issueForm.effectiveFrom} onChange={e => setIssueForm(f => ({ ...f, effectiveFrom: e.target.value }))} style={controlStyle} />
+              </Field>
 
               <div>
-                <label style={labelStyle}>Effective from</label>
-                <input
-                  type="date"
-                  value={issueForm.effectiveFrom}
-                  onChange={e => setIssueForm(f => ({ ...f, effectiveFrom: e.target.value }))}
-                  style={inputStyle}
-                />
-                <p style={{ fontSize: '12px', color: '#666', marginTop: '6px' }}>Leave blank for today. Expiry is set from the pass template.</p>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Payment</label>
-                <select
-                  value={issueForm.paymentMethod}
-                  onChange={e => setIssueForm(f => ({ ...f, paymentMethod: e.target.value }))}
-                  style={inputStyle}
-                >
-                  {paymentMethodOptions.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
+                <label htmlFor="issue-payment" style={labelStyle}>Payment</label>
+                <select id="issue-payment" value={issueForm.paymentMethod} onChange={e => setIssueForm(f => ({ ...f, paymentMethod: e.target.value }))} style={controlStyle}>
+                  {paymentMethodOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 {issueForm.paymentMethod && (() => {
                   const t = templates.find(x => x.id === issueForm.passTemplateId)
                   return (
-                    <p style={{ fontSize: '12px', color: '#666', marginTop: '6px' }}>
-                      {t
-                        ? `Records a ${fmtMoney(t.price, t.currency)} payment in this member's order history.`
-                        : 'Records a payment for the pass price in this member’s order history.'}
+                    <p style={{ margin: '6px 0 0', fontSize: 13, color: color.muted }}>
+                      {t ? `Records a ${formatMoney(t.price, t.currency)} payment in this member's order history.` : "Records a payment for the pass price in this member's order history."}
                     </p>
                   )
                 })()}
               </div>
 
-              <div>
-                <label style={labelStyle}>Notes (optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. comp for referral, family member"
-                  value={issueForm.notes}
-                  onChange={e => setIssueForm(f => ({ ...f, notes: e.target.value }))}
-                  style={inputStyle}
-                />
-              </div>
+              <Field label="Notes (optional)" htmlFor="issue-notes">
+                <input id="issue-notes" type="text" placeholder="e.g. comp for referral, family member" value={issueForm.notes}
+                  onChange={e => setIssueForm(f => ({ ...f, notes: e.target.value }))} style={controlStyle} />
+              </Field>
 
-              <button
-                onClick={handleIssue}
-                disabled={issuing || !issueForm.passTemplateId}
-                style={{
-                  padding: '11px', backgroundColor: issuing || !issueForm.passTemplateId ? '#9fd6b8' : '#085041',
-                  color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                  cursor: issuing || !issueForm.passTemplateId ? 'default' : 'pointer', marginTop: '4px',
-                }}
-              >
-                {issuing ? 'Adding…' : 'Add pass'}
-              </button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <Button onClick={() => setShowIssue(false)} style={{ flex: 1 }}>Cancel</Button>
+                <Button variant="primary" onClick={handleIssue} disabled={issuing || !issueForm.passTemplateId} style={{ flex: 1 }}>
+                  {issuing ? 'Adding…' : 'Add pass'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
