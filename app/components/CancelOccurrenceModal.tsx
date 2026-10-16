@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { color, space } from '@/lib/ui/tokens'
+import { Button, Field, Modal, CheckRow, alertStyle, controlStyle } from '@/app/components/admin'
 
 interface Props {
   occurrenceId: string
@@ -8,11 +10,6 @@ interface Props {
   token: string
   onClose: () => void
   onCancelled: (updated: unknown) => void
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-  fontSize: '14px', outline: 'none', backgroundColor: 'white',
 }
 
 // POST /occurrences/{id}/cancel — cascades to every confirmed booking (cancelled, credits returned).
@@ -37,7 +34,7 @@ export default function CancelOccurrenceModal({ occurrenceId, orgId, token, onCl
         onCancelled(await res.json())
       } else {
         const data = await res.json().catch(() => null)
-        setError(data?.error ?? 'Could not cancel this occurrence.')
+        setError(data?.error ?? 'Could not cancel this class.')
       }
     } catch {
       setError('Could not reach the server. Please try again.')
@@ -47,72 +44,30 @@ export default function CancelOccurrenceModal({ occurrenceId, orgId, token, onCl
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 70, padding: '24px',
-    }}>
-      <div style={{
-        backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
-        maxWidth: '460px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Cancel this occurrence</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>×</button>
-        </div>
-
-        <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
+    <Modal title="Cancel this class" onClose={onClose} width={460} zIndex={70}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+        <p style={{ margin: 0, fontSize: 15, color: color.ink2, lineHeight: 1.45 }}>
           Every confirmed booking will be cancelled and any pass credits used will be returned.
         </p>
 
-        {error && (
-          <div style={{ padding: '10px 12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
-            {error}
-          </div>
-        )}
+        {error && <div role="alert" style={alertStyle()}>{error}</div>}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
-              Reason (optional)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. teacher unwell, venue unavailable"
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
+        <Field label="Reason (optional)" htmlFor="cancel-reason">
+          <input id="cancel-reason" type="text" placeholder="e.g. teacher unwell, venue unavailable"
+            value={reason} onChange={e => setReason(e.target.value)} style={controlStyle} />
+        </Field>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', color: '#444', cursor: 'pointer' }}>
-            <input type="checkbox" checked={showOnSchedule} onChange={e => setShowOnSchedule(e.target.checked)} style={{ marginTop: '2px' }} />
-            <span>Keep it on the public schedule, marked as cancelled. Uncheck to remove it from the schedule entirely.</span>
-          </label>
+        <CheckRow checked={showOnSchedule} onChange={setShowOnSchedule}>
+          Keep it on the public schedule, marked as cancelled. Untick to remove it from the schedule entirely.
+        </CheckRow>
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
-            <button
-              onClick={onClose}
-              style={{
-                padding: '10px 16px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                borderRadius: '8px', fontSize: '13px', cursor: 'pointer', color: '#444', fontWeight: 500,
-              }}
-            >
-              Keep occurrence
-            </button>
-            <button
-              onClick={submit}
-              disabled={busy}
-              style={{
-                flex: 1, padding: '10px', backgroundColor: busy ? '#e69a9a' : '#8b1a1a', color: 'white',
-                border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                cursor: busy ? 'default' : 'pointer',
-              }}
-            >
-              {busy ? 'Cancelling…' : 'Cancel occurrence'}
-            </button>
-          </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 4 }}>
+          <Button onClick={onClose} style={{ flex: '1 1 140px' }}>Keep class</Button>
+          <Button variant="destructive" onClick={submit} disabled={busy} style={{ flex: '1 1 140px' }}>
+            {busy ? 'Cancelling…' : 'Cancel class'}
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }

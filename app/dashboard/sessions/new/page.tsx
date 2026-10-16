@@ -8,84 +8,12 @@ import Sidebar from '@/app/components/Sidebar'
 import { useSearchParams } from 'next/navigation'
 import { canManageSessions } from '@/lib/roles'
 import { displayName } from '@/lib/names'
+import { ImageIcon } from 'lucide-react'
+import { color, radius, space } from '@/lib/ui/tokens'
+import { Breadcrumb, Button, CheckRow, PageHeader, alertStyle, buttonStyle, cardStyle, FormField as Field, TextInput as Input,
+  SelectInput as Select, TextArea as Textarea, FormSection as SectionHeader, ChoiceGroup as ToggleGroup } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
-
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: '24px' }}>
-      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
-        {label}
-      </label>
-      {hint && <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>{hint}</p>}
-      {children}
-    </div>
-  )
-}
-
-function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      style={{
-        width: '100%',
-        padding: '10px 14px',
-        border: '1px solid #e2e2e2',
-        borderRadius: '8px',
-        fontSize: '14px',
-        outline: 'none',
-        backgroundColor: 'white'
-      }}
-    />
-  )
-}
-
-function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      style={{
-        width: '100%',
-        padding: '10px 14px',
-        border: '1px solid #e2e2e2',
-        borderRadius: '8px',
-        fontSize: '14px',
-        outline: 'none',
-        backgroundColor: 'white',
-        cursor: 'pointer'
-      }}
-    >
-      {children}
-    </select>
-  )
-}
-
-function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      style={{
-        width: '100%',
-        padding: '10px 14px',
-        border: '1px solid #e2e2e2',
-        borderRadius: '8px',
-        fontSize: '14px',
-        outline: 'none',
-        backgroundColor: 'white',
-        minHeight: '100px',
-        resize: 'vertical'
-      }}
-    />
-  )
-}
-
-function SectionHeader({ title, description }: { title: string; description?: string }) {
-  return (
-    <div style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e2e2e2' }}>
-      <h2 style={{ fontSize: '17px', fontWeight: 600, color: '#1a1a1a' }}>{title}</h2>
-      {description && <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{description}</p>}
-    </div>
-  )
-}
 
 export default function NewSessionPage() {
   return (
@@ -93,7 +21,7 @@ export default function NewSessionPage() {
       <div className={styles.shell}>
         <Sidebar active="sessions" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     }>
@@ -107,6 +35,7 @@ function NewSessionPageContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [checkingAccess, setCheckingAccess] = useState(true)
+  const [roles, setRoles] = useState<string[]>([])
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   const [form, setForm] = useState({
@@ -155,6 +84,9 @@ function NewSessionPageContent() {
       const token = ctx.token
       const org = ctx.org
       const roles: string[] = ctx.roles
+      setRoles(roles)
+      // A new session is priced in the studio's currency (a copy keeps the source session's).
+      if (!copyId) setForm(prev => ({ ...prev, currency: org.currency ?? prev.currency }))
 
       if (!canManageSessions(roles)) { router.push('/dashboard/sessions'); return }
 
@@ -402,470 +334,240 @@ function NewSessionPageContent() {
       <div className={styles.shell}>
         <Sidebar active="sessions" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
   }
 
+  const hintText: React.CSSProperties = { margin: 0, fontSize: 14, color: color.muted, lineHeight: 1.45 }
+
   return (
     <div className={styles.shell}>
+      <Sidebar active="sessions" roles={roles} />
 
-      {/* Sidebar */}
-      <Sidebar active="sessions"/>
+      <div className={styles.main}>
+        <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+          <Breadcrumb items={[{ label: 'Sessions', href: '/dashboard/sessions' }, { label: copyId ? 'Copy session' : 'New session' }]} />
+          <PageHeader title={copyId ? 'Copy session' : 'New session'} />
 
-      {/* Main */}
-      <div className={styles.main} style={{ maxWidth: '800px' }}>
+          <div style={{ ...cardStyle, padding: '24px 28px' }}>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-          
-            <a href="/dashboard/sessions"
-            style={{ color: '#666', textDecoration: 'none', fontSize: '14px' }}
-          >
-            ← Sessions
-          </a>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>
-            {copyId ? 'Copy session' : 'New session'}
-            </h1>
-        </div>
+            <SectionHeader title="Basics" />
 
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '32px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
-        }}>
-
-          {/* Basics */}
-          <SectionHeader title="Basics" />
-
-          <Field label="Photo" hint="Shown on your booking page and in the schedule. Optional.">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                width: '80px', height: '80px', borderRadius: '12px', backgroundColor: '#f4f4f4',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                border: '1px solid #e2e2e2', flexShrink: 0
-              }}>
-                {form.photoUrl ? (
-                  <img src={form.photoUrl} alt="Session" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: '24px' }}>📷</span>
+            <Field label="Photo" hint="Shown on your booking page and in the schedule. Optional.">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: radius.control, background: color.primarySoft, color: color.primary,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${color.border}`, flex: 'none',
+                }}>
+                  {form.photoUrl
+                    ? <img src={form.photoUrl} alt="Session" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <ImageIcon size={24} strokeWidth={1.6} aria-hidden />}
+                </div>
+                <label className={`${ui.button} ${ui.focusable}`} style={{ ...buttonStyle('secondary', 'sm'), position: 'relative', cursor: uploadingPhoto ? 'not-allowed' : 'pointer' }}>
+                  {uploadingPhoto ? 'Uploading…' : form.photoUrl ? 'Replace photo' : 'Upload photo'}
+                  <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
+                </label>
+                {form.photoUrl && (
+                  <button type="button" onClick={() => update('photoUrl', '')} className={ui.focusable}
+                    style={{ background: 'none', border: 0, padding: '8px 0', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, color: color.dangerInk, cursor: 'pointer' }}>
+                    Remove
+                  </button>
                 )}
               </div>
-              <label style={{
-                padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px',
-                fontSize: '13px', fontWeight: 500, color: '#444', cursor: uploadingPhoto ? 'not-allowed' : 'pointer'
-              }}>
-                {uploadingPhoto ? 'Uploading...' : form.photoUrl ? 'Replace photo' : 'Upload photo'}
-                <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} style={{ display: 'none' }} />
-              </label>
-              {form.photoUrl && (
-                <button
-                  onClick={() => update('photoUrl', '')}
-                  style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}
-                >
-                  Remove
-                </button>
-              )}
+            </Field>
+
+            <Field label="Session name">
+              <Input placeholder="e.g. Morning Vinyasa" value={form.name} onChange={e => update('name', e.target.value)} />
+            </Field>
+
+            <Field label="Description" hint="Shown on your booking page. Optional.">
+              <Textarea placeholder="Tell your students what to expect…" value={form.description} onChange={e => update('description', e.target.value)} />
+            </Field>
+
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: space.formGap }}>
+              <Field label="Session type">
+                <Select value={form.sessionType} onChange={e => update('sessionType', e.target.value)}>
+                  <option value="class">Class</option>
+                  <option value="workshop">Workshop</option>
+                </Select>
+              </Field>
+              <Field label="Duration">
+                <Select value={form.durationMinutes} onChange={e => update('durationMinutes', e.target.value)}>
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60">60 minutes</option>
+                  <option value="75">75 minutes</option>
+                  <option value="90">90 minutes</option>
+                  <option value="120">2 hours</option>
+                </Select>
+              </Field>
             </div>
-          </Field>
 
-          <Field label="Session name">
-            <Input
-              placeholder="e.g. Morning Vinyasa"
-              value={form.name}
-              onChange={e => update('name', e.target.value)}
-            />
-          </Field>
-
-          <Field label="Description" hint="Shown on your booking page. Optional.">
-            <Textarea
-              placeholder="Tell your students what to expect..."
-              value={form.description}
-              onChange={e => update('description', e.target.value)}
-            />
-          </Field>
-
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Session type">
-              <Select value={form.sessionType} onChange={e => update('sessionType', e.target.value)}>
-                <option value="class">Class</option>
-                <option value="workshop">Workshop</option>
+            <Field label="Instructor" hint="The class appears in this teacher's own schedule and bookings.">
+              <Select value={form.instructorId} onChange={e => update('instructorId', e.target.value)}>
+                <option value="">Unassigned</option>
+                {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </Select>
             </Field>
 
-            <Field label="Duration">
-              <Select value={form.durationMinutes} onChange={e => update('durationMinutes', e.target.value)}>
-                <option value="30">30 minutes</option>
-                <option value="45">45 minutes</option>
-                <option value="60">60 minutes</option>
-                <option value="75">75 minutes</option>
-                <option value="90">90 minutes</option>
-                <option value="120">2 hours</option>
-              </Select>
+            <SectionHeader title="Delivery" description="How will students attend this session?" />
+
+            <Field label="Delivery mode">
+              <ToggleGroup label="Delivery mode" value={form.deliveryMode} onChange={v => update('deliveryMode', v)}
+                options={[{ value: 'in_person', label: 'In person' }, { value: 'online', label: 'Online' }]} />
             </Field>
-          </div>
 
-          <Field label="Instructor" hint="Determines which teacher this session shows up for under their own sessions and bookings">
-            <Select value={form.instructorId} onChange={e => update('instructorId', e.target.value)}>
-              <option value="">Unassigned</option>
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </Select>
-          </Field>
-
-          {/* Delivery */}
-          <SectionHeader title="Delivery" description="How will students attend this session?" />
-
-          <Field label="Delivery mode">
-            <div style={{ display: 'flex', gap: '12px' }}>
-              {[
-                { value: 'in_person', label: '📍 In-person' },
-                { value: 'online', label: '💻 Online' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => update('deliveryMode', opt.value)}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    border: `2px solid ${form.deliveryMode === opt.value ? '#085041' : '#e2e2e2'}`,
-                    borderRadius: '8px',
-                    backgroundColor: form.deliveryMode === opt.value ? '#e8f5ee' : 'white',
-                    color: form.deliveryMode === opt.value ? '#085041' : '#444',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: form.deliveryMode === opt.value ? 600 : 400
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </Field>
-
-          {form.deliveryMode === 'in_person' && (
-            <>
-              <Field label="Location name">
-                <Input
-                  placeholder="e.g. Studio 1"
-                  value={form.locationName}
-                  onChange={e => update('locationName', e.target.value)}
-                />
-              </Field>
-              <Field label="Address">
-                <Input
-                  placeholder="e.g. 123 Beach Road, Bondi NSW 2026"
-                  value={form.locationAddress}
-                  onChange={e => update('locationAddress', e.target.value)}
-                />
-              </Field>
-            </>
-          )}
-
-          {form.deliveryMode === 'online' && (
-            <Field label="Online instructions" hint="Shown to members when they book. Optional — e.g. what to have ready.">
-              <Textarea
-                placeholder="Please have a mat and 2kg weights ready. The meeting link is emailed 15 minutes before class."
-                value={form.onlineInstructions}
-                onChange={e => update('onlineInstructions', e.target.value)}
-              />
-            </Field>
-          )}
-
-          <Field label="Capacity" hint="Leave blank for unlimited">
-            <Input
-              type="number"
-              min="1"
-              placeholder={form.deliveryMode === 'online' ? 'Unlimited' : '12'}
-              value={form.capacity}
-              onChange={e => update('capacity', e.target.value)}
-            />
-          </Field>
-
-          {/* Schedule */}
-          <SectionHeader title="Schedule" description="When does this session run?" />
-
-          <Field label="First occurrence" hint="The date and time of the first bookable class. For a recurring session, later dates are generated from this same time.">
-            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 140px', gap: '16px' }}>
-              <Input
-                type="date"
-                value={form.firstOccurrenceDate}
-                onChange={e => update('firstOccurrenceDate', e.target.value)}
-              />
-              <Input
-                type="time"
-                value={form.firstOccurrenceTime}
-                onChange={e => update('firstOccurrenceTime', e.target.value)}
-              />
-            </div>
-          </Field>
-
-          <Field label="Recurrence">
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-              {[
-                { value: false, label: 'One-off' },
-                { value: true, label: 'Weekly' },
-              ].map(opt => (
-                <button
-                  key={String(opt.value)}
-                  onClick={() => update('isRecurring', opt.value)}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    border: `2px solid ${form.isRecurring === opt.value ? '#085041' : '#e2e2e2'}`,
-                    borderRadius: '8px',
-                    backgroundColor: form.isRecurring === opt.value ? '#e8f5ee' : 'white',
-                    color: form.isRecurring === opt.value ? '#085041' : '#444',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: form.isRecurring === opt.value ? 600 : 400
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-
-            {form.isRecurring && (
-              <div>
-                <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>
-                  {form.firstOccurrenceDate
-                    ? <>Repeats every week on <strong>{weekdayOf(form.firstOccurrenceDate)}</strong>, from the first occurrence date above.</>
-                    : 'Repeats every week on the first occurrence’s weekday — set the first occurrence date above.'}
-                </p>
-
-                <p style={{ fontSize: '13px', color: '#666', margin: '16px 0 10px' }}>Ends</p>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                  {[
-                    { value: 'never', label: 'Never' },
-                    { value: 'date', label: 'On date' },
-                    { value: 'count', label: 'After N classes' },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => update('recurrenceEndMode', opt.value)}
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        border: `2px solid ${form.recurrenceEndMode === opt.value ? '#085041' : '#e2e2e2'}`,
-                        borderRadius: '8px',
-                        backgroundColor: form.recurrenceEndMode === opt.value ? '#e8f5ee' : 'white',
-                        color: form.recurrenceEndMode === opt.value ? '#085041' : '#444',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: form.recurrenceEndMode === opt.value ? 600 : 400
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                {form.recurrenceEndMode === 'date' && (
-                  <Input
-                    type="date"
-                    value={form.recurrenceEndDate}
-                    onChange={e => update('recurrenceEndDate', e.target.value)}
-                  />
-                )}
-                {form.recurrenceEndMode === 'count' && (
-                  <Input
-                    type="number"
-                    min="1"
-                    value={form.recurrenceCount}
-                    onChange={e => update('recurrenceCount', e.target.value)}
-                  />
-                )}
-                {form.recurrenceEndMode === 'never' && (
-                  <p style={{ fontSize: '12px', color: '#666' }}>
-                    The first dates are created as soon as you save this session, then kept extended to
-                    60 days ahead automatically — there's no need to set an end date for an ongoing class.
-                  </p>
-                )}
+            {form.deliveryMode === 'in_person' && (
+              <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: space.formGap }}>
+                <Field label="Location name">
+                  <Input placeholder="e.g. Studio 1" value={form.locationName} onChange={e => update('locationName', e.target.value)} />
+                </Field>
+                <Field label="Address">
+                  <Input placeholder="e.g. 123 Beach Road, Bondi NSW 2026" value={form.locationAddress} onChange={e => update('locationAddress', e.target.value)} />
+                </Field>
               </div>
             )}
-          </Field>
 
-          {/* Pricing */}
-          <SectionHeader title="Pricing" description="Set your drop-in price. You can add passes and memberships later." />
+            {form.deliveryMode === 'online' && (
+              <Field label="Online instructions" hint="Shown to members when they book. Optional — e.g. what to have ready.">
+                <Textarea placeholder="Please have a mat and 2kg weights ready. The meeting link is emailed 15 minutes before class."
+                  value={form.onlineInstructions} onChange={e => update('onlineInstructions', e.target.value)} />
+              </Field>
+            )}
 
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Drop-in price (AUD)">
-              <Input
-                type="number"
-                min="0"
-                step="0.50"
-                placeholder="25.00"
-                value={form.price}
-                onChange={e => update('price', e.target.value)}
-              />
-            </Field>
-          </div>
-
-          <Field label="Tax rate override (%)" hint="Leave blank to use the studio's current tax rate. Enter 0 to make this session tax-exempt.">
-            <Input
-              type="number"
-              min="0"
-              step="0.1"
-              placeholder="No override"
-              value={form.taxRateOverride}
-              onChange={e => update('taxRateOverride', e.target.value)}
-            />
-          </Field>
-
-          {/* Settings */}
-          <SectionHeader title="Settings" />
-
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Visibility">
-              <Select value={form.visibility} onChange={e => update('visibility', e.target.value)}>
-                <option value="public">Public — listed on booking page</option>
-                <option value="private">Private — bookable via direct link only</option>
-                <option value="draft">Draft — not visible anywhere</option>
-              </Select>
+            <Field label="Capacity" hint="Leave blank for unlimited.">
+              <Input type="number" min="1" placeholder={form.deliveryMode === 'online' ? 'Unlimited' : '12'} value={form.capacity}
+                onChange={e => update('capacity', e.target.value)} style={{ maxWidth: 200 }} />
             </Field>
 
-            <Field label="Booking access">
-              <Select value={form.bookingAccessMode} onChange={e => update('bookingAccessMode', e.target.value)}>
-                <option value="open">Open — any pricing option</option>
-                <option value="free">Free — no payment required</option>
-                <option value="restricted">Restricted — specific passes only</option>
-              </Select>
-            </Field>
-          </div>
+            <SectionHeader title="Schedule" description="When does this session run?" />
 
-          {form.bookingAccessMode === 'restricted' && (
-            <Field label="Approved pricing options" hint="Only these passes (and optionally drop-in payment) can be used to book this session. Admin-initiated bookings bypass this list.">
-              <div style={{ border: '1px solid #e2e2e2', borderRadius: '8px', padding: '0 14px' }}>
-                {passTemplates.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: '#666', padding: '12px 0' }}>
-                    No pass templates yet — create one on the Passes page first.
-                  </p>
-                ) : passTemplates.map((pt, i) => (
-                  <label key={pt.id} style={{
-                    display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0',
-                    borderBottom: i < passTemplates.length - 1 ? '1px solid #f4f4f4' : 'none',
-                    fontSize: '13px', cursor: 'pointer'
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={form.approvedPassTemplateIds.includes(pt.id)}
-                      onChange={() => togglePassTemplate(pt.id)}
-                    />
-                    {pt.name}
-                  </label>
-                ))}
-                <label style={{
-                  display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0',
-                  borderTop: '1px solid #f4f4f4', fontSize: '13px', cursor: 'pointer'
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={form.allowDropIn}
-                    onChange={e => update('allowDropIn', e.target.checked)}
-                  />
-                  Allow drop-in payment
-                </label>
+            <Field label="First occurrence" hint="The date and time of the first bookable class. For a weekly session, later dates are generated from this same time.">
+              <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 160px', gap: 12 }}>
+                <Input type="date" aria-label="First class date" value={form.firstOccurrenceDate} onChange={e => update('firstOccurrenceDate', e.target.value)} />
+                <Input type="time" aria-label="First class start time" value={form.firstOccurrenceTime} onChange={e => update('firstOccurrenceTime', e.target.value)} />
               </div>
-              {form.approvedPassTemplateIds.length === 0 && !form.allowDropIn && (
-                <p style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '8px' }}>
-                  Select at least one option — otherwise nobody can self-book this session.
-                </p>
-              )}
-            </Field>
-          )}
-
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Cancellation window (hours)" hint="How many hours before the session members can cancel">
-              <Input
-                type="number"
-                min="0"
-                placeholder="12"
-                value={form.cancellationHours}
-                onChange={e => update('cancellationHours', e.target.value)}
-              />
             </Field>
 
-            <Field label="Max guests per booking">
-              <Select value={form.guestMaxPerBooking} onChange={e => update('guestMaxPerBooking', e.target.value)}>
-                <option value="0">No guests</option>
-                <option value="1">1 guest</option>
-                <option value="2">2 guests</option>
-                <option value="3">3 guests</option>
-              </Select>
-            </Field>
-          </div>
+            <Field label="Recurrence">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <ToggleGroup label="Recurrence" value={form.isRecurring ? 'weekly' : 'once'} onChange={v => update('isRecurring', v === 'weekly')}
+                  options={[{ value: 'once', label: 'One-off' }, { value: 'weekly', label: 'Weekly' }]} />
 
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Booking window (days)" hint="Max days ahead a member can book. Leave blank to use the studio default.">
-              <Input
-                type="number"
-                min="0"
-                placeholder="No override"
-                value={form.bookingWindowDays}
-                onChange={e => update('bookingWindowDays', e.target.value)}
-              />
+                {form.isRecurring && (
+                  <>
+                    <p style={hintText}>
+                      {form.firstOccurrenceDate
+                        ? <>Repeats every week on <strong style={{ color: color.ink }}>{weekdayOf(form.firstOccurrenceDate)}</strong>, from the first occurrence date above.</>
+                        : 'Repeats every week on the first occurrence’s weekday — set the first occurrence date above.'}
+                    </p>
+                    <span style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>Ends</span>
+                    <ToggleGroup label="Ends" value={form.recurrenceEndMode} onChange={v => update('recurrenceEndMode', v)}
+                      options={[{ value: 'never', label: 'Never' }, { value: 'date', label: 'On date' }, { value: 'count', label: 'After N classes' }]} />
+                    {form.recurrenceEndMode === 'date' && (
+                      <Input type="date" aria-label="End date" value={form.recurrenceEndDate} onChange={e => update('recurrenceEndDate', e.target.value)} style={{ maxWidth: 240 }} />
+                    )}
+                    {form.recurrenceEndMode === 'count' && (
+                      <Input type="number" min="1" aria-label="Number of classes" value={form.recurrenceCount} onChange={e => update('recurrenceCount', e.target.value)} style={{ maxWidth: 200 }} />
+                    )}
+                    {form.recurrenceEndMode === 'never' && (
+                      <p style={hintText}>
+                        The first dates are created as soon as you save this session, then kept extended to 60 days ahead
+                        automatically — there&apos;s no need to set an end date for an ongoing class.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
             </Field>
 
-            <Field label="Minimum advance booking (hours)" hint="How close to the start time a booking can still be made. Leave blank to use the studio default.">
-              <Input
-                type="number"
-                min="0"
-                placeholder="No override"
-                value={form.minAdvanceBookingHours}
-                onChange={e => update('minAdvanceBookingHours', e.target.value)}
-              />
-            </Field>
-          </div>
+            <SectionHeader title="Pricing" description="Set your drop-in price. You can add passes later." />
 
-          {/* Error */}
-          {error && (
-            <div style={{
-              padding: '12px 16px',
-              backgroundColor: '#fdecea',
-              borderRadius: '8px',
-              color: '#8b1a1a',
-              fontSize: '14px',
-              marginBottom: '24px'
-            }}>
-              {error}
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: space.formGap }}>
+              <Field label={`Drop-in price (${form.currency})`}>
+                <Input type="number" min="0" step="0.50" placeholder="25.00" value={form.price} onChange={e => update('price', e.target.value)} />
+              </Field>
+              <Field label="Tax rate override (%)" hint="Leave blank to use the studio's current tax rate. Enter 0 to make this session tax-exempt.">
+                <Input type="number" min="0" step="0.1" placeholder="No override" value={form.taxRateOverride} onChange={e => update('taxRateOverride', e.target.value)} />
+              </Field>
             </div>
-          )}
 
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '24px', borderTop: '1px solid #e2e2e2' }}>
-            
-              <a href="/dashboard/sessions"
-              style={{
-                padding: '10px 24px',
-                border: '1px solid #e2e2e2',
-                borderRadius: '8px',
-                fontSize: '14px',
-                color: '#444',
-                textDecoration: 'none',
-                fontWeight: 500
-              }}
-            >
-              Cancel
-            </a>
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              style={{
-                padding: '10px 24px',
-                backgroundColor: loading ? '#9fd6b8' : '#085041',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? 'Creating...' : 'Create session'}
-            </button>
+            <SectionHeader title="Who can book" />
+
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: space.formGap }}>
+              <Field label="Visibility">
+                <Select value={form.visibility} onChange={e => update('visibility', e.target.value)}>
+                  <option value="public">Public — listed on booking page</option>
+                  <option value="private">Private — bookable via direct link only</option>
+                  <option value="draft">Draft — not visible anywhere</option>
+                </Select>
+              </Field>
+              <Field label="Booking access">
+                <Select value={form.bookingAccessMode} onChange={e => update('bookingAccessMode', e.target.value)}>
+                  <option value="open">Open — any pricing option</option>
+                  <option value="free">Free — no payment required</option>
+                  <option value="restricted">Restricted — specific passes only</option>
+                </Select>
+              </Field>
+            </div>
+
+            {form.bookingAccessMode === 'restricted' && (
+              <Field label="Approved pricing options" hint="Only these passes (and optionally drop-in payment) can be used to book this session. Bookings you add yourself skip this list.">
+                <div>
+                  <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, padding: '4px 14px' }}>
+                    {passTemplates.length === 0 ? (
+                      <p style={{ ...hintText, padding: '10px 0' }}>No pass types yet — create one on the Passes page first.</p>
+                    ) : passTemplates.map((pt, i) => (
+                      <div key={pt.id} style={{ borderBottom: i < passTemplates.length - 1 ? `1px solid ${color.divider}` : 'none' }}>
+                        <CheckRow checked={form.approvedPassTemplateIds.includes(pt.id)} onChange={() => togglePassTemplate(pt.id)}>{pt.name}</CheckRow>
+                      </div>
+                    ))}
+                    <div style={{ borderTop: `1px solid ${color.divider}` }}>
+                      <CheckRow checked={form.allowDropIn} onChange={v => update('allowDropIn', v)}>Allow drop-in payment</CheckRow>
+                    </div>
+                  </div>
+                  {form.approvedPassTemplateIds.length === 0 && !form.allowDropIn && (
+                    <p role="alert" style={{ margin: '8px 0 0', fontSize: 13, color: color.dangerInk }}>
+                      Select at least one option — otherwise nobody can self-book this session.
+                    </p>
+                  )}
+                </div>
+              </Field>
+            )}
+
+            <SectionHeader title="Booking rules" description="Leave a field blank to use your studio defaults from Settings." />
+
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: space.formGap }}>
+              <Field label="Cancellation window (hours)" hint="Members can cancel free of charge up to this many hours before the class.">
+                <Input type="number" min="0" placeholder="Studio default" value={form.cancellationHours} onChange={e => update('cancellationHours', e.target.value)} />
+              </Field>
+              <Field label="Max guests per booking">
+                <Select value={form.guestMaxPerBooking} onChange={e => update('guestMaxPerBooking', e.target.value)}>
+                  <option value="0">No guests</option>
+                  <option value="1">1 guest</option>
+                  <option value="2">2 guests</option>
+                  <option value="3">3 guests</option>
+                </Select>
+              </Field>
+            </div>
+
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: space.formGap }}>
+              <Field label="Booking window (days)" hint="How far ahead members can book.">
+                <Input type="number" min="0" placeholder="Studio default" value={form.bookingWindowDays} onChange={e => update('bookingWindowDays', e.target.value)} />
+              </Field>
+              <Field label="Minimum advance booking (hours)" hint="How close to the start time a booking can still be made.">
+                <Input type="number" min="0" placeholder="Studio default" value={form.minAdvanceBookingHours} onChange={e => update('minAdvanceBookingHours', e.target.value)} />
+              </Field>
+            </div>
+
+            {error && <div role="alert" style={{ ...alertStyle(), marginBottom: space.formGap }}>{error}</div>}
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end', paddingTop: 20, borderTop: `1px solid ${color.divider}` }}>
+              <Button href="/dashboard/sessions">Cancel</Button>
+              <Button variant="primary" onClick={handleSubmit} disabled={loading}>{loading ? 'Creating…' : 'Create session'}</Button>
+            </div>
           </div>
         </div>
       </div>

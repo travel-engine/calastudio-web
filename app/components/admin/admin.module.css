@@ -40,3 +40,10 @@
 .segment:hover:not([aria-pressed='true']) {
   background-color: var(--hover-bg);
 }
+
+/* FormKit: the first section heading in a card needs no rule above it */
+.formSection:first-child {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
