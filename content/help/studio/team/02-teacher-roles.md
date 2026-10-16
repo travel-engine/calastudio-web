@@ -52,7 +52,7 @@ Pick the narrowest role that lets someone do their job. A casual instructor cove
 
 ## Changing a role later
 
-You can see each person's roles on **Team** and on their page, but changing an existing team member's role from the dashboard isn't available yet. Contact CalaStudio support if someone's role needs to change.
+Open **Team**, click **Edit** on the person, tick or untick roles under **Roles**, and click **Save roles**. Roles save on their own — separately from the profile's **Save changes** — and apply the next time that person opens the dashboard. Everyone needs at least one role; no need to re-invite anyone.
 
 ## Multiple roles at once
 

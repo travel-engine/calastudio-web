@@ -9,7 +9,7 @@ import { displayName } from '@/lib/names'
 import { STUDIO_DOMAIN, studioUrl } from '@/lib/seo'
 import { ExternalLink, Upload, X } from 'lucide-react'
 import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
-import { Breadcrumb, Button, Chip, Field, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, type ChipTone } from '@/app/components/admin'
+import { Breadcrumb, Button, CheckRow, Chip, Field, PageHeader, Toggle, alertStyle, buttonStyle, cardStyle, controlStyle, type ChipTone } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -86,6 +86,10 @@ export default function EditTeacherPage() {
   const [settingPrimary, setSettingPrimary] = useState(false)
   const [roles, setRoles] = useState<string[]>([])
   const [teacher, setTeacher] = useState<TeacherData | null>(null)
+  // Roles save on their own (PATCH /members/{id}/roles), separate from the profile's Save changes.
+  const [savedRoles, setSavedRoles] = useState<string[]>([])
+  const [rolesBusy, setRolesBusy] = useState(false)
+  const [rolesMsg, setRolesMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   const [form, setForm] = useState({
     display_name: '',
@@ -144,6 +148,7 @@ export default function EditTeacherPage() {
         newPhotoUrl: '',
       })
       setIsPrimary(data.profile?.is_primary ?? false)
+      setSavedRoles(data.roles ?? [])
 
       setLoading(false)
     }
@@ -152,6 +157,35 @@ export default function EditTeacherPage() {
 
   const update = (key: string, value: string | boolean | string[]) =>
     setForm(prev => ({ ...prev, [key]: value }))
+
+  const rolesDirty = [...form.roles].sort().join() !== [...savedRoles].sort().join()
+
+  const handleSaveRoles = async () => {
+    if (form.roles.length === 0) { setRolesMsg({ ok: false, text: 'Give this person at least one role.' }); return }
+    setRolesBusy(true)
+    setRolesMsg(null)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/members/${teacherId}/roles`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ roles: form.roles }),
+      })
+      if (res.ok) {
+        const data = await res.json().catch(() => null)
+        const next: string[] = Array.isArray(data?.roles) ? data.roles : form.roles
+        setSavedRoles(next)
+        update('roles', next)
+        setRolesMsg({ ok: true, text: 'Roles saved. They apply the next time this person opens the dashboard.' })
+      } else {
+        const data = await res.json().catch(() => null)
+        setRolesMsg({ ok: false, text: data?.error ?? data?.title ?? 'Could not save these roles.' })
+      }
+    } catch {
+      setRolesMsg({ ok: false, text: 'Could not reach the server. Please try again.' })
+    } finally {
+      setRolesBusy(false)
+    }
+  }
 
   // Immediate action — one primary per studio, so this also clears it on everyone else.
   const handleMakePrimary = async () => {
@@ -315,17 +349,26 @@ export default function EditTeacherPage() {
 
           <SectionCard id="roles" title="Roles" description="What this person can see and do in the dashboard. A person can hold more than one role.">
             <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, overflow: 'hidden' }}>
-              {[...form.roles].sort((x, y) => ROLE_ORDER.indexOf(x) - ROLE_ORDER.indexOf(y)).map((r, i) => {
-                const info = ROLE_INFO[r] ?? { label: r, tone: 'neutral' as ChipTone, description: '' }
+              {ROLE_ORDER.map((r, i) => {
+                const info = ROLE_INFO[r]
+                const on = form.roles.includes(r)
                 return (
-                  <div key={r} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', padding: '12px 16px', borderTop: i ? `1px solid ${color.divider}` : 'none' }}>
-                    <Chip tone={info.tone}>{info.label}</Chip>
-                    <span style={{ flex: '1 1 260px', fontSize: 14, color: color.ink2, lineHeight: 1.4 }}>{info.description}</span>
+                  <div key={r} style={{ padding: '6px 16px', borderTop: i ? `1px solid ${color.divider}` : 'none', background: on ? '#F7FAF8' : color.surface }}>
+                    <CheckRow checked={on} onChange={v => { update('roles', v ? [...form.roles, r] : form.roles.filter(x => x !== r)); setRolesMsg(null) }}>
+                      <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 12px' }}>
+                        <Chip tone={info.tone}>{info.label}</Chip>
+                        <span style={{ flex: '1 1 260px', fontSize: 14, color: color.ink2, lineHeight: 1.4 }}>{info.description}</span>
+                      </span>
+                    </CheckRow>
                   </div>
                 )
               })}
             </div>
-            <p style={{ margin: 0, fontSize: 13, color: color.muted }}>Changing someone&apos;s role isn&apos;t available here yet.</p>
+            {rolesMsg && <div role={rolesMsg.ok ? 'status' : 'alert'} style={alertStyle(rolesMsg.ok ? 'ok' : 'danger')}>{rolesMsg.text}</div>}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end' }}>
+              {rolesDirty && !rolesBusy && <Button onClick={() => { update('roles', savedRoles); setRolesMsg(null) }}>Discard</Button>}
+              <Button variant="primary" onClick={handleSaveRoles} disabled={!rolesDirty || rolesBusy}>{rolesBusy ? 'Saving…' : 'Save roles'}</Button>
+            </div>
           </SectionCard>
 
           <SectionCard id="profile" title="Landing page profile" description="This information appears on their public teacher page.">
