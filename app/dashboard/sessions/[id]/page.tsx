@@ -1,90 +1,54 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { Copy, ExternalLink, ImageIcon, Plus } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '../../../components/Sidebar'
 import { canManageSessions, canCreateOccurrence, canManageOccurrences, canViewAuditLog } from '@/lib/roles'
 import { displayName } from '@/lib/names'
-import { formatDateTimeWithWeekday } from '@/lib/dates'
+import { formatClock, formatShortDate, formatWhen } from '@/lib/dates'
+import { formatMoney } from '@/lib/money'
+import { studioUrl } from '@/lib/seo'
+import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
+import { Breadcrumb, Button, CapacityBar, Card, Chip, Segmented, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import EntityActivity from '@/app/components/EntityActivity'
 import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: '24px' }}>
-      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
-        {label}
-      </label>
-      {hint && <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>{hint}</p>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={{ fontSize: 14, fontWeight: 600, color: color.ink }}>{label}</label>
       {children}
+      {hint && <p style={{ margin: 0, fontSize: 13, lineHeight: 1.4, color: color.muted }}>{hint}</p>}
     </div>
   )
 }
 
 function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      style={{
-        width: '100%',
-        padding: '10px 14px',
-        border: '1px solid #e2e2e2',
-        borderRadius: '8px',
-        fontSize: '14px',
-        outline: 'none',
-        backgroundColor: 'white'
-      }}
-    />
-  )
+  return <input {...props} style={{ ...controlStyle, padding: '0 12px', ...(props.type === 'number' ? tabularNums : {}) }} />
 }
 
 function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      style={{
-        width: '100%',
-        padding: '10px 14px',
-        border: '1px solid #e2e2e2',
-        borderRadius: '8px',
-        fontSize: '14px',
-        outline: 'none',
-        backgroundColor: 'white',
-        cursor: 'pointer'
-      }}
-    >
-      {children}
-    </select>
-  )
+  return <select {...props} style={{ ...controlStyle, cursor: props.disabled ? 'not-allowed' : 'pointer' }}>{children}</select>
 }
 
 function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea
-      {...props}
-      style={{
-        width: '100%',
-        padding: '10px 14px',
-        border: '1px solid #e2e2e2',
-        borderRadius: '8px',
-        fontSize: '14px',
-        outline: 'none',
-        backgroundColor: 'white',
-        minHeight: '100px',
-        resize: 'vertical'
-      }}
-    />
-  )
+  return <textarea {...props} style={{ ...controlStyle, padding: '10px 12px', minHeight: 100, resize: 'vertical', lineHeight: 1.45 }} />
 }
+
+// Each form section is its own card (handoff §5 Session detail).
+const sectionCard: React.CSSProperties = { ...cardStyle, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: space.formGap }
 
 function SectionHeader({ title, description }: { title: string; description?: string }) {
   return (
-    <div style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e2e2e2' }}>
-      <h2 style={{ fontSize: '17px', fontWeight: 600, color: '#1a1a1a' }}>{title}</h2>
-      {description && <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{description}</p>}
+    <div>
+      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: color.ink }}>{title}</h2>
+      {description && <p style={{ margin: '4px 0 0', fontSize: 14, color: color.muted }}>{description}</p>}
     </div>
   )
 }
@@ -105,23 +69,8 @@ interface Occurrence {
   starts_at: string
   ends_at: string
   status: 'scheduled' | 'cancelled' | 'completed'
-}
-
-function OccurrenceStatusBadge({ status }: { status: string }) {
-  const styles: Record<string, { bg: string; color: string; label: string }> = {
-    scheduled: { bg: '#e8f5ee', color: '#085041', label: 'Scheduled' },
-    cancelled: { bg: '#fdecea', color: '#8b1a1a', label: 'Cancelled' },
-    completed: { bg: '#f4f4f4', color: '#666', label: 'Completed' },
-  }
-  const s = styles[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
-    }}>
-      {s.label}
-    </span>
-  )
+  booked?: number
+  capacity?: number | null
 }
 
 export default function EditSessionPage() {
@@ -137,6 +86,10 @@ export default function EditSessionPage() {
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
+  const [timeZone, setTimeZone] = useState<string | null>(null)
+  const [orgSlug, setOrgSlug] = useState('')
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false)
+  const [showPast, setShowPast] = useState(false)
 
   const [occurrences, setOccurrences] = useState<Occurrence[]>([])
   const [justCreated, setJustCreated] = useState(false)
@@ -248,10 +201,18 @@ export default function EditSessionPage() {
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${sessionId}`,
-        { headers: { Authorization: `Bearer ${t}` } }
-      )
+      setTimeZone(org.timezone ?? null)
+      setOrgSlug(org.slug ?? '')
+      const api = `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}`
+      const auth = { headers: { Authorization: `Bearer ${t}` } }
+      // One round of requests instead of five in a row: everything only needs the org id.
+      const [res, teachersRes, passTemplatesRes, pricingAccessRes, occRes] = await Promise.all([
+        fetch(`${api}/sessions/${sessionId}`, auth),
+        canManageSessions(myRoles) ? fetch(`${api}/teachers`, auth) : Promise.resolve(null),
+        canManageSessions(myRoles) ? fetch(`${api}/pass-templates`, auth) : Promise.resolve(null),
+        fetch(`${api}/sessions/${sessionId}/pricing-access`, auth),
+        fetch(`${api}/sessions/${sessionId}/occurrences`, auth),
+      ])
       if (!res.ok) { router.push('/dashboard/sessions'); return }
       const s = await res.json()
 
@@ -287,28 +248,14 @@ export default function EditSessionPage() {
         allowDropIn: false,
       })
 
-      if (canManageSessions(myRoles)) {
-        const teachersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/teachers`, {
-          headers: { Authorization: `Bearer ${t}` }
-        })
-        if (teachersRes.ok) {
-          const data = await teachersRes.json()
-          setTeachers(data.map((x: any) => ({ id: x.id, name: displayName(x) })))
-        }
-
-        const passTemplatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/pass-templates`, {
-          headers: { Authorization: `Bearer ${t}` }
-        })
-        if (passTemplatesRes.ok) {
-          const data = await passTemplatesRes.json()
-          setPassTemplates(data.map((x: any) => ({ id: x.id, name: x.name })))
-        }
+      if (teachersRes?.ok) {
+        const data = await teachersRes.json()
+        setTeachers(data.map((x: any) => ({ id: x.id, name: displayName(x) })))
       }
-
-      const pricingAccessRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${sessionId}/pricing-access`,
-        { headers: { Authorization: `Bearer ${t}` } }
-      )
+      if (passTemplatesRes?.ok) {
+        const data = await passTemplatesRes.json()
+        setPassTemplates(data.map((x: any) => ({ id: x.id, name: x.name })))
+      }
       if (pricingAccessRes.ok) {
         const rows = await pricingAccessRes.json()
         setPricingAccessRows(rows)
@@ -320,11 +267,6 @@ export default function EditSessionPage() {
           allowDropIn: rows.some((r: any) => r.pricing_type === 'drop_in'),
         }))
       }
-
-      const occRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/sessions/${sessionId}/occurrences`,
-        { headers: { Authorization: `Bearer ${t}` } }
-      )
       if (occRes.ok) setOccurrences(await occRes.json())
 
       // Arrived straight from "New session" — the backend generated the first occurrences during
@@ -565,8 +507,57 @@ export default function EditSessionPage() {
       <div className={styles.shell}>
         <Sidebar active="sessions" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading...</div>
         </div>
+      </div>
+    )
+  }
+
+  const nowMs = Date.now()
+  const upcomingOcc = occurrences.filter(o => Date.parse(o.starts_at) >= nowMs)
+  const pastOcc = occurrences.filter(o => Date.parse(o.starts_at) < nowMs).reverse()
+  const nextOcc = upcomingOcc.find(o => o.status === 'scheduled')
+  const sessionCapacity = form.capacity ? parseInt(form.capacity) : null
+  const capOf = (o: Occurrence) => (o.capacity ?? sessionCapacity)
+  const shownUpcoming = showAllUpcoming ? upcomingOcc : upcomingOcc.slice(0, 6)
+  // Form date/time are browser-local (see toDateInputValue), so the summary reads them the same way.
+  const firstStart = form.firstOccurrenceDate ? new Date(`${form.firstOccurrenceDate}T${form.firstOccurrenceTime}`) : null
+  const firstTime = firstStart ? formatClock(firstStart) : ''
+  const weekday = weekdayOf(form.firstOccurrenceDate)
+  const scheduleSummary = !firstStart ? 'Not scheduled yet'
+    : form.isRecurring ? `Every ${weekday} at ${firstTime}` : `${formatShortDate(firstStart)} at ${firstTime}`
+  const scheduleChip = !firstStart ? null
+    : `${form.isRecurring ? `Every ${weekday.slice(0, 3)}` : formatShortDate(firstStart)} · ${firstTime} · ${form.durationMinutes} min`
+  const teacherName = teachers.find(t => t.id === form.instructorId)?.name
+  const visibilityChip = form.visibility === 'public' ? { label: 'Public', tone: 'primary' as const }
+    : form.visibility === 'draft' ? { label: 'Draft', tone: 'warn' as const } : { label: 'Private', tone: 'neutral' as const }
+
+  const occurrenceRow = (o: Occurrence) => {
+    const cap = capOf(o)
+    const cancelled = o.status === 'cancelled'
+    return (
+      <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderTop: `1px solid ${color.divider}` }}>
+        <span style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600, ...tabularNums, ...(cancelled ? { color: color.muted, textDecoration: 'line-through' } : {}) }}>
+            {formatShortDate(o.starts_at, timeZone)}
+            {cancelled && <Chip style={{ textDecoration: 'none' }}>Cancelled</Chip>}
+          </span>
+          <span style={{ fontSize: 13, color: color.muted, ...tabularNums }}>
+            {formatClock(o.starts_at, timeZone)} – {formatClock(o.ends_at, timeZone)}
+            {!cancelled && ` · ${o.booked ?? 0}${cap != null ? ` / ${cap}` : ''} booked`}
+          </span>
+        </span>
+        <Link href={`/dashboard/occurrences/${o.id}`} className={ui.focusable}
+          style={{ fontSize: 14, fontWeight: 600, color: color.primary, textDecoration: 'none', minHeight: 36, display: 'inline-flex', alignItems: 'center' }}>
+          Roster
+        </Link>
+        {o.status === 'scheduled' && canManageOccurrences(roles) && (
+          <button type="button" onClick={() => setCancelOccurrenceId(o.id)} aria-label={`Cancel the class on ${formatShortDate(o.starts_at, timeZone)}`}
+            className={ui.focusable}
+            style={{ background: 'none', border: 0, padding: '8px 0', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, color: color.dangerInk, cursor: 'pointer' }}>
+            Cancel
+          </button>
+        )}
       </div>
     )
   }
@@ -575,82 +566,84 @@ export default function EditSessionPage() {
     <div className={styles.shell}>
       <Sidebar active="sessions" roles={roles} />
 
-      <div className={styles.main} style={{ maxWidth: '800px' }}>
+      <div className={styles.main}>
+        <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+          <Breadcrumb items={[{ label: 'Sessions', href: '/dashboard/sessions' }, { label: form.name || 'Session' }]} />
 
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <a href="/dashboard/sessions" style={{ color: '#666', textDecoration: 'none', fontSize: '14px' }}>
-              ← Sessions
-            </a>
-            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{canManageSessions(roles) ? 'Edit session' : 'Session'}</h1>
-          </div>
-          {canManageSessions(roles) && (
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: 'transparent',
-                border: '1px solid #fdecea',
-                borderRadius: '8px',
-                fontSize: '13px',
-                color: '#8b1a1a',
-                cursor: 'pointer'
-              }}
-            >
-              {deleting ? 'Deleting...' : 'Delete session'}
-            </button>
+          {/* Header card */}
+          <section style={{ ...cardStyle, padding: '22px 24px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20 }}>
+            <div style={{
+              width: 96, height: 96, borderRadius: radius.card, flex: 'none', overflow: 'hidden',
+              background: color.primarySoft, color: color.primary, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {form.photoUrl
+                ? <img src={form.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <ImageIcon size={32} strokeWidth={1.6} aria-label="No session photo" />}
+            </div>
+            <div style={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <h1 style={{ margin: 0, fontFamily: 'var(--font-admin-display), Georgia, serif', fontWeight: 400, fontSize: 40, lineHeight: 1.05, color: color.ink }}>
+                {form.name || 'Session'}
+              </h1>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <Chip tone={visibilityChip.tone}>{visibilityChip.label}</Chip>
+                {scheduleChip && <Chip>{scheduleChip}</Chip>}
+                {form.deliveryMode === 'online' ? <Chip>Online</Chip> : form.locationName && <Chip>{form.locationName}</Chip>}
+                {form.instructorId ? (teacherName && <Chip>{teacherName}</Chip>) : <Chip tone="warn">No teacher</Chip>}
+                {form.bookingAccessMode === 'free' ? <Chip>Free</Chip>
+                  : form.price && <Chip>{formatMoney(parseFloat(form.price), form.currency)} drop-in</Chip>}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {orgSlug && form.visibility === 'public' && (
+                <Button href={studioUrl(orgSlug, '/schedule')} target="_blank" icon={<ExternalLink size={18} strokeWidth={1.8} aria-hidden />}>View booking page</Button>
+              )}
+              {canManageSessions(roles) && (
+                <Button href={`/dashboard/sessions/new?copy=${sessionId}`} icon={<Copy size={18} strokeWidth={1.8} aria-hidden />}>Duplicate</Button>
+              )}
+            </div>
+          </section>
+
+          {!canManageSessions(roles) && (
+            <div style={{ padding: '12px 16px', background: color.infoBg, borderRadius: radius.control, color: color.infoInk, fontSize: 15 }}>
+              You can view this session, but only an admin can change its settings.
+            </div>
           )}
-        </div>
 
-        {!canManageSessions(roles) && (
+          {justCreated && (
+            <div role="status" style={{ padding: '12px 16px', background: color.primarySoft, borderRadius: radius.control, color: color.primaryInk, fontSize: 15 }}>
+              {occurrences.length > 0
+                ? `Session created. ${occurrences.length} class${occurrences.length === 1 ? '' : 'es'} scheduled and ready to take bookings.`
+                : 'Session created. No dates fell within the booking horizon yet. Add a date to make it bookable.'}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
+          {/* Left: the session's settings, one card per section */}
           <div style={{
-            padding: '12px 16px', backgroundColor: '#e8eef8', borderRadius: '8px',
-            color: '#1B4F8A', fontSize: '13px', marginBottom: '16px'
+            flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.cardGap,
+            opacity: canManageSessions(roles) ? 1 : 0.7,
+            pointerEvents: canManageSessions(roles) ? 'auto' : 'none'
           }}>
-            You can view this session, but only an admin can change its settings.
-          </div>
-        )}
 
-        {justCreated && (
-          <div style={{
-            padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px',
-            color: '#085041', fontSize: '13px', marginBottom: '16px'
-          }}>
-            {occurrences.length > 0
-              ? `Session created. ${occurrences.length} occurrence${occurrences.length === 1 ? '' : 's'} scheduled and ready to take bookings — see the list below.`
-              : 'Session created. No dates fell within the booking horizon yet — add an occurrence below to make it bookable.'}
-          </div>
-        )}
-
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '32px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-          opacity: canManageSessions(roles) ? 1 : 0.7,
-          pointerEvents: canManageSessions(roles) ? 'auto' : 'none'
-        }}>
-
+          <section style={sectionCard}>
           <SectionHeader title="Basics" />
 
           <Field label="Photo" hint="Shown on your booking page and in the schedule. Optional.">
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{
-                width: '80px', height: '80px', borderRadius: '12px', backgroundColor: '#f4f4f4',
+                width: '80px', height: '80px', borderRadius: '12px', backgroundColor: color.bg,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                border: '1px solid #e2e2e2', flexShrink: 0
+                border: `1px solid ${color.border}`, flexShrink: 0
               }}>
                 {form.photoUrl ? (
                   <img src={form.photoUrl} alt="Session" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span style={{ fontSize: '24px' }}>📷</span>
+                  <ImageIcon size={24} strokeWidth={1.6} color={color.muted} aria-hidden />
                 )}
               </div>
               <label style={{
-                padding: '8px 16px', backgroundColor: '#f4f4f4', borderRadius: '8px',
-                fontSize: '13px', fontWeight: 500, color: '#444', cursor: uploadingPhoto ? 'not-allowed' : 'pointer'
+                padding: '8px 16px', backgroundColor: color.bg, borderRadius: '8px',
+                fontSize: '13px', fontWeight: 500, color: color.ink2, cursor: uploadingPhoto ? 'not-allowed' : 'pointer'
               }}>
                 {uploadingPhoto ? 'Uploading...' : form.photoUrl ? 'Replace photo' : 'Upload photo'}
                 <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingPhoto} style={{ display: 'none' }} />
@@ -658,7 +651,7 @@ export default function EditSessionPage() {
               {form.photoUrl && (
                 <button
                   onClick={() => update('photoUrl', '')}
-                  style={{ background: 'none', border: 'none', fontSize: '13px', color: '#8b1a1a', cursor: 'pointer' }}
+                  style={{ background: 'none', border: 'none', fontSize: '13px', color: color.dangerInk, cursor: 'pointer' }}
                 >
                   Remove
                 </button>
@@ -701,47 +694,32 @@ export default function EditSessionPage() {
             </Field>
           </div>
 
-          <Field label="Instructor" hint="Determines which teacher this session shows up for under their own sessions and bookings">
+          <Field label="Teacher" hint="The class appears in this teacher's own schedule and bookings.">
             <Select value={form.instructorId} onChange={e => update('instructorId', e.target.value)}>
-              <option value="">Unassigned</option>
+              <option value="">No teacher</option>
               {teachers.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </Select>
           </Field>
 
-          <SectionHeader title="Delivery" />
+          </section>
 
-          <Field label="Delivery mode">
-            <div style={{ display: 'flex', gap: '12px' }}>
-              {[
-                { value: 'in_person', label: '📍 In-person' },
-                { value: 'online', label: '💻 Online' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => update('deliveryMode', opt.value)}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    border: `2px solid ${form.deliveryMode === opt.value ? '#085041' : '#e2e2e2'}`,
-                    borderRadius: '8px',
-                    backgroundColor: form.deliveryMode === opt.value ? '#e8f5ee' : 'white',
-                    color: form.deliveryMode === opt.value ? '#085041' : '#444',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: form.deliveryMode === opt.value ? 600 : 400
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+          <section style={sectionCard}>
+          <SectionHeader title="Where" />
+
+          <Field label="Delivery">
+            <Segmented
+              label="Delivery"
+              value={form.deliveryMode as 'in_person' | 'online'}
+              onChange={v => update('deliveryMode', v)}
+              options={[{ value: 'in_person', label: 'In person' }, { value: 'online', label: 'Online' }]}
+            />
           </Field>
 
           {form.deliveryMode === 'in_person' && (
             <>
-              <Field label="Location name">
+              <Field label="Venue">
                 <Input
                   placeholder="e.g. Studio 1"
                   value={form.locationName}
@@ -768,7 +746,7 @@ export default function EditSessionPage() {
             </Field>
           )}
 
-          <Field label="Capacity" hint="Leave blank for unlimited">
+          <Field label="Capacity" hint="Leave blank for unlimited.">
             <Input
               type="number"
               min="1"
@@ -778,10 +756,13 @@ export default function EditSessionPage() {
             />
           </Field>
 
-          <SectionHeader title="Schedule" />
+          </section>
+
+          <section style={sectionCard}>
+          <SectionHeader title="When" description={form.isRecurring && firstStart ? `${scheduleSummary}. Classes are created 60 days ahead automatically.` : scheduleSummary} />
 
           <Field
-            label="First occurrence"
+            label="First class"
             hint={form.isRecurring
               ? "Anchor for the weekly series. Changing only the time re-times every upcoming class; the weekday can't move once classes exist."
               : "The date and time of the bookable class."}
@@ -801,63 +782,28 @@ export default function EditSessionPage() {
           </Field>
 
           <Field label="Recurrence">
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-              {[
-                { value: false, label: 'One-off' },
-                { value: true, label: 'Weekly' },
-              ].map(opt => (
-                <button
-                  key={String(opt.value)}
-                  onClick={() => update('isRecurring', opt.value)}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    border: `2px solid ${form.isRecurring === opt.value ? '#085041' : '#e2e2e2'}`,
-                    borderRadius: '8px',
-                    backgroundColor: form.isRecurring === opt.value ? '#e8f5ee' : 'white',
-                    color: form.isRecurring === opt.value ? '#085041' : '#444',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: form.isRecurring === opt.value ? 600 : 400
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              label="Repeats"
+              value={form.isRecurring ? 'weekly' : 'once'}
+              onChange={v => update('isRecurring', v === 'weekly')}
+              options={[{ value: 'once', label: 'One-off' }, { value: 'weekly', label: 'Weekly' }]}
+            />
             {form.isRecurring && (
               <div>
-                <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>
+                <p style={{ fontSize: '13px', color: color.muted, marginBottom: '10px' }}>
                   {form.firstOccurrenceDate
                     ? <>Repeats every week on <strong>{weekdayOf(form.firstOccurrenceDate)}</strong>, from the first occurrence date above.</>
                     : 'Repeats every week on the first occurrence’s weekday — set the first occurrence date above.'}
                 </p>
 
-                <p style={{ fontSize: '13px', color: '#666', margin: '16px 0 10px' }}>Ends</p>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                  {[
-                    { value: 'never', label: 'Never' },
-                    { value: 'date', label: 'On date' },
-                    { value: 'count', label: 'After N classes' },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => update('recurrenceEndMode', opt.value)}
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        border: `2px solid ${form.recurrenceEndMode === opt.value ? '#085041' : '#e2e2e2'}`,
-                        borderRadius: '8px',
-                        backgroundColor: form.recurrenceEndMode === opt.value ? '#e8f5ee' : 'white',
-                        color: form.recurrenceEndMode === opt.value ? '#085041' : '#444',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: form.recurrenceEndMode === opt.value ? 600 : 400
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+                <p style={{ fontSize: 14, fontWeight: 600, color: color.ink, margin: '16px 0 6px' }}>Ends</p>
+                <div style={{ marginBottom: 12 }}>
+                  <Segmented
+                    label="Ends"
+                    value={form.recurrenceEndMode}
+                    onChange={v => update('recurrenceEndMode', v)}
+                    options={[{ value: 'never', label: 'Never' }, { value: 'date', label: 'On a date' }, { value: 'count', label: 'After a number of classes' }]}
+                  />
                 </div>
                 {form.recurrenceEndMode === 'date' && (
                   <Input
@@ -875,7 +821,7 @@ export default function EditSessionPage() {
                   />
                 )}
                 {form.recurrenceEndMode === 'never' && (
-                  <p style={{ fontSize: '12px', color: '#666' }}>
+                  <p style={{ fontSize: '12px', color: color.muted }}>
                     The first dates are created as soon as the session is saved, then kept extended to
                     60 days ahead automatically — there's no need to set an end date for an ongoing class.
                   </p>
@@ -884,10 +830,13 @@ export default function EditSessionPage() {
             )}
           </Field>
 
-          <SectionHeader title="Pricing" />
+          </section>
+
+          <section style={sectionCard}>
+          <SectionHeader title="Price & who can book" />
 
           <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Drop-in price (AUD)">
+            <Field label={`Drop-in price (${form.currency})`}>
               <Input
                 type="number"
                 min="0"
@@ -899,42 +848,42 @@ export default function EditSessionPage() {
             </Field>
           </div>
 
-          <Field label="Tax rate override (%)" hint="Leave blank to use the studio's current tax rate. Enter 0 to make this session tax-exempt.">
+          <Field label="Tax rate (%)" hint="Leave blank for the studio's current rate. Enter 0 to make this class tax-exempt.">
             <Input
               type="number"
               min="0"
               step="0.1"
-              placeholder="No override"
+              placeholder="Studio default"
               value={form.taxRateOverride}
               onChange={e => update('taxRateOverride', e.target.value)}
             />
           </Field>
 
-          <SectionHeader title="Settings" />
-
           <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Visibility">
-              <Select value={form.visibility} onChange={e => update('visibility', e.target.value)}>
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-                <option value="draft">Draft</option>
-              </Select>
+              <Segmented
+                label="Visibility"
+                value={form.visibility as 'public' | 'private' | 'draft'}
+                onChange={v => update('visibility', v)}
+                options={[{ value: 'public', label: 'Public' }, { value: 'private', label: 'Private' }, { value: 'draft', label: 'Draft' }]}
+              />
             </Field>
             <Field label="Booking access">
-              <Select value={form.bookingAccessMode} onChange={e => update('bookingAccessMode', e.target.value)}>
-                <option value="open">Open</option>
-                <option value="free">Free</option>
-                <option value="restricted">Restricted</option>
-              </Select>
+              <Segmented
+                label="Booking access"
+                value={form.bookingAccessMode as 'open' | 'free' | 'restricted'}
+                onChange={v => update('bookingAccessMode', v)}
+                options={[{ value: 'open', label: 'Open' }, { value: 'free', label: 'Free' }, { value: 'restricted', label: 'Restricted' }]}
+              />
             </Field>
           </div>
 
           {form.bookingAccessMode === 'restricted' && (
             canManageSessions(roles) ? (
-              <Field label="Approved pricing options" hint="Only these passes (and optionally drop-in payment) can be used to book this session. Admin-initiated bookings bypass this list.">
-                <div style={{ border: '1px solid #e2e2e2', borderRadius: '8px', padding: '0 14px' }}>
+              <Field label="Passes that can be used" hint="Bookings you add as admin skip this list.">
+                <div style={{ border: `1px solid ${color.border}`, borderRadius: '8px', padding: '0 14px' }}>
                   {passTemplates.length === 0 ? (
-                    <p style={{ fontSize: '13px', color: '#666', padding: '12px 0' }}>
+                    <p style={{ fontSize: '13px', color: color.muted, padding: '12px 0' }}>
                       No pass templates yet — create one on the Passes page first.
                     </p>
                   ) : passTemplates.map((pt, i) => (
@@ -960,18 +909,18 @@ export default function EditSessionPage() {
                       checked={form.allowDropIn}
                       onChange={e => update('allowDropIn', e.target.checked)}
                     />
-                    Allow drop-in payment
+                    Also allow drop-in payment
                   </label>
                 </div>
                 {form.approvedPassTemplateIds.length === 0 && !form.allowDropIn && (
-                  <p style={{ fontSize: '12px', color: '#8b1a1a', marginTop: '8px' }}>
+                  <p style={{ fontSize: '12px', color: color.dangerInk, marginTop: '8px' }}>
                     Select at least one option — otherwise nobody can self-book this session.
                   </p>
                 )}
               </Field>
             ) : (
               <Field label="Approved pricing options">
-                <p style={{ fontSize: '13px', color: '#666' }}>
+                <p style={{ fontSize: '13px', color: color.muted }}>
                   {pricingAccessRows.length === 0 ? 'No approved options configured yet.' : [
                     ...pricingAccessRows.filter(r => r.pass_template).map(r => r.pass_template!.name),
                     ...(pricingAccessRows.some(r => r.pricing_type === 'drop_in') ? ['Drop-in payment'] : []),
@@ -981,6 +930,10 @@ export default function EditSessionPage() {
             )
           )}
 
+          </section>
+
+          <section style={sectionCard}>
+          <SectionHeader title="Booking rules" description="Leave blank to use your studio defaults." />
           <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Field label="Cancellation window (hours)">
               <Input
@@ -990,7 +943,7 @@ export default function EditSessionPage() {
                 onChange={e => update('cancellationHours', e.target.value)}
               />
             </Field>
-            <Field label="Max guests per booking">
+            <Field label="Guests per booking">
               <Select value={form.guestMaxPerBooking} onChange={e => update('guestMaxPerBooking', e.target.value)}>
                 <option value="0">No guests</option>
                 <option value="1">1 guest</option>
@@ -1001,151 +954,98 @@ export default function EditSessionPage() {
           </div>
 
           <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Booking window (days)" hint="Max days ahead a member can book. Leave blank to use the studio default.">
+            <Field label="Book up to (days ahead)" hint="How far ahead members can book.">
               <Input
                 type="number"
                 min="0"
-                placeholder="No override"
+                placeholder="Studio default"
                 value={form.bookingWindowDays}
                 onChange={e => update('bookingWindowDays', e.target.value)}
               />
             </Field>
 
-            <Field label="Minimum advance booking (hours)" hint="How close to the start time a booking can still be made. Leave blank to use the studio default.">
+            <Field label="Booking closes (hours before)" hint="How close to the start a booking can still be made.">
               <Input
                 type="number"
                 min="0"
-                placeholder="No override"
+                placeholder="Studio default"
                 value={form.minAdvanceBookingHours}
                 onChange={e => update('minAdvanceBookingHours', e.target.value)}
               />
             </Field>
           </div>
 
+          </section>
+
           {error && (
-            <div style={{
-              padding: '12px 16px',
-              backgroundColor: '#fdecea',
-              borderRadius: '8px',
-              color: '#8b1a1a',
-              fontSize: '14px',
-              marginBottom: '24px'
-            }}>
+            <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>
               {error}
             </div>
           )}
 
-          {/* Actions */}
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'flex-end',
-            paddingTop: '24px',
-            borderTop: '1px solid #e2e2e2'
-          }}>
-            
-             <a href="/dashboard/sessions"
-              style={{
-                padding: '10px 24px',
-                border: '1px solid #e2e2e2',
-                borderRadius: '8px',
-                fontSize: '14px',
-                color: '#444',
-                textDecoration: 'none',
-                fontWeight: 500
-              }}
-            >
-              Cancel
-            </a>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding: '10px 24px',
-                backgroundColor: saving ? '#9fd6b8' : '#085041',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: saving ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {saving ? 'Saving...' : 'Save changes'}
-            </button>
-          </div>
-        </div>
-
-        {/* Occurrences */}
-        <div style={{
-          backgroundColor: 'white', borderRadius: '12px', padding: '32px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginTop: '24px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div>
-              <h2 style={{ fontSize: '17px', fontWeight: 600 }}>Occurrences</h2>
-              <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
-                Bookable dates and times for this session. Created from the schedule above when the session is saved, and kept extended to 60 days ahead automatically — add one manually below for a one-off extra date outside the usual pattern.
-              </p>
-            </div>
-            {canCreateOccurrence(roles) && (
-              <button
-                onClick={openAddOccurrence}
-                style={{
-                  padding: '8px 16px', backgroundColor: '#085041', color: 'white', border: 'none',
-                  borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
-                }}
-              >
-                + Add occurrence
-              </button>
-            )}
-          </div>
-
-          {occurrences.length === 0 ? (
-            <p style={{ fontSize: '13px', color: '#666' }}>No occurrences yet — the schedule above produced no dates within the booking horizon. Add one below to make this session bookable.</p>
-          ) : (
-            <div>
-              {occurrences.map((occ, i) => (
-                <div key={occ.id} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '12px 0', borderBottom: i < occurrences.length - 1 ? '1px solid #f4f4f4' : 'none'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ fontSize: '13px' }}>
-                      {formatDateTimeWithWeekday(occ.starts_at)}
-                      {' – '}
-                      {new Date(occ.ends_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                    </div>
-                    <OccurrenceStatusBadge status={occ.status} />
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <a href={`/dashboard/occurrences/${occ.id}`} style={{
-                      padding: '6px 12px', backgroundColor: '#f4f4f4', borderRadius: '6px',
-                      fontSize: '12px', color: '#444', textDecoration: 'none', fontWeight: 500
-                    }}>
-                      Manage roster
-                    </a>
-                    {occ.status === 'scheduled' && canManageOccurrences(roles) && (
-                      <button
-                        onClick={() => setCancelOccurrenceId(occ.id)}
-                        style={{
-                          padding: '6px 12px', backgroundColor: 'transparent', border: '1px solid #fdecea',
-                          borderRadius: '6px', fontSize: '12px', color: '#8b1a1a', cursor: 'pointer', fontWeight: 500
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+          {canManageSessions(roles) && (
+            <div style={{ ...cardStyle, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px' }}>
+              <Button variant="destructive" onClick={handleDelete} disabled={deleting}>{deleting ? 'Deleting…' : 'Delete session'}</Button>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                <Button href="/dashboard/sessions">Discard</Button>
+                <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>
+              </div>
             </div>
           )}
-        </div>
+          </div>
 
-        {canViewAuditLog(roles) && orgId && token && (
-          <EntityActivity orgId={orgId} token={token} entityType="session" entityId={sessionId} noun="session" />
-        )}
+          {/* Right: next class, upcoming classes, change history */}
+          <div style={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            <section aria-label="Next class" style={{ ...cardStyle, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, background: '#F4F9F6', borderColor: '#CFE2D8' }}>
+              <span style={smallCapsStyle}>Next class</span>
+              {nextOcc ? (
+                <>
+                  <span style={{ fontSize: 22, fontWeight: 600, ...tabularNums }}>{formatWhen(nextOcc.starts_at, timeZone)}</span>
+                  <CapacityBar booked={nextOcc.booked ?? 0} capacity={capOf(nextOcc)} width={180} layout="inline" />
+                  <Button variant="primary" href={`/dashboard/occurrences/${nextOcc.id}`}>Open roster</Button>
+                </>
+              ) : (
+                <span style={{ fontSize: 15, color: color.ink2 }}>No upcoming classes.</span>
+              )}
+            </section>
+
+            <Card style={{ overflow: 'hidden' }} aria-labelledby="upcoming-heading">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px 18px 12px' }}>
+                <h2 id="upcoming-heading" style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Upcoming classes</h2>
+                {canCreateOccurrence(roles) && (
+                  <Button size="sm" onClick={openAddOccurrence} icon={<Plus size={16} strokeWidth={2} aria-hidden />}>Add a date</Button>
+                )}
+              </div>
+              {upcomingOcc.length === 0 ? (
+                <p style={{ margin: 0, padding: '12px 18px 18px', fontSize: 15, color: color.muted }}>
+                  No upcoming classes. Add a date to make this session bookable.
+                </p>
+              ) : shownUpcoming.map(occurrenceRow)}
+              {(upcomingOcc.length > 6 || pastOcc.length > 0) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '12px 18px', borderTop: `1px solid ${color.divider}`, fontSize: 14 }}>
+                  {upcomingOcc.length > 6 ? (
+                    <button type="button" onClick={() => setShowAllUpcoming(v => !v)} className={ui.focusable}
+                      style={{ background: 'none', border: 0, padding: '6px 0', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, color: color.primary, cursor: 'pointer' }}>
+                      {showAllUpcoming ? 'Show fewer' : `Show all ${upcomingOcc.length}`}
+                    </button>
+                  ) : <span />}
+                  {pastOcc.length > 0 && (
+                    <button type="button" onClick={() => setShowPast(v => !v)} aria-expanded={showPast} className={ui.focusable}
+                      style={{ background: 'none', border: 0, padding: '6px 0', fontFamily: 'inherit', fontSize: 14, fontWeight: 600, color: color.muted, cursor: 'pointer' }}>
+                      Past classes ({pastOcc.length})
+                    </button>
+                  )}
+                </div>
+              )}
+              {showPast && pastOcc.map(occurrenceRow)}
+            </Card>
+
+            {canViewAuditLog(roles) && orgId && token && (
+              <EntityActivity orgId={orgId} token={token} entityType="session" entityId={sessionId} noun="session" />
+            )}
+          </div>
+          </div>
+        </div>
       </div>
 
       {cancelOccurrenceId && (
@@ -1172,7 +1072,7 @@ export default function EditSessionPage() {
               <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Add occurrence</h2>
               <button
                 onClick={() => setShowAddOccurrence(false)}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: color.muted }}
               >
                 ×
               </button>
@@ -1202,12 +1102,12 @@ export default function EditSessionPage() {
                   />
                 </Field>
               </div>
-              <p style={{ fontSize: '12px', color: '#666', marginTop: '-8px' }}>
+              <p style={{ fontSize: '12px', color: color.muted, marginTop: '-8px' }}>
                 Capacity and price default to this session's settings unless overridden later.
               </p>
 
               {occurrenceError && (
-                <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+                <div style={{ padding: '12px', backgroundColor: color.dangerBg, borderRadius: '8px', color: color.dangerInk, fontSize: '13px' }}>
                   {occurrenceError}
                 </div>
               )}
@@ -1216,8 +1116,8 @@ export default function EditSessionPage() {
                 <button
                   onClick={() => setShowAddOccurrence(false)}
                   style={{
-                    flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                    borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#444'
+                    flex: 1, padding: '10px', backgroundColor: 'transparent', border: `1px solid ${color.border}`,
+                    borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: color.ink2
                   }}
                 >
                   Cancel
@@ -1226,7 +1126,7 @@ export default function EditSessionPage() {
                   onClick={handleAddOccurrence}
                   disabled={addingOccurrence}
                   style={{
-                    flex: 1, padding: '10px', backgroundColor: addingOccurrence ? '#9fd6b8' : '#085041', color: 'white',
+                    flex: 1, padding: '10px', backgroundColor: addingOccurrence ? '#9fd6b8' : color.primary, color: 'white',
                     border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
                     cursor: addingOccurrence ? 'not-allowed' : 'pointer'
                   }}
@@ -1256,10 +1156,10 @@ export default function EditSessionPage() {
               <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>
                 {destructive ? 'Confirm session changes' : 'Review before saving'}
               </h2>
-              <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>
+              <p style={{ fontSize: '13px', color: color.muted, marginBottom: '12px' }}>
                 This edit affects occurrences that already exist:
               </p>
-              <ul style={{ fontSize: '14px', color: '#444', margin: '0 0 24px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <ul style={{ fontSize: '14px', color: color.ink2, margin: '0 0 24px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {i.cancelOccurrences > 0 && (
                   <li>
                     <strong>{i.cancelOccurrences}</strong> upcoming occurrence{n(i.cancelOccurrences)} will be <strong>cancelled</strong>
@@ -1288,8 +1188,8 @@ export default function EditSessionPage() {
                 <button
                   onClick={handleCancelUpdate}
                   style={{
-                    flex: 1, padding: '10px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                    borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#444'
+                    flex: 1, padding: '10px', backgroundColor: 'transparent', border: `1px solid ${color.border}`,
+                    borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: color.ink2
                   }}
                 >
                   Go back
@@ -1299,7 +1199,7 @@ export default function EditSessionPage() {
                   disabled={saving}
                   style={{
                     flex: 1, padding: '10px',
-                    backgroundColor: saving ? (destructive ? '#e79999' : '#9fd6b8') : (destructive ? '#8b1a1a' : '#085041'),
+                    backgroundColor: saving ? (destructive ? '#e79999' : '#9fd6b8') : (destructive ? color.dangerInk : color.primary),
                     color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
                     cursor: saving ? 'not-allowed' : 'pointer'
                   }}
