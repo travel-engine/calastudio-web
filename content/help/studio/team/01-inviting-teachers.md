@@ -34,9 +34,7 @@ See **Teacher roles** for the full permission breakdown, including exactly which
 
 ## Multiple roles
 
-A person can hold more than one role. For example, a senior member who covers classes temporarily can be both a **Member** and a **Basic teacher** at the same time. Each person's roles are shown on the **Team** list and on their page (click **Edit**).
-
-Changing an existing team member's role from the dashboard isn't available yet — contact CalaStudio support if someone's role needs to change.
+A person can hold more than one role. For example, a senior member who covers classes temporarily can be both a **Member** and a **Basic teacher** at the same time. Each person's roles are shown on the **Team** list. To add or remove a role, click **Edit** on their row, tick or untick roles under **Roles**, and click **Save roles**.
 
 ## Multi-studio teachers
 
