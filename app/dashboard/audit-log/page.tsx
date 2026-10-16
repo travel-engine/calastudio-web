@@ -272,7 +272,7 @@ export default function AuditLogPage() {
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, maxWidth: '100%' }}>
                 <input type="date" aria-label="From date" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} style={{ ...filterStyle, minWidth: 0 }} />
                 <span style={{ color: color.muted, fontSize: 14 }}>to</span>
                 <input type="date" aria-label="To date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} style={{ ...filterStyle, minWidth: 0 }} />
