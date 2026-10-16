@@ -1,13 +1,19 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Plus, Ticket, X } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewPassTemplates, canManagePassTemplates } from '@/lib/roles'
 import { displayName } from '@/lib/names'
-import { formatDateTime } from '@/lib/dates'
+import { formatClock, formatDayMonth, formatShortDate } from '@/lib/dates'
+import { formatMoney } from '@/lib/money'
+import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
+import { Button, Card, Chip, EmptyState, PageHeader, buttonStyle, cardStyle, controlStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface PassTemplate {
@@ -55,37 +61,23 @@ interface LedgerEntry {
   created_at: string
 }
 
-function formatMoney(amount: number, currency: string) {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
-  } catch {
-    return `${currency} ${amount.toFixed(2)}`
-  }
+function expiryRuleLabel(pt: Pick<PassTemplate, 'expiry_type' | 'expiry_fixed_date' | 'expiry_rolling_value'>) {
+  if (pt.expiry_type === 'fixed_date') return pt.expiry_fixed_date ? `Expires ${formatDayMonth(pt.expiry_fixed_date)}` : 'Fixed expiry date'
+  if (pt.expiry_type === 'rolling_days') return `Expires ${pt.expiry_rolling_value ?? '?'} days after purchase`
+  return `Expires ${pt.expiry_rolling_value ?? '?'} months after purchase`
 }
 
-function expiryRuleLabel(pt: Pick<PassTemplate, 'expiry_type' | 'expiry_fixed_date' | 'expiry_rolling_value'>) {
-  if (pt.expiry_type === 'fixed_date') return pt.expiry_fixed_date ? `Fixed: ${pt.expiry_fixed_date}` : 'Fixed date'
-  if (pt.expiry_type === 'rolling_days') return `${pt.expiry_rolling_value ?? '?'} days from purchase`
-  return `${pt.expiry_rolling_value ?? '?'} months from purchase`
+const passStatusChip: Record<string, { label: string; tone: ChipTone }> = {
+  active: { label: 'Active', tone: 'primary' },
+  low: { label: 'Running low', tone: 'warn' },
+  frozen: { label: 'Frozen', tone: 'info' },
+  expired: { label: 'Expired', tone: 'neutral' },
+  exhausted: { label: 'Used up', tone: 'neutral' },
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, { bg: string; color: string; label: string }> = {
-    active: { bg: '#e8f5ee', color: '#085041', label: 'Active' },
-    low: { bg: '#fff3cd', color: '#7a4f00', label: 'Low' },
-    frozen: { bg: '#e8eef8', color: '#1B4F8A', label: 'Frozen' },
-    expired: { bg: '#f4f4f4', color: '#666', label: 'Expired' },
-    exhausted: { bg: '#fdecea', color: '#8b1a1a', label: 'Exhausted' },
-  }
-  const s = styles[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
-    }}>
-      {s.label}
-    </span>
-  )
+  const s = passStatusChip[status] ?? { label: status, tone: 'neutral' as const }
+  return <Chip tone={s.tone}>{s.label}</Chip>
 }
 
 const movementLabels: Record<string, string> = {
@@ -97,17 +89,15 @@ const movementLabels: Record<string, string> = {
   studio_adjustment: 'Studio adjustment',
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 14px',
-  border: '1px solid #e2e2e2',
-  borderRadius: '8px',
-  fontSize: '14px',
-  outline: 'none',
-  backgroundColor: 'white'
-}
+const inputStyle: React.CSSProperties = { ...controlStyle, padding: '10px 12px' }
 
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }
+const labelStyle: React.CSSProperties = { display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: color.ink }
+
+const th: React.CSSProperties = {
+  textAlign: 'left', padding: '12px 16px', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
+  color: color.muted, background: '#FAFAF8', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap',
+}
+const td: React.CSSProperties = { padding: '12px 16px', borderTop: `1px solid ${color.divider}`, fontSize: 15, verticalAlign: 'middle' }
 
 export default function PassesPage() {
   const router = useRouter()
@@ -333,188 +323,173 @@ export default function PassesPage() {
       <div className={styles.shell}>
         <Sidebar active="passes" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
   }
 
   const activeTemplates = templates.filter(t => t.is_active)
+  const nowMs = Date.now()
+  const tabs = [
+    { key: 'templates' as const, label: `Pass types (${templates.length})` },
+    { key: 'issued' as const, label: `Issued to members (${passes.length})` },
+  ]
 
   return (
     <div className={styles.shell}>
       <Sidebar active="passes" roles={roles} />
 
       <div className={styles.main}>
-
-        {forbidden ? <Forbidden /> : <>
-
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <div>
-            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Passes</h1>
-            <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-              Manage pass types and the passes you've issued to members
-            </p>
-          </div>
-          {tab === 'templates' ? (
-            canManagePassTemplates(roles) && (
-              <a href="/dashboard/passes/new" style={{
-                padding: '10px 20px', backgroundColor: '#085041', color: 'white', borderRadius: '8px',
-                fontSize: '14px', fontWeight: 600, textDecoration: 'none'
-              }}>
-                + New pass template
-              </a>
-            )
-          ) : (
-            <button onClick={openIssueModal} style={{
-              padding: '10px 20px', backgroundColor: '#085041', color: 'white', border: 'none', borderRadius: '8px',
-              fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-            }}>
-              + Issue pass
-            </button>
-          )}
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid #e2e2e2' }}>
-          {[
-            { key: 'templates' as const, label: `Pass templates (${templates.length})` },
-            { key: 'issued' as const, label: `Issued passes (${passes.length})` },
-          ].map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              style={{
-                padding: '10px 16px',
-                border: 'none',
-                borderBottom: `2px solid ${tab === t.key ? '#085041' : 'transparent'}`,
-                backgroundColor: 'transparent',
-                color: tab === t.key ? '#085041' : '#666',
-                fontWeight: tab === t.key ? 600 : 400,
-                fontSize: '14px',
-                cursor: 'pointer'
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Pass templates tab */}
-        {tab === 'templates' && (
-          templates.length === 0 ? (
-            <div style={{
-              backgroundColor: 'white', borderRadius: '12px', padding: '64px', textAlign: 'center',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
-            }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>💳</div>
-              <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No pass templates yet</h3>
-              <p style={{ color: '#666', fontSize: '14px', marginBottom: canManagePassTemplates(roles) ? '24px' : 0 }}>
-                {canManagePassTemplates(roles)
-                  ? "Create a pass type — like a 10-class pack or monthly unlimited — that members can purchase."
-                  : "Your studio hasn't created any pass types yet."}
-              </p>
-              {canManagePassTemplates(roles) && (
-                <a href="/dashboard/passes/new" style={{
-                  display: 'inline-block', padding: '10px 24px', backgroundColor: '#085041', color: 'white',
-                  borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none'
-                }}>
-                  Create a pass template
-                </a>
-              )}
-            </div>
-          ) : (
-            <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-              <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 90px' }}>
-                <div>Name</div>
-                <div>Type</div>
-                <div>Credits</div>
-                <div>Expiry</div>
-                <div>Price</div>
-                <div>Actions</div>
-              </div>
-              {templates.map((t, i) => (
-                <div key={t.id} className={styles.tableRow} style={{
-                  gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 90px',
-                  borderBottom: i < templates.length - 1 ? '1px solid #f4f4f4' : 'none',
-                  opacity: t.is_active ? 1 : 0.5
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{t.name}</div>
-                    {!t.is_active && <div style={{ fontSize: '12px', color: '#999' }}>Deactivated</div>}
-                  </div>
-                  <div style={{ fontSize: '13px', textTransform: 'capitalize' }}>{t.pass_type}</div>
-                  <div style={{ fontSize: '13px' }}>{t.pass_type === 'unlimited' ? '∞' : t.credit_count ?? '—'}</div>
-                  <div style={{ fontSize: '13px', color: '#666' }}>{expiryRuleLabel(t)}</div>
-                  <div style={{ fontSize: '13px' }}>{formatMoney(t.price, t.currency)}</div>
-                  <div>
-                    {canManagePassTemplates(roles) ? (
-                      <a href={`/dashboard/passes/${t.id}`} style={{
-                        padding: '6px 12px', backgroundColor: '#f4f4f4', borderRadius: '6px',
-                        fontSize: '12px', color: '#444', textDecoration: 'none', fontWeight: 500
-                      }}>
-                        Edit
-                      </a>
-                    ) : (
-                      <span style={{ fontSize: '12px', color: '#999' }}>—</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
-        )}
-
-        {/* Issued passes tab */}
-        {tab === 'issued' && (
-          passes.length === 0 ? (
-            <EmptyState
-              icon="🎟"
-              title="No passes issued yet"
-              body="Issue a pass to a member manually, or wait for members to purchase one from your booking page."
-              cta="Issue a pass"
-              onClick={openIssueModal}
+        {forbidden ? <Forbidden /> : (
+          <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            <PageHeader
+              eyebrow="Revenue"
+              title="Passes"
+              actions={tab === 'templates'
+                ? canManagePassTemplates(roles) && (
+                  <Button href="/dashboard/passes/new" variant="primary" icon={<Plus size={18} strokeWidth={2} aria-hidden />}>New pass type</Button>
+                )
+                : <Button variant="primary" onClick={openIssueModal} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Issue a pass</Button>}
             />
-          ) : (
-            <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-              <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 90px' }}>
-                <div>Member</div>
-                <div>Pass</div>
-                <div>Credits</div>
-                <div>Status</div>
-                <div>Expires</div>
-                <div>Actions</div>
-              </div>
-              {passes.map((p, i) => (
-                <div key={p.id} className={styles.tableRow} style={{
-                  gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 90px',
-                  borderBottom: i < passes.length - 1 ? '1px solid #f4f4f4' : 'none'
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{displayName(p.user) || 'Unknown member'}</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>{p.user?.email}</div>
-                  </div>
-                  <div style={{ fontSize: '13px' }}>{p.pass_template?.name ?? '—'}</div>
-                  <div style={{ fontSize: '13px' }}>
-                    {p.credits_remaining === null ? '∞' : `${p.credits_remaining} / ${p.credits_total}`}
-                  </div>
-                  <div><StatusBadge status={p.status} /></div>
-                  <div style={{ fontSize: '13px', color: '#666' }}>{p.expires_at}</div>
-                  <div>
-                    <button onClick={() => openManageModal(p)} style={{
-                      padding: '6px 12px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
-                      fontSize: '12px', color: '#444', cursor: 'pointer', fontWeight: 500
-                    }}>
-                      Manage
-                    </button>
-                  </div>
-                </div>
+
+            <div role="tablist" aria-label="View" style={{ display: 'flex', flexWrap: 'wrap', gap: 4, borderBottom: `1px solid ${color.border}` }}>
+              {tabs.map(t => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t.key}
+                  onClick={() => setTab(t.key)}
+                  className={ui.focusable}
+                  style={{
+                    minHeight: space.target, padding: '0 12px', marginBottom: -1, border: 'none', background: 'transparent', cursor: 'pointer',
+                    borderBottom: `2px solid ${tab === t.key ? color.primary : 'transparent'}`,
+                    color: tab === t.key ? color.primaryInk : color.muted, fontFamily: 'inherit', fontSize: 15, fontWeight: 600,
+                  }}
+                >
+                  {t.label}
+                </button>
               ))}
             </div>
-          )
+
+            {/* Pass types: a card each */}
+            {tab === 'templates' && (
+              templates.length === 0 ? (
+                <Card>
+                  <EmptyState
+                    icon={<Ticket size={22} strokeWidth={1.8} />}
+                    message={canManagePassTemplates(roles)
+                      ? 'Create a pass type, like a 10-class pack, that members can buy from your booking page.'
+                      : "Your studio hasn't created any pass types yet."}
+                    action={canManagePassTemplates(roles) ? <Button href="/dashboard/passes/new" variant="primary">Create a pass type</Button> : undefined}
+                  />
+                </Card>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                  {templates.map(t => {
+                    const perClass = t.pass_type === 'credit' && t.credit_count ? t.price / t.credit_count : null
+                    return (
+                      <article key={t.id} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 14, padding: '20px 22px', opacity: t.is_active ? 1 : 0.6 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600, lineHeight: 1.3 }}>{t.name}</h2>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            <Chip>{t.pass_type === 'unlimited' ? 'Unlimited classes' : `${t.credit_count ?? '?'} credits`}</Chip>
+                            <Chip>{expiryRuleLabel(t)}</Chip>
+                            {!t.is_active && <Chip tone="warn">Not on sale</Chip>}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, paddingTop: 12, borderTop: `1px solid ${color.divider}` }}>
+                          <span style={{ fontSize: 28, fontWeight: 600, ...tabularNums }}>{formatMoney(t.price, t.currency)}</span>
+                          {perClass != null && <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>{formatMoney(perClass, t.currency)} per class</span>}
+                        </div>
+                        {canManagePassTemplates(roles) && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Button size="sm" href={`/dashboard/passes/${t.id}`}>Edit<span className={styles.srOnly}> {t.name}</span></Button>
+                          </div>
+                        )}
+                      </article>
+                    )
+                  })}
+                </div>
+              )
+            )}
+
+            {/* Issued to members */}
+            {tab === 'issued' && (
+              passes.length === 0 ? (
+                <Card>
+                  <EmptyState
+                    icon={<Ticket size={22} strokeWidth={1.8} />}
+                    message="No passes issued yet. Issue one to a member here, or wait for members to buy one from your booking page."
+                    action={<Button variant="primary" onClick={openIssueModal}>Issue a pass</Button>}
+                  />
+                </Card>
+              ) : (
+                <Card style={{ overflow: 'hidden' }} aria-label="Issued passes">
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', minWidth: 860, borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={th}>Member</th><th style={th}>Pass</th><th style={th}>Credits left</th><th style={th}>Expires</th><th style={th}>Status</th>
+                          <th style={th}><span className={styles.srOnly}>Actions</span></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {passes.map(p => {
+                          const credit = p.credits_total !== null
+                          const ratio = credit && p.credits_total ? (p.credits_remaining ?? 0) / p.credits_total : 1
+                          const daysLeft = Math.ceil((Date.parse(p.expires_at) - nowMs) / 864e5)
+                          const expiringSoon = (p.status === 'active' || p.status === 'low') && daysLeft >= 0 && daysLeft <= 7
+                          const member = displayName(p.user) || 'Unknown member'
+                          return (
+                            <tr key={p.id}>
+                              <td style={td}>
+                                <span style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ fontWeight: 600 }}>{member}</span>
+                                  {p.user?.email && <span style={{ fontSize: 13, color: color.muted }}>{p.user.email}</span>}
+                                </span>
+                              </td>
+                              <td style={{ ...td, color: color.ink2 }}>{p.pass_template?.name ?? '—'}</td>
+                              <td style={td}>
+                                {credit ? (
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                                    <span aria-hidden style={{ width: 80, height: 6, borderRadius: 3, background: color.track, overflow: 'hidden' }}>
+                                      <span style={{ display: 'block', width: `${Math.round(Math.min(ratio, 1) * 100)}%`, height: '100%', background: ratio <= 0.2 ? color.lowBar : color.primary }} />
+                                    </span>
+                                    <span style={{ fontSize: 14, ...tabularNums }}>{p.credits_remaining} / {p.credits_total}</span>
+                                  </span>
+                                ) : <span style={{ fontSize: 14, color: color.ink2 }}>Unlimited</span>}
+                              </td>
+                              <td style={{ ...td, ...tabularNums, color: expiringSoon ? color.warnInk : color.ink2, fontWeight: expiringSoon ? 600 : 400 }}>
+                                {formatDayMonth(p.expires_at)}
+                              </td>
+                              <td style={td}>
+                                {expiringSoon ? <Chip tone="warn">Expiring soon</Chip> : <StatusBadge status={p.status} />}
+                              </td>
+                              <td style={{ ...td, textAlign: 'right' }}>
+                                <span style={{ display: 'inline-flex', gap: 12, alignItems: 'center' }}>
+                                  <button type="button" onClick={() => openManageModal(p)} aria-label={`Manage ${member}'s pass`}
+                                    className={`${ui.button} ${ui.focusable}`} style={buttonStyle('secondary', 'sm')}>
+                                    Manage
+                                  </button>
+                                  <Link href={`/dashboard/members/${p.user_id}`} className={ui.focusable}
+                                    style={{ fontSize: 14, fontWeight: 600, color: color.primary, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                                    View member
+                                  </Link>
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )
+            )}
+          </div>
         )}
-        </>}
       </div>
 
       {/* Issue pass modal */}
@@ -526,15 +501,15 @@ export default function PassesPage() {
               {selectedMember ? (
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px 14px', border: '1px solid #085041', borderRadius: '8px', backgroundColor: '#e8f5ee'
+                  padding: '10px 14px', border: `1px solid ${color.primary}`, borderRadius: radius.control, backgroundColor: color.primarySoft
                 }}>
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: 600 }}>{displayName(selectedMember)}</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>{selectedMember.email}</div>
+                    <div style={{ fontSize: '12px', color: color.muted }}>{selectedMember.email}</div>
                   </div>
                   <button
                     onClick={() => setIssueForm(p => ({ ...p, userId: '' }))}
-                    style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#666' }}
+                    style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: color.muted }}
                   >
                     ×
                   </button>
@@ -548,11 +523,11 @@ export default function PassesPage() {
                     onChange={e => setMemberSearch(e.target.value)}
                     style={inputStyle}
                   />
-                  <div style={{ maxHeight: '160px', overflowY: 'auto', border: '1px solid #e2e2e2', borderRadius: '8px', marginTop: '8px' }}>
+                  <div style={{ maxHeight: '160px', overflowY: 'auto', border: `1px solid ${color.border}`, borderRadius: '8px', marginTop: '8px' }}>
                     {membersLoading ? (
-                      <div style={{ padding: '12px', fontSize: '13px', color: '#666' }}>Loading members...</div>
+                      <div style={{ padding: '12px', fontSize: '13px', color: color.muted }}>Loading members...</div>
                     ) : filteredMembers.length === 0 ? (
-                      <div style={{ padding: '12px', fontSize: '13px', color: '#666' }}>No members found</div>
+                      <div style={{ padding: '12px', fontSize: '13px', color: color.muted }}>No members found</div>
                     ) : (
                       filteredMembers.map(m => (
                         <button
@@ -560,11 +535,11 @@ export default function PassesPage() {
                           onClick={() => setIssueForm(p => ({ ...p, userId: m.id }))}
                           style={{
                             display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px',
-                            border: 'none', borderBottom: '1px solid #f4f4f4', backgroundColor: 'white', cursor: 'pointer'
+                            border: 'none', borderBottom: `1px solid ${color.divider}`, backgroundColor: 'white', cursor: 'pointer'
                           }}
                         >
                           <div style={{ fontSize: '13px', fontWeight: 600 }}>{displayName(m)}</div>
-                          <div style={{ fontSize: '12px', color: '#666' }}>{m.email}</div>
+                          <div style={{ fontSize: '12px', color: color.muted }}>{m.email}</div>
                         </button>
                       ))
                     )}
@@ -595,7 +570,7 @@ export default function PassesPage() {
                 onChange={e => setIssueForm(p => ({ ...p, effectiveFrom: e.target.value }))}
                 style={inputStyle}
               />
-              <p style={{ fontSize: '12px', color: '#666', marginTop: '6px' }}>Leave blank to start today</p>
+              <p style={{ fontSize: '12px', color: color.muted, marginTop: '6px' }}>Leave blank to start today</p>
             </div>
 
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
@@ -639,7 +614,7 @@ export default function PassesPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <div style={{ fontSize: '16px', fontWeight: 700 }}>{displayName(managingPass.user)}</div>
-                <div style={{ fontSize: '13px', color: '#666' }}>{managingPass.user?.email}</div>
+                <div style={{ fontSize: '13px', color: color.muted }}>{managingPass.user?.email}</div>
                 <div style={{ fontSize: '13px', marginTop: '8px' }}>{managingPass.pass_template?.name}</div>
               </div>
               <StatusBadge status={managingPass.status} />
@@ -647,13 +622,13 @@ export default function PassesPage() {
 
             <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
               <div>
-                <div style={{ color: '#666' }}>Credits</div>
+                <div style={{ color: color.muted }}>Credits</div>
                 <div style={{ fontWeight: 600 }}>
                   {managingPass.credits_remaining === null ? 'Unlimited' : `${managingPass.credits_remaining} / ${managingPass.credits_total}`}
                 </div>
               </div>
               <div>
-                <div style={{ color: '#666' }}>Expires</div>
+                <div style={{ color: color.muted }}>Expires</div>
                 <div style={{ fontWeight: 600 }}>{managingPass.expires_at}</div>
               </div>
             </div>
@@ -661,7 +636,7 @@ export default function PassesPage() {
             {manageError && <ErrorBanner message={manageError} />}
 
             {/* Freeze / unfreeze */}
-            <div style={{ borderTop: '1px solid #e2e2e2', paddingTop: '16px' }}>
+            <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: '16px' }}>
               <button
                 onClick={handleFreezeToggle}
                 disabled={manageBusy || managingPass.status === 'expired' || managingPass.status === 'exhausted'}
@@ -673,7 +648,7 @@ export default function PassesPage() {
 
             {/* Adjust credits */}
             {managingPass.credits_remaining !== null && (
-              <div style={{ borderTop: '1px solid #e2e2e2', paddingTop: '16px' }}>
+              <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: '16px' }}>
                 <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px' }}>Adjust credits</div>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                   <input
@@ -698,7 +673,7 @@ export default function PassesPage() {
             )}
 
             {/* Extend expiry */}
-            <div style={{ borderTop: '1px solid #e2e2e2', paddingTop: '16px' }}>
+            <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: '16px' }}>
               <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px' }}>Extend expiry</div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                 <input
@@ -721,27 +696,27 @@ export default function PassesPage() {
             </div>
 
             {/* Ledger */}
-            <div style={{ borderTop: '1px solid #e2e2e2', paddingTop: '16px' }}>
+            <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: '16px' }}>
               <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px' }}>Credit history</div>
               {ledgerLoading ? (
-                <div style={{ fontSize: '13px', color: '#666' }}>Loading...</div>
+                <div style={{ fontSize: '13px', color: color.muted }}>Loading...</div>
               ) : ledger.length === 0 ? (
-                <div style={{ fontSize: '13px', color: '#666' }}>No credit movements yet</div>
+                <div style={{ fontSize: '13px', color: color.muted }}>No credit movements yet</div>
               ) : (
                 <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
                   {ledger.slice().reverse().map(entry => (
                     <div key={entry.id} style={{
                       display: 'flex', justifyContent: 'space-between', padding: '8px 0',
-                      borderBottom: '1px solid #f4f4f4', fontSize: '13px'
+                      borderBottom: `1px solid ${color.divider}`, fontSize: '13px'
                     }}>
                       <div>
                         <div>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
-                        {entry.notes && <div style={{ fontSize: '12px', color: '#666' }}>{entry.notes}</div>}
-                        <div style={{ fontSize: '11px', color: '#999' }}>{formatDateTime(entry.created_at)}</div>
+                        {entry.notes && <div style={{ fontSize: '12px', color: color.muted }}>{entry.notes}</div>}
+                        <div style={{ fontSize: '11px', color: color.muted }}>{formatShortDate(entry.created_at)}, {formatClock(entry.created_at)}</div>
                       </div>
-                      <div style={{ textAlign: 'right', fontWeight: 600, color: entry.credits_delta < 0 ? '#8b1a1a' : '#085041' }}>
+                      <div style={{ textAlign: 'right', fontWeight: 600, color: entry.credits_delta < 0 ? color.dangerInk : color.primary }}>
                         {entry.credits_delta > 0 ? `+${entry.credits_delta}` : entry.credits_delta}
-                        <div style={{ fontSize: '11px', color: '#999', fontWeight: 400 }}>→ {entry.credits_after}</div>
+                        <div style={{ fontSize: '11px', color: color.muted, fontWeight: 400 }}>→ {entry.credits_after}</div>
                       </div>
                     </div>
                   ))}
@@ -755,51 +730,22 @@ export default function PassesPage() {
   )
 }
 
-function EmptyState({ icon, title, body, cta, href, onClick }: {
-  icon: string; title: string; body: string; cta: string; href?: string; onClick?: () => void
-}) {
-  return (
-    <div style={{
-      backgroundColor: 'white', borderRadius: '12px', padding: '64px', textAlign: 'center',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
-    }}>
-      <div style={{ fontSize: '48px', marginBottom: '16px' }}>{icon}</div>
-      <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>{title}</h3>
-      <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>{body}</p>
-      {href ? (
-        <a href={href} style={{
-          display: 'inline-block', padding: '10px 24px', backgroundColor: '#085041', color: 'white',
-          borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none'
-        }}>
-          {cta}
-        </a>
-      ) : (
-        <button onClick={onClick} style={{
-          padding: '10px 24px', backgroundColor: '#085041', color: 'white', border: 'none',
-          borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-        }}>
-          {cta}
-        </button>
-      )}
-    </div>
-  )
-}
-
 function ModalShell({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
     <div style={{
-      position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px'
+      position: 'fixed', inset: 0, background: 'rgba(23, 32, 28, 0.4)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 24,
     }}>
-      <div style={{
-        backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
-        maxWidth: wide ? '520px' : '480px', maxHeight: '90vh', overflowY: 'auto',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+      <div role="dialog" aria-modal="true" aria-label={title} style={{
+        background: color.surface, borderRadius: radius.card, padding: 28, width: '100%',
+        maxWidth: wide ? 560 : 480, maxHeight: '90vh', overflowY: 'auto',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)', fontFamily: font.body,
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{title}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>
-            ×
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{title}</h2>
+          <button type="button" aria-label="Close" onClick={onClose} className={ui.focusable}
+            style={{ ...buttonStyle('secondary', 'sm'), width: 36, padding: 0 }}>
+            <X size={16} strokeWidth={2} aria-hidden />
           </button>
         </div>
         {children}
@@ -810,20 +756,14 @@ function ModalShell({ title, onClose, children, wide }: { title: string; onClose
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
+    <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>
       {message}
     </div>
   )
 }
 
-const secondaryButtonStyle: React.CSSProperties = {
-  padding: '10px 16px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-  borderRadius: '8px', fontSize: '13px', cursor: 'pointer', color: '#444', fontWeight: 500
-}
+const secondaryButtonStyle: React.CSSProperties = buttonStyle('secondary')
 
 function primaryButtonStyle(busy: boolean): React.CSSProperties {
-  return {
-    flex: 1, padding: '10px', backgroundColor: busy ? '#9fd6b8' : '#085041', color: 'white',
-    border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer'
-  }
+  return { ...buttonStyle('primary'), flex: 1, opacity: busy ? 0.6 : 1, cursor: busy ? 'not-allowed' : 'pointer' }
 }
