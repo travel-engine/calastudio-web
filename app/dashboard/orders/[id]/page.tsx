@@ -6,7 +6,13 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewMembers, canManageBookings } from '@/lib/roles'
-import { formatDate, formatDateTime } from '@/lib/dates'
+import Link from 'next/link'
+import { Download } from 'lucide-react'
+import { formatClock, formatShortDate } from '@/lib/dates'
+import { formatMoney } from '@/lib/money'
+import { color, space, tabularNums } from '@/lib/ui/tokens'
+import { Breadcrumb, Button, Card, Chip, EmptyState, Field, Modal, PageHeader, alertStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface PassBookingRow {
@@ -65,7 +71,7 @@ interface MemberBookingRef {
 }
 
 const orderTypeLabels: Record<string, string> = {
-  booking: 'Session', pass_purchase: 'Pass', membership_purchase: 'Membership',
+  booking: 'Class', pass_purchase: 'Pass', membership_purchase: 'Membership',
 }
 
 // pass.bookings[].status comes through as the raw C# enum name (PascalCase), unlike the
@@ -81,58 +87,15 @@ function bookingStatusLabel(s: string) {
   return bookingStatusLabels[key] ?? s
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    succeeded: { bg: '#e8f5ee', color: '#085041', label: 'Paid' },
-    pending: { bg: '#fff3cd', color: '#7a4f00', label: 'Pending' },
-    failed: { bg: '#fdecea', color: '#8b1a1a', label: 'Failed' },
-    refunded: { bg: '#f4f4f4', color: '#666', label: 'Refunded' },
-    partially_refunded: { bg: '#f4f4f4', color: '#666', label: 'Partly refunded' },
-  }
-  const s = map[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color,
-    }}>
-      {s.label}
-    </span>
-  )
+const orderStatusChip: Record<string, { label: string; tone: ChipTone }> = {
+  succeeded: { label: 'Paid', tone: 'primary' },
+  pending: { label: 'Awaiting payment', tone: 'warn' },
+  failed: { label: 'Failed', tone: 'danger' },
+  refunded: { label: 'Refunded', tone: 'neutral' },
+  partially_refunded: { label: 'Part refunded', tone: 'neutral' },
 }
 
-function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '28px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
-      {children}
-    </div>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h2 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>{title}</h2>
-      {children}
-    </div>
-  )
-}
-
-const divider = <div style={{ borderTop: '1px solid #eee', margin: '24px 0' }} />
-
-const th: React.CSSProperties = { textAlign: 'left', fontSize: '11px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0 0 8px' }
-const td: React.CSSProperties = { fontSize: '13px', color: '#444', padding: '10px 0', borderTop: '1px solid #f4f4f4' }
-const rowLabel: React.CSSProperties = { fontSize: '13px', fontWeight: 600, color: '#1a1a1a' }
-const rowValue: React.CSSProperties = { fontSize: '13px', color: '#444', textAlign: 'right' }
-const refundButtonStyle: React.CSSProperties = {
-  marginTop: '14px', padding: '8px 16px', backgroundColor: 'white',
-  border: '1px solid #d2d2d2', borderRadius: '8px', fontSize: '13px',
-  fontWeight: 600, color: '#1a1a1a', cursor: 'pointer',
-}
-
-function fmtMoney(amount: number, currency: string) {
-  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount) }
-  catch { return `${currency} ${amount.toFixed(2)}` }
-}
+const th: React.CSSProperties = { ...smallCapsStyle, textAlign: 'left', padding: '10px 20px', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap' }
 
 export default function OrderDetailPage() {
   const router = useRouter()
@@ -145,7 +108,7 @@ export default function OrderDetailPage() {
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [order, setOrder] = useState<OrderDetail | null>(null)
-  const [showPaymentDetail, setShowPaymentDetail] = useState(false)
+  const [timeZone, setTimeZone] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
 
@@ -195,6 +158,7 @@ export default function OrderDetailPage() {
       setToken(t)
       const org = ctx.org
       setOrgId(org.id)
+      setTimeZone(org.timezone ?? null)
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
       if (!canViewMembers(myRoles)) { setForbidden(true); setLoading(false); return }
@@ -303,7 +267,7 @@ export default function OrderDetailPage() {
       <div className={styles.shell}>
         <Sidebar active="members" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
@@ -312,304 +276,167 @@ export default function OrderDetailPage() {
   const receiptDownloadable = order != null && order.status !== 'pending' && order.status !== 'failed'
   const hasTax = order != null && order.tax_amount > 0
   const pass = order?.pass ?? null
+  const canRefund = order != null && (order.status === 'succeeded' || order.status === 'partially_refunded') && canManageBookings(roles)
+    && (order.pass != null || (order.type === 'booking' && bookingRefundId != null))
+  const st = order ? (orderStatusChip[order.status] ?? { label: order.status, tone: 'neutral' as ChipTone }) : null
 
   return (
     <div className={styles.shell}>
       <Sidebar active="members" roles={roles} />
-      <div className={styles.main} style={{ maxWidth: '720px' }}>
-        {forbidden ? <Forbidden /> : notFound || !order ? (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-              <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#666', fontSize: '20px', lineHeight: 1, cursor: 'pointer' }}>←</button>
-              <h1 style={{ fontSize: '22px', fontWeight: 700 }}>Order details</h1>
-            </div>
-            <p style={{ color: '#666', fontSize: '14px' }}>This order could not be found.</p>
-          </>
-        ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-              <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#666', fontSize: '20px', lineHeight: 1, cursor: 'pointer' }}>←</button>
-              <h1 style={{ fontSize: '22px', fontWeight: 700 }}>Order details</h1>
-            </div>
-
-            <Card>
-              {/* Summary */}
-              <div style={{ fontSize: '18px', fontWeight: 700 }}>{order.product_name}</div>
-              <div style={{ fontSize: '13px', color: '#666', marginTop: '6px' }}>
-                {orderTypeLabels[order.type] ?? order.type} for{' '}
-                <a href={`/dashboard/members/${order.member_id}`} style={{ color: '#085041', fontWeight: 500 }}>
-                  {order.member_name}
-                </a>
-              </div>
-              <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '10px' }}>{fmtMoney(order.amount, order.currency)}</div>
-              {pass?.credits_remaining != null && (
-                <div style={{ fontSize: '13px', color: '#666', marginTop: '2px' }}>
-                  {pass.credits_remaining} {pass.credits_remaining === 1 ? 'class' : 'classes'} remaining
-                </div>
-              )}
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '18px' }}>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: '#e2e2e2', flexShrink: 0 }} />
-                <div style={{ fontSize: '13px', color: '#444' }}>
-                  <div style={{ color: '#999', fontSize: '12px' }}>Added by</div>
-                  {pass && !pass.added_by_admin
-                    ? <a href={`/dashboard/members/${order.member_id}`} style={{ color: '#085041', fontWeight: 500 }}>{pass.added_by_name}</a>
-                    : <span style={{ fontWeight: 500 }}>{pass?.added_by_name ?? order.member_name}</span>}
-                </div>
-              </div>
-
-              {pass && (
-                <>
-                  {divider}
-                  <Section title="Validity">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-                      <span style={rowLabel}>Start date</span><span style={rowValue}>{formatDate(pass.effective_from)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-                      <span style={rowLabel}>End date</span><span style={rowValue}>{formatDate(pass.expires_at)}</span>
-                    </div>
-                  </Section>
-                </>
-              )}
-
-              {divider}
-              <Section title="Receipt">
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-                  <span style={rowLabel}>Receipt date</span><span style={rowValue}>{formatDate(order.created_at)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-                  <span style={rowLabel}>Reference</span><span style={{ ...rowValue, fontFamily: 'ui-monospace, monospace', fontSize: '12px' }}>{order.receipt_reference}</span>
-                </div>
-                {receiptDownloadable && (
-                  <button
-                    onClick={downloadReceipt}
-                    disabled={downloading}
-                    style={{
-                      marginTop: '12px', padding: '8px 16px', backgroundColor: 'white',
-                      border: '1px solid #d2d2d2', borderRadius: '8px', fontSize: '13px',
-                      fontWeight: 600, color: '#1a1a1a', cursor: downloading ? 'default' : 'pointer',
-                    }}
-                  >
-                    {downloading ? 'Preparing…' : 'Download receipt (PDF)'}
-                  </button>
-                )}
-                {downloadError && (
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#8b1a1a' }}>{downloadError}</div>
-                )}
-              </Section>
-            </Card>
-
-            {/* Order payment */}
-            <Card>
-              <Section title="Order payment">
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ ...th, width: '90px' }}>Amount</th>
-                      <th style={th}>Method</th>
-                      <th style={{ ...th, width: '110px' }}>Status</th>
-                      <th style={{ ...th, width: '110px' }}>Date</th>
-                      <th style={{ ...th, width: '28px' }} />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr onClick={() => setShowPaymentDetail(v => !v)} style={{ cursor: 'pointer' }}>
-                      <td style={td}>{fmtMoney(order.amount, order.currency)}</td>
-                      <td style={td}>
-                        {order.method}
-                        {order.card_brand && (
-                          <span style={{ color: '#999' }}>
-                            {' '}· {order.card_brand.charAt(0).toUpperCase() + order.card_brand.slice(1)}
-                            {order.card_last4 ? ` ···· ${order.card_last4}` : ''}
-                          </span>
-                        )}
-                      </td>
-                      <td style={td}><StatusBadge status={order.status} /></td>
-                      <td style={td}>{formatDate(order.created_at)}</td>
-                      <td style={{ ...td, color: '#999', textAlign: 'right' }}>{showPaymentDetail ? '▾' : '▸'}</td>
-                    </tr>
-                    {showPaymentDetail && (
-                      <tr>
-                        <td colSpan={5} style={{ borderTop: 'none', padding: '4px 0 10px' }}>
-                          <div style={{ backgroundColor: '#fafafa', borderRadius: '8px', padding: '14px 16px' }}>
-                            <Row label="Subtotal" value={fmtMoney(order.subtotal, order.currency)} />
-                            {hasTax && (
-                              <Row
-                                label={`${order.tax_name ?? 'Tax'} (${order.tax_rate}%)`}
-                                value={fmtMoney(order.tax_amount, order.currency)}
-                              />
-                            )}
-                            <Row label="Total" value={fmtMoney(order.amount, order.currency)} strong />
-                            {order.fee != null && (
-                              <>
-                                <div style={{ borderTop: '1px solid #eee', margin: '8px 0' }} />
-                                <Row label="Stripe processing fee" value={`− ${fmtMoney(order.fee, order.currency)}`} muted />
-                                {order.net_amount != null && (
-                                  <Row label="Net to studio" value={fmtMoney(order.net_amount, order.currency)} />
-                                )}
-                              </>
-                            )}
-                            {!!order.refunded_amount && (
-                              <>
-                                <div style={{ borderTop: '1px solid #eee', margin: '8px 0' }} />
-                                <Row label="Refunded" value={`− ${fmtMoney(order.refunded_amount, order.currency)}`} muted />
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+      <div className={styles.main}>
+        {forbidden ? <Forbidden /> : (
+          <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            {notFound || !order ? (
+              <>
+                <Breadcrumb items={[{ label: 'Members', href: '/dashboard/members' }, { label: 'Order' }]} />
+                <PageHeader title="Order details" />
+                <Card><EmptyState message="This order could not be found." /></Card>
+              </>
+            ) : (
+              <>
+                <Breadcrumb items={[
+                  { label: 'Members', href: '/dashboard/members' },
+                  { label: order.member_name, href: `/dashboard/members/${order.member_id}` },
+                  { label: 'Orders', href: `/dashboard/members/${order.member_id}/orders` },
+                  { label: order.product_name },
+                ]} />
+                <PageHeader
+                  eyebrow={`${orderTypeLabels[order.type] ?? order.type} · ${formatShortDate(order.created_at, timeZone)}`}
+                  title={order.product_name}
+                  actions={<>
+                    {receiptDownloadable && (
+                      <Button onClick={downloadReceipt} disabled={downloading} icon={<Download size={18} strokeWidth={1.8} aria-hidden />}>
+                        {downloading ? 'Preparing…' : 'Download receipt'}
+                      </Button>
                     )}
-                  </tbody>
-                </table>
-
-                {(order.status === 'succeeded' || order.status === 'partially_refunded') && canManageBookings(roles) && (
-                  order.pass ? (
-                    <button onClick={() => openRefund('pass')} style={refundButtonStyle}>Issue refund</button>
-                  ) : order.type === 'booking' && bookingRefundId ? (
-                    <button onClick={() => openRefund('booking')} style={refundButtonStyle}>Issue refund</button>
-                  ) : null
-                )}
-              </Section>
-            </Card>
-
-            {/* Bookings against the pass */}
-            {pass && (
-              <Card>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '12px' }}>
-                  <h2 style={{ fontSize: '15px', fontWeight: 600 }}>Booked with this pass</h2>
-                  {pass.credits_total != null && pass.credits_remaining != null && (
-                    <span style={{ fontSize: '13px', color: '#666' }}>
-                      {pass.credits_remaining}/{pass.credits_total} classes remaining
+                    {canRefund && <Button onClick={() => openRefund(order.pass ? 'pass' : 'booking')}>Issue refund</Button>}
+                  </>}
+                >
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    {st && <Chip tone={st.tone}>{st.label}</Chip>}
+                    <span style={{ fontSize: 15, color: color.ink2 }}>
+                      for <Link href={`/dashboard/members/${order.member_id}`} className={ui.focusable} style={{ color: color.primary, fontWeight: 600, textDecoration: 'none' }}>{order.member_name}</Link>
                     </span>
-                  )}
-                </div>
-                {pass.bookings.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: '#666' }}>No classes booked with this pass yet.</p>
-                ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ ...th, width: '150px' }}>Date</th>
-                        <th style={th}>Class</th>
-                        <th style={{ ...th, width: '110px' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pass.bookings.map((b, i) => (
-                        <tr key={`${b.session_occurrence_id}-${i}`}>
-                          <td style={td}>{formatDateTime(b.date)}</td>
-                          <td style={{ ...td, fontWeight: 600 }}>
-                            <a href={`/dashboard/occurrences/${b.session_occurrence_id}`} style={{ color: '#085041' }}>
-                              {b.session_name}
-                            </a>
-                          </td>
-                          <td style={td}>{bookingStatusLabel(b.status)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </Card>
-            )}
-
-            {refundOpen && refundKind && (
-              <div style={{
-                position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px',
-              }}>
-                <div style={{
-                  backgroundColor: 'white', borderRadius: '16px', padding: '28px',
-                  width: '100%', maxWidth: '420px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Issue refund</h2>
-                    <button
-                      onClick={() => setRefundOpen(false)}
-                      style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}
-                    >
-                      ×
-                    </button>
                   </div>
+                </PageHeader>
+                {downloadError && <div role="alert" style={alertStyle()}>{downloadError}</div>}
 
-                  <p style={{ fontSize: '13px', color: '#666', marginBottom: '20px' }}>
-                    {order.member_name} paid {fmtMoney(order.amount, order.currency)} for {order.product_name}.
-                    Partial refunds are allowed; the amount can&apos;t exceed what&apos;s left unrefunded.
-                  </p>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
-                        Refund amount {refundQuoteLoading && <span style={{ color: '#999', fontWeight: 400 }}>(fetching suggested amount…)</span>}
-                      </label>
-                      <input
-                        type="number" min="0" step="0.01"
-                        value={refundAmount}
-                        onChange={e => setRefundAmount(e.target.value)}
-                        disabled={refundQuoteLoading}
-                        style={{
-                          width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-                          fontSize: '14px', outline: 'none',
-                        }}
-                      />
+                <div className={styles.orderCols} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: space.cardGap, alignItems: 'start' }}>
+                  {/* Payment */}
+                  <Card padded aria-labelledby="pay-heading">
+                    <h2 id="pay-heading" style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 600 }}>Payment</h2>
+                    <div style={{ fontSize: 34, fontWeight: 600, lineHeight: 1.1, ...tabularNums }}>{formatMoney(order.amount, order.currency)}</div>
+                    <div style={{ fontSize: 15, color: color.ink2, marginTop: 6 }}>
+                      {order.method}
+                      {order.card_brand && <span style={{ color: color.muted }}>{' · '}{order.card_brand.charAt(0).toUpperCase() + order.card_brand.slice(1)}{order.card_last4 ? ` ending ${order.card_last4}` : ''}</span>}
                     </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>Reason</label>
-                      <textarea
-                        value={refundReason}
-                        onChange={e => setRefundReason(e.target.value)}
-                        placeholder="e.g. Studio closure, member requested cancellation"
-                        style={{
-                          width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px',
-                          fontSize: '14px', outline: 'none', minHeight: '72px', fontFamily: 'inherit', resize: 'vertical',
-                        }}
-                      />
-                    </div>
+                    <dl style={{ margin: '18px 0 0', borderTop: `1px solid ${color.divider}`, paddingTop: 10 }}>
+                      <Row label="Subtotal" value={formatMoney(order.subtotal, order.currency)} />
+                      {hasTax && <Row label={`${order.tax_name ?? 'Tax'} (${order.tax_rate}%)`} value={formatMoney(order.tax_amount, order.currency)} />}
+                      <Row label="Total" value={formatMoney(order.amount, order.currency)} strong />
+                      {order.fee != null && <Row label="Stripe processing fee" value={`− ${formatMoney(order.fee, order.currency)}`} muted />}
+                      {order.fee != null && order.net_amount != null && <Row label="Net to studio" value={formatMoney(order.net_amount, order.currency)} />}
+                      {!!order.refunded_amount && <Row label="Refunded" value={`− ${formatMoney(order.refunded_amount, order.currency)}`} muted />}
+                    </dl>
+                  </Card>
 
-                    {refundError && (
-                      <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px' }}>
-                        {refundError}
+                  {/* Details */}
+                  <Card padded aria-labelledby="details-heading">
+                    <h2 id="details-heading" style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 600 }}>Details</h2>
+                    <dl style={{ margin: 0 }}>
+                      <Row label="Added by" value={pass?.added_by_name ?? order.member_name} />
+                      {pass && <Row label="Starts" value={formatShortDate(pass.effective_from, timeZone)} />}
+                      {pass && <Row label="Expires" value={formatShortDate(pass.expires_at, timeZone)} />}
+                      {pass?.credits_remaining != null && (
+                        <Row label="Credits left" value={pass.credits_total != null ? `${pass.credits_remaining} of ${pass.credits_total}` : String(pass.credits_remaining)} />
+                      )}
+                      <Row label="Receipt date" value={formatShortDate(order.created_at, timeZone)} />
+                      <Row label="Reference" value={order.receipt_reference} mono />
+                    </dl>
+                  </Card>
+                </div>
+
+                {/* Bookings against the pass */}
+                {pass && (
+                  <Card style={{ overflow: 'hidden' }} aria-labelledby="booked-heading">
+                    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, padding: '18px 20px 12px' }}>
+                      <h2 id="booked-heading" style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Booked with this pass</h2>
+                      {pass.credits_total != null && pass.credits_remaining != null && (
+                        <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>{pass.credits_remaining} of {pass.credits_total} credits left</span>
+                      )}
+                    </div>
+                    {pass.bookings.length === 0 ? (
+                      <p style={{ margin: 0, padding: '0 20px 20px', fontSize: 15, color: color.muted }}>No classes booked with this pass yet.</p>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', minWidth: 520, borderCollapse: 'collapse', fontSize: 15 }}>
+                          <thead>
+                            <tr>
+                              {['When', 'Class', 'Status'].map(h => <th key={h} scope="col" style={th}>{h}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pass.bookings.map((b, i) => {
+                              const td: React.CSSProperties = { padding: '12px 20px', borderBottom: i < pass.bookings.length - 1 ? `1px solid ${color.divider}` : 'none' }
+                              const label = bookingStatusLabel(b.status)
+                              return (
+                                <tr key={`${b.session_occurrence_id}-${i}`}>
+                                  <td style={{ ...td, whiteSpace: 'nowrap', color: color.ink2, ...tabularNums }}>{formatShortDate(b.date, timeZone)} · {formatClock(b.date, timeZone)}</td>
+                                  <td style={td}>
+                                    <Link href={`/dashboard/occurrences/${b.session_occurrence_id}`} className={ui.focusable} style={{ color: color.ink, fontWeight: 600, textDecoration: 'none' }}>{b.session_name}</Link>
+                                  </td>
+                                  <td style={td}>{label ? <Chip tone={/cancel/i.test(label) ? 'neutral' : label === 'Attended' ? 'primary' : 'info'}>{label}</Chip> : <span style={{ color: color.muted }}>—</span>}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     )}
+                  </Card>
+                )}
 
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                      <button
-                        onClick={() => setRefundOpen(false)}
-                        disabled={refundBusy}
-                        style={{
-                          padding: '10px 18px', backgroundColor: 'white', border: '1px solid #e2e2e2',
-                          borderRadius: '8px', fontSize: '13px', fontWeight: 600, color: '#444', cursor: 'pointer',
-                        }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleIssueRefund}
-                        disabled={refundBusy || refundQuoteLoading}
-                        style={{
-                          padding: '10px 18px', backgroundColor: refundBusy ? '#9fd6b8' : '#085041', color: 'white',
-                          border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600,
-                          cursor: refundBusy ? 'default' : 'pointer',
-                        }}
-                      >
-                        {refundBusy ? 'Refunding…' : 'Issue refund'}
-                      </button>
+                {refundOpen && refundKind && (
+                  <Modal title="Issue refund" onClose={() => setRefundOpen(false)} width={440}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+                      <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.ink2 }}>
+                        {order.member_name} paid {formatMoney(order.amount, order.currency)} for {order.product_name}.
+                        Partial refunds are allowed; the amount can&apos;t exceed what&apos;s left unrefunded.
+                      </p>
+                      <Field label={refundQuoteLoading ? 'Refund amount (fetching suggested amount…)' : 'Refund amount'} htmlFor="refund-amount">
+                        <input id="refund-amount" type="number" min="0" step="0.01" value={refundAmount}
+                          onChange={e => setRefundAmount(e.target.value)} disabled={refundQuoteLoading} style={{ ...controlStyle, ...tabularNums }} />
+                      </Field>
+                      <Field label="Reason" htmlFor="refund-reason">
+                        <textarea id="refund-reason" value={refundReason} onChange={e => setRefundReason(e.target.value)}
+                          placeholder="e.g. Studio closure, member requested cancellation"
+                          style={{ ...controlStyle, minHeight: 80, padding: '10px 12px', resize: 'vertical' }} />
+                      </Field>
+                      {refundError && <div role="alert" style={alertStyle()}>{refundError}</div>}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end' }}>
+                        <Button onClick={() => setRefundOpen(false)} disabled={refundBusy}>Cancel</Button>
+                        <Button variant="primary" onClick={handleIssueRefund} disabled={refundBusy || refundQuoteLoading}>{refundBusy ? 'Refunding…' : 'Issue refund'}</Button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </div>
+                  </Modal>
+                )}
+              </>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
   )
 }
 
-function Row({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
+function Row({ label, value, strong, muted, mono }: { label: string; value: string; strong?: boolean; muted?: boolean; mono?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '13px' }}>
-      <span style={{ color: muted ? '#999' : '#666', fontWeight: strong ? 600 : 400 }}>{label}</span>
-      <span style={{ color: muted ? '#999' : '#1a1a1a', fontWeight: strong ? 700 : 500 }}>{value}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '7px 0', fontSize: 15 }}>
+      <dt style={{ color: muted ? color.muted : color.ink2, fontWeight: strong ? 600 : 400 }}>{label}</dt>
+      <dd style={{
+        margin: 0, textAlign: 'right', color: muted ? color.muted : color.ink, fontWeight: strong ? 600 : 500, minWidth: 0, wordBreak: 'break-all',
+        ...(mono ? { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13 } : tabularNums),
+      }}>{value}</dd>
     </div>
   )
 }

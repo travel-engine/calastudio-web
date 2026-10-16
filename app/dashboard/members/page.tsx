@@ -10,6 +10,11 @@ import { displayName } from '@/lib/names'
 import { formatRelativeShort } from '@/lib/dates'
 import { memberActivity, memberActivityLabel } from '@/lib/members'
 import AddMemberModal from '@/app/components/AddMemberModal'
+import Link from 'next/link'
+import { Plus, Search, Upload, Users } from 'lucide-react'
+import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
+import { Button, Card, Chip, EmptyState, Field, Modal, PageHeader, alertStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Member {
@@ -46,44 +51,10 @@ interface ImportResult {
   imported_count: number
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    valid: { bg: '#e8f5ee', color: '#085041', label: 'Valid' },
-    invalid: { bg: '#fdecea', color: '#8b1a1a', label: 'Invalid' },
-    already_member: { bg: '#fff3cd', color: '#7a4f00', label: 'Already a member' },
-  }
-  const s = map[status] ?? { bg: '#f4f4f4', color: '#666', label: status }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
-    }}>
-      {s.label}
-    </span>
-  )
-}
-
-function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '24px'
-    }}>
-      <div style={{
-        backgroundColor: 'white', borderRadius: '16px', padding: '32px', width: '100%',
-        maxWidth: '820px', maxHeight: '90vh', overflowY: 'auto',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{title}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>
-            ×
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  )
+const IMPORT_STATUS: Record<string, { label: string; tone: ChipTone }> = {
+  valid: { label: 'Valid', tone: 'primary' },
+  invalid: { label: 'Invalid', tone: 'danger' },
+  already_member: { label: 'Already a member', tone: 'warn' },
 }
 
 // Kept in sync with the "Columns recognized" copy in the import modal and the API's
@@ -107,14 +78,6 @@ function downloadSampleMembersCsv() {
   a.click()
   a.remove()
   URL.revokeObjectURL(url)
-}
-
-function ErrorBanner({ message }: { message: string }) {
-  return (
-    <div style={{ padding: '12px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '13px', marginBottom: '16px' }}>
-      {message}
-    </div>
-  )
 }
 
 export default function MembersPage() {
@@ -245,136 +208,86 @@ export default function MembersPage() {
       <div className={styles.shell}>
         <Sidebar active="members" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
   }
+
+  const actions = (
+    <>
+      {canImportMembers(roles) && <Button onClick={openImportModal} icon={<Upload size={18} strokeWidth={1.8} aria-hidden />}>Import CSV</Button>}
+      {canAddMember(roles) && <Button variant="primary" onClick={() => setShowAddMember(true)} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Add member</Button>}
+    </>
+  )
+  const initials = (m: Member) => `${m.first_name?.[0] ?? ''}${m.last_name?.[0] ?? ''}`.toUpperCase() || '?'
 
   return (
     <div className={styles.shell}>
       <Sidebar active="members" roles={roles} />
 
       <div className={styles.main}>
-        {forbidden ? <Forbidden /> : <>
+        {forbidden ? <Forbidden /> : (
+          <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            <PageHeader eyebrow={`${members.length} member${members.length !== 1 ? 's' : ''} in your studio`} title="Members" actions={actions} />
 
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Members</h1>
-            <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-              {members.length} member{members.length !== 1 ? 's' : ''} in your studio
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {canAddMember(roles) && (
-              <button
-                onClick={() => setShowAddMember(true)}
-                style={{
-                  padding: '10px 20px', backgroundColor: '#085041', color: 'white', border: 'none',
-                  borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-                }}
-              >
-                + Add member
-              </button>
+            {members.length === 0 ? (
+              <Card>
+                <EmptyState
+                  icon={<Users size={22} strokeWidth={1.8} />}
+                  message="Members show up here once they book. You can also add someone directly or import an existing list."
+                  action={<div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>{actions}</div>}
+                />
+              </Card>
+            ) : (
+              <>
+                <label style={{ position: 'relative', maxWidth: 380 }}>
+                  <span className={styles.srOnly}>Search members by name or email</span>
+                  <Search size={18} strokeWidth={2} color={color.muted} aria-hidden style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                  <input type="search" placeholder="Search by name or email" value={search} onChange={e => setSearch(e.target.value)}
+                    style={{ ...controlStyle, paddingLeft: 38 }} />
+                </label>
+
+                {filtered.length === 0 ? (
+                  <Card><EmptyState message={<>No members match &ldquo;{search}&rdquo;.</>} /></Card>
+                ) : (
+                  <Card style={{ overflow: 'hidden' }} aria-label="Members">
+                    <div className={styles.membersHead} aria-hidden style={{
+                      display: 'flex', gap: 16, padding: '12px 20px', borderBottom: `1px solid ${color.border}`, ...smallCapsStyle,
+                    }}>
+                      <span style={{ flex: '1 1 240px' }}>Name</span>
+                      <span style={{ flex: '1 1 240px' }}>Email</span>
+                      <span style={{ width: 140, flex: 'none', textAlign: 'right' }}>Last active</span>
+                    </div>
+                    {filtered.map((m, i) => {
+                      const activity = memberActivity(m.auth_provisioned_at, m.last_seen_at)
+                      return (
+                        <Link key={m.id} href={`/dashboard/members/${m.id}`} className={`${ui.rowLink} ${ui.focusable}`}
+                          style={{
+                            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 16px', padding: '12px 20px',
+                            borderTop: i ? `1px solid ${color.divider}` : 'none', textDecoration: 'none', color: color.ink,
+                            ['--hover-bg' as string]: '#F7F8F5',
+                          }}>
+                          <span style={{ flex: '1 1 240px', minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span aria-hidden style={{
+                              width: 36, height: 36, borderRadius: '50%', flex: 'none', background: color.primarySoft, color: color.primaryInk,
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600,
+                            }}>{initials(m)}</span>
+                            <span style={{ fontSize: 15, fontWeight: 600 }}>{displayName(m)}</span>
+                          </span>
+                          <span style={{ flex: '1 1 240px', minWidth: 0, fontSize: 14, color: color.ink2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.email}</span>
+                          <span style={{ width: 140, flex: 'none', textAlign: 'right', fontSize: 14, color: activity.kind === 'seen' ? color.ink2 : color.muted, ...tabularNums }}>
+                            {activity.kind === 'seen' ? formatRelativeShort(activity.at) : memberActivityLabel(activity)}
+                          </span>
+                        </Link>
+                      )
+                    })}
+                  </Card>
+                )}
+              </>
             )}
-            {canImportMembers(roles) && (
-              <button
-                onClick={openImportModal}
-                style={{
-                  padding: '10px 20px', backgroundColor: 'white', color: '#1a1a1a', border: '1px solid #d2d2d2',
-                  borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-                }}
-              >
-                Import CSV
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Search */}
-        {members.length > 0 && (
-          <input
-            type="text"
-            placeholder="Search members by name or email..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              width: '100%', maxWidth: '360px', padding: '10px 14px', border: '1px solid #e2e2e2',
-              borderRadius: '8px', fontSize: '14px', outline: 'none', marginBottom: '20px', backgroundColor: 'white'
-            }}
-          />
-        )}
-
-        {/* Member list */}
-        {members.length === 0 ? (
-          <div style={{
-            backgroundColor: 'white', borderRadius: '12px', padding: '64px', textAlign: 'center',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>👥</div>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No members yet</h3>
-            <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
-              Members show up here once they book, or you can add someone directly or import an existing list.
-            </p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              {canAddMember(roles) && (
-                <button
-                  onClick={() => setShowAddMember(true)}
-                  style={{
-                    padding: '10px 24px', backgroundColor: '#085041', color: 'white',
-                    border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-                  }}
-                >
-                  + Add member
-                </button>
-              )}
-              {canImportMembers(roles) && (
-                <button
-                  onClick={openImportModal}
-                  style={{
-                    padding: '10px 24px', backgroundColor: 'white', color: '#1a1a1a', border: '1px solid #d2d2d2',
-                    borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-                  }}
-                >
-                  Import CSV
-                </button>
-              )}
-            </div>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div style={{
-            backgroundColor: 'white', borderRadius: '12px', padding: '48px', textAlign: 'center',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)', color: '#666', fontSize: '14px'
-          }}>
-            No members match &quot;{search}&quot;.
-          </div>
-        ) : (
-          <div className={styles.table}>
-            <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '2fr 2fr 140px' }}>
-              <div>Name</div>
-              <div>Email</div>
-              <div>Last active</div>
-            </div>
-            {filtered.map((m, i) => {
-              const activity = memberActivity(m.auth_provisioned_at, m.last_seen_at)
-              return (
-                <a key={m.id} href={`/dashboard/members/${m.id}`} className={styles.tableRow} style={{
-                  gridTemplateColumns: '2fr 2fr 140px',
-                  borderBottom: i < filtered.length - 1 ? '1px solid #f4f4f4' : 'none',
-                  textDecoration: 'none', color: 'inherit', cursor: 'pointer'
-                }}>
-                  <div style={{ fontWeight: 600, fontSize: '14px' }}>{displayName(m)}</div>
-                  <div style={{ fontSize: '13px', color: '#666' }}>{m.email}</div>
-                  <div style={{ fontSize: '13px', color: activity.kind === 'seen' ? '#444' : '#999' }}>
-                    {activity.kind === 'seen' ? formatRelativeShort(activity.at) : memberActivityLabel(activity)}
-                  </div>
-                </a>
-              )
-            })}
           </div>
         )}
-        </>}
       </div>
 
       {showAddMember && (
@@ -387,160 +300,96 @@ export default function MembersPage() {
       )}
 
       {showImportModal && (
-        <ModalShell title="Import members from CSV" onClose={() => setShowImportModal(false)}>
+        <Modal title="Import members from CSV" onClose={() => setShowImportModal(false)} width={820}>
           {!preview ? (
-            <>
-              <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
-                Columns recognized: first_name, last_name, email, join_date, phone, date_of_birth,
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: color.ink2 }}>
+                Columns recognised: first_name, last_name, email, join_date, phone, date_of_birth,
                 gender, person_type, emergency_contact_name, emergency_contact_phone, address.
                 Only first_name and email are required — a single full_name column is also accepted
                 and split automatically. Include a header row so any subset works in any order.
                 Dates must be YYYY-MM-DD. If given, gender must be male, female, other or
                 prefer_not_to_say, and person_type must be adult, child, senior or student.
               </p>
-
-              <button
-                type="button"
-                onClick={downloadSampleMembersCsv}
-                style={{
-                  background: 'none', border: 'none', padding: 0, marginBottom: '16px',
-                  color: '#085041', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                  textDecoration: 'underline'
-                }}
-              >
-                Download sample CSV
-              </button>
-
-              {importError && <ErrorBanner message={importError} />}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{
-                      padding: '10px 20px', backgroundColor: '#f4f4f4', border: '1px solid #e2e2e2',
-                      borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer'
-                    }}
-                  >
-                    Choose CSV file to upload
-                  </button>
-                  {fileName && <span style={{ marginLeft: '12px', fontSize: '13px', color: '#666' }}>{fileName}</span>}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv,text/csv"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                  />
-                </div>
-
-                <div style={{ fontSize: '12px', color: '#999', textAlign: 'center' }}>— or paste rows directly —</div>
-
-                <textarea
-                  value={csvText}
-                  onChange={e => { setCsvText(e.target.value); setFileName('') }}
-                  placeholder={'first_name,last_name,email,join_date\nJane,Smith,jane@example.com,2026-01-15'}
-                  style={{
-                    width: '100%', minHeight: '140px', padding: '10px 14px', border: '1px solid #e2e2e2',
-                    borderRadius: '8px', fontSize: '13px', fontFamily: 'monospace', outline: 'none', resize: 'vertical'
-                  }}
-                />
+              <div>
+                <button type="button" onClick={downloadSampleMembersCsv} className={ui.focusable}
+                  style={{ background: 'none', border: 0, padding: '6px 0', color: color.primary, fontFamily: 'inherit', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+                  Download sample CSV
+                </button>
               </div>
 
-              <button
-                onClick={handlePreview}
-                disabled={previewing}
-                style={{
-                  padding: '10px 24px', backgroundColor: '#085041', color: 'white', border: 'none',
-                  borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                  cursor: previewing ? 'default' : 'pointer', opacity: previewing ? 0.6 : 1
-                }}
-              >
-                {previewing ? 'Checking...' : 'Preview import'}
-              </button>
-            </>
+              {importError && <div role="alert" style={alertStyle()}>{importError}</div>}
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+                <Button onClick={() => fileInputRef.current?.click()} icon={<Upload size={18} strokeWidth={1.8} aria-hidden />}>Choose CSV file</Button>
+                {fileName && <span style={{ fontSize: 14, color: color.ink2 }}>{fileName}</span>}
+                <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleFileChange} style={{ display: 'none' }} />
+              </div>
+
+              <Field label="Or paste rows" htmlFor="csv-paste">
+                <textarea id="csv-paste" value={csvText} onChange={e => { setCsvText(e.target.value); setFileName('') }}
+                  placeholder={'first_name,last_name,email,join_date\nJane,Smith,jane@example.com,2026-01-15'}
+                  style={{ ...controlStyle, minHeight: 140, padding: '10px 12px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, resize: 'vertical' }} />
+              </Field>
+
+              <div><Button variant="primary" onClick={handlePreview} disabled={previewing}>{previewing ? 'Checking…' : 'Preview import'}</Button></div>
+            </div>
           ) : (
-            <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
               {committed ? (
-                <div style={{ padding: '16px', backgroundColor: '#e8f5ee', borderRadius: '8px', color: '#085041', fontSize: '14px', marginBottom: '16px' }}>
-                  Imported {preview.imported_count} member{preview.imported_count !== 1 ? 's' : ''}.
-                </div>
+                <div role="status" style={alertStyle('ok')}>Imported {preview.imported_count} member{preview.imported_count !== 1 ? 's' : ''}.</div>
               ) : (
-                <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px' }}>
+                <p style={{ margin: 0, fontSize: 15, color: color.ink2, ...tabularNums }}>
                   {preview.valid_count} row{preview.valid_count !== 1 ? 's' : ''} ready to import,{' '}
                   {preview.already_member_count} already a member, {preview.invalid_count} invalid.
                   Nothing has been saved yet.
                 </p>
               )}
 
-              {importError && <ErrorBanner message={importError} />}
+              {importError && <div role="alert" style={alertStyle()}>{importError}</div>}
 
-              <div style={{ border: '1px solid #e2e2e2', borderRadius: '8px', overflow: 'hidden', marginBottom: '20px', maxHeight: '320px', overflowY: 'auto' }}>
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '40px 1.4fr 1.6fr 1fr 1.6fr',
-                  padding: '10px 16px', backgroundColor: '#f4f4f4', borderBottom: '1px solid #e2e2e2',
-                  fontSize: '11px', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em'
-                }}>
-                  <div>#</div>
-                  <div>Name</div>
-                  <div>Email</div>
-                  <div>Status</div>
-                  <div>Reason</div>
-                </div>
-                {preview.rows.map(row => (
-                  <div key={row.row_number} style={{
-                    display: 'grid', gridTemplateColumns: '40px 1.4fr 1.6fr 1fr 1.6fr',
-                    padding: '10px 16px', borderBottom: '1px solid #f4f4f4', alignItems: 'center', fontSize: '13px'
-                  }}>
-                    <div style={{ color: '#999' }}>{row.row_number}</div>
-                    <div>{displayName(row) || '—'}</div>
-                    <div style={{ color: '#666', wordBreak: 'break-word' }}>{row.email || '—'}</div>
-                    <div><StatusBadge status={row.status} /></div>
-                    <div style={{ color: '#999', fontSize: '12px' }}>{row.reason ?? '—'}</div>
-                  </div>
-                ))}
+              <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, overflow: 'auto', maxHeight: 340 }}>
+                <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr>
+                      {['Row', 'Name', 'Email', 'Status', 'Reason'].map(h => (
+                        <th key={h} scope="col" style={{ ...smallCapsStyle, textAlign: 'left', padding: '10px 14px', borderBottom: `1px solid ${color.border}`, position: 'sticky', top: 0, background: color.surface }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.rows.map(row => {
+                      const st = IMPORT_STATUS[row.status] ?? { label: row.status, tone: 'neutral' as ChipTone }
+                      const td: React.CSSProperties = { padding: '10px 14px', borderBottom: `1px solid ${color.divider}`, verticalAlign: 'top' }
+                      return (
+                        <tr key={row.row_number}>
+                          <td style={{ ...td, color: color.muted, ...tabularNums }}>{row.row_number}</td>
+                          <td style={td}>{displayName(row) || '—'}</td>
+                          <td style={{ ...td, color: color.ink2, wordBreak: 'break-word' }}>{row.email || '—'}</td>
+                          <td style={td}><Chip tone={st.tone}>{st.label}</Chip></td>
+                          <td style={{ ...td, color: color.muted }}>{row.reason ?? '—'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                 {!committed ? (
                   <>
-                    <button
-                      onClick={handleCommit}
-                      disabled={committing || preview.valid_count === 0}
-                      style={{
-                        padding: '10px 24px', backgroundColor: '#085041', color: 'white', border: 'none',
-                        borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-                        cursor: committing || preview.valid_count === 0 ? 'default' : 'pointer',
-                        opacity: committing || preview.valid_count === 0 ? 0.5 : 1
-                      }}
-                    >
-                      {committing ? 'Importing...' : `Import ${preview.valid_count} member${preview.valid_count !== 1 ? 's' : ''}`}
-                    </button>
-                    <button
-                      onClick={() => setPreview(null)}
-                      style={{
-                        padding: '10px 24px', backgroundColor: 'transparent', border: '1px solid #e2e2e2',
-                        borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', color: '#444'
-                      }}
-                    >
-                      Back
-                    </button>
+                    <Button onClick={() => setPreview(null)}>Back</Button>
+                    <Button variant="primary" onClick={handleCommit} disabled={committing || preview.valid_count === 0}>
+                      {committing ? 'Importing…' : `Import ${preview.valid_count} member${preview.valid_count !== 1 ? 's' : ''}`}
+                    </Button>
                   </>
                 ) : (
-                  <button
-                    onClick={() => setShowImportModal(false)}
-                    style={{
-                      padding: '10px 24px', backgroundColor: '#085041', color: 'white', border: 'none',
-                      borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer'
-                    }}
-                  >
-                    Done
-                  </button>
+                  <Button variant="primary" onClick={() => setShowImportModal(false)}>Done</Button>
                 )}
               </div>
-            </>
+            </div>
           )}
-        </ModalShell>
+        </Modal>
       )}
     </div>
   )

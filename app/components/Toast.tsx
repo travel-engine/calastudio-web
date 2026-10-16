@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { color, radius } from '@/lib/ui/tokens'
 
 interface Props {
   message: string
@@ -29,14 +30,14 @@ export default function Toast({ message, onDismiss, duration = 3500 }: Props) {
       aria-live="polite"
       style={{
         position: 'fixed',
-        bottom: '24px',
+        bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
         left: '50%',
         transform: 'translateX(-50%)',
-        backgroundColor: '#1a1a1a',
-        color: 'white',
+        background: color.ink,
+        color: '#FFFFFF',
         padding: '12px 20px',
-        borderRadius: '10px',
-        fontSize: '14px',
+        borderRadius: radius.control,
+        fontSize: 15,
         fontWeight: 500,
         boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
         zIndex: 100,

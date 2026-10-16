@@ -1268,7 +1268,7 @@ export default function OccurrenceDetailPage() {
             )}
           </Card>
 
-          <EntityActivity orgId={orgId} token={token} entityType="session_occurrence" entityId={occurrence.id} noun="class" refreshKey={activityKey} />
+          <EntityActivity orgId={orgId} token={token} entityType="session_occurrence" entityId={occurrence.id} noun="class" refreshKey={activityKey} timeZone={timeZone} />
         </div>
       </div>
 
