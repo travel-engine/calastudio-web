@@ -10,9 +10,9 @@ Refunds work differently depending on how the booking was paid for — a card ch
 
 ## Card payments
 
-**Automatic** — if a member cancels a card-paid booking themselves inside the session's cancellation window, the full amount is refunded straight away with no action needed from you. Cancelling a booking or a whole occurrence from the dashboard doesn't trigger this — only a member's own in-window self-service cancellation does.
+**Automatic** — if a member cancels a card-paid booking themselves inside the session's cancellation window, the full amount is refunded straight away with no action needed from you. Cancelling a booking or a whole class from the dashboard doesn't trigger this — only a member's own in-window self-service cancellation does.
 
-**Manual** — from a booking's roster row, click **Refund** (Admin, Super teacher only) to open the refund form:
+**Manual** — on the class's roster, click **Refund** on a card-paid booking (on the **Booked** or **Cancelled** tab; Admin, Super teacher only) to open the refund form:
 
 1. Enter the amount — partial refunds are allowed, capped at whatever hasn't already been refunded
 2. Enter a reason (required)
@@ -24,6 +24,6 @@ Payments older than 90 days can't be refunded from here — the button will tell
 
 **Automatic** — cancelling inside the cancellation window returns the credit immediately, whether the member cancelled it themselves or you cancelled it for them. Cancelling outside the window (a "late cancel") forfeits it instead, per your studio's cancellation policy — see **Sessions → Cancellation policy**.
 
-**Manual override** — if a late cancel forfeited a credit and you want to return it anyway (a goodwill gesture, or the cancellation window was misjudged), open the occurrence and go to its **Cancelled** tab. A late-cancelled pass booking that hasn't been refunded shows a **Refund credit** button (Admin, Super teacher only) — click it to return the credit to the member's pass. The Cancelled tab then shows when it was refunded and by whom, alongside the original cancellation record.
+**Manual override** — if a late cancel forfeited a credit and you want to return it anyway (a goodwill gesture, or the cancellation window was misjudged), open the class's roster and go to its **Cancelled** tab. A late-cancelled pass booking that hasn't been refunded shows a **Refund credit** button (Admin, Super teacher only) — click it to return the credit to the member's pass. The Cancelled tab then shows when it was refunded and by whom, alongside the original cancellation record.
 
-Cancelling a whole occurrence always returns every credit in full, regardless of the window — see **Managing bookings → Cancelling a whole occurrence**.
+Cancelling a whole class always returns every credit in full, regardless of the window — see **Managing bookings → Cancelling a whole class**.

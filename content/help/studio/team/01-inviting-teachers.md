@@ -12,7 +12,7 @@ Add your team members so they can manage their own sessions and students.
 
 1. Go to **Team** in the sidebar
 2. Click **+ Invite teacher**
-3. Enter their name, email address, and select a role
+3. Enter their first name, last name and email address, and choose a role — a short description of what that role can do appears under the list
 4. Click **Add to team**
 
 They appear in your team list straight away and get an invitation email with a link to set a password. Once they set it, they're taken directly to their teacher dashboard — there's no separate sign-up step.
@@ -28,13 +28,15 @@ If a teacher didn't receive the email, or their link has expired, open **Team** 
 | **Super teacher** | Views every session. Adds or cancels occurrence dates, processes paid bookings, issues and adjusts passes. Can't create or edit session templates, invite teachers, or change studio settings. |
 | **Teacher** | Views their own sessions and full roster (including member contact info). Adds students at no charge, marks attendance. Can't edit session details or process payments. |
 | **Basic teacher** | Adds students to their own sessions and marks attendance only. Sees member names on the roster, not contact or financial details. |
-| **Front desk** | Views the full schedule and checks members in as attended. Sees member names only — no contact/financial details, and can't mark no-shows or add students. |
+| **Front desk** | Views the full schedule and checks members in. Sees member names only — no contact/financial details, and can't add students. |
 
 See **Teacher roles** for the full permission breakdown, including exactly which screens each role can and can't reach.
 
 ## Multiple roles
 
-A person can hold more than one role. For example, a senior member who covers classes temporarily can be both a **Member** and a **Basic teacher** at the same time. You can add or remove roles at any time from their profile.
+A person can hold more than one role. For example, a senior member who covers classes temporarily can be both a **Member** and a **Basic teacher** at the same time. Each person's roles are shown on the **Team** list and on their page (click **Edit**).
+
+Changing an existing team member's role from the dashboard isn't available yet — contact CalaStudio support if someone's role needs to change.
 
 ## Multi-studio teachers
 

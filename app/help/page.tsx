@@ -14,6 +14,8 @@ const sectionIcons: Record<string, string> = {
   'pricing': '💰',
   'payments': '💳',
   'team': '👤',
+  'settings': '🛠️',
+  'reports': '📊',
   'booking': '🎟',
   'passes': '🎫',
   'account': '⚙️',

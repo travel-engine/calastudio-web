@@ -54,4 +54,10 @@ One-off sessions (like a special workshop) leave the toggle on **One-off** — *
 |---------|---------------|
 | **Open** | Any pricing option works — pass, membership, or drop-in |
 | **Free** | No payment required. Anyone can book. |
-| **Restricted** | Only specific passes or memberships can be used |
+| **Restricted** | Only the passes you pick can be used. Bookings you add yourself from a roster skip this list |
+
+## Editing a session later
+
+Open any session from **Sessions** to edit it. Its page groups the settings into cards — **Basics**, **Where**, **When**, **Price & who can book** and **Booking rules** — with the session's next class and **Upcoming classes** alongside. Make your changes and click **Save changes** at the bottom; **Discard** leaves without saving.
+
+On this page the instructor is labelled **Teacher** (**No teacher** if unassigned), and **Booking rules** is where a session can override your studio's cancellation window and booking limits — leave a field blank to use your studio defaults. **Duplicate** (top right) starts a new session pre-filled with this one's details, and **View booking page** opens your public schedule.

@@ -32,8 +32,8 @@ For a single event — a workshop, a special class, a one-time event — leave r
 
 ## Editing a recurring session
 
-Changes you make to the session itself — price, capacity, description, and so on — are defaults for every occurrence generated afterward. Occurrences already created keep their own settings; edit or cancel those individually from **Bookings** or the session's **Occurrences** section.
+Changes you make to the session itself — price, capacity, description, and so on — are defaults for every occurrence generated afterward. Occurrences already created keep their own settings; edit or cancel those individually from their roster page — open one from **Schedule**, or from **Upcoming classes** on the session.
 
 ## Copying instead of recurring
 
-If you want a similar session on a different, irregular schedule (not weekly), it's usually easier to create it as one-off and use **Copy** from the sessions list to quickly duplicate the details for the next date, rather than forcing it into a weekly recurrence.
+If you want a similar session on a different, irregular schedule (not weekly), it's usually easier to create it as one-off and open it and click **Duplicate** to copy its details into a new session for the next date, rather than forcing it into a weekly recurrence.

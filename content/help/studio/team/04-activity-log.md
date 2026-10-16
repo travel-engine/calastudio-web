@@ -20,11 +20,13 @@ Each row shows when something happened, who did it (and their role at the time),
 | **Override** | A manual exception, like a credit adjustment, an expiry extension, or manually refunding a forfeited credit on a late-cancelled booking — these always carry a reason |
 | **System** | An automated change with no human actor |
 
-Click **Details** on any row with a changes indicator to see exactly what changed — each field's old value and new value side by side — and, for overrides, the reason given.
+Click **Details** on any row that has them to see exactly what changed — a table of each field with its value **Before** and **After** — and, for overrides, the reason given. Times are shown in your studio's time zone.
 
 ## Filtering
 
-Use **All types** to narrow the log to one kind of record (sessions, bookings, member passes, and so on), and the date pickers to bound it to a range. Filters combine — set both to find, say, every pass credit override in the last week.
+Use **Everyone** to narrow the log to one person, **All types** to one kind of record (sessions, bookings, member passes, payments, and so on), and the two date pickers to bound it to a range. Filters combine — set them together to find, say, every pass change one person made last week. **Clear filters** resets them all.
+
+The log shows the latest 50 entries first; **Load more** at the bottom fetches older ones.
 
 ## Why this exists
 

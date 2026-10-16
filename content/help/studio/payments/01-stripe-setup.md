@@ -10,10 +10,10 @@ Card payments — a member paying for a drop-in class or buying a pass online �
 
 ## Connecting your account
 
-1. Go to **Settings**
-2. Under **Payments**, click **Connect with Stripe**
+1. Go to **Settings** and find the **Payments** card
+2. Click **Connect with Stripe**
 3. Complete Stripe's onboarding flow (business details, bank account)
-4. You'll land back on Settings, which shows **✓ Connected** once it's done
+4. You'll land back on Settings, which shows **Stripe connected.** and a **Connected** tag on the Stripe card once it's done
 
 If you don't already have a Stripe account, this same flow creates one for you.
 
@@ -23,4 +23,4 @@ You can still run your studio without it — issue and comp passes manually, tak
 
 ## Reconnecting or checking status
 
-Settings always shows your current connection status and account ID. If a payment starts failing, check here first — an interrupted Stripe onboarding (a closed tab, a declined verification) can leave the account only partially set up.
+The **Payments** card always shows your connection status and the last four characters of your Stripe account ID ("Account ending …"). If a payment starts failing, check here first — an interrupted Stripe onboarding (a closed tab, a declined verification) can leave the account only partially set up.

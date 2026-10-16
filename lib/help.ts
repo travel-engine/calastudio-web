@@ -169,6 +169,8 @@ export const sectionNames: Record<string, string> = {
   'pricing': 'Pricing',
   'payments': 'Payments',
   'team': 'Team',
+  'settings': 'Settings',
+  'reports': 'Reports',
   'booking': 'Booking sessions',
   'passes': 'Passes',
   'account': 'My account',
