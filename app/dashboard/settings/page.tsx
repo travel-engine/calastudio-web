@@ -11,7 +11,6 @@ import { canManageSettings } from '@/lib/roles'
 import { scanForMojibake } from '@/lib/mojibake'
 import ThemePicker from '@/app/components/ThemePicker'
 import type { ThemeKey } from '@/lib/studioTheme'
-import { formatDayMonth } from '@/lib/dates'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, Chip, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
@@ -60,6 +59,12 @@ function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
 
 function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} style={{ ...controlStyle, padding: '10px 12px', minHeight: 88, resize: 'vertical', lineHeight: 1.5, ...props.style }} />
+}
+
+// Tax rate dates are plain YYYY-MM-DD days; show the year, since rates span years.
+const formatRateDate = (d: string) => {
+  const [y, m, day] = d.slice(0, 10).split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 }
 
 const grid2: React.CSSProperties = { gridTemplateColumns: '1fr 1fr', gap: space.formGap }
@@ -956,7 +961,7 @@ function SettingsPageContent() {
                               <div key={r.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 12px', padding: '10px 14px', borderTop: i ? `1px solid ${color.divider}` : 'none', fontSize: 15 }}>
                                 <strong style={{ fontWeight: 600, ...tabularNums }}>{r.rate}%</strong>
                                 <span style={{ color: color.ink2, ...tabularNums }}>
-                                  from {formatDayMonth(r.effective_from)}{r.effective_until ? ` to ${formatDayMonth(r.effective_until)}` : ''}
+                                  from {formatRateDate(r.effective_from)}{r.effective_until ? ` to ${formatRateDate(r.effective_until)}` : ''}
                                 </span>
                                 {r.id === currentRateId && <Chip tone="primary">Current</Chip>}
                                 {r.notes && <span style={{ color: color.muted, fontSize: 14 }}>{r.notes}</span>}
