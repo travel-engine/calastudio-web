@@ -613,7 +613,7 @@ function SettingsPageContent() {
     </div>
   )
   const uploadLabel = (text: string, busy: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, multiple = false) => (
-    <label className={`${ui.button} ${ui.focusable}`} style={{ ...buttonStyle('secondary', 'sm'), cursor: busy ? 'not-allowed' : 'pointer' }}>
+    <label className={`${ui.button} ${ui.focusable}`} style={{ ...buttonStyle('secondary', 'sm'), position: 'relative', cursor: busy ? 'not-allowed' : 'pointer' }}>
       {busy ? 'Uploading…' : text}
       <input type="file" accept="image/*" multiple={multiple} onChange={onChange} disabled={busy} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
     </label>
