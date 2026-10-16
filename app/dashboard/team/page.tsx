@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Plus, UserPlus, X } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '../../components/Sidebar'
 import Forbidden from '../../components/Forbidden'
 import Toast from '../../components/Toast'
 import { canViewTeam, canResendTeacherInvite } from '@/lib/roles'
 import { displayName } from '@/lib/names'
+import { color, font, radius, space } from '@/lib/ui/tokens'
+import { Button, Card, Chip, EmptyState, Field, PageHeader, buttonStyle, controlStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface Teacher {
@@ -28,59 +32,33 @@ interface Teacher {
   } | null
 }
 
-function RoleBadge({ role }: { role: string }) {
-  const styles: Record<string, { bg: string; color: string; label: string }> = {
-    teacher_super: { bg: '#e8f5ee', color: '#085041', label: 'Super teacher' },
-    teacher_general: { bg: '#e8eef8', color: '#1B4F8A', label: 'Teacher' },
-    teacher_basic: { bg: '#f4f4f4', color: '#666', label: 'Basic teacher' },
-    admin: { bg: '#fff3cd', color: '#7a4f00', label: 'Admin' },
-    front_desk: { bg: '#f0ecf8', color: '#4B2D8A', label: 'Front desk' },
-  }
-  const s = styles[role] ?? { bg: '#f4f4f4', color: '#666', label: role }
+const ROLE_LABEL: Record<string, { label: string; tone: ChipTone }> = {
+  admin: { label: 'Admin', tone: 'warn' },
+  teacher_super: { label: 'Super teacher', tone: 'primary' },
+  teacher_general: { label: 'Teacher', tone: 'info' },
+  teacher_basic: { label: 'Basic teacher', tone: 'neutral' },
+  front_desk: { label: 'Front desk', tone: 'neutral' },
+}
 
-  return (
-    <span style={{
-      display: 'inline-block',
-      padding: '3px 10px',
-      borderRadius: '99px',
-      fontSize: '12px',
-      fontWeight: 500,
-      backgroundColor: s.bg,
-      color: s.color
-    }}>
-      {s.label}
-    </span>
-  )
+const ROLE_HELP: Record<string, string> = {
+  teacher_super: 'Can view every session, add or cancel dates, process paid bookings, and issue or adjust passes. Cannot create/edit session templates, invite teachers, or change studio settings.',
+  teacher_general: 'Can view their own sessions and full roster, add students at no charge, and mark attendance. Cannot edit session details or process payments.',
+  teacher_basic: 'Can add students to their own sessions and mark attendance only. Sees member names on the roster, not contact or financial details.',
+  front_desk: 'Can view the full schedule and check members in. Sees member names only, no contact/financial details, and cannot add students.',
 }
 
 function Avatar({ name, photoUrl }: { name: string; photoUrl?: string | null }) {
   if (photoUrl) {
-    return (
-      <img
-        src={photoUrl}
-        alt={name}
-        style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
-      />
-    )
+    return <img src={photoUrl} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flex: 'none' }} />
   }
-
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   return (
-    <div style={{
-      width: 40,
-      height: 40,
-      borderRadius: '50%',
-      backgroundColor: '#085041',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '14px',
-      fontWeight: 600,
-      flexShrink: 0
+    <span aria-hidden style={{
+      width: 44, height: 44, borderRadius: '50%', background: color.primarySoft, color: color.primaryInk, flex: 'none',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 600,
     }}>
       {initials}
-    </div>
+    </span>
   )
 }
 
@@ -195,12 +173,14 @@ export default function TeamPage() {
     }
   }
 
+  const closeInvite = () => { setShowInviteModal(false); setInviteError(''); setInviteSuccess('') }
+
   if (loading) {
     return (
       <div className={styles.shell}>
         <Sidebar active="team" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
@@ -211,347 +191,136 @@ export default function TeamPage() {
       <Sidebar active="team" roles={roles} />
 
       <div className={styles.main}>
+        {forbidden ? <Forbidden /> : (
+          <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            <PageHeader
+              eyebrow={`${teachers.length} teacher${teachers.length !== 1 ? 's' : ''} in your studio`}
+              title="Team"
+              actions={<Button variant="primary" onClick={() => setShowInviteModal(true)} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Invite teacher</Button>}
+            />
 
-        {forbidden ? <Forbidden /> : <>
-
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-          <div>
-            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Team</h1>
-            <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-              {teachers.length} teacher{teachers.length !== 1 ? 's' : ''} in your studio
-            </p>
-          </div>
-          <button
-            onClick={() => setShowInviteModal(true)}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#085041',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            + Invite teacher
-          </button>
-        </div>
-
-        {/* Teachers list */}
-        {teachers.length === 0 ? (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '64px',
-            textAlign: 'center',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>👥</div>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No teachers yet</h3>
-            <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
-              Invite your first teacher to give them access to their sessions and students.
-            </p>
-            <button
-              onClick={() => setShowInviteModal(true)}
-              style={{
-                padding: '10px 24px',
-                backgroundColor: '#085041',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              Invite a teacher
-            </button>
-          </div>
-        ) : (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-            overflow: 'hidden'
-          }}>
-            {/* Table header */}
-            <div className={styles.tableHeaderRow} style={{
-              gridTemplateColumns: '2fr 1fr 1fr 1fr 200px'
-            }}>
-              <div>Teacher</div>
-              <div>Role</div>
-              <div>Landing page</div>
-              <div>Visible on studio page</div>
-              <div>Actions</div>
-            </div>
-
-            {teachers.map((teacher, i) => (
-              <div
-                key={teacher.id}
-                className={styles.tableRow}
-                style={{
-                  gridTemplateColumns: '2fr 1fr 1fr 1fr 200px',
-                  borderBottom: i < teachers.length - 1 ? '1px solid #f4f4f4' : 'none'
-                }}
-              >
-                {/* Name + email */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Avatar
-                    name={displayName(teacher)}
-                    photoUrl={teacher.profile?.photo_url}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      {displayName(teacher)}
-                      {teacher.profile?.is_primary && (
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#085041', backgroundColor: '#e8f5ee', borderRadius: '999px', padding: '2px 8px' }}>
-                          Lead
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>{teacher.email}</div>
-                  </div>
+            {teachers.length === 0 ? (
+              <Card>
+                <EmptyState
+                  icon={<UserPlus size={22} strokeWidth={1.8} />}
+                  message="Invite your first teacher to give them access to their sessions and students."
+                  action={<Button variant="primary" onClick={() => setShowInviteModal(true)}>Invite a teacher</Button>}
+                />
+              </Card>
+            ) : (
+              <Card style={{ overflow: 'hidden' }} aria-label="Teachers">
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 15 }}>
+                    <thead>
+                      <tr>
+                        {['Teacher', 'Role', 'Landing page', 'On studio page', ''].map((h, i) => (
+                          <th key={i} scope="col" style={{
+                            textAlign: i === 4 ? 'right' : 'left', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
+                            color: color.muted, padding: '12px 20px', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap',
+                          }}>{h || <span className={styles.srOnly}>Actions</span>}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teachers.map((teacher, i) => {
+                        const td: React.CSSProperties = { padding: '14px 20px', borderBottom: i < teachers.length - 1 ? `1px solid ${color.divider}` : 'none', verticalAlign: 'middle' }
+                        return (
+                          <tr key={teacher.id}>
+                            <td style={td}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <Avatar name={displayName(teacher)} photoUrl={teacher.profile?.photo_url} />
+                                <span style={{ minWidth: 0 }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontWeight: 600, fontSize: 16 }}>
+                                    {displayName(teacher)}
+                                    {teacher.profile?.is_primary && <Chip tone="primary">Lead</Chip>}
+                                  </span>
+                                  <span style={{ display: 'block', fontSize: 14, color: color.muted }}>{teacher.email}</span>
+                                </span>
+                              </span>
+                            </td>
+                            <td style={td}>
+                              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {/* Staff roles only — 'member' just means they can also book classes. */}
+                                {teacher.roles.filter(r => r !== 'member').map(r => (
+                                  <Chip key={r} tone={ROLE_LABEL[r]?.tone ?? 'neutral'}>{ROLE_LABEL[r]?.label ?? r}</Chip>
+                                ))}
+                              </span>
+                            </td>
+                            <td style={td}>
+                              {teacher.profile?.is_page_published ? <Chip tone="primary">Published</Chip> : <Chip>Draft</Chip>}
+                            </td>
+                            <td style={{ ...td, color: color.ink2 }}>{teacher.profile?.show_on_studio_page ? 'Shown' : 'Hidden'}</td>
+                            <td style={{ ...td, textAlign: 'right' }}>
+                              <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                                {canResendTeacherInvite(roles) && (
+                                  <Button size="sm" onClick={() => handleResendInvite(teacher)} disabled={resendingId === teacher.id}>
+                                    {resendingId === teacher.id ? 'Sending…' : 'Resend invite'}
+                                  </Button>
+                                )}
+                                <Button size="sm" href={`/dashboard/team/${teacher.id}`}>Edit<span className={styles.srOnly}> {displayName(teacher)}</span></Button>
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-
-                {/* Role */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {/* Staff roles only — 'member' just means they can also book classes. */}
-                  {teacher.roles.filter(r => r !== 'member').map(r => <RoleBadge key={r} role={r} />)}
-                </div>
-
-                {/* Landing page status */}
-                <div style={{ fontSize: '13px' }}>
-                  {teacher.profile?.is_page_published ? (
-                    <span style={{ color: '#085041' }}>✓ Published</span>
-                  ) : (
-                    <span style={{ color: '#999' }}>Draft</span>
-                  )}
-                </div>
-
-                {/* Show on studio page */}
-                <div style={{ fontSize: '13px', color: '#666' }}>
-                  {teacher.profile?.show_on_studio_page ? 'Yes' : 'No'}
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <a href={`/dashboard/team/${teacher.id}`}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#f4f4f4',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      color: '#444',
-                      textDecoration: 'none',
-                      fontWeight: 500
-                    }}
-                  >
-                    Edit
-                  </a>
-                  {canResendTeacherInvite(roles) && (
-                    <button
-                      onClick={() => handleResendInvite(teacher)}
-                      disabled={resendingId === teacher.id}
-                      style={{
-                        padding: '6px 12px',
-                        backgroundColor: 'transparent',
-                        border: '1px solid #e2e2e2',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        cursor: resendingId === teacher.id ? 'default' : 'pointer',
-                        color: '#444',
-                        fontWeight: 500,
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {resendingId === teacher.id ? 'Sending…' : 'Resend invite'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              </Card>
+            )}
           </div>
         )}
-        </>}
       </div>
 
-      {/* Invite modal */}
+      {/* Invite dialog */}
       {showInviteModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 50
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            padding: '32px',
-            width: '100%',
-            maxWidth: '480px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(23, 32, 28, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 24 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="invite-heading" style={{
+            background: color.surface, borderRadius: radius.card, padding: 28, width: '100%', maxWidth: 500,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', fontFamily: font.body, maxHeight: '100%', overflowY: 'auto',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 700 }}>Invite a teacher</h2>
-              <button
-                onClick={() => { setShowInviteModal(false); setInviteError(''); setInviteSuccess('') }}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}
-              >
-                ×
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 id="invite-heading" style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>Invite a teacher</h2>
+              <button type="button" aria-label="Close" onClick={closeInvite} className={`${ui.button} ${ui.focusable}`} style={{ ...buttonStyle('secondary', 'sm'), width: 36, padding: 0 }}>
+                <X size={16} strokeWidth={2} aria-hidden />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
-                    First name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Sarah"
-                    value={inviteForm.first_name}
-                    onChange={e => setInviteForm(p => ({ ...p, first_name: e.target.value }))}
-                    style={{
-                      width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2',
-                      borderRadius: '8px', fontSize: '14px', outline: 'none'
-                    }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
-                    Last name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Jones"
-                    value={inviteForm.last_name}
-                    onChange={e => setInviteForm(p => ({ ...p, last_name: e.target.value }))}
-                    style={{
-                      width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2',
-                      borderRadius: '8px', fontSize: '14px', outline: 'none'
-                    }}
-                  />
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+                <Field label="First name" htmlFor="inv-first">
+                  <input id="inv-first" type="text" placeholder="e.g. Sarah" value={inviteForm.first_name}
+                    onChange={e => setInviteForm(p => ({ ...p, first_name: e.target.value }))} style={controlStyle} />
+                </Field>
+                <Field label="Last name" htmlFor="inv-last">
+                  <input id="inv-last" type="text" placeholder="e.g. Jones" value={inviteForm.last_name}
+                    onChange={e => setInviteForm(p => ({ ...p, last_name: e.target.value }))} style={controlStyle} />
+                </Field>
               </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
-                  Email address
-                </label>
-                <input
-                  type="email"
-                  placeholder="sarah@yourstudio.com"
-                  value={inviteForm.email}
-                  onChange={e => setInviteForm(p => ({ ...p, email: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    border: '1px solid #e2e2e2',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
-                  Role
-                </label>
-                <select
-                  value={inviteForm.role}
-                  onChange={e => setInviteForm(p => ({ ...p, role: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    border: '1px solid #e2e2e2',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    outline: 'none',
-                    backgroundColor: 'white',
-                    cursor: 'pointer'
-                  }}
-                >
+              <Field label="Email address" htmlFor="inv-email">
+                <input id="inv-email" type="email" placeholder="sarah@yourstudio.com" value={inviteForm.email}
+                  onChange={e => setInviteForm(p => ({ ...p, email: e.target.value }))} style={controlStyle} />
+              </Field>
+              <Field label="Role" htmlFor="inv-role" hint={ROLE_HELP[inviteForm.role]}>
+                <select id="inv-role" aria-describedby="inv-role-hint" value={inviteForm.role}
+                  onChange={e => setInviteForm(p => ({ ...p, role: e.target.value }))} style={{ ...controlStyle, cursor: 'pointer' }}>
                   <option value="teacher_super">Super teacher — schedule and bookings</option>
                   <option value="teacher_general">Teacher — own sessions and roster</option>
                   <option value="teacher_basic">Basic teacher — attendance only</option>
                   <option value="front_desk">Front desk — schedule and check-in</option>
                 </select>
-
-                {/* Role description */}
-                <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-                  {inviteForm.role === 'teacher_super' && 'Can view every session, add or cancel dates, process paid bookings, and issue or adjust passes. Cannot create/edit session templates, invite teachers, or change studio settings.'}
-                  {inviteForm.role === 'teacher_general' && 'Can view their own sessions and full roster, add students at no charge, and mark attendance. Cannot edit session details or process payments.'}
-                  {inviteForm.role === 'teacher_basic' && 'Can add students to their own sessions and mark attendance only. Sees member names on the roster, not contact or financial details.'}
-                  {inviteForm.role === 'front_desk' && 'Can view the full schedule and check members in. Sees member names only, no contact/financial details, and cannot add students.'}
-                </p>
-              </div>
+              </Field>
 
               {inviteError && (
-                <div style={{
-                  padding: '12px',
-                  backgroundColor: '#fdecea',
-                  borderRadius: '8px',
-                  color: '#8b1a1a',
-                  fontSize: '13px'
-                }}>
-                  {inviteError}
-                </div>
+                <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{inviteError}</div>
               )}
-
               {inviteSuccess && (
-                <div style={{
-                  padding: '12px',
-                  backgroundColor: '#e8f5ee',
-                  borderRadius: '8px',
-                  color: '#085041',
-                  fontSize: '13px'
-                }}>
-                  {inviteSuccess}
-                </div>
+                <div role="status" style={{ padding: '12px 16px', background: color.primarySoft, borderRadius: radius.control, color: color.primaryInk, fontSize: 15 }}>{inviteSuccess}</div>
               )}
 
-              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                <button
-                  onClick={() => { setShowInviteModal(false); setInviteError(''); setInviteSuccess('') }}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    backgroundColor: 'transparent',
-                    border: '1px solid #e2e2e2',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    color: '#444'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleInvite}
-                  disabled={inviting}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    backgroundColor: inviting ? '#9fd6b8' : '#085041',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: inviting ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {inviting ? 'Adding...' : 'Add to team'}
-                </button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <Button onClick={closeInvite} style={{ flex: 1 }}>{inviteSuccess ? 'Done' : 'Cancel'}</Button>
+                <Button variant="primary" onClick={handleInvite} disabled={inviting} style={{ flex: 1 }}>{inviting ? 'Adding…' : 'Add to team'}</Button>
               </div>
             </div>
           </div>

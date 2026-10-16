@@ -7,6 +7,10 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '../../../components/Sidebar'
 import { displayName } from '@/lib/names'
 import { STUDIO_DOMAIN, studioUrl } from '@/lib/seo'
+import { ExternalLink, Upload, X } from 'lucide-react'
+import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
+import { Breadcrumb, Button, Chip, Field, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface TeacherData {
@@ -33,76 +37,32 @@ interface TeacherData {
   } | null
 }
 
-function Field({ label, hint, children }: {
-  label: string
-  hint?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div style={{ marginBottom: '24px' }}>
-      <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
-        {label}
-      </label>
-      {hint && <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>{hint}</p>}
-      {children}
-    </div>
-  )
-}
-
 function Input({ ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input {...props} style={{
-      width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2',
-      borderRadius: '8px', fontSize: '14px', outline: 'none', backgroundColor: 'white'
-    }} />
-  )
+  return <input {...props} style={{ ...controlStyle, ...(props.type === 'number' ? tabularNums : {}), ...props.style }} />
 }
 
 function Textarea({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea {...props} style={{
-      width: '100%', padding: '10px 14px', border: '1px solid #e2e2e2',
-      borderRadius: '8px', fontSize: '14px', outline: 'none', backgroundColor: 'white',
-      minHeight: '120px', resize: 'vertical'
-    }} />
-  )
+  return <textarea {...props} style={{ ...controlStyle, padding: '10px 12px', minHeight: 140, resize: 'vertical', lineHeight: 1.5, ...props.style }} />
 }
 
-function SectionHeader({ title, description }: { title: string; description?: string }) {
-  return (
-    <div style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #e2e2e2' }}>
-      <h2 style={{ fontSize: '17px', fontWeight: 600 }}>{title}</h2>
-      {description && <p style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>{description}</p>}
-    </div>
-  )
+const ROLE_INFO: Record<string, { label: string; tone: ChipTone; description: string }> = {
+  admin: { label: 'Admin', tone: 'warn', description: 'Runs the studio: settings, team, sessions, passes and payments.' },
+  teacher_super: { label: 'Super teacher', tone: 'primary', description: 'Full studio access within their teaching context. Can view all members, issue passes, process bookings.' },
+  teacher_general: { label: 'Teacher', tone: 'info', description: 'Can view and manage their own sessions and the students booked into them.' },
+  teacher_basic: { label: 'Basic teacher', tone: 'neutral', description: 'Can add students to their sessions and mark attendance only. No access to member details.' },
+  front_desk: { label: 'Front desk', tone: 'neutral', description: 'Can view the full schedule and check in members. No financial data.' },
+  member: { label: 'Member', tone: 'neutral', description: 'Can book sessions and manage their own passes and bookings.' },
 }
 
-function Toggle({ checked, onChange, label }: {
-  checked: boolean; onChange: (val: boolean) => void; label: string
-}) {
+function SectionCard({ id, title, description, children }: { id: string; title: string; description?: string; children: React.ReactNode }) {
   return (
-    <div onClick={() => onChange(!checked)} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', userSelect: 'none' }}>
-      <div style={{ width: '44px', height: '24px', borderRadius: '99px', backgroundColor: checked ? '#085041' : '#e2e2e2', position: 'relative', transition: 'background-color 0.2s' }}>
-        <div style={{ position: 'absolute', top: '2px', left: checked ? '22px' : '2px', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-      </div>
-      <span style={{ fontSize: '14px', color: '#1a1a1a' }}>{label}</span>
-    </div>
-  )
-}
-
-function RoleCheckbox({ role, label, description, checked, onChange }: {
-  role: string; label: string; description: string; checked: boolean; onChange: (role: string, checked: boolean) => void
-}) {
-  return (
-    <div onClick={() => onChange(role, !checked)} style={{ display: 'flex', gap: '12px', padding: '16px', border: `2px solid ${checked ? '#085041' : '#e2e2e2'}`, borderRadius: '10px', cursor: 'pointer', backgroundColor: checked ? '#e8f5ee' : 'white', marginBottom: '8px' }}>
-      <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: `2px solid ${checked ? '#085041' : '#ccc'}`, backgroundColor: checked ? '#085041' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
-        {checked && <span style={{ color: 'white', fontSize: '12px', fontWeight: 700 }}>✓</span>}
-      </div>
+    <section aria-labelledby={`${id}-heading`} style={{ ...cardStyle, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: space.formGap }}>
       <div>
-        <div style={{ fontWeight: 600, fontSize: '14px', color: '#1a1a1a' }}>{label}</div>
-        <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>{description}</div>
+        <h2 id={`${id}-heading`} style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h2>
+        {description && <p style={{ margin: '4px 0 0', fontSize: 14, color: color.muted, lineHeight: 1.45 }}>{description}</p>}
       </div>
-    </div>
+      {children}
+    </section>
   )
 }
 
@@ -190,14 +150,7 @@ export default function EditTeacherPage() {
   const update = (key: string, value: string | boolean | string[]) =>
     setForm(prev => ({ ...prev, [key]: value }))
 
-  const handleRoleChange = (role: string, checked: boolean) => {
-    const newRoles = checked
-      ? [...form.roles, role]
-      : form.roles.filter(r => r !== role)
-    update('roles', newRoles)
-  }
-
-  // Immediate action (like roles) — one primary per studio, so this also clears it on everyone else.
+  // Immediate action — one primary per studio, so this also clears it on everyone else.
   const handleMakePrimary = async () => {
     setSettingPrimary(true)
     setError('')
@@ -320,20 +273,20 @@ export default function EditTeacherPage() {
     }
   }
 
-  const teacherRoles = [
-    { role: 'teacher_super', label: 'Super teacher', description: 'Full studio access within their teaching context. Can view all members, issue passes, process bookings.' },
-    { role: 'teacher_general', label: 'Teacher', description: 'Can view and manage their own sessions and the students booked into them.' },
-    { role: 'teacher_basic', label: 'Basic teacher', description: 'Can add students to their sessions and mark attendance only. No access to member details.' },
-    { role: 'front_desk', label: 'Front desk', description: 'Can view the full schedule and check in members. No financial data.' },
-    { role: 'member', label: 'Member', description: 'Can book sessions and manage their own passes and bookings.' },
-  ]
+  const addPhotoUrl = () => {
+    if (form.newPhotoUrl.trim()) setForm(prev => ({ ...prev, photos: [...prev.photos, prev.newPhotoUrl.trim()], newPhotoUrl: '' }))
+  }
+  const photoBadge: React.CSSProperties = {
+    position: 'absolute', bottom: 6, left: 6, minHeight: 28, padding: '0 10px', borderRadius: radius.chip, border: 'none',
+    fontFamily: 'inherit', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center',
+  }
 
   if (loading || !teacher) {
     return (
       <div className={styles.shell}>
         <Sidebar active="team" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
@@ -343,216 +296,143 @@ export default function EditTeacherPage() {
     <div className={styles.shell}>
       <Sidebar active="team" roles={roles} />
 
-      <div className={styles.main} style={{ maxWidth: '800px' }}>
+      <div className={styles.main}>
+        <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+          <Breadcrumb items={[{ label: 'Team', href: '/dashboard/team' }, { label: displayName(teacher) }]} />
+          <PageHeader
+            title={displayName(teacher)}
+            actions={form.is_page_published && teacher.profile && orgSlug ? (
+              <Button href={studioUrl(orgSlug, `/teachers/${teacher.profile.slug}`)} target="_blank" icon={<ExternalLink size={16} strokeWidth={2} aria-hidden />}>
+                View landing page
+              </Button>
+            ) : undefined}
+          >
+            <span style={{ fontSize: 15, color: color.muted }}>{teacher.email}</span>
+          </PageHeader>
 
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <a href="/dashboard/team" style={{ color: '#666', textDecoration: 'none', fontSize: '14px' }}>
-              ← Team
-            </a>
-            <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{displayName(teacher)}</h1>
-          </div>
-          {form.is_page_published && teacher.profile && orgSlug && (
-            <a href={studioUrl(orgSlug, `/teachers/${teacher.profile.slug}`)} target="_blank" style={{ padding: '8px 16px', border: '1px solid #085041', borderRadius: '8px', color: '#085041', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}>
-              View landing page
-            </a>
-          )}
-        </div>
-
-        {/* Roles */}
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '24px' }}>
-          <SectionHeader title="Roles" description="This person can have multiple roles. Changes take effect immediately." />
-          {teacherRoles.map(item => (
-            <RoleCheckbox key={item.role} role={item.role} label={item.label} description={item.description} checked={form.roles.includes(item.role)} onChange={handleRoleChange} />
-          ))}
-        </div>
-
-        {/* Profile */}
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '24px' }}>
-          <SectionHeader title="Landing page profile" description="This information appears on their public teacher page." />
-
-          <Field label="Display name">
-            <Input placeholder="e.g. Sarah Jones" value={form.display_name} onChange={e => update('display_name', e.target.value)} />
-          </Field>
-
-          <Field label="Tagline" hint="One line shown under their name.">
-            <Input placeholder="e.g. Vinyasa & Yin specialist" value={form.tagline} onChange={e => update('tagline', e.target.value)} />
-          </Field>
-
-          <Field label="Bio" hint="Full biography. Markdown supported.">
-            <Textarea placeholder="Tell students about this teacher..." value={form.bio} onChange={e => update('bio', e.target.value)} />
-          </Field>
-
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Specialties" hint="Comma separated">
-              <Input placeholder="Vinyasa, Yin, Meditation" value={form.specialties} onChange={e => update('specialties', e.target.value)} />
-            </Field>
-            <Field label="Certifications" hint="Comma separated">
-              <Input placeholder="RYT-200, NASM-CPT" value={form.certifications} onChange={e => update('certifications', e.target.value)} />
-            </Field>
-          </div>
-
-          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <Field label="Years of experience">
-              <Input type="number" min="0" placeholder="e.g. 8" value={form.years_experience} onChange={e => update('years_experience', e.target.value)} />
-            </Field>
-            <Field label="Instagram URL">
-              <Input placeholder="https://instagram.com/sarahjones" value={form.instagram_url} onChange={e => update('instagram_url', e.target.value)} />
-            </Field>
-          </div>
-
-          <Field label="Personal website">
-            <Input placeholder="https://sarahjones.com" value={form.website_url} onChange={e => update('website_url', e.target.value)} />
-          </Field>
-
-          {/* Photos */}
-          <Field label="Photos" hint="The first photo is the hero at the top of the page; the rest appear in a gallery below the bio. Up to 10.">
-
-            {/* Photo grid */}
-            {form.photos.length > 0 && (
-              <div className={styles.formGrid} style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
-                {form.photos.map((url, i) => (
-                  <div key={`${url}-${i}`} style={{ position: 'relative' }}>
-                    <img
-                      src={url}
-                      alt={`Photo ${i + 1}`}
-                      style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e2e2' }}
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                    />
-                    {/* Uploading overlay */}
-                    {url.startsWith('blob:') && (
-                      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ color: 'white', fontSize: '12px', fontWeight: 600 }}>Uploading...</span>
-                      </div>
-                    )}
-                    {/* Remove button — only show when not uploading */}
-                    {!url.startsWith('blob:') && (
-                      <button
-                        onClick={() => setForm(prev => ({ ...prev, photos: prev.photos.filter((_, idx) => idx !== i) }))}
-                        style={{ position: 'absolute', top: '6px', right: '6px', width: '24px', height: '24px', borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        ×
-                      </button>
-                    )}
-                    {!url.startsWith('blob:') && (
-                      i === 0 ? (
-                        <span style={{ position: 'absolute', bottom: '6px', left: '6px', backgroundColor: '#085041', color: 'white', fontSize: '10px', fontWeight: 600, borderRadius: '4px', padding: '2px 6px' }}>Hero</span>
-                      ) : (
-                        <button
-                          onClick={() => setForm(prev => ({ ...prev, photos: [prev.photos[i], ...prev.photos.filter((_, idx) => idx !== i)] }))}
-                          style={{ position: 'absolute', bottom: '6px', left: '6px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '10px', fontWeight: 600, borderRadius: '4px', padding: '2px 6px', border: 'none', cursor: 'pointer' }}
-                        >
-                          Make hero
-                        </button>
-                      )
-                    )}
+          <SectionCard id="roles" title="Roles" description="What this person can see and do in the dashboard. A person can hold more than one role.">
+            <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, overflow: 'hidden' }}>
+              {form.roles.map((r, i) => {
+                const info = ROLE_INFO[r] ?? { label: r, tone: 'neutral' as ChipTone, description: '' }
+                return (
+                  <div key={r} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 14px', padding: '12px 16px', borderTop: i ? `1px solid ${color.divider}` : 'none' }}>
+                    <Chip tone={info.tone}>{info.label}</Chip>
+                    <span style={{ flex: '1 1 260px', fontSize: 14, color: color.ink2, lineHeight: 1.4 }}>{info.description}</span>
                   </div>
-                ))}
-              </div>
-            )}
+                )
+              })}
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: color.muted }}>Changing someone&apos;s role isn&apos;t available here yet.</p>
+          </SectionCard>
 
-            {/* Upload area */}
-            <div style={{ border: '2px dashed #e2e2e2', borderRadius: '10px', padding: '20px', backgroundColor: '#fafafa' }}>
+          <SectionCard id="profile" title="Landing page profile" description="This information appears on their public teacher page.">
+            <Field label="Display name" htmlFor="t-name">
+              <Input id="t-name" placeholder="e.g. Sarah Jones" value={form.display_name} onChange={e => update('display_name', e.target.value)} />
+            </Field>
+            <Field label="Tagline" htmlFor="t-tag" hint="One line shown under their name.">
+              <Input id="t-tag" aria-describedby="t-tag-hint" placeholder="e.g. Vinyasa & Yin specialist" value={form.tagline} onChange={e => update('tagline', e.target.value)} />
+            </Field>
+            <Field label="Bio" htmlFor="t-bio" hint="Full biography. Markdown supported.">
+              <Textarea id="t-bio" aria-describedby="t-bio-hint" placeholder="Tell students about this teacher…" value={form.bio} onChange={e => update('bio', e.target.value)} />
+            </Field>
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: space.formGap }}>
+              <Field label="Specialties" htmlFor="t-spec" hint="Comma separated">
+                <Input id="t-spec" aria-describedby="t-spec-hint" placeholder="Vinyasa, Yin, Meditation" value={form.specialties} onChange={e => update('specialties', e.target.value)} />
+              </Field>
+              <Field label="Certifications" htmlFor="t-cert" hint="Comma separated">
+                <Input id="t-cert" aria-describedby="t-cert-hint" placeholder="RYT-200, NASM-CPT" value={form.certifications} onChange={e => update('certifications', e.target.value)} />
+              </Field>
+            </div>
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: space.formGap }}>
+              <Field label="Years of experience" htmlFor="t-years">
+                <Input id="t-years" type="number" min="0" placeholder="e.g. 8" value={form.years_experience} onChange={e => update('years_experience', e.target.value)} />
+              </Field>
+              <Field label="Instagram URL" htmlFor="t-ig">
+                <Input id="t-ig" type="url" placeholder="https://instagram.com/sarahjones" value={form.instagram_url} onChange={e => update('instagram_url', e.target.value)} />
+              </Field>
+            </div>
+            <Field label="Personal website" htmlFor="t-web">
+              <Input id="t-web" type="url" placeholder="https://sarahjones.com" value={form.website_url} onChange={e => update('website_url', e.target.value)} />
+            </Field>
 
-              {/* File upload button */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', backgroundColor: uploading ? '#9fd6b8' : '#085041', color: 'white', borderRadius: '8px', cursor: uploading ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: 500 }}>
-                  <span>{uploading ? '⏳' : '📁'}</span>
-                  <span>{uploading ? 'Uploading...' : 'Upload from computer'}</span>
-                  <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} style={{ display: 'none' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>Photos</span>
+              <span style={{ fontSize: 13, color: color.muted, lineHeight: 1.4 }}>The first photo is the hero at the top of the page; the rest appear in a gallery below the bio. Up to 10.</span>
+              {form.photos.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, marginTop: 6 }}>
+                  {form.photos.map((url, i) => (
+                    <div key={`${url}-${i}`} style={{ position: 'relative' }}>
+                      <img src={url} alt={`Photo ${i + 1}`}
+                        style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: radius.control, border: `1px solid ${color.border}`, display: 'block' }}
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                      {url.startsWith('blob:') ? (
+                        <div style={{ position: 'absolute', inset: 0, background: 'rgba(23,32,28,0.45)', borderRadius: radius.control, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', fontSize: 14, fontWeight: 600 }}>
+                          Uploading…
+                        </div>
+                      ) : (
+                        <>
+                          <button type="button" aria-label={`Remove photo ${i + 1}`} className={ui.focusable}
+                            onClick={() => setForm(prev => ({ ...prev, photos: prev.photos.filter((_, idx) => idx !== i) }))}
+                            style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: '50%', background: 'rgba(23,32,28,0.7)', color: '#FFFFFF', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <X size={16} strokeWidth={2.5} aria-hidden />
+                          </button>
+                          {i === 0 ? (
+                            <span style={{ ...photoBadge, background: color.primary, color: '#FFFFFF' }}>Hero</span>
+                          ) : (
+                            <button type="button" className={ui.focusable}
+                              onClick={() => setForm(prev => ({ ...prev, photos: [prev.photos[i], ...prev.photos.filter((_, idx) => idx !== i)] }))}
+                              style={{ ...photoBadge, background: 'rgba(23,32,28,0.7)', color: '#FFFFFF', cursor: 'pointer' }}>
+                              Make hero
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                <label className={`${ui.button} ${ui.focusable}`} style={{ ...buttonStyle('secondary', 'md'), position: 'relative', cursor: uploading ? 'not-allowed' : 'pointer' }}>
+                  <Upload size={16} strokeWidth={2} aria-hidden />
+                  {uploading ? 'Uploading…' : 'Upload photo'}
+                  <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
                 </label>
-                <p style={{ fontSize: '11px', color: '#999', textAlign: 'center', marginTop: '6px' }}>JPG, PNG, WebP — max 5MB</p>
+                <span style={{ fontSize: 13, color: color.muted }}>JPG, PNG or WebP, up to 5 MB</span>
               </div>
-
-              {/* Divider */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e2e2' }} />
-                <span style={{ fontSize: '12px', color: '#999' }}>or add by URL</span>
-                <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e2e2' }} />
-              </div>
-
-              {/* URL input */}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="url"
-                  placeholder="https://example.com/photo.jpg"
-                  value={form.newPhotoUrl}
-                  onChange={e => update('newPhotoUrl', e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && form.newPhotoUrl.trim()) {
-                      setForm(prev => ({ ...prev, photos: [...prev.photos, prev.newPhotoUrl.trim()], newPhotoUrl: '' }))
-                    }
-                  }}
-                  style={{ flex: 1, padding: '10px 14px', border: '1px solid #e2e2e2', borderRadius: '8px', fontSize: '14px', outline: 'none', backgroundColor: 'white' }}
-                />
-                <button
-                  onClick={() => {
-                    if (form.newPhotoUrl.trim()) {
-                      setForm(prev => ({ ...prev, photos: [...prev.photos, prev.newPhotoUrl.trim()], newPhotoUrl: '' }))
-                    }
-                  }}
-                  style={{ padding: '10px 16px', backgroundColor: '#f4f4f4', color: '#444', border: '1px solid #e2e2e2', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}
-                >
-                  Add
-                </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <Input type="url" aria-label="Add a photo by URL" placeholder="Or paste a photo URL" value={form.newPhotoUrl}
+                  onChange={e => update('newPhotoUrl', e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addPhotoUrl() }} style={{ flex: 1 }} />
+                <Button onClick={addPhotoUrl} disabled={!form.newPhotoUrl.trim()}>Add</Button>
               </div>
             </div>
-          </Field>
-        </div>
+          </SectionCard>
 
-        {/* Visibility */}
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '32px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: '24px' }}>
-          <SectionHeader title="Visibility" description="Control where this teacher appears." />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <SectionCard id="visibility" title="Visibility" description="Where this teacher appears.">
             <Toggle checked={form.is_page_published} onChange={val => update('is_page_published', val)} label="Publish landing page — make this teacher's page publicly visible" />
             <Toggle checked={form.show_on_studio_page} onChange={val => update('show_on_studio_page', val)} label="Show in studio teacher directory" />
-          </div>
-
-          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: '14px', fontWeight: 500 }}>Primary teacher</div>
-              <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>Shown first in the studio directory. One per studio — setting this clears it on any other teacher.</div>
-            </div>
-            {isPrimary ? (
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#085041', backgroundColor: '#e8f5ee', borderRadius: '999px', padding: '5px 14px', whiteSpace: 'nowrap' }}>★ Primary teacher</span>
-            ) : (
-              <button
-                onClick={handleMakePrimary}
-                disabled={settingPrimary}
-                style={{ padding: '8px 16px', border: '1px solid #085041', borderRadius: '8px', color: '#085041', backgroundColor: 'white', fontSize: '13px', fontWeight: 600, cursor: settingPrimary ? 'default' : 'pointer', whiteSpace: 'nowrap' }}
-              >
-                {settingPrimary ? 'Setting…' : 'Make primary'}
-              </button>
+            {form.is_page_published && teacher.profile && (
+              <p style={{ margin: 0, fontSize: 14, color: color.ink2 }}>
+                Page address: <strong style={{ fontWeight: 600 }}>{orgSlug || '{studio}'}.{STUDIO_DOMAIN}/teachers/{teacher.profile.slug}</strong>
+              </p>
             )}
-          </div>
-          {form.is_page_published && teacher.profile && (
-            <div style={{ marginTop: '16px', padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px', fontSize: '13px', color: '#085041' }}>
-              Landing page URL: <strong>{orgSlug ?? '{studio}'}.{STUDIO_DOMAIN}/teachers/{teacher.profile.slug}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', paddingTop: 16, borderTop: `1px solid ${color.divider}` }}>
+              <div style={{ flex: '1 1 300px' }}>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>Primary teacher</div>
+                <div style={{ fontSize: 13, color: color.muted, marginTop: 2, lineHeight: 1.4 }}>Shown first in the studio directory. One per studio — setting this clears it on any other teacher.</div>
+              </div>
+              {isPrimary ? <Chip tone="primary">Primary teacher</Chip> : (
+                <Button onClick={handleMakePrimary} disabled={settingPrimary}>{settingPrimary ? 'Setting…' : 'Make primary'}</Button>
+              )}
             </div>
-          )}
-        </div>
+          </SectionCard>
 
-        {/* Error / Success */}
-        {error && (
-          <div style={{ padding: '12px 16px', backgroundColor: '#fdecea', borderRadius: '8px', color: '#8b1a1a', fontSize: '14px', marginBottom: '16px' }}>
-            {error}
-          </div>
-        )}
-        {success && (
-          <div style={{ padding: '12px 16px', backgroundColor: '#e8f5ee', borderRadius: '8px', color: '#085041', fontSize: '14px', marginBottom: '16px' }}>
-            {success}
-          </div>
-        )}
+          {error && <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{error}</div>}
+          {success && <div role="status" style={{ padding: '12px 16px', background: color.primarySoft, borderRadius: radius.control, color: color.primaryInk, fontSize: 15 }}>{success}</div>}
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-          <a href="/dashboard/team" style={{ padding: '10px 24px', border: '1px solid #e2e2e2', borderRadius: '8px', fontSize: '14px', color: '#444', textDecoration: 'none', fontWeight: 500 }}>
-            Cancel
-          </a>
-          <button onClick={handleSave} disabled={saving || uploading} style={{ padding: '10px 24px', backgroundColor: saving ? '#9fd6b8' : '#085041', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Saving...' : 'Save changes'}
-          </button>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <Button href="/dashboard/team">Cancel</Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving || uploading}>{saving ? 'Saving…' : 'Save changes'}</Button>
+          </div>
         </div>
       </div>
     </div>

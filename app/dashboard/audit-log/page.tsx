@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { Fragment, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewAuditLog } from '@/lib/roles'
-import { formatDateTime } from '@/lib/dates'
+import { formatClock, formatShortDate } from '@/lib/dates'
+import { History } from 'lucide-react'
+import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
+import { Button, Card, Chip, EmptyState, PageHeader, controlStyle, type ChipTone } from '@/app/components/admin'
+import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface AuditEntry {
@@ -39,14 +43,14 @@ const entityTypeLabels: Record<string, string> = {
   teacher_profile: 'Teacher profile',
 }
 
-const actionStyles: Record<string, { bg: string; color: string; label: string }> = {
-  create: { bg: '#e8f5ee', color: '#085041', label: 'Created' },
-  update: { bg: '#e8eef8', color: '#1B4F8A', label: 'Updated' },
-  delete: { bg: '#fdecea', color: '#8b1a1a', label: 'Deleted' },
-  override: { bg: '#fff3cd', color: '#7a4f00', label: 'Override' },
-  system: { bg: '#f4f4f4', color: '#666', label: 'System' },
-  cancelled: { bg: '#fdecea', color: '#8b1a1a', label: 'Cancelled' },
-  completed: { bg: '#f4f4f4', color: '#666', label: 'Completed' },
+const actionStyles: Record<string, { tone: ChipTone; label: string }> = {
+  create: { tone: 'primary', label: 'Created' },
+  update: { tone: 'info', label: 'Updated' },
+  delete: { tone: 'danger', label: 'Deleted' },
+  override: { tone: 'warn', label: 'Override' },
+  system: { tone: 'neutral', label: 'System' },
+  cancelled: { tone: 'danger', label: 'Cancelled' },
+  completed: { tone: 'neutral', label: 'Completed' },
 }
 
 // OccurrenceStatus serialises into audit `changes` as its raw enum ordinal (0/1/2) — map that and
@@ -69,15 +73,8 @@ function effectiveAction(entry: AuditEntry): string {
 }
 
 function ActionBadge({ action }: { action: string }) {
-  const s = actionStyles[action] ?? { bg: '#f4f4f4', color: '#666', label: action }
-  return (
-    <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
-    }}>
-      {s.label}
-    </span>
-  )
+  const s = actionStyles[action] ?? { tone: 'neutral' as ChipTone, label: action }
+  return <Chip tone={s.tone}>{s.label}</Chip>
 }
 
 const roleLabels: Record<string, string> = {
@@ -96,40 +93,48 @@ function formatFieldValue(field: string, v: unknown) {
   return String(v)
 }
 
+// "booking_window_days" → "Booking window days"
+const fieldLabel = (f: string) => { const t = f.replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1) }
+
 function ChangesDiff({ changes }: { changes: string }) {
   let parsed: Record<string, { old: unknown; new: unknown }>
   try {
     parsed = JSON.parse(changes)
   } catch {
-    return <p style={{ fontSize: '12px', color: '#666' }}>{changes}</p>
+    return <p style={{ margin: 0, fontSize: 14, color: color.muted }}>{changes}</p>
   }
 
   const fields = Object.entries(parsed)
   if (fields.length === 0) return null
 
   return (
-    <div style={{ marginTop: '10px', border: '1px solid #f4f4f4', borderRadius: '8px', overflow: 'hidden' }}>
-      {fields.map(([field, { old: oldVal, new: newVal }], i) => (
-        <div key={field} style={{
-          display: 'grid', gridTemplateColumns: '160px 1fr 24px 1fr',
-          padding: '8px 12px', alignItems: 'center', fontSize: '12px',
-          borderBottom: i < fields.length - 1 ? '1px solid #f4f4f4' : 'none',
-          backgroundColor: i % 2 === 0 ? '#fafafa' : 'white'
-        }}>
-          <div style={{ fontWeight: 600, color: '#444' }}>{field}</div>
-          <div style={{ color: '#8b1a1a', wordBreak: 'break-word' }}>{formatFieldValue(field, oldVal)}</div>
-          <div style={{ textAlign: 'center', color: '#999' }}>→</div>
-          <div style={{ color: '#085041', wordBreak: 'break-word' }}>{formatFieldValue(field, newVal)}</div>
-        </div>
-      ))}
+    <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, overflowX: 'auto' }}>
+      <table style={{ width: '100%', minWidth: 480, borderCollapse: 'collapse', fontSize: 14 }}>
+        <thead>
+          <tr>
+            {['Field', 'Before', 'After'].map(h => (
+              <th key={h} scope="col" style={{ textAlign: 'left', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: color.muted, padding: '8px 14px', borderBottom: `1px solid ${color.border}` }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {fields.map(([field, { old: oldVal, new: newVal }], i) => {
+            const td: React.CSSProperties = { padding: '8px 14px', borderBottom: i < fields.length - 1 ? `1px solid ${color.divider}` : 'none', wordBreak: 'break-word', verticalAlign: 'top' }
+            return (
+              <tr key={field}>
+                <td style={{ ...td, fontWeight: 600, color: color.ink2, width: '30%' }}>{fieldLabel(field)}</td>
+                <td style={{ ...td, color: color.muted }}>{formatFieldValue(field, oldVal)}</td>
+                <td style={{ ...td, color: color.ink }}>{formatFieldValue(field, newVal)}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: '8px 12px', border: '1px solid #e2e2e2', borderRadius: '8px',
-  fontSize: '13px', outline: 'none', backgroundColor: 'white'
-}
+const filterStyle: React.CSSProperties = { ...controlStyle, width: 'auto', minWidth: 160 }
 
 const PAGE_SIZE = 50
 
@@ -139,6 +144,7 @@ export default function AuditLogPage() {
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
+  const [timeZone, setTimeZone] = useState<string | null>(null)
   const [forbidden, setForbidden] = useState(false)
 
   const [entries, setEntries] = useState<AuditEntry[]>([])
@@ -181,6 +187,7 @@ export default function AuditLogPage() {
       setToken(t)
       const org = ctx.org
       setOrgId(org.id)
+      setTimeZone(org.timezone ?? null)
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
@@ -225,12 +232,14 @@ export default function AuditLogPage() {
     setLoadingMore(false)
   }
 
+  const filtered = !!(actorId || entityType || from || to)
+
   if (loading) {
     return (
       <div className={styles.shell}>
         <Sidebar active="audit-log" />
         <div className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#666' }}>Loading...</div>
+          <div style={{ color: color.muted }}>Loading…</div>
         </div>
       </div>
     )
@@ -241,132 +250,116 @@ export default function AuditLogPage() {
       <Sidebar active="audit-log" roles={roles} />
 
       <div className={styles.main}>
-        {forbidden ? <Forbidden /> : <>
+        {forbidden ? <Forbidden /> : (
+          <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
+            <PageHeader eyebrow="Every change in your studio: who, what and why" title="Activity log" />
 
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 700 }}>Activity log</h1>
-          <p style={{ color: '#666', fontSize: '14px', marginTop: '4px' }}>
-            Every change made in your studio — who, what, and why
-          </p>
-        </div>
-
-        {/* Filters */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          <select value={actorId} onChange={e => setActorId(e.target.value)} style={inputStyle}>
-            <option value="">All actors</option>
-            {actors.map(a => (
-              <option key={a.actor_id} value={a.actor_id}>{a.actor_name ?? 'Unknown'}</option>
-            ))}
-          </select>
-          <select value={entityType} onChange={e => setEntityType(e.target.value)} style={inputStyle}>
-            <option value="">All types</option>
-            {Object.entries(entityTypeLabels).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={inputStyle} title="From date" />
-          <input type="date" value={to} onChange={e => setTo(e.target.value)} style={inputStyle} title="To date" />
-          {(actorId || entityType || from || to) && (
-            <button
-              onClick={() => { setActorId(''); setEntityType(''); setFrom(''); setTo('') }}
-              style={{ ...inputStyle, backgroundColor: 'transparent', cursor: 'pointer', color: '#666' }}
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
-
-        {entries.length === 0 ? (
-          <div style={{
-            backgroundColor: 'white', borderRadius: '12px', padding: '64px', textAlign: 'center',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🕘</div>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No activity found</h3>
-            <p style={{ color: '#666', fontSize: '14px' }}>
-              {actorId || entityType || from || to ? 'Try widening your filters.' : "Nothing's been logged yet."}
-            </p>
-          </div>
-        ) : (
-          <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-            <div className={styles.tableHeaderRow} style={{ gridTemplateColumns: '1.3fr 1.6fr 1fr 1fr 100px' }}>
-              <div>When</div>
-              <div>Who</div>
-              <div>Action</div>
-              <div>Entity</div>
-              <div>Details</div>
+            {/* Filters */}
+            <div role="group" aria-label="Filters" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <select aria-label="Who" value={actorId} onChange={e => setActorId(e.target.value)} style={filterStyle}>
+                <option value="">Everyone</option>
+                {actors.map(a => (
+                  <option key={a.actor_id} value={a.actor_id}>{a.actor_name ?? 'Unknown'}</option>
+                ))}
+              </select>
+              <select aria-label="What changed" value={entityType} onChange={e => setEntityType(e.target.value)} style={filterStyle}>
+                <option value="">All types</option>
+                {Object.entries(entityTypeLabels).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <input type="date" aria-label="From date" value={from} max={to || undefined} onChange={e => setFrom(e.target.value)} style={{ ...filterStyle, minWidth: 0 }} />
+                <span style={{ color: color.muted, fontSize: 14 }}>to</span>
+                <input type="date" aria-label="To date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} style={{ ...filterStyle, minWidth: 0 }} />
+              </span>
+              {filtered && (
+                <button type="button" onClick={() => { setActorId(''); setEntityType(''); setFrom(''); setTo('') }} className={ui.focusable}
+                  style={{ background: 'none', border: 0, padding: '10px 4px', fontFamily: 'inherit', fontSize: 15, fontWeight: 600, color: color.primary, cursor: 'pointer' }}>
+                  Clear filters
+                </button>
+              )}
             </div>
 
-            {entries.map((entry, i) => {
-              const isExpanded = expandedId === entry.id
-              const hasDetail = !!entry.changes || !!entry.reason
-              return (
-                <div key={entry.id} style={{ borderBottom: i < entries.length - 1 ? '1px solid #f4f4f4' : 'none' }}>
-                  <div className={styles.tableRow} style={{
-                    gridTemplateColumns: '1.3fr 1.6fr 1fr 1fr 100px'
-                  }}>
-                    <div style={{ fontSize: '13px', color: '#444' }}>
-                      {formatDateTime(entry.created_at)}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{entry.actor_name ?? 'System'}</div>
-                      {entry.actor_role && (
-                        <div style={{ fontSize: '11px', color: '#666' }}>{roleLabels[entry.actor_role] ?? entry.actor_role}</div>
-                      )}
-                    </div>
-                    <div><ActionBadge action={effectiveAction(entry)} /></div>
-                    <div style={{ fontSize: '13px', color: '#444' }}>
-                      {entityTypeLabels[entry.entity_type] ?? entry.entity_type}
-                    </div>
-                    <div>
-                      {hasDetail && (
-                        <button
-                          onClick={() => setExpandedId(isExpanded ? '' : entry.id)}
-                          style={{
-                            padding: '5px 10px', backgroundColor: '#f4f4f4', border: 'none', borderRadius: '6px',
-                            fontSize: '11px', color: '#444', cursor: 'pointer', fontWeight: 500
-                          }}
-                        >
-                          {isExpanded ? 'Hide' : 'Details'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {isExpanded && (
-                    <div style={{ padding: '0 24px 16px' }}>
-                      {entry.reason && (
-                        <div style={{
-                          padding: '10px 12px', backgroundColor: '#fff3cd', borderRadius: '8px',
-                          fontSize: '12px', color: '#7a4f00', marginBottom: entry.changes ? '10px' : 0
-                        }}>
-                          <strong>Reason:</strong> {entry.reason}
-                        </div>
-                      )}
-                      {entry.changes && <ChangesDiff changes={entry.changes} />}
-                    </div>
-                  )}
+            {entries.length === 0 ? (
+              <Card>
+                <EmptyState
+                  icon={<History size={22} strokeWidth={1.8} />}
+                  message={filtered ? 'No activity matches these filters. Try widening them.' : "Nothing's been logged yet."}
+                />
+              </Card>
+            ) : (
+              <Card style={{ overflow: 'hidden' }} aria-label="Activity">
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 15 }}>
+                    <thead>
+                      <tr>
+                        {['When', 'Who', 'Action', 'What', ''].map((h, i) => (
+                          <th key={i} scope="col" style={{
+                            textAlign: i === 4 ? 'right' : 'left', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
+                            color: color.muted, padding: '12px 20px', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap',
+                          }}>{h || <span className={styles.srOnly}>Details</span>}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entries.map((entry, i) => {
+                        const isExpanded = expandedId === entry.id
+                        const hasDetail = !!entry.changes || !!entry.reason
+                        const last = i === entries.length - 1
+                        const td: React.CSSProperties = { padding: '12px 20px', borderBottom: last && !isExpanded ? 'none' : `1px solid ${color.divider}`, verticalAlign: 'middle' }
+                        return (
+                          <Fragment key={entry.id}>
+                            <tr>
+                              <td style={{ ...td, whiteSpace: 'nowrap', color: color.ink2, ...tabularNums }}>
+                                {formatShortDate(entry.created_at, timeZone)} · {formatClock(entry.created_at, timeZone)}
+                              </td>
+                              <td style={td}>
+                                <span style={{ display: 'block', fontWeight: 600 }}>{entry.actor_name ?? 'System'}</span>
+                                {entry.actor_role && (
+                                  <span style={{ display: 'block', fontSize: 14, color: color.muted }}>{roleLabels[entry.actor_role] ?? entry.actor_role}</span>
+                                )}
+                              </td>
+                              <td style={td}><ActionBadge action={effectiveAction(entry)} /></td>
+                              <td style={{ ...td, color: color.ink2 }}>{entityTypeLabels[entry.entity_type] ?? entry.entity_type}</td>
+                              <td style={{ ...td, textAlign: 'right' }}>
+                                {hasDetail && (
+                                  <Button size="sm" onClick={() => setExpandedId(isExpanded ? '' : entry.id)} aria-expanded={isExpanded}>
+                                    {isExpanded ? 'Hide' : 'Details'}
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={5} style={{ padding: '4px 20px 16px', borderBottom: last ? 'none' : `1px solid ${color.divider}` }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {entry.reason && (
+                                      <div style={{ padding: '10px 14px', background: color.warnBg, borderRadius: radius.control, fontSize: 14, color: color.warnInk }}>
+                                        <strong style={{ fontWeight: 600 }}>Reason:</strong> {entry.reason}
+                                      </div>
+                                    )}
+                                    {entry.changes && <ChangesDiff changes={entry.changes} />}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              )
-            })}
-          </div>
-        )}
+              </Card>
+            )}
 
-        {hasMore && (
-          <div style={{ textAlign: 'center', marginTop: '20px' }}>
-            <button
-              onClick={loadMore}
-              disabled={loadingMore}
-              style={{
-                padding: '10px 24px', backgroundColor: 'white', border: '1px solid #e2e2e2',
-                borderRadius: '8px', fontSize: '13px', color: '#444', cursor: loadingMore ? 'not-allowed' : 'pointer', fontWeight: 500
-              }}
-            >
-              {loadingMore ? 'Loading...' : 'Load more'}
-            </button>
+            {hasMore && (
+              <div style={{ textAlign: 'center' }}>
+                <Button onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading…' : 'Load more'}</Button>
+              </div>
+            )}
           </div>
         )}
-        </>}
       </div>
     </div>
   )
