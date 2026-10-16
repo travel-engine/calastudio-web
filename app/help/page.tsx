@@ -43,7 +43,7 @@ export default function HelpPage() {
             type="search"
             placeholder="Search the help centre…"
             aria-label="Search the help centre"
-            style={{ width: '100%', padding: '14px 20px', backgroundColor: 'white', borderRadius: '10px', border: 'none', fontSize: '15px', outline: 'none' }}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '14px 20px', backgroundColor: 'white', borderRadius: '10px', border: 'none', fontSize: '15px', outline: 'none' }}
           />
         </form>
       </div>
@@ -97,7 +97,7 @@ function SectionGroup({ title, description, icon, color, audience, sections, gat
   gated?: boolean
 }) {
   const grid = (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(240px, 100%), 1fr))', gap: '16px' }}>
       {Object.entries(sections).map(([section, articles]) => (
         <Link
           key={section}
@@ -126,7 +126,7 @@ function SectionGroup({ title, description, icon, color, audience, sections, gat
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-        <div style={{ width: '40px', height: '40px', backgroundColor: color, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+        <div style={{ width: '40px', height: '40px', flex: 'none', backgroundColor: color, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
           {icon}
         </div>
         <div>
