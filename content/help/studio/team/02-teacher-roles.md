@@ -52,7 +52,14 @@ Pick the narrowest role that lets someone do their job. A casual instructor cove
 
 ## Changing a role later
 
-Open **Team**, click **Edit** on the person, tick or untick roles under **Roles**, and click **Save roles**. Roles save on their own — separately from the profile's **Save changes** — and apply the next time that person opens the dashboard. Everyone needs at least one role; no need to re-invite anyone.
+Open **Team**, click **Edit** on the person, tick or untick roles under **Roles**, and click **Save roles** (**Discard** puts the ticks back). Roles save on their own — separately from the profile's **Save changes** — so there's no need to re-invite anyone.
+
+A few things to know:
+
+- **Everyone needs at least one role.** Saving with every box unticked is refused with "A member must have at least one role."
+- **What they see updates on their next visit.** If the person already has the dashboard open, their menu and screens change the next time they open or refresh it.
+- **Every change is recorded.** Role changes appear in **Activity log** as a **Team member** update, showing the roles before and after and who changed them.
+- Only **Admin** can change roles.
 
 ## Multiple roles at once
 
