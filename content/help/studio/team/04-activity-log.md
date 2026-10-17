@@ -15,7 +15,7 @@ Each row shows when something happened, who did it (and their role at the time),
 | Action | Meaning |
 |---|---|
 | **Created** | A new record was made — a session, a pass template, a member pass |
-| **Updated** | An existing record changed |
+| **Updated** | An existing record changed — including a team member's roles, shown as their roles before and after |
 | **Deleted** | Something was deactivated (sessions and pass templates are never hard-deleted, just turned off) |
 | **Override** | A manual exception, like a credit adjustment, an expiry extension, or manually refunding a forfeited credit on a late-cancelled booking — these always carry a reason |
 | **System** | An automated change with no human actor |
