@@ -4,8 +4,8 @@
 // One template; every visual axis is a token. A studio's `theme` key picks a set. Components read
 // `var(--*)` off the tree wrapper, so a theme is purely data here.
 //
-//   photo-first  Ravi's private look — an alias of `night`, kept as its own key so it isn't
-//                offered to other studios.
+//   photo-first        Night's tokens with the full-bleed photo hero layout
+//   photo-first-light  the same layout on a light paper ground (hero stays light-on-photo)
 //   classic      light, plain, gets out of the way (default for new studios)
 //   night        dark, photography-led
 //   clay         warm sand ground, serif headings
@@ -15,7 +15,7 @@
 // The photo hero is fixed light-on-image in every theme (dark scrim — see .hero in
 // photofirst.module.css); the switcher/picker is dev-only (layout.tsx).
 
-export type ThemeKey = 'photo-first' | 'classic' | 'night' | 'clay' | 'grid' | 'poster'
+export type ThemeKey = 'photo-first' | 'photo-first-light' | 'classic' | 'night' | 'clay' | 'grid' | 'poster'
 
 // A theme's design decisions, in the handoff's own shape. `expandTokens` turns one into the CSS
 // custom-property map the stylesheet consumes.
@@ -64,7 +64,7 @@ interface ThemeSpec {
   dangerBg: string
 }
 
-const SPECS: Record<Exclude<ThemeKey, 'photo-first'>, ThemeSpec> = {
+const SPECS: Record<Exclude<ThemeKey, 'photo-first' | 'photo-first-light'>, ThemeSpec> = {
   classic: {
     name: 'Classic',
     blurb: 'Light and familiar. A plain booking page that gets out of the way.',
@@ -227,6 +227,19 @@ function build(key: ThemeKey, s: ThemeSpec): StudioTheme {
   return { key, name: s.name, blurb: s.blurb, colorScheme: s.colorScheme, fonts: s.fonts, layout: 'themed', tokens: expandTokens(s) }
 }
 
+// Photo First's light sibling: Night's type, shape and spacing on a warm paper ground. The hero
+// photo, its scrim and the nav over it stay light-on-image exactly as in Photo First.
+const DAY: ThemeSpec = {
+  ...SPECS.night,
+  name: 'Photo First Light',
+  blurb: 'One full-screen photograph with your studio name over it, then calm, light pages below.',
+  colorScheme: 'light',
+  bg: '#f6f4ef', surface: '#ffffff', ink: '#1b1a17', muted: '#5d5a53', faint: '#6a665e',
+  accent: '#1b1a17', accentInk: '#f6f4ef', line: 'rgba(27,26,23,0.12)',
+  fixedBar: 'rgba(246, 244, 239, 0.92)',
+  okBg: 'rgba(27,26,23,0.06)', warnBg: 'rgba(168, 92, 26, 0.12)', danger: '#a3352f', dangerBg: 'rgba(163, 53, 47, 0.09)',
+}
+
 const THEMES: Record<ThemeKey, StudioTheme> = {
   classic: build('classic', SPECS.classic),
   night: build('night', SPECS.night),
@@ -240,12 +253,13 @@ const THEMES: Record<ThemeKey, StudioTheme> = {
     blurb: 'One full-screen photograph with your studio name over it. Dark and dramatic — best with a single strong hero image.',
     layout: 'photofirst',
   },
+  'photo-first-light': { ...build('photo-first-light', DAY), layout: 'photofirst' },
 }
 
 const DEFAULT_THEME: ThemeKey = 'photo-first'
 
-/** All six themes a studio can choose, in picker order. */
-export const PICKER_THEMES: ThemeKey[] = ['classic', 'night', 'clay', 'grid', 'poster', 'photo-first']
+/** All seven themes a studio can choose, in picker order. */
+export const PICKER_THEMES: ThemeKey[] = ['classic', 'night', 'clay', 'grid', 'poster', 'photo-first', 'photo-first-light']
 /** Alias kept for the dev switcher. */
 export const THEME_KEYS: ThemeKey[] = PICKER_THEMES
 

@@ -2,7 +2,7 @@
 
 import { PICKER_THEMES, themePreview, pickerFontHref, type ThemeKey } from '@/lib/studioTheme'
 
-// The five-theme chooser (design handoff §"Onboarding picker") — used in the onboarding wizard and
+// The studio theme chooser (design handoff §"Onboarding picker", plus the two Photo First looks) — used in the onboarding wizard and
 // in dashboard settings. Each card's swatch is painted in that theme's own tokens.
 export default function ThemePicker({
   value, onChange, sampleTitle = 'Vinyasa — all levels',

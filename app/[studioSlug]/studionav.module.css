@@ -101,6 +101,23 @@
   text-underline-offset: 5px;
 }
 
+/* "Sign in" pill. Over the hero photo it's pinned light-on-image like the rest of the bar. */
+.signIn {
+  padding: 9px 18px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: var(--pill);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.barOverPhoto .signIn {
+  background: #f5f4f1;
+  color: #0e0e0d;
+}
+
 /* "Book a class" CTA — themed layout only. */
 .navCta {
   font-family: var(--font-body);

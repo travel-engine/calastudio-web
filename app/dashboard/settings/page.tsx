@@ -997,7 +997,7 @@ function SettingsPageContent() {
                   </>
                 ), 'branding')}
 
-                {sectionCard('theme', 'Page style', 'One layout, six styles. Your logo and brand colour carry across all of them.', (
+                {sectionCard('theme', 'Page style', 'Seven styles for your booking page. Your logo and brand colour carry across all of them.', (
                   <ThemePicker value={form.theme as ThemeKey} onChange={k => update('theme', k)} />
                 ), 'theme')}
 

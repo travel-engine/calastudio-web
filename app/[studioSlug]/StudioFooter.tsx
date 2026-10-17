@@ -12,7 +12,7 @@ export interface StudioSocials {
 // Public-site footer. `poweredBy` (themed layout) swaps the account line for a "Powered by
 // CalaStudio" credit, matching the design handoff's Studio Themes template. Social icons use
 // `currentColor` (the icon set's default stroke), so they pick up whichever token colours the
-// surrounding link across all six themes without any per-theme styling here.
+// surrounding link across every theme without any per-theme styling here.
 export default function StudioFooter({
   name, email, poweredBy = false, socials,
 }: {
