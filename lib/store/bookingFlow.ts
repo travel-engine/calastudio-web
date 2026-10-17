@@ -20,6 +20,8 @@ export interface BookableOccurrence {
   spots_remaining: number | null
   is_cancelled: boolean
   cancellation_reason?: string | null
+  /** False once online booking has closed for this class (close-before window, past). Optional until the API sends it. */
+  is_bookable?: boolean
 }
 
 export interface PassTemplateOption {
@@ -41,6 +43,10 @@ export interface BookingOptions {
   session_name: string
   booking_access_mode: 'open' | 'free' | 'restricted'
   is_bookable: boolean
+  /** Why `is_bookable` is false, in words for the member (e.g. "Booking closes 3 hours before the class."). */
+  not_bookable_reason?: string | null
+  /** The cancellation window that applies to this class, in hours. */
+  cancellation_hours?: number | null
   is_free: boolean
   drop_in_allowed: boolean
   base_price: number | null

@@ -30,13 +30,15 @@ export default function RowBookButton({
   }
 
   const full = occurrence.spots_remaining !== null && occurrence.spots_remaining <= 0
-  const label = occurrence.is_cancelled ? 'Cancelled' : full ? 'Waitlist' : 'Book'
+  const closed = occurrence.is_bookable === false && !occurrence.is_cancelled
+  const label = occurrence.is_cancelled ? 'Cancelled' : closed ? 'Closed' : full ? 'Waitlist' : 'Book'
 
   return (
     <button
       type="button"
       className={`${styles.rowBtn} ${full && !occurrence.is_cancelled ? styles.rowBtnWaitlist : ''}`}
-      disabled={occurrence.is_cancelled}
+      disabled={occurrence.is_cancelled || closed}
+      title={closed ? 'Online booking has closed for this class' : undefined}
       onClick={() => openOccurrence(studioSlug, occurrence, { brandColor, stripeAccountId, paymentsEnabled, timeZone })}
     >
       {label}
