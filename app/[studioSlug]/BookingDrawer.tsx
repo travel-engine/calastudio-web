@@ -342,7 +342,9 @@ export default function BookingDrawer() {
     setAuthBusy(false)
   }
 
-  const handleConfirmBooking = async () => {
+  // `afterPurchase`: the member has just paid for a pass to make this booking — if the booking then
+  // fails, say plainly that the pass is safe in their account.
+  const handleConfirmBooking = async (afterPurchase = false) => {
     setConfirmingLabel('Confirming your booking...')
     setStep('confirming')
     try {
@@ -382,7 +384,10 @@ export default function BookingDrawer() {
           return
         }
         if (isCapacityFullError(message)) { goToWaitlist(); return }
-        setError(message || "Couldn't complete your booking. Please try again.")
+        const reason = message || "Couldn't complete your booking. Please try again."
+        setError(afterPurchase
+          ? `Your new pass is in your account and ready to use, but this class couldn't be booked: ${reason}`
+          : reason)
       }
     } catch {
       setError("Couldn't reach the server. Please try again.")
@@ -451,7 +456,7 @@ export default function BookingDrawer() {
         // The pass the webhook just issued: same template, and an id we didn't already hold.
         const found = passes.find((p: any) =>
           p.pass_template_id === templateId && !passIdsBeforePurchaseRef.current.has(p.id))
-        if (found) { await handleConfirmBooking(); return }
+        if (found) { await handleConfirmBooking(true); return }
       }
     }
     setError("Your payment succeeded, but we're still issuing your pass. Check My Passes in a minute, then come back and book.")
@@ -736,6 +741,16 @@ export default function BookingDrawer() {
             </div>
           ) : !bookingOptions ? (
             <div className={styles.drawerStatus}>Loading options…</div>
+          ) : bookingOptions.is_bookable === false ? (
+            // The API decides (booking-close window, how far ahead, cancelled, past). Never offer
+            // payment for a class that can't be booked — that's how money gets taken for nothing.
+            <div className={styles.resultWrap}>
+              <h3 className={styles.resultTitle}>Booking has closed</h3>
+              <p className={styles.drawerText}>
+                {bookingOptions.not_bookable_reason || "This class can't be booked online any more. Please contact the studio."}
+              </p>
+              <button onClick={close} className={styles.blockBtn}>Back to the schedule</button>
+            </div>
           ) : (
             <div>
               {note && <div className={styles.noticeWarn}>{note}</div>}
@@ -750,7 +765,7 @@ export default function BookingDrawer() {
                 <div>
                   <p className={styles.drawerText}>This class is free — no payment required.</p>
                   {renderGuestSelector()}
-                  <button onClick={handleConfirmBooking} className={styles.blockBtn} style={{ marginTop: '12px' }}>
+                  <button onClick={() => handleConfirmBooking()} className={styles.blockBtn} style={{ marginTop: '12px' }}>
                     Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
                   </button>
                 </div>
@@ -771,7 +786,7 @@ export default function BookingDrawer() {
                     </div>
                   )}
                   <button
-                    onClick={handleConfirmBooking}
+                    onClick={() => handleConfirmBooking()}
                     disabled={passCreditsShort}
                     className={styles.blockBtn}
                     style={{ marginTop: '12px' }}
@@ -860,7 +875,11 @@ export default function BookingDrawer() {
                   )}
                 </div>
               )}
-              <p className={styles.drawerFootnote}>Free cancellation up to 12 hours before the session.</p>
+              {bookingOptions.cancellation_hours != null && (
+                <p className={styles.drawerFootnote}>
+                  Free cancellation up to {bookingOptions.cancellation_hours} hour{bookingOptions.cancellation_hours === 1 ? '' : 's'} before the class.
+                </p>
+              )}
             </div>
           )
         )}
