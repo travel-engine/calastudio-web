@@ -19,7 +19,7 @@ Only sessions marked **Public** show up here — a **Private** session can still
 Go to **Settings** and open the **Booking page** tab:
 
 - **Branding** — your **Logo** and **Brand colour**, shown across your booking page and every teacher landing page
-- **Page style** — six looks for the same page; pick one and click **Save**
+- **Page style** — seven looks for the same page; pick one and click **Save**
 - **Page content** — the words and photos on your home page: the hero headline and photo, an About section, the passes intro, a photo gallery, and social links. Click **Edit** on any row to open its fields
 
 Each card has its own **Save**. See **Settings → Booking page settings** for the details.

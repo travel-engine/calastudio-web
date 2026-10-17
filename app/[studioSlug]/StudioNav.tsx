@@ -191,7 +191,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
                     onClick={handleSignOut}
                     style={{
                       display: 'block', width: '100%', textAlign: 'left', padding: '9px 10px', borderRadius: '8px',
-                      fontSize: '13px', color: '#e88f8f', background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: '13px', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer',
                     }}
                   >
                     Sign out
@@ -200,13 +200,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
               )}
             </div>
           ) : onAccountPage ? null : (
-            <Link
-              href={at('/account')}
-              style={{
-                padding: '9px 18px', background: 'var(--accent)', color: 'var(--accent-ink)', borderRadius: 'var(--pill)',
-                fontSize: '13px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap',
-              }}
-            >
+            <Link href={at('/account')} className={styles.signIn}>
               Sign in
             </Link>
           )}

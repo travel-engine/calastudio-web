@@ -17,7 +17,7 @@ As on the Studio tab, **each card saves on its own** with its own **Save** and *
 
 ## Page style
 
-Six styles for the same page — each card previews the look. Click one, then **Save**. Your logo and brand colour carry across every style, and you can switch any time.
+Seven styles for the same page — each card previews the look. Click one, then **Save**. **Photo First** and **Photo First Light** open with one full-screen photograph (your Hero photo) with your studio name over it; the dark one keeps the whole page dark, the light one switches to light pages below the photo. Your logo and brand colour carry across every style, and you can switch any time.
 
 ## Page content
 

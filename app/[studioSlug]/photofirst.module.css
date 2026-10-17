@@ -235,6 +235,11 @@
   color: var(--text-meta);
 }
 
+/* Full-bleed hero sits on a dark scrim — keep its kicker and lead light whatever the body palette. */
+.hero .kicker {
+  color: rgba(245, 244, 241, 0.86);
+}
+
 /* Full-bleed hero sits on a dark scrim — keep its lead brighter than the themed default. */
 .hero .heroLead {
   color: rgba(245, 244, 241, 0.86);
@@ -652,7 +657,7 @@
   border-radius: 50%;
   border: 1px solid rgba(245, 244, 241, 0.3);
   background: rgba(26, 26, 24, 0.9);
-  color: var(--ink);
+  color: #f5f4f1; /* on the dark lightbox backdrop in every theme */
   font-size: 18px;
   cursor: pointer;
 }
@@ -666,7 +671,7 @@
   border-radius: 50%;
   border: 1px solid rgba(245, 244, 241, 0.3);
   background: rgba(26, 26, 24, 0.9);
-  color: var(--ink);
+  color: #f5f4f1; /* on the dark lightbox backdrop in every theme */
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
