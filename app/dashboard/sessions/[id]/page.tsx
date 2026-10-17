@@ -129,7 +129,7 @@ export default function EditSessionPage() {
     recurrenceCount: '10',
     visibility: 'public',
     bookingAccessMode: 'open',
-    cancellationHours: '12',
+    cancellationHours: '', // blank = studio default (Settings → Booking policy)
     bookingWindowDays: '',
     minAdvanceBookingHours: '',
     taxRateOverride: '',
@@ -236,7 +236,7 @@ export default function EditSessionPage() {
         recurrenceCount: s.recurrence_count?.toString() ?? '10',
         visibility: s.visibility ?? 'public',
         bookingAccessMode: s.booking_access_mode ?? 'open',
-        cancellationHours: s.cancellation_hours?.toString() ?? '12',
+        cancellationHours: s.cancellation_hours?.toString() ?? '',
         bookingWindowDays: s.booking_window_days?.toString() ?? '',
         minAdvanceBookingHours: s.min_advance_booking_hours?.toString() ?? '',
         taxRateOverride: s.tax_rate_override?.toString() ?? '',
@@ -381,7 +381,7 @@ export default function EditSessionPage() {
       recurrence_rule: form.isRecurring ? 'RRULE:FREQ=WEEKLY' : null,
       recurrence_end_date: form.isRecurring && form.recurrenceEndMode === 'date' && form.recurrenceEndDate ? form.recurrenceEndDate : null,
       recurrence_count: form.isRecurring && form.recurrenceEndMode === 'count' && form.recurrenceCount ? parseInt(form.recurrenceCount) : null,
-      cancellation_hours: parseInt(form.cancellationHours),
+      cancellation_hours: form.cancellationHours !== '' ? parseInt(form.cancellationHours, 10) : null,
       booking_window_days: form.bookingWindowDays ? parseInt(form.bookingWindowDays) : null,
       min_advance_booking_hours: form.minAdvanceBookingHours ? parseInt(form.minAdvanceBookingHours) : null,
       tax_rate_override: form.taxRateOverride ? parseFloat(form.taxRateOverride) : null,
@@ -939,6 +939,7 @@ export default function EditSessionPage() {
               <Input
                 type="number"
                 min="0"
+                placeholder="Studio default"
                 value={form.cancellationHours}
                 onChange={e => update('cancellationHours', e.target.value)}
               />
