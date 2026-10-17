@@ -101,7 +101,8 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
 
   const live = visible.filter(o => !o.is_cancelled)
   const now = Date.now()
-  const next = live.find(o => new Date(o.starts_at).getTime() > now) ?? live[0] ?? null
+  // The booking bar offers the next class that can still be booked online — never a closed one.
+  const next = live.find(o => new Date(o.starts_at).getTime() > now && o.is_bookable !== false) ?? null
 
   const origin = studioOrigin(studioSlug)
   const ldCtx = { studioName: org.name, studioUrl: `${origin}/`, pageUrl: `${origin}/schedule` }
@@ -125,7 +126,7 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
       <main className={styles.container}>
         <header className={styles.pageHeader}>
           <h1 className={styles.h1}>Schedule</h1>
-          <p className={styles.lead}>Booking opens seven days ahead. Full sessions take a waitlist.</p>
+          <p className={styles.lead}>Book a spot below. Full classes take a waitlist.</p>
         </header>
 
         <FilterChips
