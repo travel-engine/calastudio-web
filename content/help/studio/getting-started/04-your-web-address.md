@@ -10,7 +10,7 @@ Your booking page lives at **`{your-studio}.calastudio.app`** — for example, Y
 
 ## Where it comes from
 
-The address is made from your studio name when you first sign up: lowercase, with spaces turned into hyphens. If another studio already has that address, a number is added on the end (`-2`). A few words are kept for CalaStudio's own pages and can't be used, such as `help`, `login` and `dashboard`.
+The address is made from your studio name when you first sign up: lowercase, with spaces turned into hyphens.
 
 ## Renaming your studio
 
