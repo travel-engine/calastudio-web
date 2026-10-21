@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import { CalendarDays, ChartColumn, Clock, House, Layers, LogOut, Menu, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
+import { CalendarDays, ChartColumn, Clock, ExternalLink, House, Layers, LogOut, Menu, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
-import { clearOrgContext } from '@/lib/orgContext'
+import { clearOrgContext, getOrgContext } from '@/lib/orgContext'
+import { STUDIO_SUBDOMAINS, studioOrigin, studioUrl } from '@/lib/seo'
 import { canViewSessions, canViewOccurrences, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
 import { color } from '@/lib/ui/tokens'
 import { buttonStyle } from '@/app/components/admin/Button'
@@ -62,6 +63,13 @@ function BrandMark({ size = 28 }: { size?: number }) {
 export default function Sidebar({ active, roles }: SidebarProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  // Which studio this dashboard belongs to — from the per-tab org cache every page already loads.
+  const [studio, setStudio] = useState<{ name: string; slug: string; logo: string | null } | null>(null)
+  useEffect(() => {
+    getOrgContext().then(ctx => {
+      if (ctx.status === 'ok') setStudio({ name: ctx.org.name ?? '', slug: ctx.org.slug, logo: ctx.org.logo_url ?? null })
+    }).catch(() => {})
+  }, [])
   const visible = (item: NavItem) => !item.canView || !roles || item.canView(roles)
 
   useEffect(() => {
@@ -93,8 +101,9 @@ export default function Sidebar({ active, roles }: SidebarProps) {
         >
           <Menu size={20} strokeWidth={1.8} aria-hidden />
         </button>
-        <Link href="/dashboard" className={`${styles.brand} ${ui.focusable}`}>
-          <BrandMark size={24} />CalaStudio
+        <Link href="/dashboard" className={`${styles.brand} ${ui.focusable}`} style={{ minWidth: 0 }}>
+          <BrandMark size={24} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{studio?.name || 'CalaStudio'}</span>
         </Link>
       </div>
 
@@ -105,6 +114,22 @@ export default function Sidebar({ active, roles }: SidebarProps) {
         <Link href="/dashboard" className={`${styles.brand} ${ui.focusable}`} onClick={() => setOpen(false)}>
           <BrandMark />CalaStudio
         </Link>
+
+        {studio && (
+          <div className={styles.studio}>
+            <span className={styles.studioMark} aria-hidden>
+              {studio.logo ? <img src={studio.logo} alt="" /> : (studio.name.trim()[0] ?? '?').toUpperCase()}
+            </span>
+            <span style={{ minWidth: 0 }}>
+              <span className={styles.studioLabel}>Your studio</span>
+              <span className={styles.studioName}>{studio.name}</span>
+              <a href={studioUrl(studio.slug)} target="_blank" rel="noreferrer" className={`${styles.studioLink} ${ui.focusable}`}>
+                {STUDIO_SUBDOMAINS ? studioOrigin(studio.slug).replace(/^https?:\/\//, '') : 'View booking page'}
+                <ExternalLink size={12} strokeWidth={2} aria-hidden />
+              </a>
+            </span>
+          </div>
+        )}
 
         {/* A heading only renders when its section has something this role can see. */}
         {SECTIONS.map(section => {
