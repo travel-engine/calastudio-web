@@ -61,7 +61,8 @@ function Studios({ token }: { token: string }) {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${encodeURIComponent(slug)}`).catch(() => null)
     if (!res?.ok) { setError('No studio found with that address.'); return }
     const d = await res.json()
-    router.push(`/admin/studios/${d.id}`)
+    // name/slug ride along so the studio page can title itself until the detail endpoint exists
+    router.push(`/admin/studios/${d.id}?${new URLSearchParams({ name: d.name ?? '', slug })}`)
   }
 
   const statusTone = (s?: string | null): ChipTone => s === 'active' ? 'primary' : s === 'past_due' ? 'danger' : s === 'incomplete' ? 'warn' : 'neutral'

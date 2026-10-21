@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { ExternalLink } from 'lucide-react'
 import { adminFetch } from '@/lib/platformAdmin'
 import { studioUrl } from '@/lib/seo'
@@ -46,6 +46,7 @@ export default function AdminStudioPage() {
 
 function StudioView({ token }: { token: string }) {
   const id = useParams().id as string
+  const hint = useSearchParams()
   const [studio, setStudio] = useState<StudioDetail | null>(null)
   const [plan, setPlan] = useState<BillingPlan | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -57,13 +58,13 @@ function StudioView({ token }: { token: string }) {
     try {
       const [s, b] = await Promise.all([adminFetch(`/organisations/${id}`, token), adminFetch(`/organisations/${id}/billing`, token)])
       if (s.res.ok) setStudio(s.body)
-      else setStudio({ id, name: 'Studio', slug: '' }) // detail endpoint not live yet — still show billing
+      else setStudio({ id, name: hint.get('name') || 'Studio', slug: hint.get('slug') ?? '' }) // detail endpoint not live yet — still show billing
       if (b.res.ok) setPlan(b.body)
       else setLoadError(b.body?.error ?? 'Could not load this studio’s plan.')
     } catch {
       setLoadError('Could not reach the server.')
     }
-  }, [id, token])
+  }, [id, token, hint])
 
   useEffect(() => { load() }, [load])
 
