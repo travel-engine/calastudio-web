@@ -186,6 +186,17 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
                   >
                     My bookings &amp; orders
                   </Link>
+                  {[['/account?tab=profile', 'Profile'], ['/account?tab=policies', 'Privacy & policies']].map(([href, label]) => (
+                    <Link
+                      key={href}
+                      href={at(href)}
+                      role="menuitem"
+                      onClick={() => setMenuOpen(false)}
+                      style={{ display: 'block', padding: '9px 10px', borderRadius: '8px', fontSize: '13px', color: 'var(--ink)', textDecoration: 'none' }}
+                    >
+                      {label}
+                    </Link>
+                  ))}
                   <button
                     role="menuitem"
                     onClick={handleSignOut}

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useParams, useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { splitName } from '@/lib/names'
 import { formatDate, formatDateTimeWithWeekday, safeZone } from '@/lib/dates'
@@ -204,8 +204,20 @@ function onlineJoin(occ: NonNullable<Booking['session_occurrence']>) {
   return null // session over, or no link available at all
 }
 
+// Profile and Privacy & policies open from the account menu (StudioNav) as ?tab=…, so the page reads
+// the tab from the URL; useSearchParams needs a Suspense boundary.
 export default function MemberAccountPage() {
+  return <Suspense fallback={null}><MemberAccountContent /></Suspense>
+}
+
+const TAB_KEYS = ['upcoming', 'past', 'passes', 'payments', 'policies', 'profile'] as const
+type AccountTab = typeof TAB_KEYS[number]
+
+function MemberAccountContent() {
   const params = useParams()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const router = useRouter()
   const studioSlug = params.studioSlug as string
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -228,7 +240,16 @@ export default function MemberAccountPage() {
   const [studioNotFound, setStudioNotFound] = useState(false)
   const [portalError, setPortalError] = useState('')
 
-  const [tab, setTab] = useState<'upcoming' | 'past' | 'passes' | 'payments' | 'policies' | 'profile'>('upcoming')
+  const [tab, setTab] = useState<AccountTab>('upcoming')
+  const urlTab = searchParams.get('tab')
+  useEffect(() => {
+    if (urlTab && (TAB_KEYS as readonly string[]).includes(urlTab)) setTab(urlTab as AccountTab)
+  }, [urlTab])
+  // A tab pill clears ?tab=, so choosing Profile from the menu again still registers as a change.
+  const chooseTab = (t: AccountTab) => {
+    setTab(t)
+    if (urlTab) router.replace(pathname, { scroll: false })
+  }
   // Credit history isn't its own tab — it's the movement list you expand under an individual pass.
   const [expandedPassId, setExpandedPassId] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -912,10 +933,10 @@ export default function MemberAccountPage() {
     <div className={pf.root} style={{ minHeight: 'calc(100vh - 57px)', background: 'var(--bg)' }}>
       <div className={styles.layout}>
         <nav className={styles.nav}>
-          {(['upcoming', 'past', 'passes', 'payments', 'policies', 'profile'] as const).map(t => (
+          {(['upcoming', 'past', 'passes', 'payments'] as const).map(t => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => chooseTab(t)}
               className={`${styles.navItem} ${tab === t ? styles.navItemActive : ''}`}
             >
               {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Order history' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
@@ -949,6 +970,12 @@ export default function MemberAccountPage() {
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-meta)' }}>Loading...</div>
         ) : (
           <>
+            {(tab === 'profile' || tab === 'policies') && (
+              <h2 style={{ margin: '0 0 14px', fontSize: '20px', fontWeight: 700, color: 'var(--ink)' }}>
+                {tab === 'profile' ? 'Profile' : 'Privacy & policies'}
+              </h2>
+            )}
+
             {tab === 'profile' && profile && (
               <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '28px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
