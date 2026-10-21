@@ -37,12 +37,13 @@ async function fetchOrgAndRoles(token: string): Promise<Loaded | null> {
   const orgRes = await fetch(`${API}/api/organisations/mine`, { headers })
   if (!orgRes.ok) return null
   const org: MyOrg = await orgRes.json()
-  // Use roles off the org response if the API includes them (and the platform-admin flag with
-  // them); otherwise one more call, which also carries the first name for the dashboard greeting.
-  // A CalaStudio platform admin (Platinum Ray) is not a studio role: it rides in `roles` as
-  // PLATFORM_ADMIN so the sidebar can gate its link; lib/roles' studio checks never match it.
-  if (Array.isArray(org.roles) && 'is_platform_admin' in org) {
-    return { org, roles: withPlatformAdmin(org.roles, org.is_platform_admin), firstName: org.first_name ?? null }
+  // Use roles, the platform-admin flag and the first name off the org response when the API
+  // includes all three; otherwise one more call (/my-role carries them, the first name feeding the
+  // dashboard greeting). A CalaStudio platform admin (Travel Engine staff) is not a studio role: it
+  // rides in `roles` as PLATFORM_ADMIN so the sidebar can gate its link; lib/roles' studio checks
+  // never match it.
+  if (Array.isArray(org.roles) && 'is_platform_admin' in org && org.first_name) {
+    return { org, roles: withPlatformAdmin(org.roles, org.is_platform_admin), firstName: org.first_name }
   }
   const roleRes = await fetch(`${API}/api/organisations/${org.id}/my-role`, { headers })
   const me = roleRes.ok ? await roleRes.json() : null

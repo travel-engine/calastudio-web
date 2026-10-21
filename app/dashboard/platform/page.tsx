@@ -11,7 +11,7 @@ import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, Card, Field, PageHeader, alertStyle, controlStyle } from '@/app/components/admin'
 import styles from '@/app/dashboard/dashboard.module.css'
 
-// Platform admin (Platinum Ray only): look up any studio and override its CalaStudio plan or rate.
+// Platform admin (CalaStudio staff at Travel Engine only): look up any studio and override its CalaStudio plan or rate.
 // Internal tooling — deliberately plain. The API enforces it (403 for anyone else); the frontend
 // reads `is_platform_admin` (via lib/orgContext's PLATFORM_ADMIN) to link the page and to show
 // non-admins a no-access screen. A platform admin with no studio membership has no flag to read
@@ -188,7 +188,7 @@ export default function PlatformAdminPage() {
                   </div>
                 </Card>
               )}
-              <p style={{ fontSize: 13, color: color.muted, borderRadius: radius.control }}>Only Platinum Ray platform admins can save here; everyone else is refused by the API.</p>
+              <p style={{ fontSize: 13, color: color.muted, borderRadius: radius.control }}>Only CalaStudio platform admins can save here; everyone else is refused by the API.</p>
             </>
           )}
         </div>
