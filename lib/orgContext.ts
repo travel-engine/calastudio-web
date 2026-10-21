@@ -34,10 +34,11 @@ async function fetchOrgAndRoles(token: string): Promise<Loaded | null> {
   const org: MyOrg = await orgRes.json()
   // Use roles off the org response if the API includes them; otherwise one more call (which also
   // carries the signed-in person's first name, for the dashboard greeting).
-  if (Array.isArray(org.roles)) return { org, roles: org.roles, firstName: org.first_name ?? null }
+  // (`first_name` must be there too — without it the greeting loses the name, so fall through.)
+  if (Array.isArray(org.roles) && org.first_name) return { org, roles: org.roles, firstName: org.first_name }
   const roleRes = await fetch(`${API}/api/organisations/${org.id}/my-role`, { headers })
   const me = roleRes.ok ? await roleRes.json() : null
-  return { org, roles: me?.roles ?? [], firstName: me?.first_name ?? null }
+  return { org, roles: Array.isArray(org.roles) ? org.roles : (me?.roles ?? []), firstName: me?.first_name ?? null }
 }
 
 /**
