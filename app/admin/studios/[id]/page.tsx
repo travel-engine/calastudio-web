@@ -19,6 +19,8 @@ interface StudioDetail {
   name: string
   slug: string
   email?: string | null
+  phone?: string | null
+  is_active?: boolean | null
   country?: string | null
   currency?: string | null
   timezone?: string | null
@@ -116,7 +118,9 @@ function StudioView({ token }: { token: string }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: space.cardGap, alignItems: 'start' }}>
         <Card padded aria-labelledby="st-details">
           <h2 id="st-details" style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 600 }}>Studio</h2>
+          {studio.is_active === false && row('Status', <Chip tone="danger">Inactive</Chip>)}
           {row('Contact email', studio.email || '—')}
+          {row('Phone', studio.phone || '—')}
           {row('Admins', studio.admin_emails?.length ? studio.admin_emails.join(', ') : '—')}
           {row('Country · currency', [studio.country, studio.currency].filter(Boolean).join(' · ') || '—')}
           {row('Time zone', studio.timezone || '—')}

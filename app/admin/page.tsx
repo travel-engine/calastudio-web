@@ -19,6 +19,7 @@ interface StudioRow {
   subscription_status?: string | null
   stripe_connected?: boolean | null
   member_count?: number | null
+  is_active?: boolean | null
   created_at?: string | null
 }
 
@@ -109,6 +110,7 @@ function Studios({ token }: { token: string }) {
                     <tr key={r.id}>
                       <td style={td}>
                         <Link href={`/admin/studios/${r.id}`} style={{ color: color.ink, fontWeight: 600, textDecoration: 'none' }}>{r.name}</Link>
+                        {r.is_active === false && <> <Chip tone="danger">Inactive</Chip></>}
                         <span style={{ display: 'block', fontSize: 13, color: color.muted }}>{r.slug}</span>
                       </td>
                       <td style={td}>
