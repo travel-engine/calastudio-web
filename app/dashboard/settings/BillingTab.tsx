@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { loadStripe } from '@stripe/stripe-js'
-import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
+import { useCallback, useEffect, useState } from 'react'
+import { PlatformCardForm } from '@/app/components/billing/PlatformCardForm'
 import { CreditCard } from 'lucide-react'
 import { formatShortDate } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
@@ -36,38 +35,6 @@ const STATUS: Record<BillingPlan['subscription_status'], { label: string; tone: 
 }
 
 const PLAN_NAME: Record<PlanKey, string> = { percentage: 'Pay as you go', monthly: 'Monthly', annual: 'Annual' }
-
-let platformStripe: ReturnType<typeof loadStripe> | null = null
-const getPlatformStripe = () => (platformStripe ??= loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!))
-
-function CardForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
-  const save = async () => {
-    if (!stripe || !elements) return
-    setBusy(true)
-    setError('')
-    const { error: err, setupIntent } = await stripe.confirmSetup({ elements, redirect: 'if_required' })
-    setBusy(false)
-    if (err) { setError(err.message ?? 'Could not save this card.'); return }
-    if (setupIntent?.status === 'succeeded' || setupIntent?.status === 'processing') onSaved()
-    else setError('The card was not saved. Please try again.')
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
-      <PaymentElement options={{ layout: 'tabs' }} />
-      {error && <div role="alert" style={alertStyle()}>{error}</div>}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end' }}>
-        <Button onClick={onCancel} disabled={busy}>Cancel</Button>
-        <Button variant="primary" onClick={save} disabled={!stripe || busy}>{busy ? 'Saving…' : 'Save card'}</Button>
-      </div>
-    </div>
-  )
-}
 
 export default function BillingTab({ orgId, token, currency }: { orgId: string; token: string; currency: string }) {
   const api = `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/billing`
@@ -135,8 +102,6 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
       setSwitching(false)
     }
   }
-
-  const stripeOptions = useMemo(() => (cardSecret ? { clientSecret: cardSecret } : undefined), [cardSecret])
 
   if (loadError) return <div style={{ ...cardStyle, padding: '22px 24px', color: color.ink2, fontSize: 15 }}>{loadError}</div>
   if (!plan) return <div style={{ color: color.muted, padding: 24 }}>Loading…</div>
@@ -223,14 +188,13 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
         </div>
       </section>
 
-      {cardSecret && stripeOptions && (
+      {cardSecret && (
         <Modal title={plan.has_payment_method ? 'Replace your card' : 'Add a card'} onClose={() => setCardSecret(null)} width={480}>
-          <Elements stripe={getPlatformStripe()} options={stripeOptions}>
-            <CardForm
-              onCancel={() => setCardSecret(null)}
-              onSaved={() => { setCardSecret(null); setNotice({ ok: true, text: 'Card saved.' }); load() }}
-            />
-          </Elements>
+          <PlatformCardForm
+            clientSecret={cardSecret}
+            onCancel={() => setCardSecret(null)}
+            onSaved={() => { setCardSecret(null); setNotice({ ok: true, text: 'Card saved.' }); load() }}
+          />
         </Modal>
       )}
 

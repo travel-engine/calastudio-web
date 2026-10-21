@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { type ThemeKey } from '@/lib/studioTheme'
 import ThemePicker from '@/app/components/ThemePicker'
+import PlanStep from './PlanStep'
 import { STUDIO_DOMAIN, studioOrigin } from '@/lib/seo'
 
 // ── Step components ──────────────────────────────────────
@@ -621,6 +622,8 @@ export default function OnboardingPage() {
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [error, setError] = useState('')
   const [stripeNote, setStripeNote] = useState('')
+  const [orgId, setOrgId] = useState('')
+  const [planNote, setPlanNote] = useState('')
 
   // Guard the wizard: must be signed in, and must not already have a studio.
   useEffect(() => {
@@ -696,7 +699,8 @@ export default function OnboardingPage() {
       const org = await createOrg()
       if (!org) return
       setOrgSlug(org.slug)
-      setStep(6)
+      setOrgId(org.id)
+      setStep(6) // plan, then done
     } catch {
       setError('Could not reach the server. Please check your connection and try again.')
     } finally {
@@ -714,6 +718,7 @@ export default function OnboardingPage() {
       const org = await createOrg()
       if (!org) return
       setOrgSlug(org.slug)
+      setOrgId(org.id)
       try {
         const supabase = createClient()
         const { data: { session } } = await supabase.auth.getSession()
@@ -738,7 +743,7 @@ export default function OnboardingPage() {
     }
   }
 
-  const TOTAL_STEPS = 5
+  const TOTAL_STEPS = 6
 
   if (checking) {
     return (
@@ -780,7 +785,7 @@ export default function OnboardingPage() {
             CalaStudio
           </div>
 
-          {step < 6 && <ProgressBar step={step} total={TOTAL_STEPS} />}
+          {step < 7 && <ProgressBar step={step} total={TOTAL_STEPS} />}
         </div>
 
         {/* Steps */}
@@ -812,7 +817,11 @@ export default function OnboardingPage() {
           </>
         )}
         {step === 6 && (
-          <Step5 data={data} orgSlug={orgSlug} stripeNote={stripeNote} />
+          // The studio exists from here on, so this step can't go back — the plan is the last choice.
+          <PlanStep orgId={orgId} currency={data.currency} onDone={note => { setPlanNote(note ?? ''); setStep(7) }} />
+        )}
+        {step === 7 && (
+          <Step5 data={data} orgSlug={orgSlug} stripeNote={[stripeNote, planNote].filter(Boolean).join(' ')} />
         )}
       </div>
     </div>
