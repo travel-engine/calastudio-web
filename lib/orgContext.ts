@@ -24,6 +24,11 @@ export type OrgContext =
   | { status: 'no-org' }     // → /onboarding
 
 type Loaded = { org: MyOrg; roles: string[]; firstName: string | null }
+
+/** Pseudo-role for CalaStudio's own platform admins — see fetchOrgAndRoles. */
+export const PLATFORM_ADMIN = 'platform_admin'
+const withPlatformAdmin = (roles: string[], isAdmin: unknown) =>
+  isAdmin === true && !roles.includes(PLATFORM_ADMIN) ? [...roles, PLATFORM_ADMIN] : roles
 let cached: ({ userId: string } & Loaded) | null = null
 let inflight: { userId: string; promise: Promise<Loaded | null> } | null = null
 
@@ -32,12 +37,17 @@ async function fetchOrgAndRoles(token: string): Promise<Loaded | null> {
   const orgRes = await fetch(`${API}/api/organisations/mine`, { headers })
   if (!orgRes.ok) return null
   const org: MyOrg = await orgRes.json()
-  // Use roles off the org response if the API includes them; otherwise one more call (which also
-  // carries the signed-in person's first name, for the dashboard greeting).
-  if (Array.isArray(org.roles)) return { org, roles: org.roles, firstName: org.first_name ?? null }
+  // Use roles off the org response if the API includes them (and the platform-admin flag with
+  // them); otherwise one more call, which also carries the first name for the dashboard greeting.
+  // A CalaStudio platform admin (Platinum Ray) is not a studio role: it rides in `roles` as
+  // PLATFORM_ADMIN so the sidebar can gate its link; lib/roles' studio checks never match it.
+  if (Array.isArray(org.roles) && 'is_platform_admin' in org) {
+    return { org, roles: withPlatformAdmin(org.roles, org.is_platform_admin), firstName: org.first_name ?? null }
+  }
   const roleRes = await fetch(`${API}/api/organisations/${org.id}/my-role`, { headers })
   const me = roleRes.ok ? await roleRes.json() : null
-  return { org, roles: me?.roles ?? [], firstName: me?.first_name ?? null }
+  const roles: string[] = Array.isArray(org.roles) ? org.roles : (me?.roles ?? [])
+  return { org, roles: withPlatformAdmin(roles, me?.is_platform_admin), firstName: me?.first_name ?? org.first_name ?? null }
 }
 
 /**

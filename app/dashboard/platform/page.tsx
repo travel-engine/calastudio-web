@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getOrgContext } from '@/lib/orgContext'
+import { getOrgContext, PLATFORM_ADMIN } from '@/lib/orgContext'
+import Forbidden from '@/app/components/Forbidden'
 import { createClient } from '@/lib/supabase'
 import Sidebar from '@/app/components/Sidebar'
 import { formatMoney } from '@/lib/money'
@@ -11,9 +12,10 @@ import { Button, Card, Field, PageHeader, alertStyle, controlStyle } from '@/app
 import styles from '@/app/dashboard/dashboard.module.css'
 
 // Platform admin (Platinum Ray only): look up any studio and override its CalaStudio plan or rate.
-// Internal tooling — deliberately plain. The API is the gate (PATCH returns 403 for anyone who isn't
-// a platform admin); the frontend has no `is_platform_admin` flag yet, so this page isn't linked from
-// the sidebar and anyone else who finds it just gets the API's refusal.
+// Internal tooling — deliberately plain. The API enforces it (403 for anyone else); the frontend
+// reads `is_platform_admin` (via lib/orgContext's PLATFORM_ADMIN) to link the page and to show
+// non-admins a no-access screen. A platform admin with no studio membership has no flag to read
+// yet (no studio-less identity endpoint), so for them the API's answer is the gate.
 
 interface Studio { id: string; slug: string; name: string; currency: string }
 interface BillingPlan {
@@ -24,6 +26,7 @@ interface BillingPlan {
   subscription_status: string
   current_period_end: string | null
   has_payment_method: boolean
+  currency?: string | null
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL
@@ -33,6 +36,7 @@ export default function PlatformAdminPage() {
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [ready, setReady] = useState(false)
+  const [forbidden, setForbidden] = useState(false)
 
   const [query, setQuery] = useState('')
   const [studio, setStudio] = useState<Studio | null>(null)
@@ -50,7 +54,10 @@ export default function PlatformAdminPage() {
       if (!session) { router.push('/login'); return }
       setToken(session.access_token)
       const ctx = await getOrgContext()
-      if (ctx.status === 'ok') setRoles(ctx.roles)
+      if (ctx.status === 'ok') {
+        setRoles(ctx.roles)
+        if (!ctx.roles.includes(PLATFORM_ADMIN)) setForbidden(true)
+      }
       setReady(true)
     })()
   }, [router])
@@ -66,9 +73,9 @@ export default function PlatformAdminPage() {
       const d = await res.json()
       const s: Studio = { id: d.id, slug: d.slug, name: d.name, currency: d.currency ?? 'AUD' }
       setStudio(s)
-      // Current plan: readable here only if the API lets a platform admin use the studio endpoint.
-      const planRes = await fetch(`${API}/api/organisations/${s.id}/billing/plan`, { headers: { Authorization: `Bearer ${token}` } })
+      const planRes = await fetch(`${API}/api/platform-admin/organisations/${s.id}/billing`, { headers: { Authorization: `Bearer ${token}` } })
       if (planRes.ok) setCurrent(await planRes.json())
+      else if (planRes.status === 403) setFindError('Platform admin access required.')
     } catch {
       setFindError('Could not reach the server.')
     }
@@ -115,7 +122,7 @@ export default function PlatformAdminPage() {
       <div className={styles.main}>
         <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
           <PageHeader eyebrow="CalaStudio · platform admin" title="Studio billing" />
-          {!ready ? <p style={{ color: color.muted }}>Loading…</p> : (
+          {!ready ? <p style={{ color: color.muted }}>Loading…</p> : forbidden ? <Forbidden /> : (
             <>
               <Card padded>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
@@ -138,15 +145,13 @@ export default function PlatformAdminPage() {
                     <div style={{ borderTop: `1px solid ${color.divider}`, paddingTop: 8 }}>
                       {row('Plan', current.plan)}
                       {row('Percentage', current.percentage_rate != null ? `${+(current.percentage_rate * 100).toFixed(3)}%` : '—')}
-                      {row('Monthly', current.monthly_amount != null ? formatMoney(current.monthly_amount, studio.currency) : '—')}
-                      {row('Annual', current.annual_amount != null ? formatMoney(current.annual_amount, studio.currency) : '—')}
+                      {row('Monthly', current.monthly_amount != null ? formatMoney(current.monthly_amount, (current.currency || studio.currency).toUpperCase()) : '—')}
+                      {row('Annual', current.annual_amount != null ? formatMoney(current.annual_amount, (current.currency || studio.currency).toUpperCase()) : '—')}
                       {row('Subscription', current.subscription_status)}
                       {row('Card saved', current.has_payment_method ? 'Yes' : 'No')}
                     </div>
                   ) : (
-                    <p style={{ margin: 0, fontSize: 14, color: color.muted }}>
-                      Current plan not shown: the API has no platform-admin read endpoint yet. Saving below returns the studio&apos;s plan.
-                    </p>
+                    <p style={{ margin: 0, fontSize: 14, color: color.muted }}>Couldn&apos;t load this studio&apos;s plan.</p>
                   )}
                 </Card>
               )}

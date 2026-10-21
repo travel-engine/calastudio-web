@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import { CalendarDays, ChartColumn, Clock, House, Layers, LogOut, Menu, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
+import { CalendarDays, ChartColumn, Clock, House, Layers, LogOut, Menu, ShieldCheck, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
-import { clearOrgContext } from '@/lib/orgContext'
+import { clearOrgContext, PLATFORM_ADMIN } from '@/lib/orgContext'
 import { canViewSessions, canViewOccurrences, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
 import { color } from '@/lib/ui/tokens'
 import { buttonStyle } from '@/app/components/admin/Button'
@@ -34,6 +34,8 @@ type NavItem = {
   key: string
   section: (typeof SECTIONS)[number]['key']
   canView?: (roles: string[]) => boolean
+  /** Hidden until roles are known (most items show while roles load; this one must not). */
+  strict?: boolean
 }
 
 // No Bookings item: its job is Schedule → a class's roster (handoff §2); next.config redirects it.
@@ -47,6 +49,8 @@ const navItems: NavItem[] = [
   { href: '/dashboard/team', icon: UserPlus, label: 'Team', key: 'team', section: 'settings', canView: canViewTeam },
   { href: '/dashboard/audit-log', icon: Clock, label: 'Activity log', key: 'audit-log', section: 'settings', canView: canViewAuditLog },
   { href: '/dashboard/settings', icon: SlidersHorizontal, label: 'Settings', key: 'settings', section: 'settings', canView: canManageSettings },
+  // CalaStudio's own staff (Platinum Ray) only — not a studio role.
+  { href: '/dashboard/platform', icon: ShieldCheck, label: 'Platform admin', key: 'platform', section: 'settings', canView: r => r.includes(PLATFORM_ADMIN), strict: true },
 ]
 
 function BrandMark({ size = 28 }: { size?: number }) {
@@ -62,7 +66,7 @@ function BrandMark({ size = 28 }: { size?: number }) {
 export default function Sidebar({ active, roles }: SidebarProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const visible = (item: NavItem) => !item.canView || !roles || item.canView(roles)
+  const visible = (item: NavItem) => !item.canView || (!roles ? !item.strict : item.canView(roles))
 
   useEffect(() => {
     if (!open) return

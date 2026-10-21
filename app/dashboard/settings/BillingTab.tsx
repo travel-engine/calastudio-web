@@ -93,7 +93,7 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
 
   useEffect(() => { load() }, [load])
 
-  const cur = plan?.currency || currency
+  const cur = (plan?.currency || currency).toUpperCase() // the API sends a lowercase ISO code ("aud")
   const priceOf = (p: PlanKey, pl: BillingPlan) =>
     p === 'percentage' ? (pl.percentage_rate != null ? `${+(pl.percentage_rate * 100).toFixed(2)}% of each booking` : '—')
       : p === 'monthly' ? (pl.monthly_amount != null ? `${formatMoney(pl.monthly_amount, cur)} a month` : '—')
