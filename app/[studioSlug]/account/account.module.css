@@ -1,39 +1,43 @@
-/* Account portal shell: horizontal tab strip on mobile, left rail on desktop. Photo First tokens. */
+/* Account portal shell: wrapping tab pills on mobile, left rail on desktop. Photo First tokens. */
 .layout {
   max-width: 820px;
   margin: 0 auto;
   padding: 24px var(--gutter, 24px);
   display: grid;
-  grid-template-columns: 1fr;
+  /* minmax(0, …): a plain 1fr column grows to its widest child, which pushed the whole page
+     sideways on phones. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 
+/* Phones: every tab visible, wrapping onto a second row — no sideways scrolling to find one. */
 .nav {
   display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
 }
 
 .navItem {
-  flex-shrink: 0;
-  padding: 12px 16px;
-  border: none;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill, 999px);
   background: transparent;
+  font-family: inherit;
   font-size: 14px;
   font-weight: 500;
   color: var(--text-meta);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
   white-space: nowrap;
   text-align: left;
 }
 
 .navItemActive {
-  color: var(--ink);
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
   font-weight: 600;
-  border-bottom-color: var(--ink);
 }
 
 .body {
@@ -43,28 +47,28 @@
 @media (min-width: 880px) {
   .layout {
     max-width: 1000px;
-    grid-template-columns: 200px 1fr;
+    grid-template-columns: 200px minmax(0, 1fr);
     gap: 36px;
   }
 
   .nav {
     flex-direction: column;
+    flex-wrap: nowrap;
     gap: 2px;
-    overflow: visible;
-    border-bottom: none;
     position: sticky;
     top: 72px;
     align-self: start;
   }
 
   .navItem {
+    min-height: 0;
     padding: 9px 12px;
+    border: none;
     border-radius: 8px;
-    border-bottom: none;
   }
 
   .navItemActive {
-    border-bottom-color: transparent;
+    color: var(--ink);
     background: var(--inset);
   }
 }
