@@ -542,6 +542,43 @@ export default function BookingDrawer() {
     && bookingOptions.usable_pass_credits_remaining != null
     && creditsCost > bookingOptions.usable_pass_credits_remaining
 
+  // The studio's passes, each with Buy now → Stripe → pass issued → booking made. Shown when the
+  // member has no usable pass, and when their pass is short of credits for this booking.
+  const renderPassOffers = () => {
+    return bookingOptions?.purchasable_pass_templates?.map((pt: PassTemplateOption) => {
+      const detail = [passCreditText(pt), passExpiryText(pt)].filter(Boolean).join(' · ')
+      return (
+      <div key={pt.id} className={styles.optionCardPf} style={{ cursor: 'default', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+          <div style={{ minWidth: 0 }}>
+            <div className={styles.optionTitle}>{pt.name}</div>
+            {detail && <span className={styles.optionNote}>{detail}</span>}
+            {pt.description && <span className={styles.optionNote}>{pt.description}</span>}
+            <span className={styles.optionNote}>{formatMoney(pt.price, pt.currency)}</span>
+          </div>
+          {purchaseSecret?.templateId !== pt.id && (
+            <button onClick={() => startPassPurchase(pt.id)} disabled={purchaseBusyId === pt.id} className={styles.smallBtn} style={{ flexShrink: 0 }}>
+              {purchaseBusyId === pt.id ? 'Starting…' : 'Buy now'}
+            </button>
+          )}
+        </div>
+        {purchaseSecret?.templateId === pt.id && stripeAccountId && (
+          <div style={{ marginTop: '14px' }}>
+            <StripePaymentForm
+              key={purchaseSecret.clientSecret}
+              clientSecret={purchaseSecret.clientSecret}
+              stripeAccountId={stripeAccountId}
+              dark
+              submitLabel="Buy & book"
+              onSuccess={() => pollForIssuedPassThenBook(pt.id)}
+              onError={msg => setNote(msg)}
+            />
+          </div>
+        )}
+      </div>
+    )})
+  }
+
   const renderGuestSelector = () => {
     if (!bookingOptions?.guest_bookings_enabled || bookingOptions.guest_max_per_booking <= 0) return null
 
@@ -567,10 +604,8 @@ export default function BookingDrawer() {
           </select>
         </div>
         {credits && (
-          <div style={{ fontSize: '12.5px', color: passCreditsShort ? 'var(--danger)' : 'var(--text-meta)', marginTop: '8px' }}>
+          <div style={{ fontSize: '12.5px', color: 'var(--text-meta)', marginTop: '8px' }}>
             {credits}
-            {passCreditsShort && bookingOptions.usable_pass_credits_remaining != null &&
-              ` — only ${bookingOptions.usable_pass_credits_remaining} left on your pass`}
           </div>
         )}
       </div>
@@ -780,11 +815,19 @@ export default function BookingDrawer() {
                     </div>
                   </div>
                   {renderGuestSelector()}
-                  {passCreditsShort && (
-                    <div className={styles.noticeError}>
-                      This booking needs {creditsCost} credits but only {bookingOptions.usable_pass_credits_remaining} are left on your pass. Reduce guests or buy another pass.
-                    </div>
-                  )}
+                  {passCreditsShort && (() => {
+                    const left = bookingOptions.usable_pass_credits_remaining ?? 0
+                    const offers = canPay && (bookingOptions.purchasable_pass_templates?.length ?? 0) > 0
+                    return (
+                      <>
+                        <div className={styles.noticeError}>
+                          This booking needs {creditsCost} credits, but your pass has {left} left.{' '}
+                          {offers ? 'Bring fewer guests, or buy a new pass below.' : 'Bring fewer guests, or contact the studio.'}
+                        </div>
+                        {offers && <div style={{ marginTop: '12px' }}>{renderPassOffers()}</div>}
+                      </>
+                    )
+                  })()}
                   <button
                     onClick={() => handleConfirmBooking()}
                     disabled={passCreditsShort}
@@ -839,38 +882,7 @@ export default function BookingDrawer() {
                         </div>
                       )}
 
-                      {bookingOptions.purchasable_pass_templates?.map((pt: PassTemplateOption) => {
-                        const detail = [passCreditText(pt), passExpiryText(pt)].filter(Boolean).join(' · ')
-                        return (
-                        <div key={pt.id} className={styles.optionCardPf} style={{ cursor: 'default', marginBottom: '10px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                            <div style={{ minWidth: 0 }}>
-                              <div className={styles.optionTitle}>{pt.name}</div>
-                              {detail && <span className={styles.optionNote}>{detail}</span>}
-                              {pt.description && <span className={styles.optionNote}>{pt.description}</span>}
-                              <span className={styles.optionNote}>{formatMoney(pt.price, pt.currency)}</span>
-                            </div>
-                            {purchaseSecret?.templateId !== pt.id && (
-                              <button onClick={() => startPassPurchase(pt.id)} disabled={purchaseBusyId === pt.id} className={styles.smallBtn} style={{ flexShrink: 0 }}>
-                                {purchaseBusyId === pt.id ? 'Starting…' : 'Buy now'}
-                              </button>
-                            )}
-                          </div>
-                          {purchaseSecret?.templateId === pt.id && stripeAccountId && (
-                            <div style={{ marginTop: '14px' }}>
-                              <StripePaymentForm
-                                key={purchaseSecret.clientSecret}
-                                clientSecret={purchaseSecret.clientSecret}
-                                stripeAccountId={stripeAccountId}
-                                dark
-                                submitLabel="Buy & book"
-                                onSuccess={() => pollForIssuedPassThenBook(pt.id)}
-                                onError={msg => setNote(msg)}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )})}
+                      {renderPassOffers()}
                     </>
                   )}
                 </div>
