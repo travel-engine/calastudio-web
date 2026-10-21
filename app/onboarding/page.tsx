@@ -635,6 +635,9 @@ export default function OnboardingPage() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (res.ok) { router.replace('/dashboard'); return }
+      // CalaStudio admins (Travel Engine staff) with no studio of their own belong in /admin, not here.
+      const me = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, { headers: { Authorization: `Bearer ${session.access_token}` } }).catch(() => null)
+      if (me?.ok && (await me.json().catch(() => null))?.is_platform_admin === true) { router.replace('/admin'); return }
       setChecking(false)
     }
     check()

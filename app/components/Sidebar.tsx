@@ -51,7 +51,7 @@ const navItems: NavItem[] = [
   { href: '/dashboard/audit-log', icon: Clock, label: 'Activity log', key: 'audit-log', section: 'settings', canView: canViewAuditLog },
   { href: '/dashboard/settings', icon: SlidersHorizontal, label: 'Settings', key: 'settings', section: 'settings', canView: canManageSettings },
   // CalaStudio's own staff (Travel Engine staff) only — not a studio role.
-  { href: '/dashboard/platform', icon: ShieldCheck, label: 'Platform admin', key: 'platform', section: 'settings', canView: r => r.includes(PLATFORM_ADMIN), strict: true },
+  { href: '/admin', icon: ShieldCheck, label: 'CalaStudio admin', key: 'platform', section: 'settings', canView: r => r.includes(PLATFORM_ADMIN), strict: true },
 ]
 
 function BrandMark({ size = 28 }: { size?: number }) {
