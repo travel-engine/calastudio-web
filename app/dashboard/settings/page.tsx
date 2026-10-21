@@ -10,6 +10,7 @@ import Forbidden from '@/app/components/Forbidden'
 import { canManageSettings } from '@/lib/roles'
 import { scanForMojibake } from '@/lib/mojibake'
 import ThemePicker from '@/app/components/ThemePicker'
+import BillingTab from './BillingTab'
 import type { ThemeKey } from '@/lib/studioTheme'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, Chip, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
@@ -197,7 +198,7 @@ function SettingsPageContent() {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [tab, setTab] = useState<'studio' | 'page'>('studio')
+  const [tab, setTab] = useState<'studio' | 'page' | 'billing'>('studio')
   const [error, setError] = useState('') // upload problems; section saves report on their own card
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
@@ -624,7 +625,7 @@ function SettingsPageContent() {
 
   const zones = zone && TIMEZONES.includes(zone) ? [zone, ...TIMEZONES.filter(z => z !== zone)] : TIMEZONES
   const currentRateId = taxRates.find(r => !r.effective_until)?.id
-  const tabs = [['studio', 'Studio'], ['page', 'Booking page']] as const
+  const tabs = [['studio', 'Studio'], ['page', 'Booking page'], ['billing', 'Plan & billing']] as const
 
   // Booking page content as rows — each opens its group of fields.
   const contentRows: { id: string; label: string; summary: string; fields: React.ReactNode }[] = [
@@ -757,7 +758,7 @@ function SettingsPageContent() {
       <div className={styles.main}>
         {forbidden ? <Forbidden /> : (
           <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
-            <PageHeader eyebrow="Settings" title={tab === 'studio' ? 'Studio settings' : 'Booking page'} />
+            <PageHeader eyebrow="Settings" title={tab === 'studio' ? 'Studio settings' : tab === 'page' ? 'Booking page' : 'Plan & billing'} />
 
             {/* A live-data problem worth fixing first: everything time-related uses this zone. */}
             {!savedForm.timezone && (
@@ -798,7 +799,9 @@ function SettingsPageContent() {
               </div>
             )}
 
-            {tab === 'studio' ? (
+            {tab === 'billing' ? (
+              <BillingTab orgId={orgId} token={token} currency={currency} />
+            ) : tab === 'studio' ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
                 {/* Section index */}
                 <nav aria-label="Settings sections" style={{ ...cardStyle, flex: '1 1 200px', maxWidth: 260, padding: 10, position: 'sticky', top: 24 }}>
