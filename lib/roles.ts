@@ -11,6 +11,10 @@ export const MEMBER = 'member'
 
 const has = (roles: string[], allowed: string[]) => roles.some(r => allowed.includes(r))
 
+// Any studio staff role. A member-only account has no business in the dashboard; it belongs on
+// the studio's member site (/account).
+export const isStaff = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL, TEACHER_BASIC, FRONT_DESK])
+
 // Sessions (SessionEndpoints.cs). teacher_general/teacher_basic can view too, but scoped to
 // sessions where they're the instructor — enforced server-side (list is pre-filtered by the API;
 // single-session GET is gated by RequireSessionOwnershipFilter), not something this client needs

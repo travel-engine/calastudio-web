@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { getOrgContext, clearOrgContext } from '@/lib/orgContext'
+import { isStaff } from '@/lib/roles'
 import { type ThemeKey } from '@/lib/studioTheme'
 import ThemePicker from '@/app/components/ThemePicker'
 import PlanStep from './PlanStep'
@@ -625,16 +627,15 @@ export default function OnboardingPage() {
   const [orgId, setOrgId] = useState('')
   const [planNote, setPlanNote] = useState('')
 
-  // Guard the wizard: must be signed in, and must not already have a studio.
+  // Guard the wizard: must be signed in, and must not already run a studio. Being a member of
+  // someone else's studio doesn't count, so a member can still set up their own.
   useEffect(() => {
     const check = async () => {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login'); return }
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      if (res.ok) { router.replace('/dashboard'); return }
+      const ctx = await getOrgContext({ fresh: true }).catch(() => null)
+      if (ctx?.status === 'ok' && isStaff(ctx.roles)) { router.replace('/dashboard'); return }
       // CalaStudio admins (Travel Engine staff) with no studio of their own belong in /admin, not here.
       const me = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, { headers: { Authorization: `Bearer ${session.access_token}` } }).catch(() => null)
       if (me?.ok && (await me.json().catch(() => null))?.is_platform_admin === true) { router.replace('/admin'); return }
@@ -692,6 +693,9 @@ export default function OnboardingPage() {
       setError(org?.error ?? 'Something went wrong creating your studio. Please try again.')
       return null
     }
+    // The guard above may have cached a membership at someone else's studio; the dashboard must
+    // load this new one.
+    clearOrgContext()
     return { id: org.id, slug: org.slug }
   }
 

@@ -1,5 +1,6 @@
 import { Figtree, Instrument_Serif } from 'next/font/google'
 import SessionPolicyGuard from '@/app/components/SessionPolicyGuard'
+import DashboardAccessGuard from '@/app/components/DashboardAccessGuard'
 import { color, font } from '@/lib/ui/tokens'
 
 // Admin typefaces (design/admin-redesign handoff §3), scoped to the dashboard tree: Figtree for body
@@ -14,7 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className={`${body.variable} ${display.variable}`} style={{ fontFamily: font.body, color: color.ink, minHeight: '100vh', background: color.bg }}>
       <SessionPolicyGuard />
-      {children}
+      <DashboardAccessGuard>{children}</DashboardAccessGuard>
     </div>
   )
 }
