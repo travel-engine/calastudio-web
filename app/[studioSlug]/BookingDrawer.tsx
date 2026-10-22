@@ -235,6 +235,14 @@ export default function BookingDrawer() {
     }
   }
 
+  // Escape closes the sheet, like the pass purchase sheet.
+  useEffect(() => {
+    if (!occurrence) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [occurrence, close])
+
   // New occurrence → fresh agreements attempt budget + purchase snapshot.
   useEffect(() => {
     agreementsAttemptsRef.current = 0
@@ -632,11 +640,11 @@ export default function BookingDrawer() {
 
   return (
     <div className={styles.drawerOverlay} onClick={close}>
-      <div className={styles.drawerPanel} onClick={e => e.stopPropagation()}>
+      <div className={styles.drawerPanel} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="booking-drawer-title">
         <div className={styles.drawerHead}>
           <div style={{ minWidth: 0 }}>
             {STEP_LABELS[step] && <div className={styles.drawerStep}>{STEP_LABELS[step]}</div>}
-            <div className={styles.drawerTitle}>{occurrence.session_name}</div>
+            <div id="booking-drawer-title" className={styles.drawerTitle}>{occurrence.session_name}</div>
             <div className={styles.drawerMeta}>{drawerMeta}</div>
             {occurrence.instructor_name && (
               <div className={styles.drawerMeta} style={{ marginTop: 2 }}>with {occurrence.instructor_name}</div>
