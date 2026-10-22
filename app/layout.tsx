@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   },
   description,
   applicationName: 'CalaStudio',
+  // Preview builds (dev.calastudio.app) carry noindex too, for pages crawled despite robots.txt.
+  ...(process.env.VERCEL_ENV === 'preview' ? { robots: { index: false, follow: false } } : {}),
   keywords: [
     'studio booking software',
     'yoga studio management',
