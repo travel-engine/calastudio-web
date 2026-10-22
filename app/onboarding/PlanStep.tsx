@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { formatMoney } from '@/lib/money'
+import { planPrice } from '@/lib/billing'
 import { PlatformCardForm } from '@/app/components/billing/PlatformCardForm'
 
 // Onboarding: choose what CalaStudio charges the new studio. Runs right after the studio is
@@ -18,6 +18,7 @@ interface BillingPlan {
   annual_amount: number | null
   has_payment_method: boolean
   currency?: string | null
+  gst_applies?: boolean
 }
 
 const NAME: Record<PlanKey, string> = { percentage: 'Pay as you go', monthly: 'Monthly', annual: 'Annual' }
@@ -58,10 +59,7 @@ export default function PlanStep({ orgId, currency, onDone }: {
   }, [orgId])
 
   const cur = (plan?.currency || currency).toUpperCase()
-  const price = (p: PlanKey) => !plan ? '' :
-    p === 'percentage' ? (plan.percentage_rate != null ? `${+(plan.percentage_rate * 100).toFixed(2)}% of each booking` : '')
-      : p === 'monthly' ? (plan.monthly_amount != null ? `${formatMoney(plan.monthly_amount, cur)} a month` : '')
-        : (plan.annual_amount != null ? `${formatMoney(plan.annual_amount, cur)} a year` : '')
+  const price = (p: PlanKey) => !plan ? '' : planPrice(p, plan, cur).replace(/^—$/, '')
 
   const switchPlan = async () => {
     const res = await fetch(`${api}/plan`, {

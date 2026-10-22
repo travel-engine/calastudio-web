@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { PlatformCardForm } from '@/app/components/billing/PlatformCardForm'
 import { CreditCard } from 'lucide-react'
 import { formatShortDate } from '@/lib/dates'
-import { formatMoney } from '@/lib/money'
+import { planPrice } from '@/lib/billing'
+import InvoiceList, { type PlatformInvoice } from '@/app/components/billing/InvoiceList'
 import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, Chip, Modal, alertStyle, cardStyle, type ChipTone } from '@/app/components/admin'
 
@@ -25,6 +26,7 @@ interface BillingPlan {
   pending_plan?: PlanKey | null // set when leaving Monthly/Annual: the plan that starts at current_period_end
   has_payment_method: boolean
   currency?: string | null
+  gst_applies?: boolean // studio is in Australia: Monthly/Annual include GST, Pay as you go adds it
 }
 
 const STATUS: Record<BillingPlan['subscription_status'], { label: string; tone: ChipTone }> = {
@@ -62,11 +64,14 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
 
   useEffect(() => { load() }, [load])
 
+  const loadInvoices = useCallback(async (): Promise<PlatformInvoice[] | null> => {
+    const res = await fetch(`${api}/invoices`, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.status === 404) return [] // invoices endpoint not deployed yet
+    return res.ok ? res.json() : null
+  }, [api, token])
+
   const cur = (plan?.currency || currency).toUpperCase() // the API sends a lowercase ISO code ("aud")
-  const priceOf = (p: PlanKey, pl: BillingPlan) =>
-    p === 'percentage' ? (pl.percentage_rate != null ? `${+(pl.percentage_rate * 100).toFixed(2)}% of each booking` : '—')
-      : p === 'monthly' ? (pl.monthly_amount != null ? `${formatMoney(pl.monthly_amount, cur)} a month` : '—')
-        : (pl.annual_amount != null ? `${formatMoney(pl.annual_amount, cur)} a year` : '—')
+  const priceOf = (p: PlanKey, pl: BillingPlan) => planPrice(p, pl, cur)
 
   const openCard = async () => {
     setCardBusy(true)
@@ -222,6 +227,19 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
             )
           })}
         </div>
+      </section>
+
+      {/* Invoices */}
+      <section aria-labelledby="bill-invoices" style={card}>
+        <div>
+          <h2 id="bill-invoices" style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Invoices</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 14, color: color.muted, lineHeight: 1.45 }}>
+            {plan.gst_applies
+              ? 'Tax invoices from Travel Engine (CalaStudio), showing GST, for your records and BAS.'
+              : 'Invoices from Travel Engine (CalaStudio) for your records.'}
+          </p>
+        </div>
+        <InvoiceList load={loadInvoices} />
       </section>
 
       {cardSecret && (

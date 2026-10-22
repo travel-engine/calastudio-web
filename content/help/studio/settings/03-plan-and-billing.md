@@ -10,11 +10,22 @@ order: 3
 
 ## The plans
 
-- **Pay as you go**: a percentage of each booking. No card needed and no fixed fee.
+- **Pay as you go**: a percentage of each card payment, worked out on what's left after Stripe's processing fee. No card needed and no fixed fee.
 - **Monthly**: a fixed amount each month.
 - **Annual**: a fixed amount each year.
 
-The tab shows your rates in your studio's currency. You choose a plan when you sign up (the **Plan** step of onboarding) and can change it here at any time.
+The tab shows your rates in your studio's currency.
+
+## GST
+
+CalaStudio is run by Travel Engine, which charges GST to studios in Australia:
+
+- **Monthly and Annual** prices **include GST**, e.g. "$45 a month incl. GST".
+- **Pay as you go** has **GST added on top of the fee**. For example, a member pays $20 by card and Stripe's fee is $0.64. At 5%, CalaStudio's fee is 5% of $19.36 = $0.97, plus $0.10 GST, so $1.07 in total.
+
+The Pay as you go fee comes out of each card payment automatically. It's first taken on the full amount, then trimmed back to the after-Stripe amount a moment later, once Stripe reports its fee; the difference goes back to your Stripe balance. If you refund a member, CalaStudio refunds the same share of its fee, including its GST. Stripe keeps its own processing fee.
+
+Studios outside Australia aren't charged GST. You choose a plan when you sign up (the **Plan** step of onboarding) and can change it here at any time.
 
 ## Your plan
 
@@ -39,6 +50,15 @@ In **Change plan**, click **Switch to …** under the plan you want and confirm.
 Moving from Pay as you go to Monthly or Annual starts the subscription on your saved card.
 
 Every plan change is recorded in the **Activity log**.
+
+## Invoices
+
+The **Invoices** list has every invoice from Travel Engine (CalaStudio), newest first. Click **PDF** to download one.
+
+- **Monthly and Annual**: one invoice per billing period.
+- **Pay as you go**: one invoice per month, listing that month's booking fees. It appears after the month ends.
+
+Australian studios get **tax invoices** showing Travel Engine's ABN and the GST, so you can claim the GST back on your BAS.
 
 ## Questions about your bill
 

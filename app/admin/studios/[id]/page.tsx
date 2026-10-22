@@ -10,6 +10,7 @@ import { formatShortDate } from '@/lib/dates'
 import { color, space, tabularNums } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, Card, Chip, Field, PageHeader, alertStyle, controlStyle } from '@/app/components/admin'
 import AdminShell from '../../AdminShell'
+import InvoiceList, { type PlatformInvoice } from '@/app/components/billing/InvoiceList'
 
 // One studio, as CalaStudio admin sees it: who it is (GET /api/platform-admin/organisations/{id}),
 // its CalaStudio plan (GET …/billing) and the override form (PATCH …/billing, reason required).
@@ -39,6 +40,7 @@ interface BillingPlan {
   pending_plan?: 'percentage' | 'monthly' | 'annual' | null
   has_payment_method: boolean
   currency?: string | null
+  gst_applies?: boolean
 }
 
 const PLAN: Record<string, string> = { percentage: 'Pay as you go', monthly: 'Monthly', annual: 'Annual' }
@@ -70,6 +72,12 @@ function StudioView({ token }: { token: string }) {
   }, [id, token, hint])
 
   useEffect(() => { load() }, [load])
+
+  const loadInvoices = useCallback(async (): Promise<PlatformInvoice[] | null> => {
+    const { res, body } = await adminFetch(`/organisations/${id}/billing/invoices`, token)
+    if (res.status === 404) return []
+    return res.ok ? body : null
+  }, [id, token])
 
   const cur = (plan?.currency || studio?.currency || 'AUD').toUpperCase()
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
@@ -135,9 +143,10 @@ function StudioView({ token }: { token: string }) {
           {plan ? (
             <>
               {row('Plan', PLAN[plan.plan] ?? plan.plan)}
-              {row('Percentage', plan.percentage_rate != null ? `${+(plan.percentage_rate * 100).toFixed(3)}%` : '—')}
-              {row('Monthly', plan.monthly_amount != null ? formatMoney(plan.monthly_amount, cur) : '—')}
-              {row('Annual', plan.annual_amount != null ? formatMoney(plan.annual_amount, cur) : '—')}
+              {row('Percentage', plan.percentage_rate != null ? `${+(plan.percentage_rate * 100).toFixed(3)}% after Stripe fees${plan.gst_applies ? ' + GST' : ''}` : '—')}
+              {row('Monthly', plan.monthly_amount != null ? `${formatMoney(plan.monthly_amount, cur)}${plan.gst_applies ? ' incl. GST' : ''}` : '—')}
+              {row('Annual', plan.annual_amount != null ? `${formatMoney(plan.annual_amount, cur)}${plan.gst_applies ? ' incl. GST' : ''}` : '—')}
+              {plan.gst_applies != null && row('GST', plan.gst_applies ? 'Charged (Australian studio)' : 'Not charged (outside Australia)')}
               {row('Subscription', plan.subscription_status)}
               {plan.pending_plan && plan.pending_plan !== plan.plan
                 ? row('Switching to', <Chip tone="warn">{PLAN[plan.pending_plan]}{plan.current_period_end ? ` on ${formatShortDate(plan.current_period_end)}` : ''}</Chip>)
@@ -147,6 +156,11 @@ function StudioView({ token }: { token: string }) {
           ) : <p style={{ margin: 0, fontSize: 14, color: color.muted }}>Plan not available.</p>}
         </Card>
       </div>
+
+      <Card padded aria-labelledby="st-invoices">
+        <h2 id="st-invoices" style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600 }}>Invoices</h2>
+        <InvoiceList load={loadInvoices} />
+      </Card>
 
       <Card padded aria-labelledby="st-override">
         <h2 id="st-override" style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 600 }}>Override plan or rate</h2>
