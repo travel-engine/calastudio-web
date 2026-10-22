@@ -77,7 +77,8 @@ async function fetchOrgAndRoles(token: string, userId: string): Promise<Loaded |
   const headers = { Authorization: `Bearer ${token}` }
   const chosen = readChoice(userId)
   let orgRes = await fetch(`${API}/api/organisations/mine${chosen ? `?org_id=${encodeURIComponent(chosen)}` : ''}`, { headers })
-  if (!orgRes.ok && chosen && orgRes.status === 404) {
+  // 404: no staff role there any more; 400: a malformed id. Either way, drop it and use the default.
+  if (!orgRes.ok && chosen && (orgRes.status === 404 || orgRes.status === 400)) {
     writeChoice(userId, null)
     orgRes = await fetch(`${API}/api/organisations/mine`, { headers })
   }
