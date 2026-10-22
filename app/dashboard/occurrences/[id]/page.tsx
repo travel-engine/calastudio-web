@@ -8,7 +8,7 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent, canAddMember, canViewMembers } from '@/lib/roles'
-import { displayName } from '@/lib/names'
+import { displayName, teacherName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
 import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
 import EntityActivity from '@/app/components/EntityActivity'
@@ -49,11 +49,12 @@ interface Teacher {
   id: string
   first_name: string
   last_name: string
+  profile?: { display_name?: string | null } | null
 }
 
 function sessionTeacherName(teachers: Teacher[], id: string | null | undefined) {
   if (!id) return 'no teacher'
-  return displayName(teachers.find(x => x.id === id)) || 'its teacher'
+  return teacherName(teachers.find(x => x.id === id)) || 'its teacher'
 }
 
 interface Member {
@@ -887,7 +888,7 @@ export default function OccurrenceDetailPage() {
                       <select id="edit-teacher" value={editForm.instructorId} onChange={e => setEditForm(p => ({ ...p, instructorId: e.target.value }))} style={inputStyle}>
                         <option value={SAME_AS_SESSION}>Same as session ({sessionTeacherName(teachers, occurrence?.session?.instructor_id)})</option>
                         <option value={NO_TEACHER}>No teacher</option>
-                        {teachers.map(t => <option key={t.id} value={t.id}>{displayName(t)}</option>)}
+                        {teachers.map(t => <option key={t.id} value={t.id}>{teacherName(t)}</option>)}
                       </select>
                     )}
                   </div>

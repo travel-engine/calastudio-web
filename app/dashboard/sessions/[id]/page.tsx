@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '../../../components/Sidebar'
 import { canManageSessions, canCreateOccurrence, canManageOccurrences, canViewAuditLog } from '@/lib/roles'
-import { displayName } from '@/lib/names'
+import { displayName, teacherName as teacherDisplayName } from '@/lib/names'
 import { formatClock, formatShortDate, formatWhen } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { studioUrl } from '@/lib/seo'
@@ -250,7 +250,7 @@ export default function EditSessionPage() {
 
       if (teachersRes?.ok) {
         const data = await teachersRes.json()
-        setTeachers(data.map((x: any) => ({ id: x.id, name: displayName(x) })))
+        setTeachers(data.map((x: any) => ({ id: x.id, name: teacherDisplayName(x) })))
       }
       if (passTemplatesRes?.ok) {
         const data = await passTemplatesRes.json()

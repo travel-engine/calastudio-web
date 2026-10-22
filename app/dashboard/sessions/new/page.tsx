@@ -7,7 +7,7 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import { useSearchParams } from 'next/navigation'
 import { canManageSessions } from '@/lib/roles'
-import { displayName } from '@/lib/names'
+import { displayName, teacherName } from '@/lib/names'
 import { ImageIcon } from 'lucide-react'
 import { color, radius, space } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, CheckRow, PageHeader, alertStyle, buttonStyle, cardStyle, FormField as Field, TextInput as Input,
@@ -95,7 +95,7 @@ function NewSessionPageContent() {
       })
       if (teachersRes.ok) {
         const data = await teachersRes.json()
-        setTeachers(data.map((t: any) => ({ id: t.id, name: displayName(t) })))
+        setTeachers(data.map((t: any) => ({ id: t.id, name: teacherName(t) })))
       }
 
       const passTemplatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/pass-templates`, {
