@@ -4,7 +4,7 @@ import MojibakeCanary from '@/app/components/MojibakeCanary'
 import './globals.css'
 
 const description =
-  'The booking platform for yoga and fitness studios that never takes a cut. Flat monthly fee, zero commission, and every price and change fully explainable.'
+  'Booking software for yoga and fitness teachers and studios. Take bookings, sell passes and memberships, and keep your students in one place, wherever you teach.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     'studio booking software',
     'yoga studio management',
     'fitness class booking',
-    'zero commission booking platform',
+    'online class booking for studios',
     'class pass and membership software',
     'pilates studio scheduling',
   ],

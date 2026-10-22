@@ -26,7 +26,7 @@ Set it to **$0.00** if you want to run a free trial class.
 
 ## Step 4 — Connect payments
 
-Connect your Stripe account so members can pay by card, Apple Pay, or Google Pay. You keep 100% of every payment — CalaStudio charges no commission.
+Connect your Stripe account so members can pay by card, Apple Pay, or Google Pay. Members pay you directly, into your own Stripe account; CalaStudio never holds your money. What CalaStudio charges depends on your plan.
 
 **Don't have a Stripe account?** Click **Skip for now** — your booking page will go live in demo mode and you can connect Stripe later.
 
