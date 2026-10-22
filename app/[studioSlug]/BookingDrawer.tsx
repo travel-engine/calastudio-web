@@ -463,7 +463,13 @@ export default function BookingDrawer() {
     setError("Your payment succeeded, but we're still issuing your pass. Check My Passes in a minute, then come back and book.")
   }
 
+  // A double-tap fires before the busy state disables the button; this ref stops the second tap from
+  // creating a second PaymentIntent on the studio's Stripe account.
+  const paymentStartingRef = useRef(false)
+
   const startDropInPayment = async () => {
+    if (paymentStartingRef.current) return
+    paymentStartingRef.current = true
     setDropInBusy(true)
     setNote('')
     try {
@@ -490,11 +496,14 @@ export default function BookingDrawer() {
       }
       setDropInSecret(data.client_secret)
     } finally {
+      paymentStartingRef.current = false
       setDropInBusy(false)
     }
   }
 
   const startPassPurchase = async (templateId: string) => {
+    if (paymentStartingRef.current) return
+    paymentStartingRef.current = true
     setPurchaseBusyId(templateId)
     setNote('')
     try {
@@ -518,6 +527,7 @@ export default function BookingDrawer() {
         }
       } catch { /* fall back to first-match */ }
     } finally {
+      paymentStartingRef.current = false
       setPurchaseBusyId('')
     }
   }
