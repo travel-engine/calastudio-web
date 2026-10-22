@@ -49,6 +49,8 @@ In **Change plan**, click **Switch to …** under the plan you want and confirm.
 
 Moving from Pay as you go to Monthly or Annual starts the subscription on your saved card.
 
+You're never charged twice for the same time. If CalaStudio staff end your Monthly or Annual plan early and you start one again before the period you'd paid for is over, the new plan begins with no charge and your first payment is taken when that period ends. Switching between Monthly and Annual works the same way.
+
 Every plan change is recorded in the **Activity log**.
 
 ## Invoices

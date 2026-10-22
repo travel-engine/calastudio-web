@@ -66,7 +66,7 @@ function Studios({ token }: { token: string }) {
     router.push(`/admin/studios/${d.id}?${new URLSearchParams({ name: d.name ?? '', slug })}`)
   }
 
-  const statusTone = (s?: string | null): ChipTone => s === 'active' ? 'primary' : s === 'past_due' ? 'danger' : s === 'incomplete' ? 'warn' : 'neutral'
+  const statusTone = (s?: string | null): ChipTone => s === 'active' || s === 'trialing' ? 'primary' : s === 'past_due' ? 'danger' : s === 'incomplete' ? 'warn' : 'neutral'
   const th: React.CSSProperties = { ...smallCapsStyle, textAlign: 'left', padding: '12px 20px', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap' }
 
   return (

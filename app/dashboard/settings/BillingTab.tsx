@@ -21,7 +21,8 @@ interface BillingPlan {
   percentage_rate: number | null // fraction: 0.05 = 5%
   monthly_amount: number | null
   annual_amount: number | null
-  subscription_status: 'none' | 'active' | 'past_due' | 'canceled' | 'incomplete'
+  // 'trialing': re-subscribed before an earlier paid period ended; the first charge is current_period_end
+  subscription_status: 'none' | 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete'
   current_period_end: string | null // while a switch is pending: the date it takes effect
   pending_plan?: PlanKey | null // set when leaving Monthly/Annual: the plan that starts at current_period_end
   has_payment_method: boolean
@@ -32,6 +33,7 @@ interface BillingPlan {
 const STATUS: Record<BillingPlan['subscription_status'], { label: string; tone: ChipTone }> = {
   none: { label: 'No subscription', tone: 'neutral' },
   active: { label: 'Active', tone: 'primary' },
+  trialing: { label: 'Active', tone: 'primary' },
   past_due: { label: 'Payment overdue', tone: 'danger' },
   canceled: { label: 'Cancelled', tone: 'neutral' },
   incomplete: { label: 'Awaiting first payment', tone: 'warn' },
