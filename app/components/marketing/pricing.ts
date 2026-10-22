@@ -7,7 +7,7 @@ export const PRICING = {
   currency: 'AUD',
   percentage: 5,
   monthly: 45,
-  annual: 450,
+  annual: 360,
 } as const
 
 export const aud = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`
