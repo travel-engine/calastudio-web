@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '../../../components/Sidebar'
 import { displayName } from '@/lib/names'
+import { canManageTeam } from '@/lib/roles'
+import Forbidden from '../../../components/Forbidden'
 import { STUDIO_DOMAIN, studioUrl } from '@/lib/seo'
 import { ExternalLink, Upload, X } from 'lucide-react'
 import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
@@ -86,6 +88,7 @@ export default function EditTeacherPage() {
   const [settingPrimary, setSettingPrimary] = useState(false)
   const [roles, setRoles] = useState<string[]>([])
   const [teacher, setTeacher] = useState<TeacherData | null>(null)
+  const [forbidden, setForbidden] = useState(false)
   // Roles save on their own (PATCH /members/{id}/roles), separate from the profile's Save changes.
   const [savedRoles, setSavedRoles] = useState<string[]>([])
   const [rolesBusy, setRolesBusy] = useState(false)
@@ -93,6 +96,7 @@ export default function EditTeacherPage() {
 
   const [form, setForm] = useState({
     display_name: '',
+    slug: '',
     tagline: '',
     bio: '',
     specialties: '',
@@ -119,6 +123,8 @@ export default function EditTeacherPage() {
       setOrgId(org.id)
       setOrgSlug(org.slug ?? '')
       setRoles(ctx.roles)
+      // Only an admin can change a teacher's name or page address (the API refuses anyone else).
+      if (!canManageTeam(ctx.roles)) { setForbidden(true); setLoading(false); return }
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/teachers/${teacherId}`,
@@ -130,6 +136,7 @@ export default function EditTeacherPage() {
 
       setForm({
         display_name: data.profile?.display_name ?? displayName(data),
+        slug: data.profile?.slug ?? '',
         tagline: data.profile?.tagline ?? '',
         bio: data.profile?.bio ?? '',
         specialties: data.profile?.specialties?.join(', ') ?? '',
@@ -280,6 +287,7 @@ export default function EditTeacherPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             display_name: form.display_name,
+            ...(teacher?.profile && form.slug.trim() !== teacher.profile.slug ? { slug: form.slug.trim() } : {}),
             tagline: form.tagline || null,
             bio: form.bio || null,
             specialties: form.specialties ? form.specialties.split(',').map(s => s.trim()).filter(Boolean) : null,
@@ -297,6 +305,12 @@ export default function EditTeacherPage() {
       )
 
       if (res.ok) {
+        const data = await res.json().catch(() => null)
+        const slug: string | undefined = data?.slug ?? data?.profile?.slug
+        if (slug) {
+          setTeacher(prev => prev?.profile ? { ...prev, profile: { ...prev.profile, slug } } : prev)
+          update('slug', slug)
+        }
         setSuccess('Profile saved successfully')
         setTimeout(() => setSuccess(''), 3000)
       } else {
@@ -310,12 +324,24 @@ export default function EditTeacherPage() {
     }
   }
 
+  // Offer the display name as an address, e.g. "Jammie Higgins" → jammie-higgins. The API validates.
+  const suggestedSlug = form.display_name.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+
   const addPhotoUrl = () => {
     if (form.newPhotoUrl.trim()) setForm(prev => ({ ...prev, photos: [...prev.photos, prev.newPhotoUrl.trim()], newPhotoUrl: '' }))
   }
   const photoBadge: React.CSSProperties = {
     position: 'absolute', bottom: 6, left: 6, minHeight: 28, padding: '0 10px', borderRadius: radius.chip, border: 'none',
     fontFamily: 'inherit', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center',
+  }
+
+  if (forbidden) {
+    return (
+      <div className={styles.shell}>
+        <Sidebar active="team" roles={roles} />
+        <div className={styles.main}><Forbidden /></div>
+      </div>
+    )
   }
 
   if (loading || !teacher) {
@@ -375,6 +401,25 @@ export default function EditTeacherPage() {
             <Field label="Display name" htmlFor="t-name">
               <Input id="t-name" placeholder="e.g. Sarah Jones" value={form.display_name} onChange={e => update('display_name', e.target.value)} />
             </Field>
+            {teacher.profile && (
+              <Field label="Page address" htmlFor="t-slug" hint="Lowercase letters, numbers and hyphens. Changing the display name doesn't change this.">
+                <div style={{ display: 'flex', alignItems: 'stretch', flexWrap: 'wrap', gap: 6 }}>
+                  <span style={{ alignSelf: 'center', fontSize: 15, color: color.muted, ...tabularNums }}>{orgSlug || '{studio}'}.{STUDIO_DOMAIN}/teachers/</span>
+                  <Input id="t-slug" aria-describedby="t-slug-hint" placeholder="e.g. sarah-jones" value={form.slug} autoCapitalize="none" spellCheck={false}
+                    onChange={e => update('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))} style={{ flex: '1 1 200px', width: 'auto' }} />
+                </div>
+                {suggestedSlug && suggestedSlug !== form.slug && (
+                  <div style={{ marginTop: 6 }}>
+                    <Button size="sm" onClick={() => update('slug', suggestedSlug)}>Use {suggestedSlug}</Button>
+                  </div>
+                )}
+                {form.slug.trim() && form.slug.trim() !== teacher.profile.slug && (
+                  <p role="status" style={{ ...alertStyle('warn'), margin: '8px 0 0', fontSize: 14 }}>
+                    The old address, /teachers/{teacher.profile.slug}, will keep working and send visitors to the new one.
+                  </p>
+                )}
+              </Field>
+            )}
             <Field label="Tagline" htmlFor="t-tag" hint="One line shown under their name.">
               <Input id="t-tag" aria-describedby="t-tag-hint" placeholder="e.g. Vinyasa & Yin specialist" value={form.tagline} onChange={e => update('tagline', e.target.value)} />
             </Field>
