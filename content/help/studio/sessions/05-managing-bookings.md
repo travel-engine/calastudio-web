@@ -40,7 +40,11 @@ At the top: the session name, then chips for the status (Scheduled/Cancelled/Com
 | **Edit class** | Change the date, start/end time, capacity, or teacher for this class only | Admin, Super teacher, and Teacher (their own classes) |
 | **Cancel class** | Cancels the whole class — see below | Admin, Super teacher, and Teacher (their own classes) |
 
-**Edit class** only affects this one date, not the session or any other date generated from it. Choosing a teacher here overrides the session's own teacher for this date only; choose **No teacher** to leave it unassigned.
+**Edit class** only affects this one date, not the session or any other date generated from it. The **Teacher** list has three kinds of choice:
+
+- **Same as session (…)**: whoever teaches the session, now or later. If the session's teacher changes, this date follows. This is the default.
+- **A named teacher**: that teacher for this date only, for example a substitute. Changing the session's teacher later doesn't touch it.
+- **No teacher**: nobody is shown as teaching this date, even though the session has a teacher. The session's own teacher can still open this date and its roster from their teacher view.
 
 Under the header, a summary strip shows **Booked** (against capacity, e.g. `5 / 12`), **Checked in**, **Guests**, **On waitlist**, and — when your studio requires a waiver — **Waiver to sort**, the number of booked members who haven't signed the current waiver.
 

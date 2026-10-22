@@ -36,14 +36,24 @@ interface OccurrenceDetail {
   status: 'scheduled' | 'cancelled' | 'completed'
   capacity: number | null
   instructor_id: string | null
-  instructor_name: string | null
+  instructor_name: string | null // the effective teacher: this class's own, else the session's; null = nobody
+  no_instructor?: boolean // explicitly "No teacher" for this class, regardless of the session's teacher
   session: SessionDetail | null
 }
+
+// Teacher choice in the edit form: a teacher's id, nobody, or follow whoever teaches the session.
+const NO_TEACHER = ''
+const SAME_AS_SESSION = 'session'
 
 interface Teacher {
   id: string
   first_name: string
   last_name: string
+}
+
+function sessionTeacherName(teachers: Teacher[], id: string | null | undefined) {
+  if (!id) return 'no teacher'
+  return displayName(teachers.find(x => x.id === id)) || 'its teacher'
 }
 
 interface Member {
@@ -512,7 +522,7 @@ export default function OccurrenceDetailPage() {
       startTime: toTimeInputValue(occurrence.starts_at),
       endTime: toTimeInputValue(occurrence.ends_at),
       capacity: (occurrence.capacity ?? occurrence.session?.capacity ?? '')?.toString() ?? '',
-      instructorId: occurrence.instructor_id ?? occurrence.session?.instructor_id ?? '',
+      instructorId: occurrence.no_instructor ? NO_TEACHER : occurrence.instructor_id ?? SAME_AS_SESSION,
     })
     setShowEdit(true)
     setTeachersLoading(true)
@@ -543,8 +553,9 @@ export default function OccurrenceDetailPage() {
         starts_at: startsAt.toISOString(),
         ends_at: endsAt.toISOString(),
         capacity: editForm.capacity === '' ? null : parseInt(editForm.capacity),
-        instructor_id: editForm.instructorId === '' ? null : editForm.instructorId,
-        clear_instructor_id: editForm.instructorId === '',
+        ...(editForm.instructorId === NO_TEACHER ? { clear_instructor_id: true }
+          : editForm.instructorId === SAME_AS_SESSION ? { use_session_instructor: true }
+            : { instructor_id: editForm.instructorId }),
       })
     })
     if (res.ok) {
@@ -866,7 +877,8 @@ export default function OccurrenceDetailPage() {
                       <p style={{ margin: 0, fontSize: 15, color: color.muted }}>Loading teachers…</p>
                     ) : (
                       <select id="edit-teacher" value={editForm.instructorId} onChange={e => setEditForm(p => ({ ...p, instructorId: e.target.value }))} style={inputStyle}>
-                        <option value="">No teacher</option>
+                        <option value={SAME_AS_SESSION}>Same as session ({sessionTeacherName(teachers, occurrence?.session?.instructor_id)})</option>
+                        <option value={NO_TEACHER}>No teacher</option>
                         {teachers.map(t => <option key={t.id} value={t.id}>{displayName(t)}</option>)}
                       </select>
                     )}
