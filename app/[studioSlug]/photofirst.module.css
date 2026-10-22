@@ -526,7 +526,17 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
   margin-bottom: 24px;
+}
+
+/* A filter group (mode / type / location). On desktop its chips just flow with the rest. */
+.chipGroup {
+  display: contents;
+}
+
+.chipDivider {
+  display: none;
 }
 
 .chip {
@@ -697,6 +707,7 @@
   border-radius: var(--radius-drawer) var(--radius-drawer) 0 0;
   padding: clamp(22px, 4vw, 32px);
   border-top: 1px solid var(--line-strong);
+  padding-bottom: calc(clamp(22px, 4vw, 32px) + env(safe-area-inset-bottom, 0px));
   animation: drawer-in 220ms ease-out;
 }
 
@@ -1336,5 +1347,56 @@
     align-items: center;
     min-height: 44px;
     min-width: 44px;
+  }
+}
+
+/* Phones: schedule filters on ONE row that scrolls sideways, so classes start on the first screen.
+   The row runs edge to edge (past the page gutter) and fades out on the right as a scroll hint. */
+@media (max-width: 720px) {
+  .chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * var(--gutter)) 20px;
+    padding: 2px var(--gutter);
+    scroll-padding-inline: var(--gutter);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+
+  .chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .chipDivider {
+    display: block;
+    flex: none;
+    width: 1px;
+    height: 24px;
+    margin: 0 4px;
+    background: var(--line-chip);
+  }
+}
+
+/* Phones: the pass purchase box becomes a bottom sheet, like booking a class, easy to reach with a
+   thumb and with room for the card form. Bottom padding clears the iPhone home indicator. */
+@media (max-width: 720px) {
+  .modalOverlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modalPanel {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius-drawer) var(--radius-drawer) 0 0;
+    border-width: 1px 0 0;
+    padding-bottom: calc(clamp(22px, 4vw, 28px) + env(safe-area-inset-bottom, 0px));
+    animation: drawer-in 220ms ease-out;
   }
 }

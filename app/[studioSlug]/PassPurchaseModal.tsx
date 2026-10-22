@@ -77,6 +77,12 @@ export default function PassPurchaseModal({
     return () => { active = false }
   }, [apiUrl, orgId, token, template.id])
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   // The webhook issues the pass a beat after the charge confirms — poll briefly, then stop nagging.
   const pollForPass = async () => {
     setPhase('confirming')
@@ -99,10 +105,10 @@ export default function PassPurchaseModal({
 
   return (
     <div onClick={onClose} className={styles.modalOverlay}>
-      <div onClick={e => e.stopPropagation()} className={styles.modalPanel}>
+      <div onClick={e => e.stopPropagation()} className={styles.modalPanel} role="dialog" aria-modal="true" aria-labelledby="pass-purchase-title">
         <div className={styles.drawerHead} style={{ marginBottom: '18px' }}>
           <div style={{ minWidth: 0 }}>
-            <div className={styles.drawerTitle}>{template.name}</div>
+            <div id="pass-purchase-title" className={styles.drawerTitle}>{template.name}</div>
             <div className={styles.drawerMeta}>{price}</div>
           </div>
           <button onClick={onClose} aria-label="Close" className={styles.iconClose}>✕</button>
