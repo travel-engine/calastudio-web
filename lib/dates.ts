@@ -1,5 +1,5 @@
 // Shared date formatting. House style for a plain date is dd-mmm-yyyy (e.g. 05-Sep-2026)
-// — unambiguous across locales. Time is appended locale-formatted where a timestamp is shown.
+// — unambiguous across locales. Times are always "9:00 am" (see formatTime).
 //
 // Every formatter takes an optional IANA `timeZone`. Pass the studio's timezone for class times
 // and anything else tied to the studio's clock: without it the runtime's zone is used, which on
@@ -43,14 +43,30 @@ export function formatDate(input: DateInput, timeZone?: string | null): string {
   return `${String(day).padStart(2, '0')}-${MONTHS[m - 1]}-${y}`
 }
 
-/** 9:00 AM */
-export function formatTime(input: DateInput, timeZone?: string | null): string {
-  const d = toDate(input)
-  if (!d) return ''
-  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: safeZone(timeZone) })
+// House style for a time of day, everywhere in the app: "9:00 am" — 12-hour, lowercase am/pm,
+// always with minutes. Built from parts rather than toLocaleTimeString so it doesn't drift with the
+// visitor's locale (09:00 / 9:00 AM / 9:00 a.m.) or with ICU versions (Node vs browser spacing),
+// which would also trip hydration mismatches.
+function clock(d: Date, timeZone?: string | null): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric', minute: '2-digit', hourCycle: 'h12', timeZone: safeZone(timeZone),
+  }).formatToParts(d)
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? ''
+  return `${get('hour')}:${get('minute')} ${get('dayPeriod').toLowerCase()}`
 }
 
-/** 05-Sep-2026 9:00 AM */
+/** 9:00 am */
+export function formatTime(input: DateInput, timeZone?: string | null): string {
+  const d = toDate(input)
+  return d ? clock(d, timeZone) : ''
+}
+
+/** 9:00 am – 10:15 am */
+export function formatTimeRange(start: DateInput, end: DateInput, timeZone?: string | null): string {
+  return `${formatTime(start, timeZone)} – ${formatTime(end, timeZone)}`
+}
+
+/** 05-Sep-2026 9:00 am */
 export function formatDateTime(input: DateInput, timeZone?: string | null): string {
   const d = toDate(input)
   if (!d) return ''
@@ -65,7 +81,7 @@ export function formatDateWithWeekday(input: DateInput, timeZone?: string | null
   return `${weekday} ${formatDate(d, timeZone)}`
 }
 
-/** Sat 05-Sep-2026 9:00 AM */
+/** Sat 05-Sep-2026 9:00 am */
 export function formatDateTimeWithWeekday(input: DateInput, timeZone?: string | null): string {
   const d = toDate(input)
   if (!d) return ''
@@ -93,16 +109,11 @@ export function formatDayLabel(input: DateInput, timeZone?: string | null): stri
 }
 
 // ── Admin redesign formats (design/admin-redesign handoff §3) ─────────────────────────────────
-// Locale pinned to en-AU so server and browser render identically (no hydration mismatch) and
-// times read "7:00 am". Pass the studio's timezone wherever the value is on the studio's clock.
+// Locale pinned to en-AU so server and browser render identically (no hydration mismatch). Pass the studio's timezone wherever the value is on the studio's clock.
 const ADMIN_LOCALE = 'en-AU'
 
-/** "7:00 am" */
-export function formatClock(input: DateInput, timeZone?: string | null): string {
-  const d = toDate(input)
-  if (!d) return ''
-  return d.toLocaleTimeString(ADMIN_LOCALE, { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: safeZone(timeZone) })
-}
+/** "7:00 am" — same as formatTime; kept as the name the admin screens use. */
+export const formatClock = formatTime
 
 /** "Sat 17 Oct", with the year only when it isn't this year: "Sat 2 Jan 2027" */
 export function formatShortDate(input: DateInput, timeZone?: string | null): string {

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useParams, useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { splitName } from '@/lib/names'
-import { formatDate, formatDateTimeWithWeekday, safeZone } from '@/lib/dates'
+import { formatDate, formatDateTimeWithWeekday, formatTimeRange } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
@@ -183,8 +183,7 @@ function formatDateTime(iso: string, timeZone?: string | null) {
 }
 
 function timeRange(startIso: string, endIso: string, timeZone?: string | null) {
-  const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', timeZone: safeZone(timeZone) }
-  return `${new Date(startIso).toLocaleTimeString(undefined, opts)} – ${new Date(endIso).toLocaleTimeString(undefined, opts)}`
+  return formatTimeRange(startIso, endIso, timeZone)
 }
 
 const JOIN_WINDOW_MS = 15 * 60 * 1000

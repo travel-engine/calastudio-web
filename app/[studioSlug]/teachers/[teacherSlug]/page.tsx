@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import styles from '../../photofirst.module.css'
-import { formatDateTimeWithWeekday, safeZone } from '@/lib/dates'
+import { formatDateTimeWithWeekday, formatTimeRange } from '@/lib/dates'
 import { metaDescription, studioOpenGraph, studioOrigin, studioPath } from '@/lib/seo'
 import { JsonLd, personLd, breadcrumbLd, eventLd } from '@/lib/jsonLd'
 import Gallery from '../../Gallery'
@@ -62,8 +62,7 @@ interface PublicOrgInfo {
 }
 
 function timeRange(startIso: string, endIso: string, timeZone?: string | null) {
-  const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', timeZone: safeZone(timeZone) }
-  return `${new Date(startIso).toLocaleTimeString('en-AU', opts)} – ${new Date(endIso).toLocaleTimeString('en-AU', opts)}`
+  return formatTimeRange(startIso, endIso, timeZone)
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

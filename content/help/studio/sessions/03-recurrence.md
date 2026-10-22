@@ -19,7 +19,7 @@ The session repeats every week on the same weekday as **First occurrence** — p
 
 ## How occurrences actually get created
 
-When you save the session, its occurrences are generated straight away — every date up to 60 days ahead, starting from **First occurrence** and stopping at whichever comes first: your **Ends** setting or the 60-day horizon. A nightly job at 2am, your studio's local time, then keeps that window rolling forward for every active session. Generation only ever adds — it never removes or edits a date you've already touched.
+When you save the session, its occurrences are generated straight away — every date up to 60 days ahead, starting from **First occurrence** and stopping at whichever comes first: your **Ends** setting or the 60-day horizon. A nightly job at 2:00 am, your studio's local time, then keeps that window rolling forward for every active session. Generation only ever adds — it never removes or edits a date you've already touched.
 
 Two practical consequences:
 
