@@ -36,6 +36,7 @@ interface BillingPlan {
   annual_amount: number | null
   subscription_status: string
   current_period_end: string | null
+  pending_plan?: 'percentage' | 'monthly' | 'annual' | null
   has_payment_method: boolean
   currency?: string | null
 }
@@ -138,7 +139,9 @@ function StudioView({ token }: { token: string }) {
               {row('Monthly', plan.monthly_amount != null ? formatMoney(plan.monthly_amount, cur) : '—')}
               {row('Annual', plan.annual_amount != null ? formatMoney(plan.annual_amount, cur) : '—')}
               {row('Subscription', plan.subscription_status)}
-              {row('Next billing date', plan.current_period_end ? formatShortDate(plan.current_period_end) : '—')}
+              {plan.pending_plan && plan.pending_plan !== plan.plan
+                ? row('Switching to', <Chip tone="warn">{PLAN[plan.pending_plan]}{plan.current_period_end ? ` on ${formatShortDate(plan.current_period_end)}` : ''}</Chip>)
+                : row('Next billing date', plan.current_period_end ? formatShortDate(plan.current_period_end) : '—')}
               {row('Card saved', plan.has_payment_method ? 'Yes' : 'No')}
             </>
           ) : <p style={{ margin: 0, fontSize: 14, color: color.muted }}>Plan not available.</p>}

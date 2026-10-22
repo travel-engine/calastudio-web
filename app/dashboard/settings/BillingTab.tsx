@@ -21,7 +21,8 @@ interface BillingPlan {
   monthly_amount: number | null
   annual_amount: number | null
   subscription_status: 'none' | 'active' | 'past_due' | 'canceled' | 'incomplete'
-  current_period_end: string | null
+  current_period_end: string | null // while a switch is pending: the date it takes effect
+  pending_plan?: PlanKey | null // set when leaving Monthly/Annual: the plan that starts at current_period_end
   has_payment_method: boolean
   currency?: string | null
 }
@@ -46,6 +47,7 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
   const [switchTo, setSwitchTo] = useState<PlanKey | null>(null)
   const [switching, setSwitching] = useState(false)
   const [switchError, setSwitchError] = useState('')
+  const [keeping, setKeeping] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -81,32 +83,56 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
     }
   }
 
-  const confirmSwitch = async () => {
-    if (!switchTo) return
-    setSwitching(true)
-    setSwitchError('')
+  // PUT …/plan. Leaving Monthly/Annual doesn't happen now: the API keeps the paid period running and
+  // returns pending_plan + the date. Re-selecting the plan still being billed cancels that pending switch.
+  const selectPlan = async (target: PlanKey): Promise<BillingPlan | string> => {
     try {
       const res = await fetch(`${api}/plan`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ plan: switchTo }),
+        body: JSON.stringify({ plan: target }),
       })
       const data = await res.json().catch(() => null)
-      if (!res.ok) { setSwitchError(data?.error ?? 'Could not change your plan.'); return }
-      setPlan(data)
-      setSwitchTo(null)
-      setNotice({ ok: true, text: `You're now on the ${PLAN_NAME[switchTo]} plan. It takes effect from your next billing cycle.` })
+      return res.ok ? data : (data?.error ?? 'Could not change your plan.')
     } catch {
-      setSwitchError('Could not reach the server. Please try again.')
-    } finally {
-      setSwitching(false)
+      return 'Could not reach the server. Please try again.'
     }
+  }
+
+  const confirmSwitch = async () => {
+    if (!switchTo) return
+    setSwitching(true)
+    setSwitchError('')
+    const result = await selectPlan(switchTo)
+    setSwitching(false)
+    if (typeof result === 'string') { setSwitchError(result); return }
+    setPlan(result)
+    setSwitchTo(null)
+    setNotice({
+      ok: true,
+      text: result.pending_plan && result.current_period_end
+        ? `You'll move to ${PLAN_NAME[result.pending_plan]} on ${formatShortDate(result.current_period_end)}. You stay on ${PLAN_NAME[result.plan]} until then.`
+        : `You're now on the ${PLAN_NAME[result.plan]} plan.`,
+    })
+  }
+
+  const keepPlan = async () => {
+    if (!plan) return
+    setKeeping(true)
+    setNotice(null)
+    const result = await selectPlan(plan.plan)
+    setKeeping(false)
+    if (typeof result === 'string') { setNotice({ ok: false, text: result }); return }
+    setPlan(result)
+    setNotice({ ok: true, text: `You're staying on ${PLAN_NAME[result.plan]}. The switch has been cancelled.` })
   }
 
   if (loadError) return <div style={{ ...cardStyle, padding: '22px 24px', color: color.ink2, fontSize: 15 }}>{loadError}</div>
   if (!plan) return <div style={{ color: color.muted, padding: 24 }}>Loading…</div>
 
   const subscribed = plan.plan === 'monthly' || plan.plan === 'annual'
+  const pending = plan.pending_plan && plan.pending_plan !== plan.plan ? plan.pending_plan : null
+  const effectiveDate = plan.current_period_end ? formatShortDate(plan.current_period_end) : null
   const st = STATUS[plan.subscription_status] ?? STATUS.none
   const card: React.CSSProperties = { ...cardStyle, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: space.formGap }
 
@@ -129,7 +155,16 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
         {subscribed && (
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, fontSize: 15, color: color.ink2 }}>
             <Chip tone={st.tone}>{st.label}</Chip>
-            {plan.current_period_end && <span style={tabularNums}>Next billing date {formatShortDate(plan.current_period_end)}</span>}
+            {effectiveDate && <span style={tabularNums}>{pending ? `Ends ${effectiveDate}` : `Next billing date ${effectiveDate}`}</span>}
+          </div>
+        )}
+        {pending && (
+          <div role="status" style={{ ...alertStyle('warn'), display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span>
+              Switching to <strong>{PLAN_NAME[pending]}</strong>{effectiveDate ? <> on <strong style={tabularNums}>{effectiveDate}</strong></> : ' at the end of this period'}.
+              You stay on {PLAN_NAME[plan.plan]} until then.
+            </span>
+            <Button size="sm" onClick={keepPlan} disabled={keeping}>{keeping ? 'Cancelling…' : `Keep ${PLAN_NAME[plan.plan]}`}</Button>
           </div>
         )}
         {plan.subscription_status === 'past_due' && (
@@ -159,7 +194,7 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
         <div>
           <h2 id="bill-plans" style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Change plan</h2>
           <p style={{ margin: '4px 0 0', fontSize: 14, color: color.muted, lineHeight: 1.45 }}>
-            A change takes effect from your next billing cycle, never part-way through one.
+            Leaving Monthly or Annual takes effect at the end of the period you&apos;ve paid for, never part-way through it.
           </p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 12 }}>
@@ -174,9 +209,10 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <strong style={{ fontSize: 16, fontWeight: 600 }}>{PLAN_NAME[p]}</strong>
                   {current && <Chip tone="primary">Current</Chip>}
+                  {pending === p && <Chip tone="warn">{effectiveDate ? `From ${effectiveDate}` : 'Pending'}</Chip>}
                 </span>
                 <span style={{ fontSize: 15, color: color.ink2, ...tabularNums }}>{priceOf(p, plan)}</span>
-                {!current && (
+                {!current && pending !== p && (
                   <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <Button size="sm" onClick={() => { setSwitchError(''); setSwitchTo(p) }} disabled={needsCard}>Switch to {PLAN_NAME[p]}</Button>
                     {needsCard && <span style={{ fontSize: 13, color: color.muted }}>Add a card first.</span>}
@@ -203,7 +239,10 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
           <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
             <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.ink2 }}>
               You&apos;ll move from <strong>{PLAN_NAME[plan.plan]}</strong> ({priceOf(plan.plan, plan)}) to{' '}
-              <strong>{PLAN_NAME[switchTo]}</strong> ({priceOf(switchTo, plan)}), starting from your next billing cycle.
+              <strong>{PLAN_NAME[switchTo]}</strong> ({priceOf(switchTo, plan)})
+              {subscribed && effectiveDate
+                ? <>. You stay on {PLAN_NAME[plan.plan]} until <strong style={tabularNums}>{effectiveDate}</strong>, the end of the period you&apos;ve paid for, and the switch happens then.</>
+                : '.'}
             </p>
             {switchError && <div role="alert" style={alertStyle()}>{switchError}</div>}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
