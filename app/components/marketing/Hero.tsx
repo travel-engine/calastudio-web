@@ -13,9 +13,9 @@ function TeacherPageExample() {
   return (
     <div className={styles.teacherCard} role="img" aria-label="Example teacher booking page with classes at a gym, a studio and a community hall">
       <div className={styles.teacherHead}>
-        <div className={styles.avatar}>MS</div>
+        <div className={styles.avatar}>JA</div>
         <div>
-          <div className={styles.teacherName}>Maya Sharma</div>
+          <div className={styles.teacherName}>Jane Austen</div>
           <div className={styles.teacherSub}>Yoga · 3 places this week</div>
         </div>
       </div>
