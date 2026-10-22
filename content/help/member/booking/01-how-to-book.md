@@ -45,4 +45,4 @@ Once you're booked, tap **Apple / Outlook** or **Google Calendar** under **Add t
 
 Your confirmation email has the same two options, plus a calendar file attached.
 
-If you cancel, or the studio cancels or moves the class, the email you get updates the calendar entry, so it doesn't leave an old class in your calendar. Your calendar's own reminder settings apply.
+If you cancel, or the studio cancels or moves the class, the email you get has an updated calendar file. If you added the class from a calendar file, opening the new one updates or removes the entry. If you added it with **Google Calendar**, change or delete the entry yourself. Your calendar's own reminder settings apply.
