@@ -100,7 +100,7 @@ export default function PricingList({
 
               <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
                 {justBought === t.id ? (
-                  <div style={{ fontSize: '13px', color: 'var(--ink)', fontWeight: 600 }}>
+                  <div style={{ fontSize: '15px', color: 'var(--ink)', fontWeight: 600 }}>
                     ✓ Added — <Link href={studioPath(studioSlug, '/account')} style={{ textDecoration: 'underline' }}>view your passes</Link>
                   </div>
                 ) : token === undefined ? (
@@ -108,7 +108,7 @@ export default function PricingList({
                 ) : token === null ? (
                   <Link href={studioPath(studioSlug, '/account')} className={styles.smallBtn}>Sign in to buy</Link>
                 ) : !canPay ? (
-                  <div style={{ fontSize: '12.5px', color: 'var(--danger)' }}>This studio hasn&apos;t set up card payments yet.</div>
+                  <div style={{ fontSize: '14px', color: 'var(--danger)' }}>This studio hasn&apos;t set up card payments yet.</div>
                 ) : (
                   <button onClick={() => setBuying(t)} className={styles.smallBtn}>Buy this pass</button>
                 )}

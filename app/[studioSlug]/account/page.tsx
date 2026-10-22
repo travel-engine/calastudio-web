@@ -134,7 +134,7 @@ const inputStyle: React.CSSProperties = {
   width: '100%', padding: '12px 16px', border: '1px solid var(--line-chip)', borderRadius: '10px',
   fontSize: '14px', outline: 'none', background: 'var(--inset)', color: 'var(--ink)',
 }
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.06em' }
+const labelStyle: React.CSSProperties = { display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.06em' }
 
 function StatusBadge({ status }: { status: string }) {
   // Theme colours, so badges read on light and dark themes alike.
@@ -169,7 +169,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span style={{
       display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
+      fontSize: '14px', fontWeight: 500, backgroundColor: s.bg, color: s.color
     }}>
       {s.label}
     </span>
@@ -634,16 +634,16 @@ function MemberAccountContent() {
             <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
               {occ?.session?.name ?? 'Session'}
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
+            <div style={{ fontSize: '15px', color: 'var(--text-meta)' }}>
               {occ ? `${formatDateTime(occ.starts_at, org?.timezone)} · ${timeRange(occ.starts_at, occ.ends_at, org?.timezone)}` : '—'}
               {w.preferred_mode === 'online' ? ' · Online' : ' · In person'}
               {w.intended_guest_count > 0 ? ` · ${w.intended_guest_count + 1} spots` : ''}
             </div>
             {w.status === 'waiting' && (
-              <div style={{ fontSize: '13px', color: 'var(--text-warn)', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-warn)', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
             )}
             {w.status === 'promoted' && !holdExpired && (
-              <div style={{ fontSize: '13px', color: 'var(--ink)', marginTop: '4px', fontWeight: 600 }}>
+              <div style={{ fontSize: '15px', color: 'var(--ink)', marginTop: '4px', fontWeight: 600 }}>
                 A spot opened — claim by {w.token_expires_at ? formatDateTime(w.token_expires_at, org?.timezone) : 'soon'}
               </div>
             )}
@@ -655,8 +655,8 @@ function MemberAccountContent() {
                 onClick={() => handleClaimWaitlist(w)}
                 disabled={claimingWaitlistId === w.id}
                 style={{
-                  padding: '6px 14px', backgroundColor: claimingWaitlistId === w.id ? 'rgba(245,244,241,0.3)' : brand, color: 'white',
-                  border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: claimingWaitlistId === w.id ? 'default' : 'pointer'
+                  display: 'inline-flex', alignItems: 'center', minHeight: '44px', padding: '0 16px', backgroundColor: claimingWaitlistId === w.id ? 'rgba(245,244,241,0.3)' : brand, color: 'white',
+                  border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 600, cursor: claimingWaitlistId === w.id ? 'default' : 'pointer'
                 }}
               >
                 {claimingWaitlistId === w.id ? 'Claiming…' : 'Claim my spot'}
@@ -688,17 +688,17 @@ function MemberAccountContent() {
           <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             {sess?.name ?? 'Session'}
             {b.guest_count > 0 && (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-warn)', backgroundColor: 'var(--warn-bg)', borderRadius: '999px', padding: '2px 8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-warn)', backgroundColor: 'var(--warn-bg)', borderRadius: '999px', padding: '2px 8px' }}>
                 +{b.guest_count} guest{b.guest_count > 1 ? 's' : ''}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
+          <div style={{ fontSize: '15px', color: 'var(--text-meta)' }}>
             {occ ? `${formatDateTime(occ.starts_at, org?.timezone)} · ${timeRange(occ.starts_at, occ.ends_at, org?.timezone)}` : '—'}
             {b.booked_mode === 'online' ? ' · Online' : ' · In person'}
           </div>
           {b.booked_mode !== 'online' && sess?.location_name && (
-            <div style={{ fontSize: '12px', color: 'var(--text-label)', marginTop: '2px' }}>
+            <div style={{ fontSize: '14px', color: 'var(--text-label)', marginTop: '2px' }}>
               {sess.location_name}{sess.location_address ? ` · ${sess.location_address}` : ''}
             </div>
           )}
@@ -710,13 +710,13 @@ function MemberAccountContent() {
               href={join.url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ padding: '6px 14px', backgroundColor: brand, color: 'white', borderRadius: '6px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}
+              style={{ display: 'inline-flex', alignItems: 'center', minHeight: '44px', padding: '0 16px', backgroundColor: brand, color: 'white', borderRadius: '6px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
             >
               Join
             </a>
           )}
           {join?.kind === 'note' && (
-            <span style={{ fontSize: '11px', color: 'var(--text-label)' }}>{join.text}</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-label)' }}>{join.text}</span>
           )}
           {upcoming && b.status === 'confirmed' && (
             <button
@@ -741,7 +741,7 @@ function MemberAccountContent() {
       <div style={{ color: 'var(--text-meta)', fontSize: '14px', marginBottom: '16px' }}>{text}</div>
       <a
         href={studioPath(studioSlug)}
-        style={{ display: 'inline-block', padding: '9px 20px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
+        style={{ display: 'inline-block', padding: '9px 20px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '15px', fontWeight: 600, textDecoration: 'none' }}
       >
         Go to schedule
       </a>
@@ -785,19 +785,19 @@ function MemberAccountContent() {
               {waiverInfo?.text && (
                 <div style={{
                   border: '1px solid var(--line-chip)', borderRadius: '8px', padding: '14px', marginBottom: '16px',
-                  maxHeight: '180px', overflowY: 'auto', fontSize: '13px', color: 'var(--text-body)', whiteSpace: 'pre-wrap'
+                  maxHeight: '180px', overflowY: 'auto', fontSize: '15px', color: 'var(--text-body)', whiteSpace: 'pre-wrap'
                 }}>
                   {waiverInfo.text}
                 </div>
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '15px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} style={{ marginTop: '2px' }} />
                   I accept the Terms &amp; Conditions
                 </label>
                 {waiverInfo?.required && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '15px', cursor: 'pointer' }}>
                     <input type="checkbox" checked={agreeWaiver} onChange={e => setAgreeWaiver(e.target.checked)} style={{ marginTop: '2px' }} />
                     I accept the Liability Waiver
                   </label>
@@ -805,7 +805,7 @@ function MemberAccountContent() {
               </div>
 
               {agreementsError && (
-                <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px', marginBottom: '16px' }}>
+                <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px', marginBottom: '16px' }}>
                   {agreementsError}
                 </div>
               )}
@@ -841,7 +841,7 @@ function MemberAccountContent() {
           </div>
 
           {portalError && (
-            <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px', marginBottom: '16px' }}>
+            <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px', marginBottom: '16px' }}>
               {portalError}
             </div>
           )}
@@ -869,7 +869,7 @@ function MemberAccountContent() {
             </div>
 
             {authMode === 'signin' && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-meta)', cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: 'var(--text-meta)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={rememberMe}
@@ -899,7 +899,7 @@ function MemberAccountContent() {
                   disabled={authBusy}
                   style={{
                     background: 'none', border: 'none', padding: 0,
-                    color: brand, fontSize: '12px', fontWeight: 600,
+                    color: brand, fontSize: '14px', fontWeight: 600,
                     cursor: authBusy ? 'default' : 'pointer',
                   }}
                 >
@@ -910,7 +910,7 @@ function MemberAccountContent() {
 
             {authMessage && (
               <div style={{
-                padding: '12px', borderRadius: '8px', fontSize: '13px', textAlign: 'center',
+                padding: '12px', borderRadius: '8px', fontSize: '15px', textAlign: 'center',
                 backgroundColor: authMessage.includes('Check your email') ? 'rgba(245,244,241,0.08)' : 'rgba(214,120,120,0.16)',
                 color: authMessage.includes('Check your email') ? 'var(--text-body)' : 'var(--danger)',
               }}>
@@ -918,7 +918,7 @@ function MemberAccountContent() {
               </div>
             )}
 
-            <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-meta)', marginTop: '4px' }}>
+            <p style={{ textAlign: 'center', fontSize: '15px', color: 'var(--text-meta)', marginTop: '4px' }}>
               {authMode === 'signin' ? (
                 <>New here? <button type="button" onClick={() => { setAuthMode('signup'); setAuthMessage('') }} style={{ background: 'none', border: 'none', color: brand, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Create an account</button></>
               ) : (
@@ -956,7 +956,7 @@ function MemberAccountContent() {
               ...(nextClassLabel ? [{ label: 'Next class', value: nextClassLabel }] : []),
             ].map((s, i) => (
               <div key={s.label} style={i === 0 ? undefined : { borderLeft: '1px solid var(--line-chip)', paddingLeft: '28px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
+                <div style={{ fontSize: '14px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
                 <div style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px' }}>{s.value}</div>
               </div>
             ))}
@@ -964,7 +964,7 @@ function MemberAccountContent() {
         )}
 
         {portalError && (
-          <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px', marginBottom: '16px' }}>
+          <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px', marginBottom: '16px' }}>
             {portalError}
           </div>
         )}
@@ -983,8 +983,8 @@ function MemberAccountContent() {
               <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '28px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>{profile.email}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-label)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '15px', color: 'var(--text-meta)' }}>{profile.email}</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-label)', marginTop: '2px' }}>
                       Member since {formatDate(profile.join_date)} · {profile.total_sessions_attended} session{profile.total_sessions_attended !== 1 ? 's' : ''} attended
                     </div>
                   </div>
@@ -1048,11 +1048,11 @@ function MemberAccountContent() {
                 >
                   {savingProfile ? 'Saving...' : 'Save changes'}
                 </button>
-                {profileSaved && <span style={{ marginLeft: '12px', fontSize: '13px', color: 'var(--ink)' }}>Saved.</span>}
+                {profileSaved && <span style={{ marginLeft: '12px', fontSize: '15px', color: 'var(--ink)' }}>Saved.</span>}
 
                 <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--line)' }}>
                   <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>Password</div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-meta)', margin: 0 }}>
+                  <p style={{ fontSize: '15px', color: 'var(--text-meta)', margin: 0 }}>
                     To change your password, sign out and use{' '}
                     <span style={{ fontWeight: 600 }}>&ldquo;Forgot password?&rdquo;</span> on the sign-in screen. We&apos;ll email you a secure reset link.
                   </p>
@@ -1063,12 +1063,12 @@ function MemberAccountContent() {
             {tab === 'upcoming' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {cancelError && (
-                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px' }}>
                     {cancelError}
                   </div>
                 )}
                 {waitlistActionError && (
-                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px' }}>
                     {waitlistActionError}
                   </div>
                 )}
@@ -1117,7 +1117,7 @@ function MemberAccountContent() {
                             {p.pass_template?.name ?? 'Pass'}
                             {p.pass_template && <span style={{ fontWeight: 400, color: 'var(--text-label)', marginLeft: '8px' }}>{formatMoney(p.pass_template.price, p.pass_template.currency)}</span>}
                           </div>
-                          <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
+                          <div style={{ fontSize: '15px', color: 'var(--text-meta)' }}>
                             {p.credits_remaining === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · {formatDate(p.effective_from)} – {formatDate(p.expires_at)}
                           </div>
                         </div>
@@ -1127,22 +1127,22 @@ function MemberAccountContent() {
                       {open && (
                         <div style={{ borderTop: '1px solid var(--line)' }}>
                           {entries.length === 0 ? (
-                            <div style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-label)', fontSize: '13px' }}>No credit activity on this pass yet.</div>
+                            <div style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-label)', fontSize: '15px' }}>No credit activity on this pass yet.</div>
                           ) : entries.map((entry, i) => (
                             <div key={entry.id} style={{
                               display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px',
                               borderBottom: i < entries.length - 1 ? '1px solid var(--line)' : 'none', gap: '12px', flexWrap: 'wrap',
                             }}>
                               <div>
-                                <div style={{ fontSize: '13px', fontWeight: 500 }}>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
-                                <div style={{ fontSize: '12px', color: 'var(--text-label)' }}>{formatDateTime(entry.created_at, org?.timezone)}</div>
-                                {entry.notes && <div style={{ fontSize: '12px', color: 'var(--text-meta)', marginTop: '2px' }}>{entry.notes}</div>}
+                                <div style={{ fontSize: '15px', fontWeight: 500 }}>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
+                                <div style={{ fontSize: '14px', color: 'var(--text-label)' }}>{formatDateTime(entry.created_at, org?.timezone)}</div>
+                                {entry.notes && <div style={{ fontSize: '14px', color: 'var(--text-meta)', marginTop: '2px' }}>{entry.notes}</div>}
                               </div>
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '13px', fontWeight: 600, color: entry.credits_delta >= 0 ? 'var(--ink)' : 'var(--danger)' }}>
+                                <div style={{ fontSize: '15px', fontWeight: 600, color: entry.credits_delta >= 0 ? 'var(--ink)' : 'var(--danger)' }}>
                                   {entry.credits_delta >= 0 ? '+' : ''}{entry.credits_delta}
                                 </div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-label)' }}>balance: {entry.credits_after}</div>
+                                <div style={{ fontSize: '13px', color: 'var(--text-label)' }}>balance: {entry.credits_after}</div>
                               </div>
                             </div>
                           ))}
@@ -1157,7 +1157,7 @@ function MemberAccountContent() {
             {tab === 'payments' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {receiptError && (
-                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px' }}>
                     {receiptError}
                   </div>
                 )}
@@ -1176,11 +1176,11 @@ function MemberAccountContent() {
                         {paymentTypeLabels[p.payment_type] ?? p.payment_type}
                         <span style={{ fontWeight: 400, color: 'var(--text-label)', marginLeft: '8px' }}>{formatMoney(p.amount, p.currency)}</span>
                       </div>
-                      <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
+                      <div style={{ fontSize: '15px', color: 'var(--text-meta)' }}>
                         {formatDateTime(p.created_at, org?.timezone)}{p.invoice_number ? ` · Invoice ${p.invoice_number}` : ''}
                       </div>
                       {p.refunded_amount > 0 && (
-                        <div style={{ fontSize: '12px', color: 'var(--danger)', marginTop: '2px' }}>
+                        <div style={{ fontSize: '14px', color: 'var(--danger)', marginTop: '2px' }}>
                           {p.status === 'refunded' ? 'Fully refunded' : `Refunded ${formatMoney(p.refunded_amount, p.currency)}`}
                         </div>
                       )}
@@ -1192,8 +1192,8 @@ function MemberAccountContent() {
                           onClick={e => { e.stopPropagation(); handleDownloadReceipt(p.id) }}
                           disabled={downloadingReceiptId === p.id}
                           style={{
-                            padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
-                            borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: 'var(--text-body)'
+                            display: 'inline-flex', alignItems: 'center', minHeight: '44px', padding: '0 16px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
+                            borderRadius: '6px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', color: 'var(--text-body)'
                           }}
                         >
                           {downloadingReceiptId === p.id ? 'Downloading...' : 'Download receipt'}
@@ -1209,14 +1209,14 @@ function MemberAccountContent() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
                   <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>Terms &amp; Conditions</div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-meta)', margin: '0 0 12px' }}>
+                  <p style={{ fontSize: '15px', color: 'var(--text-meta)', margin: '0 0 12px' }}>
                     The CalaStudio platform terms you agreed to when you created your account.
                   </p>
                   <a
                     href="https://calastudio.app/terms"
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: '13px', fontWeight: 600, color: brand }}
+                    style={{ fontSize: '15px', fontWeight: 600, color: brand }}
                   >
                     Read the Terms &amp; Conditions →
                   </a>
@@ -1227,19 +1227,19 @@ function MemberAccountContent() {
                     {org?.name ? `${org.name} Liability Waiver` : 'Liability Waiver'}
                   </div>
                   {waiverInfo === null ? (
-                    <p style={{ fontSize: '13px', color: 'var(--text-label)', margin: 0 }}>Loading…</p>
+                    <p style={{ fontSize: '15px', color: 'var(--text-label)', margin: 0 }}>Loading…</p>
                   ) : waiverInfo.text ? (
                     <>
                       <div style={{
-                        fontSize: '13px', color: 'var(--text-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                        fontSize: '15px', color: 'var(--text-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap',
                         maxHeight: '260px', overflowY: 'auto', border: '1px solid var(--line)', borderRadius: '8px', padding: '14px',
                       }}>
                         {waiverInfo.text}
                       </div>
-                      <p style={{ fontSize: '11px', color: 'var(--text-label)', margin: '8px 0 0' }}>Version {waiverInfo.version}</p>
+                      <p style={{ fontSize: '13px', color: 'var(--text-label)', margin: '8px 0 0' }}>Version {waiverInfo.version}</p>
                     </>
                   ) : (
-                    <p style={{ fontSize: '13px', color: 'var(--text-label)', margin: 0 }}>This studio hasn&apos;t published a liability waiver.</p>
+                    <p style={{ fontSize: '15px', color: 'var(--text-label)', margin: 0 }}>This studio hasn&apos;t published a liability waiver.</p>
                   )}
                 </div>
               </div>
@@ -1266,12 +1266,12 @@ function MemberAccountContent() {
                 <button onClick={() => setInvoicePayment(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-meta)' }}>×</button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: '6px', columnGap: '16px', fontSize: '13px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: '6px', columnGap: '16px', fontSize: '15px', marginBottom: '16px' }}>
                 {p.invoice_number && (<><span style={{ color: 'var(--text-label)' }}>Invoice number</span><span style={{ fontWeight: 600 }}>{p.invoice_number}</span></>)}
                 <span style={{ color: 'var(--text-label)' }}>Date</span><span>{formatDateTime(p.created_at, org?.timezone)}</span>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--line)', paddingTop: '12px', fontSize: '13px' }}>
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: '12px', fontSize: '15px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                   <span>{label}</span><span>{formatMoney(p.subtotal || p.amount, p.currency)}</span>
                 </div>
@@ -1295,7 +1295,7 @@ function MemberAccountContent() {
                 <button
                   onClick={() => handleDownloadReceipt(p.id)}
                   disabled={downloadingReceiptId === p.id}
-                  style={{ marginTop: '18px', width: '100%', padding: '10px', backgroundColor: brand, color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ marginTop: '18px', width: '100%', padding: '10px', backgroundColor: brand, color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
                 >
                   {downloadingReceiptId === p.id ? 'Downloading…' : 'Download receipt (PDF)'}
                 </button>

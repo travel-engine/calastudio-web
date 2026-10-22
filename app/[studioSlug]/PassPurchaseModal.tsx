@@ -120,7 +120,6 @@ export default function PassPurchaseModal({
             clientSecret={clientSecret}
             stripeAccountId={stripeAccountId}
             submitLabel={`Pay ${price}`}
-            dark
             onSuccess={pollForPass}
             onError={m => { setError(m); setPhase('error') }}
           />

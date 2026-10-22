@@ -1261,3 +1261,80 @@
 .calMenu[open] .calSummary::after {
   content: '▴';
 }
+
+/* Phones (members book almost entirely on their phones). Readable text: the details members act on
+   (times, places, prices, spots left) at 15px, small labels at 13–14px, never below. Tap targets:
+   anything you press is at least 44px tall. Desktop keeps the denser layout above. */
+@media (max-width: 720px) {
+  .rowMeta,
+  .drawerMeta,
+  .optionNote,
+  .metaList,
+  .passNote,
+  .passListDetail,
+  .noticeWarn,
+  .noticeError,
+  .noticeOk,
+  .drawerStatus {
+    font-size: 15px;
+  }
+
+  .rowLoc,
+  .rowSpots,
+  .rowPrice,
+  .drawerFootnote,
+  .footer,
+  .passListMuted,
+  .fieldLabel {
+    font-size: 14px;
+  }
+
+  .kicker,
+  .dayLabel,
+  .galleryLabel,
+  .tag,
+  .fixedBarLabel,
+  .drawerStep {
+    font-size: 13px;
+  }
+
+  /* Buttons and links you tap */
+  .btnGhost,
+  .btnSolid,
+  .rowBtn,
+  .smallBtn,
+  .fixedBarBtn,
+  .chip {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .smallBtn,
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .navLink,
+  .textBtn,
+  .linkBtn,
+  .onlineLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .selectPf {
+    min-height: 44px;
+    font-size: 16px; /* 16px stops iOS Safari zooming into the field */
+  }
+
+  .footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

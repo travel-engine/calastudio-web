@@ -569,7 +569,6 @@ export default function BookingDrawer() {
               key={purchaseSecret.clientSecret}
               clientSecret={purchaseSecret.clientSecret}
               stripeAccountId={stripeAccountId}
-              dark
               submitLabel="Buy & book"
               onSuccess={() => pollForIssuedPassThenBook(pt.id)}
               onError={msg => setNote(msg)}
@@ -605,7 +604,7 @@ export default function BookingDrawer() {
           </select>
         </div>
         {credits && (
-          <div style={{ fontSize: '12.5px', color: 'var(--text-meta)', marginTop: '8px' }}>
+          <div style={{ fontSize: '14px', color: 'var(--text-meta)', marginTop: '8px' }}>
             {credits}
           </div>
         )}
@@ -694,7 +693,7 @@ export default function BookingDrawer() {
                   </div>
                 )}
 
-                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-meta)' }}>
+                <p style={{ textAlign: 'center', fontSize: '15px', color: 'var(--text-meta)' }}>
                   {authMode === 'signin' ? (
                     <>New here? <button type="button" onClick={() => { setAuthMode('signup'); setAuthMessage('') }} className={styles.linkBtn}>Create an account</button></>
                   ) : (
@@ -721,20 +720,20 @@ export default function BookingDrawer() {
               </p>
 
               {waiverInfo?.text && (
-                <div className={styles.infoCard} style={{ maxHeight: '160px', overflowY: 'auto', whiteSpace: 'pre-wrap', fontSize: '13px', color: 'var(--text-body)' }}>
+                <div className={styles.infoCard} style={{ maxHeight: '160px', overflowY: 'auto', whiteSpace: 'pre-wrap', fontSize: '15px', color: 'var(--text-body)' }}>
                   {waiverInfo.text}
                 </div>
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
                 {agreementsContext === 'register' && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13.5px', cursor: 'pointer', color: 'var(--text-body)' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '15px', cursor: 'pointer', color: 'var(--text-body)' }}>
                     <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} style={{ marginTop: '2px' }} />
                     I accept the Terms &amp; Conditions
                   </label>
                 )}
                 {waiverInfo?.required && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13.5px', cursor: 'pointer', color: 'var(--text-body)' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '15px', cursor: 'pointer', color: 'var(--text-body)' }}>
                     <input type="checkbox" checked={agreeWaiver} onChange={e => setAgreeWaiver(e.target.checked)} style={{ marginTop: '2px' }} />
                     I accept the Liability Waiver
                   </label>
@@ -792,7 +791,7 @@ export default function BookingDrawer() {
               {note && <div className={styles.noticeWarn}>{note}</div>}
 
               {bookedMode && (
-                <div style={{ fontSize: '13px', color: 'var(--text-meta)', marginBottom: '16px' }}>
+                <div style={{ fontSize: '15px', color: 'var(--text-meta)', marginBottom: '16px' }}>
                   Attending: <strong style={{ color: 'var(--ink)' }}>{modeLabel(bookedMode)}</strong>
                 </div>
               )}
@@ -809,7 +808,7 @@ export default function BookingDrawer() {
                 <div>
                   <div className={styles.infoCard}>
                     <div style={{ fontWeight: 500, fontSize: '15px' }}>Using your pass</div>
-                    <div style={{ fontSize: '13.5px', color: 'var(--text-meta)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '15px', color: 'var(--text-meta)', marginTop: '2px' }}>
                       {bookingOptions.usable_pass_name}
                       {bookingOptions.usable_pass_credits_remaining != null &&
                         ` · ${bookingOptions.usable_pass_credits_remaining} credit${bookingOptions.usable_pass_credits_remaining === 1 ? '' : 's'} left`}
@@ -873,7 +872,6 @@ export default function BookingDrawer() {
                                 key={dropInSecret}
                                 clientSecret={dropInSecret}
                                 stripeAccountId={stripeAccountId}
-                                dark
                                 submitLabel="Pay & book"
                                 onSuccess={() => pollForConfirmedBooking(Date.now() - 5000)}
                                 onError={msg => setNote(msg)}
@@ -932,7 +930,7 @@ export default function BookingDrawer() {
                     </select>
                   </div>
                   {guestCount > 0 && (
-                    <div style={{ fontSize: '12.5px', color: 'var(--text-meta)', marginTop: '8px' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--text-meta)', marginTop: '8px' }}>
                       You&apos;ll only be promoted once {guestCount + 1} spots open up together.
                     </div>
                   )}

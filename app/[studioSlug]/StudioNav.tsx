@@ -146,7 +146,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
           )}
 
           {!ready ? (
-            <span style={{ width: '32px' }} aria-hidden />
+            <span style={{ width: '40px' }} aria-hidden />
           ) : email ? (
             <div ref={menuRef} style={{ position: 'relative' }}>
               <button
@@ -155,8 +155,8 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
                 aria-expanded={menuOpen}
                 aria-label="Account menu"
                 style={{
-                  width: '32px', height: '32px', borderRadius: '50%', border: 'none', cursor: 'pointer',
-                  backgroundColor: brandColor, color: 'white', fontSize: '13px', fontWeight: 700,
+                  width: '40px', height: '40px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                  backgroundColor: brandColor, color: 'white', fontSize: '15px', fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
@@ -172,7 +172,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
                   }}
                 >
                   <div style={{
-                    padding: '8px 10px 10px', fontSize: '12px', color: 'var(--text-label)',
+                    padding: '8px 10px 10px', fontSize: '13px', color: 'var(--text-label)',
                     borderBottom: '1px solid var(--line)', marginBottom: '4px',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>
@@ -182,7 +182,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
                     href={at('/account')}
                     role="menuitem"
                     onClick={() => setMenuOpen(false)}
-                    style={{ display: 'block', padding: '9px 10px', borderRadius: '8px', fontSize: '13px', color: 'var(--ink)', textDecoration: 'none' }}
+                    style={{ display: 'block', padding: '12px 10px', borderRadius: '8px', fontSize: '15px', color: 'var(--ink)', textDecoration: 'none' }}
                   >
                     My bookings &amp; orders
                   </Link>
@@ -192,7 +192,7 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
                       href={at(href)}
                       role="menuitem"
                       onClick={() => setMenuOpen(false)}
-                      style={{ display: 'block', padding: '9px 10px', borderRadius: '8px', fontSize: '13px', color: 'var(--ink)', textDecoration: 'none' }}
+                      style={{ display: 'block', padding: '12px 10px', borderRadius: '8px', fontSize: '15px', color: 'var(--ink)', textDecoration: 'none' }}
                     >
                       {label}
                     </Link>
@@ -201,8 +201,8 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
                     role="menuitem"
                     onClick={handleSignOut}
                     style={{
-                      display: 'block', width: '100%', textAlign: 'left', padding: '9px 10px', borderRadius: '8px',
-                      fontSize: '13px', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer',
+                      display: 'block', width: '100%', textAlign: 'left', padding: '12px 10px', borderRadius: '8px',
+                      fontSize: '15px', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer',
                     }}
                   >
                     Sign out
