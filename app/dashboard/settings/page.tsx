@@ -13,7 +13,7 @@ import ThemePicker from '@/app/components/ThemePicker'
 import BillingTab from './BillingTab'
 import type { ThemeKey } from '@/lib/studioTheme'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
-import { Button, Chip, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
+import { Button, Chip, alertStyle, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -228,8 +228,9 @@ function SettingsPageContent() {
   // Set at onboarding, not editable here — shown read-only alongside timezone/locale.
   const [currency, setCurrency] = useState('')
 
-  const [stripeOnboardingComplete, setStripeOnboardingComplete] = useState(false)
-  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null)
+  // GET …/stripe/status checks the link live with Stripe. 'inaccessible' = an account is stored but
+  // this platform can't reach it (e.g. linked under an old platform account), so it needs reconnecting.
+  const [stripe, setStripe] = useState<{ status: 'connected' | 'not_connected' | 'inaccessible'; last4: string | null }>({ status: 'not_connected', last4: null })
   const [connectingStripe, setConnectingStripe] = useState(false)
   const [stripeError, setStripeError] = useState('')
   const [stripeBanner, setStripeBanner] = useState<'success' | 'failure' | null>(null)
@@ -352,8 +353,15 @@ function SettingsPageContent() {
       setInitialWaiverText(org.liability_waiver_text ?? '')
       setWaiverVersion(org.liability_waiver_version ?? null)
       setCurrency(org.currency ?? '')
-      setStripeOnboardingComplete(org.stripe_onboarding_complete ?? false)
-      setStripeAccountId(org.stripe_account_id ?? null)
+      // Fall back to the stored flags if the status endpoint isn't deployed yet.
+      const fromOrg = { status: org.stripe_onboarding_complete ? 'connected' as const : 'not_connected' as const, last4: org.stripe_account_id?.slice(-4) ?? null }
+      try {
+        const sRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/stripe/status`, { headers: { Authorization: `Bearer ${t}` } })
+        const st = sRes.ok ? await sRes.json() : null
+        setStripe(st?.status ? { status: st.status, last4: st.account_last4 ?? null } : fromOrg)
+      } catch {
+        setStripe(fromOrg)
+      }
       if (ratesRes.ok) setTaxRates(await ratesRes.json())
 
       setLoading(false)
@@ -920,20 +928,30 @@ function SettingsPageContent() {
                           <span aria-hidden style={{ width: 44, height: 44, background: '#635BFF', borderRadius: radius.control, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', fontWeight: 700, fontSize: 18, flex: 'none' }}>S</span>
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 15 }}>Stripe</div>
-                            {stripeOnboardingComplete ? (
+                            {stripe.status === 'connected' ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
                                 <Chip tone="primary">Connected</Chip>
-                                {stripeAccountId && <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>Account ending {stripeAccountId.slice(-4)}</span>}
+                                {stripe.last4 && <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>Account ending {stripe.last4}</span>}
+                              </div>
+                            ) : stripe.status === 'inaccessible' ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                                <Chip tone="danger">Needs reconnecting</Chip>
+                                {stripe.last4 && <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>Account ending {stripe.last4}</span>}
                               </div>
                             ) : (
                               <div style={{ fontSize: 14, color: color.muted, marginTop: 2 }}>Not connected</div>
                             )}
                           </div>
                         </div>
-                        {!stripeOnboardingComplete && (
-                          <Button variant="primary" onClick={handleConnectStripe} disabled={connectingStripe}>{connectingStripe ? 'Connecting…' : 'Connect with Stripe'}</Button>
+                        {stripe.status !== 'connected' && (
+                          <Button variant="primary" onClick={handleConnectStripe} disabled={connectingStripe}>{connectingStripe ? 'Connecting…' : stripe.status === 'inaccessible' ? 'Reconnect Stripe' : 'Connect with Stripe'}</Button>
                         )}
                       </div>
+                      {stripe.status === 'inaccessible' && (
+                        <div role="alert" style={alertStyle('danger')}>
+                          Your Stripe connection needs to be renewed. Until you reconnect, members can&apos;t pay by card, for passes or drop-ins. Click <strong>Reconnect Stripe</strong> and sign in to your Stripe account.
+                        </div>
+                      )}
                       {stripeError && <p role="alert" style={{ margin: 0, fontSize: 14, color: color.dangerInk }}>{stripeError}</p>}
                     </>
                   ))}
