@@ -12,13 +12,26 @@ Every teacher gets their own public page at `{your-studio}.calastudio.app/teache
 
 1. Go to **Team** and click **Edit** on a teacher
 2. Under **Landing page profile**, fill in:
-   - **Display name** — how their name appears on the page
+   - **Display name**: the name the teacher goes by everywhere in your studio, not just on this page. See **Changing a teacher's name** below.
    - **Tagline** — one line shown under their name
    - **Bio** — full biography (Markdown supported)
    - **Specialties** and **Certifications** — comma-separated lists
    - **Years of experience**
    - **Instagram** and **website** links
 3. Click **Save changes** at the bottom of the page
+
+## Changing a teacher's name
+
+A teacher has two names:
+
+- their **account name**, which is on their sign-in
+- their **Display name**, which is what members and your team see
+
+Change the **Display name** to fix a typo, update a surname, or show just a first name. It updates straight away everywhere a teacher is named: the schedule, class pages, your booking page, their landing page, the Team list and new booking emails. The **Team** list shows the account name in small text underneath, so you can still tell which login it is.
+
+Only an **Admin** can change a teacher's name. Teachers can't rename themselves.
+
+Emails that have already been sent, and earlier **Activity log** entries, keep the name that was used at the time.
 
 ## Adding photos
 
