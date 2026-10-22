@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { getOrgContext, clearOrgContext } from '@/lib/orgContext'
+import { getOrgContext, rememberStudio } from '@/lib/orgContext'
 import { isStaff } from '@/lib/roles'
 import { type ThemeKey } from '@/lib/studioTheme'
 import ThemePicker from '@/app/components/ThemePicker'
@@ -693,9 +693,9 @@ export default function OnboardingPage() {
       setError(org?.error ?? 'Something went wrong creating your studio. Please try again.')
       return null
     }
-    // The guard above may have cached a membership at someone else's studio; the dashboard must
-    // load this new one.
-    clearOrgContext()
+    // The guard above may have cached a membership at someone else's studio, or a switcher choice
+    // may point elsewhere; the dashboard must open this new one.
+    await rememberStudio(org.id)
     return { id: org.id, slug: org.slug }
   }
 

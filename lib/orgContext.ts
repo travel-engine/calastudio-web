@@ -32,9 +32,55 @@ const withPlatformAdmin = (roles: string[], isAdmin: unknown) =>
 let cached: ({ userId: string } & Loaded) | null = null
 let inflight: { userId: string; promise: Promise<Loaded | null> } | null = null
 
-async function fetchOrgAndRoles(token: string): Promise<Loaded | null> {
+// Studio switcher: someone on staff at more than one studio picks which one the dashboard shows.
+// The choice is per browser and per user; /mine?org_id= returns that studio only if they still
+// hold a staff role there (404 otherwise, and the choice is dropped).
+const choiceKey = (userId: string) => `calastudio-studio:${userId}`
+function readChoice(userId: string): string | null {
+  try { return localStorage.getItem(choiceKey(userId)) } catch { return null }
+}
+function writeChoice(userId: string, orgId: string | null) {
+  try { if (orgId) localStorage.setItem(choiceKey(userId), orgId); else localStorage.removeItem(choiceKey(userId)) } catch { /* storage unavailable */ }
+}
+
+export interface MyStudio { id: string; name: string; slug: string; logo_url: string | null; roles: string[] }
+let studiosCache: { userId: string; promise: Promise<MyStudio[]> } | null = null
+
+/** Every studio where the signed-in person has a staff role (GET /api/me/studios); [] if unavailable. */
+export async function getMyStudios(): Promise<MyStudio[]> {
+  const { data: { session } } = await createClient().auth.getSession()
+  if (!session) return []
+  if (studiosCache?.userId !== session.user.id) {
+    const promise = fetch(`${API}/api/me/studios`, { headers: { Authorization: `Bearer ${session.access_token}` } })
+      .then(r => (r.ok ? r.json() : []))
+      .then(d => (Array.isArray(d) ? d : []))
+      .catch(() => [])
+    studiosCache = { userId: session.user.id, promise }
+  }
+  return studiosCache.promise
+}
+
+/** Make this studio the one the dashboard opens (e.g. one just created in onboarding). */
+export async function rememberStudio(orgId: string) {
+  const { data: { session } } = await createClient().auth.getSession()
+  if (session) writeChoice(session.user.id, orgId)
+  clearOrgContext()
+}
+
+/** Show another studio: remember it, then reload the dashboard so nothing from this one lingers. */
+export async function switchStudio(orgId: string) {
+  await rememberStudio(orgId)
+  window.location.assign('/dashboard')
+}
+
+async function fetchOrgAndRoles(token: string, userId: string): Promise<Loaded | null> {
   const headers = { Authorization: `Bearer ${token}` }
-  const orgRes = await fetch(`${API}/api/organisations/mine`, { headers })
+  const chosen = readChoice(userId)
+  let orgRes = await fetch(`${API}/api/organisations/mine${chosen ? `?org_id=${encodeURIComponent(chosen)}` : ''}`, { headers })
+  if (!orgRes.ok && chosen && orgRes.status === 404) {
+    writeChoice(userId, null)
+    orgRes = await fetch(`${API}/api/organisations/mine`, { headers })
+  }
   if (!orgRes.ok) return null
   const org: MyOrg = await orgRes.json()
   // Use roles, the platform-admin flag and the first name off the org response when the API
@@ -66,7 +112,7 @@ export async function getOrgContext(opts: { fresh?: boolean } = {}): Promise<Org
   }
 
   if (!inflight || inflight.userId !== userId || opts.fresh) {
-    const promise = fetchOrgAndRoles(token)
+    const promise = fetchOrgAndRoles(token, userId)
     inflight = { userId, promise }
     promise.finally(() => { if (inflight?.promise === promise) inflight = null })
   }
@@ -80,4 +126,5 @@ export async function getOrgContext(opts: { fresh?: boolean } = {}): Promise<Org
 export function clearOrgContext() {
   cached = null
   inflight = null
+  studiosCache = null
 }
