@@ -968,9 +968,9 @@
 
 .teacherGrid {
   display: grid;
-  /* Text column, then a slightly wider column for the portrait; both fall to full width
-     when the container is too narrow. */
-  grid-template-columns: minmax(min(100%, 300px), 1fr) minmax(min(100%, 340px), 1.2fr);
+  /* Text column, then a slightly wider column for the portrait. On a phone it's one column
+     with the portrait on top (see the media query below). */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   gap: clamp(24px, 5vw, 64px);
   align-items: start;
   padding: clamp(28px, 5vw, 64px) 0 clamp(24px, 4vw, 44px);
@@ -1032,6 +1032,12 @@
   object-fit: cover;
   border-radius: var(--img-radius, var(--radius-card));
   filter: var(--photo-filter, none);
+}
+
+@media (max-width: 720px) {
+  .teacherGrid { grid-template-columns: minmax(0, 1fr); }
+  /* Portrait first, a little shorter, so the name and bio start on the first screen. */
+  .teacherPortrait { order: -1; aspect-ratio: 4 / 5; max-height: 62vh; }
 }
 
 .metaList {
