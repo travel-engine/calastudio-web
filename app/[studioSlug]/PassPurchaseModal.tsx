@@ -12,7 +12,7 @@ const money = (n: number, c: string) => {
   catch { return `${c} ${n.toFixed(2)}` }
 }
 
-type Phase = 'loading' | 'pay' | 'confirming' | 'done' | 'error'
+type Phase = 'loading' | 'pay' | 'confirming' | 'done' | 'pending' | 'error'
 
 // Standalone pass purchase — the same PaymentIntent → PaymentElement → poll-for-issuance flow the
 // booking drawer runs, lifted out so it works from the Pricing page (and, later, the account page)
@@ -86,7 +86,9 @@ export default function PassPurchaseModal({
         if (fresh) { setPhase('done'); return }
       }
     }
-    setPhase('done') // charged and confirmed; issuance is just lagging
+    // Charged, but the pass hasn't shown up (the payment notification from Stripe is late or lost).
+    // Say so honestly rather than claiming the pass is there.
+    setPhase('pending')
   }
 
   return (
@@ -132,6 +134,19 @@ export default function PassPurchaseModal({
             <div className={styles.resultTitle}>Pass added to your account</div>
             <p className={styles.drawerText}>You can use it next time you book.</p>
             <button onClick={onPurchased} className={styles.blockBtn}>Done</button>
+          </div>
+        )}
+
+        {phase === 'pending' && (
+          <div className={styles.resultWrap}>
+            <div className={`${styles.resultCircle} ${styles.resultCircleSolid}`}>✓</div>
+            <div className={styles.resultTitle}>Payment received</div>
+            <p className={styles.drawerText}>
+              Your pass is still being added. It should appear in My passes in a few minutes. If it isn&apos;t there by then, contact the studio. Your payment is safe.
+            </p>
+            <Link href={studioPath(studioSlug, '/account')} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
+              Go to My passes
+            </Link>
           </div>
         )}
       </div>
