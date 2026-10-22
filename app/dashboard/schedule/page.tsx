@@ -64,7 +64,7 @@ function flagFor(occ: Occurrence, isPast: boolean): { text: string; tone: 'neutr
   if (occ.status === 'cancelled') return { text: 'Cancelled', tone: 'neutral' }
   if (occ.session?.visibility === 'draft') return { text: 'Draft', tone: 'neutral' }
   if (isPast) return null
-  if (occ.instructor_name == null) return { text: 'No teacher', tone: 'warn' }
+  if (occ.instructor_name == null) return { text: 'No teacher assigned', tone: 'warn' }
   const { booked, capacity } = occupancy(occ)
   if (capacity != null && capacity > 0) {
     if (booked >= capacity) return { text: 'Full', tone: 'danger' }
@@ -253,7 +253,7 @@ export default function SchedulePage() {
                           const isPast = new Date(occ.starts_at) < now
                           const isCancelled = occ.status === 'cancelled'
                           const flag = flagFor(occ, isPast)
-                          const place = [occ.session?.location_name, occ.instructor_name ?? 'No teacher'].filter(Boolean).join(' · ')
+                          const place = [occ.session?.location_name, occ.instructor_name ?? 'No teacher assigned'].filter(Boolean).join(' · ')
                           return (
                             <Link
                               key={occ.id}

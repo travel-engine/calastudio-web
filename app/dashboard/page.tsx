@@ -44,7 +44,7 @@ function greeting(now: Date) {
 
 // "Full" / "Almost full" / "No teacher" — the chip beside a class; words carry the status.
 function flagFor(occ: UpcomingOccurrence): { text: string; tone: 'warn' | 'danger' } | null {
-  if (occ.instructor_name == null) return { text: 'No teacher', tone: 'warn' }
+  if (occ.instructor_name == null) return { text: 'No teacher assigned', tone: 'warn' }
   if (occ.capacity != null && occ.capacity > 0) {
     const r = occ.booked / occ.capacity
     if (r >= 1) return { text: 'Full', tone: 'danger' }
@@ -64,7 +64,7 @@ function splitActivity(text: string): { who: string; verb: string; what: string;
 function NextUpRow({ occ, timeZone }: { occ: UpcomingOccurrence; timeZone: string | null }) {
   const day = formatDayLabel(occ.starts_at, timeZone)
   const flag = flagFor(occ)
-  const meta = [occ.location_name, occ.instructor_name ?? 'No teacher'].filter(Boolean).join(' · ')
+  const meta = [occ.location_name, occ.instructor_name ?? 'No teacher assigned'].filter(Boolean).join(' · ')
   return (
     <Link
       href={rosterHref(occ.occurrence_id)}
@@ -157,13 +157,13 @@ export default function DashboardPage() {
             all
               .filter((o: { status: string }) => o.status === 'scheduled')
               .slice(0, 6)
-              .map((o: { id: string; session?: { name?: string }; starts_at: string; booked: number; capacity: number | null }) => ({
+              .map((o: { id: string; session?: { name?: string; location_name?: string | null }; starts_at: string; booked: number; capacity: number | null; instructor_name: string | null }) => ({
                 occurrence_id: o.id,
                 session_name: o.session?.name ?? 'Session',
                 starts_at: o.starts_at,
-                location_name: null,
-                // Unknown in this payload; '' (not null) so the row doesn't claim "No teacher".
-                instructor_name: '',
+                location_name: o.session?.location_name ?? null,
+                // The effective teacher (null = none), so a teacher sees "No teacher assigned" on their own session's class.
+                instructor_name: o.instructor_name,
                 booked: o.booked,
                 capacity: o.capacity,
               })),

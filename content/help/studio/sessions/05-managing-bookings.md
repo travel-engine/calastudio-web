@@ -31,7 +31,7 @@ Admin, Super teacher, and Front desk see every class in the studio; Teacher and 
 
 ## The roster page
 
-At the top: the session name, then chips for the status (Scheduled/Cancelled/Completed), date and time, venue, teacher (or **No teacher**), and in person/online. Next to that, depending on your role:
+At the top: the session name, then chips for the status (Scheduled/Cancelled/Completed), date and time, venue, teacher (or **No teacher assigned**), and in person/online. Next to that, depending on your role:
 
 | Button | What it does | Who can do it |
 |---|---|---|
@@ -44,7 +44,7 @@ At the top: the session name, then chips for the status (Scheduled/Cancelled/Com
 
 - **Same as session (…)**: whoever teaches the session, now or later. If the session's teacher changes, this date follows. This is the default.
 - **A named teacher**: that teacher for this date only, for example a substitute. Changing the session's teacher later doesn't touch it.
-- **No teacher**: nobody is shown as teaching this date, even though the session has a teacher. The session's own teacher can still open this date and its roster from their teacher view.
+- **No teacher**: nobody is shown as teaching this date, even though the session has a teacher. The session's own teacher can still open this date and its roster, so they can help arrange cover. They see it labelled **No teacher assigned**, with a note that they're not down to teach it. To take a teacher off the session completely, change the teacher on the session instead.
 
 Under the header, a summary strip shows **Booked** (against capacity, e.g. `5 / 12`), **Checked in**, **Guests**, **On waitlist**, and — when your studio requires a waiver — **Waiver to sort**, the number of booked members who haven't signed the current waiver.
 

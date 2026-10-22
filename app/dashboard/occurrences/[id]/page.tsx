@@ -819,10 +819,18 @@ export default function OccurrenceDetailPage() {
               <Chip tone={statusChip.tone}>{statusChip.label}</Chip>
               <Chip>{dateLabel} · {formatClock(occurrence.starts_at, timeZone)} – {formatClock(occurrence.ends_at, timeZone)}</Chip>
               {session?.location_name && <Chip>{session.location_name}</Chip>}
-              {occurrence.instructor_name ? <Chip>{occurrence.instructor_name}</Chip> : <Chip tone="warn">No teacher</Chip>}
+              {occurrence.instructor_name ? <Chip>{occurrence.instructor_name}</Chip> : <Chip tone="warn">No teacher assigned</Chip>}
               {session?.delivery_mode && <Chip>{session.delivery_mode === 'online' ? 'Online' : 'In person'}</Chip>}
             </div>
           </PageHeader>
+
+          {/* A teacher still sees a "no teacher" class of their own session (spec §17.8) — make sure
+              they don't read that as being down to teach it. */}
+          {occurrence.instructor_name == null && !canManageOccurrences(roles) && occurrence.status === 'scheduled' && (
+            <div role="status" style={{ padding: '12px 16px', background: color.warnBg, borderRadius: radius.control, color: color.warnInk, fontSize: 15, lineHeight: 1.45 }}>
+              <strong>No teacher is assigned to this class.</strong> You can see it because you teach this session, but you&apos;re not down to teach this date unless the studio assigns you.
+            </div>
+          )}
 
           {manageError && (
             <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>
