@@ -1,52 +1,152 @@
-.hero {
-  font-size: clamp(32px, 7vw, 48px);
+/* Public homepage (calastudio.app), from handoff/index.html. Tokens are scoped to the page wrapper
+   so the dashboard and studio sites keep their own. Fonts come from next/font in app/page.tsx. */
+
+.page {
+  --ground: #f3f5f1;
+  --surface: #ffffff;
+  --ink: #15241f;
+  --ink-2: #3a4b45;
+  --ink-3: #4d5e58;
+  --brand: #0f5c4f;
+  --brand-hover: #0a4339;
+  --sun: #e8a33d;
+  --line: #c9d3ce;
+  --line-soft: #dde4e0;
+  --on-dark-muted: #c9d6d1;
+  --display: var(--font-home-display), 'Bricolage Grotesque', sans-serif;
+  --body: var(--font-home-body), Manrope, system-ui, sans-serif;
+
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 100vh;
 }
 
-.featureRow {
-  display: flex;
-  align-items: center;
-  gap: 48px;
-  padding: 32px 0;
-}
+.page a { color: var(--brand); text-decoration: none; }
+.page a:hover { color: var(--brand-hover); text-decoration: none; }
 
-.featureRow.reverse {
-  flex-direction: row-reverse;
-}
+.wrap { max-width: 1200px; margin: 0 auto; padding-left: 24px; padding-right: 24px; }
+.display { font-family: var(--display); font-weight: 700; }
+.eyebrow { font-size: 15px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); }
+.h2 { font-family: var(--display); font-weight: 700; font-size: clamp(32px, 3.6vw, 46px); line-height: 1.1; }
 
-.featureText {
-  flex: 1;
-  text-align: left;
-}
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; font-weight: 700; }
+.page .btnPrimary { background: var(--brand); color: #fff; padding: 12px 20px; }
+.page .btnPrimary:hover { background: var(--brand-hover); color: #fff; }
+.btnLg { font-size: 18px; padding: 16px 28px; min-height: 52px; }
 
-.featureRow.reverse .featureText {
-  text-align: right;
-}
+/* Header */
+.header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; padding-bottom: 24px; }
+.page .logo { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--ink); }
+.logo span { font-family: var(--display); font-weight: 700; font-size: 24px; }
+.nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; font-weight: 600; }
+.page .navLink { color: var(--ink); min-height: 44px; display: inline-flex; align-items: center; }
 
-.featureBody {
-  max-width: 520px;
-  margin-left: 0;
-}
+/* Hero */
+.hero { display: flex; flex-wrap: wrap; gap: 56px; align-items: center; padding-top: 56px; padding-bottom: 88px; }
+.heroCopy { flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+.hero h1 { font-family: var(--display); font-weight: 700; font-size: clamp(40px, 5.2vw, 68px); line-height: 1.02; letter-spacing: -.02em; }
+.lead { font-size: 20px; line-height: 1.55; color: var(--ink-2); max-width: 560px; }
+.ctas { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding-top: 8px; }
+.linkCta { font-weight: 700; font-size: 18px; min-height: 44px; display: inline-flex; align-items: center; }
+.fine { font-size: 15px; color: var(--ink-3); }
 
-.featureRow.reverse .featureBody {
-  margin-left: auto;
-}
+.heroVisual { flex: 1 1 420px; min-width: 0; display: flex; justify-content: center; scroll-margin-top: 24px; }
+.teacherCard { width: 100%; max-width: 460px; background: var(--surface); border-radius: 24px; box-shadow: 0 24px 60px rgba(21, 36, 31, .12); overflow: hidden; }
+.teacherHead { background: var(--ink); color: #fff; padding: 28px 28px 24px; display: flex; gap: 16px; align-items: center; }
+.avatar { width: 64px; height: 64px; flex: none; border-radius: 999px; background: var(--sun); color: var(--ink); display: flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 700; font-size: 24px; }
+.teacherName { font-family: var(--display); font-weight: 700; font-size: 22px; }
+.teacherSub { font-size: 15px; color: var(--on-dark-muted); }
+.classList { padding: 20px 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+.classRow { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-radius: 16px; background: var(--ground); }
+.when { width: 56px; flex: none; display: flex; flex-direction: column; align-items: center; }
+.day { font-size: 13px; font-weight: 700; color: var(--brand); text-transform: uppercase; }
+.time { font-family: var(--display); font-weight: 700; font-size: 20px; }
+.what { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.className { font-weight: 700; }
+.venue { font-size: 14px; color: var(--ink-3); }
+.book { flex: none; background: var(--brand); color: #fff; border: 0; border-radius: 999px; padding: 0 18px; min-height: 44px; font: inherit; font-weight: 700; font-size: 15px; }
+.passNote { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; border: 1px dashed #9bb0a8; font-size: 15px; }
+.passNote span:first-child { color: var(--ink-2); }
+.passNote span:last-child { font-weight: 700; color: var(--brand); }
+
+/* Features */
+.bandWhite { background: var(--surface); }
+.features { display: flex; flex-direction: column; gap: 48px; padding-top: 88px; padding-bottom: 88px; }
+.features .h2 { max-width: 720px; }
+.featureGrid { display: flex; flex-wrap: wrap; gap: 24px; }
+.feature { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 32px; border-radius: 24px; background: var(--ground); }
+.feature h3 { font-family: var(--display); font-weight: 700; font-size: 24px; }
+.feature p { font-size: 17px; line-height: 1.6; color: var(--ink-2); }
+
+/* Pricing transparency (what members see) */
+.transparency { display: flex; flex-wrap: wrap; gap: 56px; align-items: center; padding-top: 88px; padding-bottom: 88px; }
+.transparencyCopy { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.transparencyCopy p:last-child { font-size: 18px; line-height: 1.6; color: var(--ink-2); }
+.priceCardWrap { flex: 1 1 380px; min-width: 0; display: flex; justify-content: center; }
+.priceCard { width: 100%; max-width: 420px; background: var(--surface); border-radius: 24px; padding: 28px; box-shadow: 0 16px 40px rgba(21, 36, 31, .08); display: flex; flex-direction: column; gap: 18px; }
+.priceRule { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line-soft); }
+.priceRule small { display: block; font-size: 14px; color: var(--ink-3); }
+.priceTotal { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; }
+.was { font-size: 15px; color: var(--ink-3); text-decoration: line-through; margin-right: 10px; }
+.now { font-family: var(--display); font-weight: 700; font-size: 28px; }
+
+/* Plans (what CalaStudio charges) */
+.plans { display: flex; flex-direction: column; gap: 40px; padding-top: 88px; padding-bottom: 88px; scroll-margin-top: 24px; }
+.plansIntro { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }
+.plansIntro p:last-child { font-size: 18px; line-height: 1.6; color: var(--ink-2); }
+.planGrid { display: flex; flex-wrap: wrap; gap: 24px; }
+.plan { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 32px; border-radius: 24px; background: var(--ground); }
+.planTop { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.plan h3 { font-family: var(--display); font-weight: 700; font-size: 24px; }
+.planTag { background: var(--sun); color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 700; }
+.planPrice { font-family: var(--display); font-weight: 700; font-size: 44px; line-height: 1.1; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.planPer { font-size: 15px; color: var(--ink-3); }
+.planPoints { list-style: none; margin: 18px 0 24px; padding: 0; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.planPoints li { display: flex; gap: 10px; font-size: 16px; line-height: 1.45; color: var(--ink-2); }
+.planPoints li::before { content: '✓'; color: var(--brand); font-weight: 700; }
+.planNotes { display: flex; flex-direction: column; gap: 10px; max-width: 760px; font-size: 15px; line-height: 1.6; color: var(--ink-3); }
+
+/* Founder */
+.founder { background: var(--ink); color: #fff; }
+.founderInner { max-width: 900px; margin: 0 auto; padding: 96px 24px; display: flex; flex-direction: column; gap: 28px; align-items: flex-start; }
+.founder blockquote { margin: 0; font-family: var(--display); font-weight: 500; font-size: clamp(26px, 3vw, 38px); line-height: 1.3; }
+.founderWho { display: flex; align-items: center; gap: 14px; }
+.photo { width: 52px; height: 52px; border-radius: 999px; background: var(--sun); color: var(--ink); font-family: var(--display); font-weight: 700; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+.founderWho small { display: block; font-size: 15px; color: var(--on-dark-muted); }
+
+/* FAQ */
+.faq { max-width: 900px; margin: 0 auto; padding: 88px 24px; display: flex; flex-direction: column; gap: 32px; scroll-margin-top: 24px; }
+.faqItem { padding: 24px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.faqItem:last-child { border-bottom: 1px solid var(--line); }
+.faqItem h3 { font-size: 20px; font-weight: 700; }
+.faqItem p { font-size: 17px; line-height: 1.6; color: var(--ink-2); }
+
+/* Closing */
+.closing { padding-bottom: 96px; }
+.closingCard { background: var(--sun); border-radius: 32px; padding: 64px 32px; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center; }
+.closingCard h2 { font-family: var(--display); font-weight: 700; font-size: clamp(32px, 4vw, 52px); line-height: 1.05; max-width: 760px; }
+.closingCard p { font-size: 19px; color: #2a2416; max-width: 560px; }
+.page .btnDark { background: var(--ink); color: #fff; font-size: 18px; padding: 16px 32px; min-height: 52px; }
+.page .btnDark:hover { color: #fff; background: #000; }
+
+/* Footer */
+.footer { border-top: 1px solid var(--line); }
+.footerInner { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding-top: 24px; padding-bottom: 24px; font-size: 15px; color: var(--ink-3); }
+.footerNav { display: flex; flex-wrap: wrap; gap: 0 24px; }
+.footerNav a { min-height: 44px; display: inline-flex; align-items: center; }
 
 @media (max-width: 640px) {
-  .featureRow,
-  .featureRow.reverse {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
-  .featureText,
-  .featureRow.reverse .featureText {
-    text-align: left;
-  }
-
-  .featureBody,
-  .featureRow.reverse .featureBody {
-    max-width: none;
-    margin-left: 0;
-  }
+  .hero { padding-top: 24px; padding-bottom: 64px; gap: 40px; }
+  .features, .transparency, .plans, .faq { padding-top: 64px; padding-bottom: 64px; }
+  .feature, .plan { padding: 24px; }
+  .founderInner { padding: 64px 24px; }
+  .closingCard { padding: 48px 24px; border-radius: 24px; }
+  .lead { font-size: 18px; }
+  .page .navOptional { display: none; }
+  .teacherHead { padding: 24px 20px 20px; }
+  .classList { padding: 16px; }
+  .classRow { gap: 12px; padding: 12px; }
 }

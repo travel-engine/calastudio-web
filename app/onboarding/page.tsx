@@ -447,7 +447,7 @@ function Step4({ onNext, onSkip, onBack, loading }: {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
           {[
-            '✓ You keep 100% — CalaStudio charges no commission',
+            '✓ Members pay you directly, into your own Stripe account',
             '✓ Cards, Apple Pay, Google Pay accepted',
             '✓ Money paid directly to your bank account',
             '✓ Takes about 5 minutes to set up',
