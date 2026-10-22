@@ -66,6 +66,9 @@ export interface BookingOptions {
 export interface ConfirmedBooking {
   id: string
   status: string
+  // "Add to calendar" links from the API; null when the booking isn't upcoming and confirmed.
+  calendar_ics_url?: string | null
+  calendar_google_url?: string | null
 }
 
 export interface JoinedWaitlistEntry {

@@ -1198,3 +1198,66 @@
   padding: clamp(22px, 4vw, 28px);
   border: 1px solid var(--line-strong);
 }
+
+/* Add to calendar (CalendarLinks). Phone-sized tap targets: members book on their phones. */
+.calWrap {
+  margin: 4px 0 16px;
+  text-align: left;
+}
+
+.calLabel {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.calRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calBtn {
+  flex: 1 1 140px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--line-chip);
+  border-radius: var(--pill);
+  background: var(--surface);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.calMenu {
+  width: 100%;
+}
+
+.calSummary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  list-style: none;
+}
+
+.calSummary::-webkit-details-marker {
+  display: none;
+}
+
+.calSummary::after {
+  content: '▾';
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+.calMenu[open] .calSummary::after {
+  content: '▴';
+}

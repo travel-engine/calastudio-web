@@ -7,6 +7,7 @@ import { displayName, splitName } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
 import { formatDate, formatDateTimeWithWeekday, formatTime } from '@/lib/dates'
 import styles from './photofirst.module.css'
+import CalendarLinks from './CalendarLinks'
 import { studioPath } from '@/lib/seo'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -362,7 +363,7 @@ export default function BookingDrawer() {
       })
       const data = await res.json().catch(() => null)
       if (res.ok && data?.booked) {
-        setConfirmedBooking({ id: data.booking.id, status: data.booking.status })
+        setConfirmedBooking({ id: data.booking.id, status: data.booking.status, calendar_ics_url: data.booking.calendar_ics_url, calendar_google_url: data.booking.calendar_google_url })
       } else if (res.ok && !data?.booked) {
         setNote('That pass is no longer usable — choose another option below.')
         setBookingOptions({
@@ -437,7 +438,7 @@ export default function BookingDrawer() {
         const match = bookings
           .filter((b: any) => b.status === 'confirmed' && new Date(b.booked_at).getTime() >= since)
           .sort((a: any, b: any) => new Date(b.booked_at).getTime() - new Date(a.booked_at).getTime())[0]
-        if (match) { setConfirmedBooking({ id: match.id, status: match.status }); return }
+        if (match) { setConfirmedBooking({ id: match.id, status: match.status, calendar_ics_url: match.calendar_ics_url, calendar_google_url: match.calendar_google_url }); return }
       }
     }
     setError("Your payment succeeded, but we're still confirming your booking. Check My Bookings in a minute — if it's not there, contact the studio.")
@@ -972,6 +973,7 @@ export default function BookingDrawer() {
             <p className={styles.drawerText}>
               You&apos;re booked for {occurrence.session_name} on {formatDateTime(occurrence.starts_at, timeZone)}. A confirmation email is on its way.
             </p>
+            <CalendarLinks icsUrl={confirmedBooking.calendar_ics_url} googleUrl={confirmedBooking.calendar_google_url} />
             <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
               View my bookings
             </a>

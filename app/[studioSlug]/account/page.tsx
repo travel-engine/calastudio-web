@@ -8,6 +8,7 @@ import { formatDate, formatDateTimeWithWeekday, formatTimeRange } from '@/lib/da
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
+import CalendarLinks from '../CalendarLinks'
 import { studioPath } from '@/lib/seo'
 
 interface OrgInfo {
@@ -42,6 +43,8 @@ interface Booking {
   booked_at: string
   guest_count: number
   cancellation_reason: string | null
+  calendar_ics_url?: string | null
+  calendar_google_url?: string | null
   session_occurrence: {
     starts_at: string
     ends_at: string
@@ -134,11 +137,11 @@ const inputStyle: React.CSSProperties = {
 const labelStyle: React.CSSProperties = { display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.06em' }
 
 function StatusBadge({ status }: { status: string }) {
-  // Dark-palette badges: a low-alpha wash of the semantic hue with a light readable label.
+  // Theme colours, so badges read on light and dark themes alike.
   const ok = { bg: 'rgba(245,244,241,0.10)', color: 'var(--text-body)' }
-  const warn = { bg: 'rgba(232,160,106,0.16)', color: '#e8a06a' }
-  const info = { bg: 'rgba(140,170,220,0.16)', color: '#a9c2e8' }
-  const bad = { bg: 'rgba(214,120,120,0.16)', color: '#e8a0a0' }
+  const warn = { bg: 'var(--warn-bg)', color: 'var(--text-warn)' }
+  const info = { bg: 'var(--ok-bg)', color: 'var(--text-body)' }
+  const bad = { bg: 'var(--danger-bg)', color: 'var(--danger)' }
   const mute = { bg: 'rgba(245,244,241,0.06)', color: 'var(--text-label)' }
   const map: Record<string, { bg: string; color: string; label: string }> = {
     active: { ...ok, label: 'Active' },
@@ -637,7 +640,7 @@ function MemberAccountContent() {
               {w.intended_guest_count > 0 ? ` · ${w.intended_guest_count + 1} spots` : ''}
             </div>
             {w.status === 'waiting' && (
-              <div style={{ fontSize: '13px', color: '#e8a06a', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-warn)', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
             )}
             {w.status === 'promoted' && !holdExpired && (
               <div style={{ fontSize: '13px', color: 'var(--ink)', marginTop: '4px', fontWeight: 600 }}>
@@ -663,8 +666,8 @@ function MemberAccountContent() {
               onClick={() => handleLeaveWaitlist(w.id)}
               disabled={leavingWaitlistId === w.id}
               style={{
-                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
-                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#e8a0a0'
+                minHeight: '44px', padding: '0 16px', backgroundColor: 'transparent', border: '1px solid var(--danger)',
+                borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', color: 'var(--danger)'
               }}
             >
               {leavingWaitlistId === w.id ? 'Leaving…' : 'Leave waitlist'}
@@ -685,7 +688,7 @@ function MemberAccountContent() {
           <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             {sess?.name ?? 'Session'}
             {b.guest_count > 0 && (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#e8a06a', backgroundColor: '#fff3cd', borderRadius: '999px', padding: '2px 8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-warn)', backgroundColor: 'var(--warn-bg)', borderRadius: '999px', padding: '2px 8px' }}>
                 +{b.guest_count} guest{b.guest_count > 1 ? 's' : ''}
               </span>
             )}
@@ -720,14 +723,15 @@ function MemberAccountContent() {
               onClick={() => handleCancelBooking(b.id)}
               disabled={cancellingId === b.id}
               style={{
-                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
-                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#e8a0a0'
+                minHeight: '44px', padding: '0 16px', backgroundColor: 'transparent', border: '1px solid var(--danger)',
+                borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', color: 'var(--danger)'
               }}
             >
               {cancellingId === b.id ? 'Cancelling...' : 'Cancel'}
             </button>
           )}
         </div>
+        {upcoming && <CalendarLinks compact icsUrl={b.calendar_ics_url} googleUrl={b.calendar_google_url} />}
       </div>
     )
   }
@@ -801,7 +805,7 @@ function MemberAccountContent() {
               </div>
 
               {agreementsError && (
-                <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px', marginBottom: '16px' }}>
+                <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px', marginBottom: '16px' }}>
                   {agreementsError}
                 </div>
               )}
@@ -837,7 +841,7 @@ function MemberAccountContent() {
           </div>
 
           {portalError && (
-            <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px', marginBottom: '16px' }}>
+            <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px', marginBottom: '16px' }}>
               {portalError}
             </div>
           )}
@@ -908,7 +912,7 @@ function MemberAccountContent() {
               <div style={{
                 padding: '12px', borderRadius: '8px', fontSize: '13px', textAlign: 'center',
                 backgroundColor: authMessage.includes('Check your email') ? 'rgba(245,244,241,0.08)' : 'rgba(214,120,120,0.16)',
-                color: authMessage.includes('Check your email') ? 'var(--text-body)' : '#e8a0a0',
+                color: authMessage.includes('Check your email') ? 'var(--text-body)' : 'var(--danger)',
               }}>
                 {authMessage}
               </div>
@@ -960,7 +964,7 @@ function MemberAccountContent() {
         )}
 
         {portalError && (
-          <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px', marginBottom: '16px' }}>
+          <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px', marginBottom: '16px' }}>
             {portalError}
           </div>
         )}
@@ -1059,12 +1063,12 @@ function MemberAccountContent() {
             {tab === 'upcoming' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {cancelError && (
-                  <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px' }}>
                     {cancelError}
                   </div>
                 )}
                 {waitlistActionError && (
-                  <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px' }}>
                     {waitlistActionError}
                   </div>
                 )}
@@ -1135,7 +1139,7 @@ function MemberAccountContent() {
                                 {entry.notes && <div style={{ fontSize: '12px', color: 'var(--text-meta)', marginTop: '2px' }}>{entry.notes}</div>}
                               </div>
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '13px', fontWeight: 600, color: entry.credits_delta >= 0 ? '#86c9a8' : '#e8a0a0' }}>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: entry.credits_delta >= 0 ? 'var(--ink)' : 'var(--danger)' }}>
                                   {entry.credits_delta >= 0 ? '+' : ''}{entry.credits_delta}
                                 </div>
                                 <div style={{ fontSize: '11px', color: 'var(--text-label)' }}>balance: {entry.credits_after}</div>
@@ -1153,7 +1157,7 @@ function MemberAccountContent() {
             {tab === 'payments' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {receiptError && (
-                  <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px' }}>
                     {receiptError}
                   </div>
                 )}
@@ -1176,7 +1180,7 @@ function MemberAccountContent() {
                         {formatDateTime(p.created_at, org?.timezone)}{p.invoice_number ? ` · Invoice ${p.invoice_number}` : ''}
                       </div>
                       {p.refunded_amount > 0 && (
-                        <div style={{ fontSize: '12px', color: '#e8a0a0', marginTop: '2px' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--danger)', marginTop: '2px' }}>
                           {p.status === 'refunded' ? 'Fully refunded' : `Refunded ${formatMoney(p.refunded_amount, p.currency)}`}
                         </div>
                       )}
@@ -1280,7 +1284,7 @@ function MemberAccountContent() {
                   <span>Total</span><span>{formatMoney(p.amount, p.currency)}</span>
                 </div>
                 {p.refunded_amount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 0', color: '#e8a0a0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 0', color: 'var(--danger)' }}>
                     <span>Refunded{p.refund_reason ? ` — ${p.refund_reason}` : ''}</span>
                     <span>−{formatMoney(p.refunded_amount, p.currency)}</span>
                   </div>
