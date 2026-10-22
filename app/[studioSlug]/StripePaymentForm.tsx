@@ -35,7 +35,9 @@ function InnerForm({ submitLabel, onSuccess, onError }: {
 
   return (
     <div>
-      <PaymentElement />
+      <PaymentElement onLoadError={e => onError(e.error?.message
+        ? `The card form couldn't load: ${e.error.message}`
+        : "The card form couldn't load. Check your connection and try again.")} />
       <button onClick={handleSubmit} disabled={!stripe || submitting} className={styles.blockBtn} style={{ marginTop: '16px' }}>
         {submitting ? 'Processing…' : submitLabel}
       </button>
