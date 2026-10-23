@@ -705,7 +705,6 @@ export default function OccurrenceDetailPage() {
 
   const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show')
   const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel')
-  const waitingCount = waitlist.filter(w => w.status === 'waiting' || w.status === 'promoted').length
   // Waiver data only exists when the studio requires a waiver.
   const hasWaiverData = bookedRows.some(b => b.waiver_status != null)
 
@@ -838,20 +837,6 @@ export default function OccurrenceDetailPage() {
               {manageError}
             </div>
           )}
-
-          {/* Stat strip */}
-          <Card style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }} aria-label="Class summary">
-            {[
-              { label: 'Booked', value: capacity === null ? `${booked}` : `${booked} / ${capacity}`, ink: color.ink },
-              { label: 'Waitlist', value: `${waitingCount}`, ink: waitingCount > 0 ? color.warnInk : color.ink },
-              { label: 'Cancelled', value: `${cancelledRows.length}`, ink: color.ink },
-            ].map((s, i) => (
-              <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '16px 20px', borderLeft: i ? `1px solid ${color.divider}` : 'none' }}>
-                <span style={smallCapsStyle}>{s.label}</span>
-                <span style={{ fontSize: 26, fontWeight: 600, color: s.ink, ...tabularNums }}>{s.value}</span>
-              </div>
-            ))}
-          </Card>
 
           {/* Edit panel */}
           {showEdit && (
