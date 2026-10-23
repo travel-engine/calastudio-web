@@ -1196,7 +1196,7 @@ export default function OccurrenceDetailPage() {
                                   )}
                                   {b.payment_type === 'card' && canManageBookings(roles) && (
                                     <button type="button" onClick={() => openRefund(b)} disabled={manageBusy}
-                                      aria-label={`Refund ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
+                                      aria-label={`Refund ${memberName(b)}`} className={`${ui.button} ${ui.focusable} ${styles.desktopOnly}`} style={smallAction}>
                                       Refund
                                     </button>
                                   )}

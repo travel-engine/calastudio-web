@@ -131,6 +131,19 @@
   .guestIndent {
     padding-left: 12px;
   }
+  /* Compact controls so name, Cancel and Check in share a phone's width. Buttons style themselves
+     inline, hence !important. Check in stays a filled button, just smaller. */
+  .rosterTable button {
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    font-size: 13px !important;
+  }
+  /* Cancel (member or guest) reads as a small red text action rather than a bordered button. */
+  .rosterTable button[aria-label^="Cancel"] {
+    border-color: transparent !important;
+    background: transparent !important;
+    padding: 0 4px !important;
+  }
 }
 
 /* Tooltip for an icon-only control: wrap it and set data-tip. Shows on hover and keyboard focus. */
