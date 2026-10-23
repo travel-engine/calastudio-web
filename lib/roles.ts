@@ -63,6 +63,10 @@ export const canAddStudent = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUP
 // reasons, is more sensitive than most screens here, so it doesn't reuse the admin/teacher_super
 // pattern used elsewhere.
 export const canViewAuditLog = (roles: string[]) => has(roles, [ADMIN])
+// Entity feed (GET /organisations/{orgId}/activity, AuditEndpoints.cs): everything linked to one
+// member, pass, payment, … — admin and teacher_super (who see all members, passes and payments,
+// 17.3; spec 08 §8.10b).
+export const canViewEntityActivity = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
 
 // Studio settings — PATCH /organisations/{id} (OrganisationEndpoints.cs). Admin only.
 export const canManageSettings = (roles: string[]) => has(roles, [ADMIN])
