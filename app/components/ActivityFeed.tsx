@@ -177,7 +177,31 @@ function eventSentence(e: ActivityEntry): ReactNode {
     case 'session.updated': return <>{actor} edited {label ?? 'a class'}</>
     case 'session.deleted': return <>{actor} deleted {label ?? 'a class'}</>
     case 'session.occurrences_generated': return <>{label ?? 'A class'}: new dates added to the timetable</>
-    case 'session.pricing_updated': return <>{actor} changed which passes {label ?? 'a class'} accepts</>
+    case 'session.pricing_updated': {
+      // The row is on session_pricing_access, labelled "{session} pricing".
+      const cls = e.entity_label?.replace(/ pricing$/, '')
+      return <>{actor} changed which passes {cls ? b(cls) : 'a class'} accepts</>
+    }
+
+    // Teacher pages: the label (and subject) is the teacher.
+    case 'teacher_page.created': return <>{actor} created {member}&apos;s teacher page</>
+    case 'teacher_page.updated': {
+      const published = e.details?.is_page_published?.new
+      if (published === true) return <>{actor} published {member}&apos;s teacher page</>
+      if (published === false) return <>{actor} unpublished {member}&apos;s teacher page</>
+      return <>{actor} edited {member}&apos;s teacher page</>
+    }
+    case 'teacher_page.slug_changed': return <>{actor} changed the web address of {member}&apos;s teacher page</>
+
+    // Studio-wide.
+    case 'studio.created': return <>{actor} created the studio{label ? <> {label}</> : null}</>
+    case 'settings.updated': return <>{actor} changed the studio settings</>
+    case 'settings.stripe_connected': return <>{actor} connected Stripe</>
+    case 'settings.stripe_disconnected': return <>{actor} disconnected Stripe</>
+    case 'settings.waiver_updated': return <>{actor} updated the liability waiver</>
+    case 'settings.tax_rate_changed': return <>{actor} changed the tax rates</>
+    case 'billing.plan_changed': return <>{actor} changed the CalaStudio plan</>
+    case 'billing.updated': return <>{actor} updated CalaStudio billing</>
   }
 
   // Generic: "{actor} {verb} {label}", from the event's own name.
