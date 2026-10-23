@@ -12,6 +12,7 @@ import { ImageIcon } from 'lucide-react'
 import { color, radius, space } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, CheckRow, PageHeader, alertStyle, buttonStyle, cardStyle, FormField as Field, TextInput as Input,
   SelectInput as Select, TextArea as Textarea, FormSection as SectionHeader, ChoiceGroup as ToggleGroup } from '@/app/components/admin'
+import DurationPicker, { durationProblem } from '@/app/components/DurationPicker'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -239,6 +240,11 @@ function NewSessionPageContent() {
       setError('First occurrence date is required')
       return
     }
+    const badDuration = durationProblem(form.durationMinutes)
+    if (badDuration) {
+      setError(badDuration)
+      return
+    }
 
     const firstOccurrenceStartsAt = new Date(`${form.firstOccurrenceDate}T${form.firstOccurrenceTime}`)
 
@@ -394,14 +400,7 @@ function NewSessionPageContent() {
                 </Select>
               </Field>
               <Field label="Duration">
-                <Select value={form.durationMinutes} onChange={e => update('durationMinutes', e.target.value)}>
-                  <option value="30">30 minutes</option>
-                  <option value="45">45 minutes</option>
-                  <option value="60">60 minutes</option>
-                  <option value="75">75 minutes</option>
-                  <option value="90">90 minutes</option>
-                  <option value="120">2 hours</option>
-                </Select>
+                <DurationPicker value={form.durationMinutes} onChange={v => update('durationMinutes', v)} Select={Select} Input={Input} />
               </Field>
             </div>
 

@@ -10,6 +10,7 @@ import ThemePicker from '@/app/components/ThemePicker'
 import PlanStep from './PlanStep'
 import { STUDIO_DOMAIN, studioOrigin } from '@/lib/seo'
 import { nextWeekdayAt } from '@/lib/dates'
+import DurationPicker, { durationProblem } from '@/app/components/DurationPicker'
 
 // ── Step components ──────────────────────────────────────
 function ProgressBar({ step, total }: { step: number; total: number }) {
@@ -288,14 +289,7 @@ function Step2({ data, onChange, onNext, onBack }: {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         <Field label="Duration">
-          <Select value={data.sessionDuration} onChange={e => onChange('sessionDuration', e.target.value)}>
-            <option value="30">30 minutes</option>
-            <option value="45">45 minutes</option>
-            <option value="60">60 minutes</option>
-            <option value="75">75 minutes</option>
-            <option value="90">90 minutes</option>
-            <option value="120">2 hours</option>
-          </Select>
+          <DurationPicker value={data.sessionDuration} onChange={v => onChange('sessionDuration', v)} Select={Select} Input={Input} />
         </Field>
 
         <Field label="Max capacity">
@@ -319,7 +313,10 @@ function Step2({ data, onChange, onNext, onBack }: {
         </Field>
       ) : null}
 
-      <NextButton onClick={onNext}>Continue →</NextButton>
+      {data.sessionDuration && durationProblem(data.sessionDuration) && (
+        <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#a32d2d' }}>{durationProblem(data.sessionDuration)}</p>
+      )}
+      <NextButton onClick={onNext} disabled={!!durationProblem(data.sessionDuration)}>Continue →</NextButton>
     </div>
   )
 }
