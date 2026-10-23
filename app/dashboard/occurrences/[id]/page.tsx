@@ -1186,21 +1186,15 @@ export default function OccurrenceDetailPage() {
                             <tr>
                               <td style={td}>{nameCell(b, waiver && <span style={{ marginTop: 4 }}><Chip tone={waiver.tone}>Waiver {waiver.label.toLowerCase()}</Chip></span>)}</td>
                               <td style={td} className={styles.desktopOnly}>{paymentCell(b)}</td>
+                              {/* No Refund here: the roster is for attendance. Refunds live on the payment's own
+                                  page, and on the Cancelled tab once a booking is cancelled. */}
                               <td style={td}>
-                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                  {b.status === 'confirmed' && canManageBookings(roles) && (
-                                    <button type="button" onClick={() => handleCancelBooking(b)} disabled={manageBusy}
-                                      aria-label={`Cancel booking for ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
-                                      Cancel
-                                    </button>
-                                  )}
-                                  {b.payment_type === 'card' && canManageBookings(roles) && (
-                                    <button type="button" onClick={() => openRefund(b)} disabled={manageBusy}
-                                      aria-label={`Refund ${memberName(b)}`} className={`${ui.button} ${ui.focusable} ${styles.desktopOnly}`} style={smallAction}>
-                                      Refund
-                                    </button>
-                                  )}
-                                </div>
+                                {b.status === 'confirmed' && canManageBookings(roles) && (
+                                  <button type="button" onClick={() => handleCancelBooking(b)} disabled={manageBusy}
+                                    aria-label={`Cancel booking for ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
+                                    Cancel
+                                  </button>
+                                )}
                               </td>
                               <td style={{ ...td, textAlign: 'right' }}>
                                 {(b.status === 'no_show' || (b.status === 'confirmed' && classEnded)) && <span style={{ marginRight: 8 }}><Chip>No-show</Chip></span>}

@@ -83,9 +83,10 @@ Each row shows the member, how they paid (pass, card, comp, or free), and any gu
 |---|---|---|
 | **Check in** | Marks the member as having shown up. The button turns into the time they were checked in — click that to undo an accidental tap | Everyone who can see the roster |
 | **Cancel** | Cancels the booking, including any guests on it. Pass credits are returned automatically if the studio's cancellation policy allows it | Admin, Super teacher only |
-| **Refund** | For card bookings: refund some or all of what they paid | Admin, Super teacher only |
 
-If someone brought guests, they're listed in the **Guests** column of the member's row, each with its own **Cancel** — see **Members → Guest bookings** for how those work.
+If someone brought guests, each guest has their own line under the member (**Guest 1**, **Guest 2**) with their own **Check in** and **Cancel** — see **Members → Guest bookings** for how those work.
+
+To refund someone who paid by card, open the payment from their member profile (**Orders**), or cancel the booking first and use **Refund** on the **Cancelled** tab.
 
 ### Waitlist
 
