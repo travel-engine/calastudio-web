@@ -1223,11 +1223,10 @@ export default function OccurrenceDetailPage() {
                               return (
                                 <tr key={`${b.id}-g${gi}`}>
                                   <td style={sub}>
-                                    {/* Indented under the member, past their initials. "G1" in the mobile layout. */}
+                                    {/* Indented under the member, past their initials. */}
                                     <span className={styles.guestIndent} style={{ display: 'block', fontSize: 14, color: cancelled ? color.muted : undefined }}>
                                       <span style={cancelled ? { textDecoration: 'line-through' } : undefined}>
-                                        <span className={styles.desktopOnly}>{guestLabel}</span>
-                                        <span className={styles.mobileOnly} aria-hidden>G{n}</span>
+                                        {guestLabel}
                                       </span>
                                       {cancelled && <span style={{ marginLeft: 8, fontSize: 13 }}>cancelled</span>}
                                     </span>

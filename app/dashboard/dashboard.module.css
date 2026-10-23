@@ -100,17 +100,10 @@
   border: 0;
 }
 
-/* One layout only: the dashboard's mobile layout starts at 900px, as in the sidebar. */
-.mobileOnly {
-  display: none !important;
-}
-
+/* Hidden once the dashboard switches to its mobile layout (same 900px as the sidebar). */
 @media (max-width: 900px) {
   .desktopOnly {
     display: none !important;
-  }
-  .mobileOnly {
-    display: inline !important;
   }
 }
 
