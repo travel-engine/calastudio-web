@@ -136,7 +136,8 @@ function eventSentence(e: ActivityEntry): ReactNode {
 
   switch (e.event) {
     // Passes: the label is the pass's name.
-    case 'pass.issued': return self ? <>{member} bought {label ?? 'a pass'}</> : <>{actor} gave {member} {label ?? 'a pass'}</>
+    // Staff issue passes by hand; anything else is a purchase (the Stripe webhook issues it, as system).
+    case 'pass.issued': return e.actor_type === 'staff' ? <>{actor} gave {member} {label ?? 'a pass'}</> : <>{member} bought {label ?? 'a pass'}</>
     case 'pass.credits_adjusted': {
       const before = e.details?.credits_remaining?.old
       const after = e.details?.credits_remaining?.new
@@ -160,7 +161,10 @@ function eventSentence(e: ActivityEntry): ReactNode {
     case 'payment.recorded': return <>{actor} recorded a payment: {label}</>
     case 'payment.succeeded': return <>Payment received: {label}</>
     case 'payment.failed': return <>A payment failed: {label}</>
-    case 'payment.cancelled': return <>A payment was cancelled: {label}</>
+    // The nightly job closes checkouts that were started and never paid (Pending → Cancelled).
+    case 'payment.cancelled': return e.source === 'job' || e.details?.status?.old === 'Pending'
+      ? <>Unfinished checkout closed, not paid: {label}</>
+      : <>{actor} cancelled a payment: {label}</>
     case 'payment.refunded': return system ? <>Refunded automatically: {label}</> : <>{actor} refunded {label}</>
 
     // The member's own record.
