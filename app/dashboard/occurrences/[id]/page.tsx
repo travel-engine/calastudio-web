@@ -705,14 +705,9 @@ export default function OccurrenceDetailPage() {
 
   const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show')
   const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel')
-  const checkedIn = bookings.filter(b => b.status === 'attended').length
-  const guestCount = bookings
-    .filter(b => b.status === 'confirmed' || b.status === 'attended')
-    .reduce((sum, b) => sum + (b.guest_count ?? 0), 0)
   const waitingCount = waitlist.filter(w => w.status === 'waiting' || w.status === 'promoted').length
-  // Waiver data only exists when the studio requires a waiver; then count who still needs to sign.
+  // Waiver data only exists when the studio requires a waiver.
   const hasWaiverData = bookedRows.some(b => b.waiver_status != null)
-  const waiverToSort = bookedRows.filter(b => b.status !== 'no_show' && b.waiver_status != null && b.waiver_status !== 'current').length
 
   // Guests cancelled one-by-one (admin per-guest cancel) — the owning booking is still Confirmed,
   // so it isn't in cancelledRows. Surface each here, tied back to its booking's member.
@@ -848,10 +843,8 @@ export default function OccurrenceDetailPage() {
           <Card style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }} aria-label="Class summary">
             {[
               { label: 'Booked', value: capacity === null ? `${booked}` : `${booked} / ${capacity}`, ink: color.ink },
-              { label: 'Checked in', value: `${checkedIn}`, ink: color.primaryInk },
-              { label: 'Guests', value: `${guestCount}`, ink: color.ink },
-              { label: 'On waitlist', value: `${waitingCount}`, ink: waitingCount > 0 ? color.warnInk : color.ink },
-              ...(hasWaiverData ? [{ label: 'Waiver to sort', value: `${waiverToSort}`, ink: waiverToSort > 0 ? color.warnInk : color.ink }] : []),
+              { label: 'Waitlist', value: `${waitingCount}`, ink: waitingCount > 0 ? color.warnInk : color.ink },
+              { label: 'Cancelled', value: `${cancelledRows.length}`, ink: color.ink },
             ].map((s, i) => (
               <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '16px 20px', borderLeft: i ? `1px solid ${color.divider}` : 'none' }}>
                 <span style={smallCapsStyle}>{s.label}</span>
