@@ -124,7 +124,7 @@ function ActionBadge({ action }: { action: string }) {
   return <Chip tone={s.tone}>{s.label}</Chip>
 }
 
-function ChangesDetail({ changes, timeZone }: { changes: string; timeZone: string | null }) {
+export function ChangesDetail({ changes, timeZone }: { changes: string; timeZone: string | null }) {
   let parsed: Record<string, { old: unknown; new: unknown }>
   try {
     parsed = JSON.parse(changes)

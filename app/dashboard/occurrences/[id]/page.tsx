@@ -11,7 +11,7 @@ import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttend
 import { displayName, teacherName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
 import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
-import EntityActivity from '@/app/components/EntityActivity'
+import ClassActivity from '@/app/components/ClassActivity'
 import { dayKey, formatClock, formatShortDate } from '@/lib/dates'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, Card, Chip, EmptyState, PageHeader, buttonStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
@@ -272,6 +272,7 @@ export default function OccurrenceDetailPage() {
 
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState('')
+  const [orgCurrency, setOrgCurrency] = useState('AUD')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [forbidden, setForbidden] = useState(false)
@@ -386,6 +387,8 @@ export default function OccurrenceDetailPage() {
     if (bookingsRes.ok) setBookings(await bookingsRes.json())
     if (waitlistRes.ok) setWaitlist(await waitlistRes.json())
     setBookingsLoading(false)
+    // Every roster change (check-in, cancel, guest…) is also an activity event: re-pull the feed.
+    setActivityKey(k => k + 1)
   }, [occurrenceId])
 
   useEffect(() => {
@@ -398,6 +401,7 @@ export default function OccurrenceDetailPage() {
       setToken(t)
       const org = ctx.org
       setOrgId(org.id)
+      setOrgCurrency((org.currency ?? 'AUD').toUpperCase())
       setTimeZone(org.timezone ?? null)
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
@@ -1331,7 +1335,7 @@ export default function OccurrenceDetailPage() {
             )}
           </Card>
 
-          <EntityActivity orgId={orgId} token={token} entityType="session_occurrence" entityId={occurrence.id} noun="class" refreshKey={activityKey} timeZone={timeZone} />
+          <ClassActivity orgId={orgId} token={token} occurrenceId={occurrence.id} refreshKey={activityKey} timeZone={timeZone} currency={orgCurrency} />
         </div>
       </div>
 
