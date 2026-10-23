@@ -52,8 +52,11 @@ const SOURCE: Record<string, string> = {
   member_site: 'member site', job: 'automatic', stripe_webhook: 'Stripe', kiosk: 'kiosk', qr: 'QR',
 }
 
+// details.status.new is the PascalCase name ("Frozen"); rows written before backend PR #53 hold
+// the enum number instead.
 const PASS_STATUS: Record<string, string> = {
-  active: 'active', low: 'running low', frozen: 'frozen', expired: 'expired', exhausted: 'used up',
+  active: 'active', low: 'running low', frozen: 'frozen', expired: 'expired', exhausted: 'used up', refunded: 'refunded',
+  '0': 'active', '1': 'running low', '2': 'frozen', '3': 'expired', '4': 'used up', '5': 'refunded',
 }
 
 const b = (s: ReactNode) => <strong style={{ fontWeight: 600 }}>{s}</strong>
@@ -142,7 +145,8 @@ function eventSentence(e: ActivityEntry): ReactNode {
       return <>{actor} {what} {label ?? 'a pass'}</>
     }
     case 'pass.status_changed': {
-      const word = typeof status === 'string' ? PASS_STATUS[status.toLowerCase()] ?? status.toLowerCase() : null
+      const key = typeof status === 'string' || typeof status === 'number' ? String(status).toLowerCase() : null
+      const word = key ? PASS_STATUS[key] ?? key : null
       const pass = label ?? 'a pass'
       if (system) return word ? <>{label ?? 'A pass'} is now {word}</> : <>{label ?? 'A pass'} changed status</>
       if (word === 'frozen') return <>{actor} froze {pass}</>
