@@ -1189,8 +1189,8 @@ export default function OccurrenceDetailPage() {
                         const waiver = b.waiver_status && b.waiver_status !== 'current' ? waiverChip[b.waiver_status] : null
                         // First-timers get a small sparkle after the name (no extra line on phones); hover says why.
                         const firstVisit = b.first_visit && (
-                          <span title="First visit" style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: 6, color: color.warnInk }}>
-                            <Sparkles size={14} strokeWidth={2} aria-hidden />
+                          <span title="First visit" style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: 6, color: '#E0A526' /* gold */ }}>
+                            <Sparkles size={15} strokeWidth={1.5} fill="currentColor" aria-hidden />
                             <span className={styles.srOnly}>First visit</span>
                           </span>
                         )
