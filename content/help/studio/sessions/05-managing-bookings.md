@@ -77,7 +77,7 @@ This always creates a free spot — no pass credit is used and no payment is rec
 
 ### Booked
 
-Each row shows the member, how they paid (pass, card, comp, or free), and any guests. The last column shows where they are: a **Check in** button, the time they were checked in, or **No-show**. Someone who has never attended a class at your studio before this one gets a **First visit** tag under their name, so whoever's at the door can welcome them. When your studio requires a waiver, a tag also appears under the member's name if theirs needs sorting: **Waiver outdated** (they signed an older version) or **Waiver not signed**.
+Each row shows the member, how they paid (pass, card, comp, or free), and any guests. The last column shows where they are: a **Check in** button, the time they were checked in, or **No-show**. Someone who has never attended a class at your studio before this one has a small sparkle ✦ after their name (hover over it to see **First visit**), so whoever's at the door can welcome them. When your studio requires a waiver, a tag also appears under the member's name if theirs needs sorting: **Waiver outdated** (they signed an older version) or **Waiver not signed**.
 
 | Action | What it does | Who can do it |
 |---|---|---|

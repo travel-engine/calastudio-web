@@ -3,7 +3,7 @@
 import { Fragment, useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
-import { Check, Download, Plus, UserPlus, X } from 'lucide-react'
+import { Check, Download, Plus, Sparkles, UserPlus, X } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
@@ -800,18 +800,21 @@ export default function OccurrenceDetailPage() {
     </button>
   )
 
-  const nameCell = (b: Booking, note?: React.ReactNode) => (
+  const nameCell = (b: Booking, note?: React.ReactNode, mark?: React.ReactNode) => (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
       <span aria-hidden className={styles.desktopOnly} style={{
         width: 36, height: 36, borderRadius: '50%', flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         background: color.primarySoft, color: color.primaryInk, fontWeight: 600, fontSize: 13,
       }}>{initials(memberName(b))}</span>
       <span style={{ display: 'flex', flexDirection: 'column' }}>
-        {canViewMembers(roles) && b.user_id ? (
-          <Link href={`/dashboard/members/${b.user_id}`} className={ui.focusable} style={{ fontWeight: 600, color: color.ink, textDecoration: 'none' }}>{memberName(b)}</Link>
-        ) : (
-          <span style={{ fontWeight: 600 }}>{memberName(b)}</span>
-        )}
+        <span>
+          {canViewMembers(roles) && b.user_id ? (
+            <Link href={`/dashboard/members/${b.user_id}`} className={ui.focusable} style={{ fontWeight: 600, color: color.ink, textDecoration: 'none' }}>{memberName(b)}</Link>
+          ) : (
+            <span style={{ fontWeight: 600 }}>{memberName(b)}</span>
+          )}
+          {mark}
+        </span>
         <span className={styles.desktopOnly} style={{ fontSize: 13, color: color.muted, overflowWrap: 'anywhere' }}>
           {b.user?.email ? `${b.user.email} · ` : ''}{b.booked_mode === 'online' ? 'Online' : 'In person'}
         </span>
@@ -1184,17 +1187,17 @@ export default function OccurrenceDetailPage() {
                         const guests = parseGuests(b)
                         // Waiver: only flagged when it needs sorting; up to date is the norm, so it says nothing.
                         const waiver = b.waiver_status && b.waiver_status !== 'current' ? waiverChip[b.waiver_status] : null
-                        // Tags under the name, shown on phones too: first-timers (staff greet them) and waivers to sort.
-                        const tags = (b.first_visit || waiver) && (
-                          <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                            {b.first_visit && <Chip tone="info">First visit</Chip>}
-                            {waiver && <Chip tone={waiver.tone}>Waiver {waiver.label.toLowerCase()}</Chip>}
+                        // First-timers get a small sparkle after the name (no extra line on phones); hover says why.
+                        const firstVisit = b.first_visit && (
+                          <span title="First visit" style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: 6, color: color.warnInk }}>
+                            <Sparkles size={14} strokeWidth={2} aria-hidden />
+                            <span className={styles.srOnly}>First visit</span>
                           </span>
                         )
                         return (
                           <Fragment key={b.id}>
                             <tr>
-                              <td style={td}>{nameCell(b, tags)}</td>
+                              <td style={td}>{nameCell(b, waiver && <span style={{ marginTop: 4 }}><Chip tone={waiver.tone}>Waiver {waiver.label.toLowerCase()}</Chip></span>, firstVisit)}</td>
                               <td style={td} className={styles.desktopOnly}>{paymentCell(b)}</td>
                               {/* No Refund here: the roster is for attendance. Refunds live on the payment's own
                                   page, and on the Cancelled tab once a booking is cancelled. */}
