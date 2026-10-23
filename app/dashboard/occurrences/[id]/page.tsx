@@ -808,8 +808,13 @@ export default function OccurrenceDetailPage() {
               {occurrence.status === 'scheduled' && canManageOccurrences(roles) && (
                 <Button onClick={openEdit}>Edit class</Button>
               )}
+              {/* Icon-only with a tooltip; desktop only (a CSV download isn't much use on a phone). */}
               {bookedRows.length > 0 && (
-                <Button onClick={exportSignInSheet} icon={<Download size={18} strokeWidth={1.8} aria-hidden />}>Export sign-in sheet</Button>
+                <span className={`${styles.desktopOnly} ${styles.tip}`} data-tip="Export sign-in sheet (CSV)">
+                  <Button onClick={exportSignInSheet} icon={<Download size={18} strokeWidth={1.8} aria-hidden />} style={{ width: 44, padding: 0 }}>
+                    <span className={styles.srOnly}>Export sign-in sheet</span>
+                  </Button>
+                </span>
               )}
               {canAdd && (
                 <Button variant="primary" onClick={openAddBooking} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Add booking</Button>

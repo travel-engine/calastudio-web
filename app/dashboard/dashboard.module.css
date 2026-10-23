@@ -100,6 +100,43 @@
   border: 0;
 }
 
+/* Hidden once the dashboard switches to its mobile layout (same 900px as the sidebar). */
+@media (max-width: 900px) {
+  .desktopOnly {
+    display: none !important;
+  }
+}
+
+/* Tooltip for an icon-only control: wrap it and set data-tip. Shows on hover and keyboard focus. */
+.tip {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #17201C; /* ink */
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  z-index: 20;
+}
+
+.tip:hover::after,
+.tip:focus-within::after {
+  opacity: 1;
+}
+
 /* Members list: the column labels only make sense when the columns sit side by side */
 @media (max-width: 640px) {
   .membersHead {
