@@ -799,7 +799,7 @@ export default function OccurrenceDetailPage() {
 
   const nameCell = (b: Booking, note?: React.ReactNode) => (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-      <span aria-hidden style={{
+      <span aria-hidden className={styles.desktopOnly} style={{
         width: 36, height: 36, borderRadius: '50%', flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         background: color.primarySoft, color: color.primaryInk, fontWeight: 600, fontSize: 13,
       }}>{initials(memberName(b))}</span>
@@ -809,7 +809,7 @@ export default function OccurrenceDetailPage() {
         ) : (
           <span style={{ fontWeight: 600 }}>{memberName(b)}</span>
         )}
-        <span style={{ fontSize: 13, color: color.muted, overflowWrap: 'anywhere' }}>
+        <span className={styles.desktopOnly} style={{ fontSize: 13, color: color.muted, overflowWrap: 'anywhere' }}>
           {b.user?.email ? `${b.user.email} · ` : ''}{b.booked_mode === 'online' ? 'Online' : 'In person'}
         </span>
         {note}
@@ -1224,7 +1224,7 @@ export default function OccurrenceDetailPage() {
                                 <tr key={`${b.id}-g${gi}`}>
                                   <td style={sub}>
                                     {/* Indented under the member, past their initials. "G1" in the mobile layout. */}
-                                    <span style={{ display: 'block', paddingLeft: 48, fontSize: 14, color: cancelled ? color.muted : undefined }}>
+                                    <span className={styles.guestIndent} style={{ display: 'block', fontSize: 14, color: cancelled ? color.muted : undefined }}>
                                       <span style={cancelled ? { textDecoration: 'line-through' } : undefined}>
                                         <span className={styles.desktopOnly}>{guestLabel}</span>
                                         <span className={styles.mobileOnly} aria-hidden>G{n}</span>

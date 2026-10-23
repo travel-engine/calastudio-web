@@ -120,9 +120,23 @@
   min-width: 720px;
 }
 
+/* Guests sit indented under their member: past the initials on desktop, a small step on mobile. */
+.guestIndent {
+  padding-left: 48px;
+}
+
 @media (max-width: 900px) {
   .rosterTable {
     min-width: 0;
+  }
+  /* Cells set their padding inline; tighten it so name, actions and Check in fit a phone. */
+  .rosterTable th,
+  .rosterTable td {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  .guestIndent {
+    padding-left: 12px;
   }
 }
 
