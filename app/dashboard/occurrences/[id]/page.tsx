@@ -1121,6 +1121,51 @@ export default function OccurrenceDetailPage() {
                 <EmptyState message="No one is on the waitlist." />
               ) : (
                 <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
+                    <thead><tr><th style={th}>Name</th><th style={th}>Wants</th><th style={th}>Place</th><th style={th}>Status</th></tr></thead>
+                    <tbody>
+                      {waitlist.map(w => {
+                        const s = waitlistStatusChip[w.status] ?? { label: w.status, tone: 'neutral' as const }
+                        return (
+                          <tr key={w.id}>
+                            <td style={td}>
+                              <span style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 600 }}>{w.member_name || 'Unknown member'}</span>
+                                {w.email && <span style={{ fontSize: 13, color: color.muted }}>{w.email}</span>}
+                              </span>
+                            </td>
+                            <td style={{ ...td, color: color.ink2 }}>
+                              {w.preferred_mode === 'online' ? 'Online' : 'In person'}
+                              {w.intended_guest_count > 0 && ` · +${w.intended_guest_count} guest${w.intended_guest_count > 1 ? 's' : ''}`}
+                            </td>
+                            <td style={{ ...td, ...tabularNums }}>{w.status === 'waiting' ? `#${w.position}` : '—'}</td>
+                            <td style={td}>
+                              <span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                                <Chip tone={s.tone}>{s.label}</Chip>
+                                {w.status === 'promoted' && (
+                                  <span style={{ fontSize: 13, color: color.warnInk }}>
+                                    {w.is_fast_track ? 'Fast-track blast' : 'Holding a spot'}
+                                    {w.hold_expires_at && ` · until ${formatWhen(w.hold_expires_at)}`}
+                                  </span>
+                                )}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : tab === 'booked' ? (
+              bookedRows.length === 0 ? (
+                <EmptyState
+                  icon={<UserPlus size={22} strokeWidth={1.8} />}
+                  message="No one's booked yet."
+                  action={canAdd ? <Button variant="primary" onClick={openAddBooking}>Add member</Button> : undefined}
+                />
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
                   {/* One row per member; each guest gets an indented row of their own underneath with
                       their own Cancel and Check in. Pass / payment is dropped in the mobile layout. */}
                   <table className={styles.rosterTable} style={{ width: '100%', borderCollapse: 'collapse' }}>
