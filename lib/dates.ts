@@ -159,3 +159,32 @@ export function formatRelativeShort(input: DateInput): string {
   if (days < 7) return `${days}d ago`
   return formatDate(d)
 }
+
+// Offset of `timeZone` from UTC at instant `t` (ms), e.g. +10h for Sydney in winter.
+function zoneOffsetMs(t: number, timeZone?: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: safeZone(timeZone), hourCycle: 'h23',
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
+  }).formatToParts(new Date(t))
+  const get = (type: string) => Number(parts.find(p => p.type === type)?.value)
+  return Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second')) - t
+}
+
+const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
+
+/** The next `byDay` (MO…SU) at wall-clock `time` ("09:00") in `timeZone`, after `now`. */
+export function nextWeekdayAt(byDay: string, time: string, timeZone?: string | null, now = new Date()): Date {
+  const [hh, mm] = time.split(':').map(Number)
+  const zone = safeZone(timeZone)
+  const today = ymd(now, zone)
+  for (let k = 0; k <= 7; k++) {
+    const day = new Date(Date.UTC(today.y, today.m - 1, today.day + k))
+    if (BYDAY[day.getUTCDay()] !== byDay) continue
+    const wall = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), hh || 0, mm || 0)
+    // Two passes so a DST change between the guess and the answer still lands on the wall time.
+    let t = wall - zoneOffsetMs(wall, zone)
+    t = wall - zoneOffsetMs(t, zone)
+    if (t > now.getTime()) return new Date(t)
+  }
+  return new Date(now.getTime() + 7 * 864e5)
+}

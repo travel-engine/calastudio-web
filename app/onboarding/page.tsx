@@ -9,6 +9,7 @@ import { type ThemeKey } from '@/lib/studioTheme'
 import ThemePicker from '@/app/components/ThemePicker'
 import PlanStep from './PlanStep'
 import { STUDIO_DOMAIN, studioOrigin } from '@/lib/seo'
+import { nextWeekdayAt } from '@/lib/dates'
 
 // ── Step components ──────────────────────────────────────
 function ProgressBar({ step, total }: { step: number; total: number }) {
@@ -626,6 +627,7 @@ export default function OnboardingPage() {
   const [stripeNote, setStripeNote] = useState('')
   const [orgId, setOrgId] = useState('')
   const [planNote, setPlanNote] = useState('')
+  const [sessionNote, setSessionNote] = useState('')
 
   // Guard the wizard: must be signed in, and must not already run a studio. Being a member of
   // someone else's studio doesn't count, so a member can still set up their own.
@@ -696,7 +698,40 @@ export default function OnboardingPage() {
     // The guard above may have cached a membership at someone else's studio, or a switcher choice
     // may point elsewhere; the dashboard must open this new one.
     await rememberStudio(org.id)
+    await createFirstSession(org.id, token)
     return { id: org.id, slug: org.slug }
+  }
+
+  // Step 2–3's class, created right after the studio (01-onboarding.md: "one real session exists"):
+  // weekly on the chosen day from its next date in the studio's timezone, public, open booking.
+  // A failure doesn't undo the studio; the done screen says so and points at Sessions.
+  const createFirstSession = async (orgId: string, token: string) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: data.sessionName.trim() || 'Morning class',
+          session_type: 'class',
+          delivery_mode: data.deliveryMode,
+          location_name: data.deliveryMode === 'in_person' && data.locationName.trim() ? data.locationName.trim() : null,
+          capacity: data.sessionCapacity ? parseInt(data.sessionCapacity, 10) : null,
+          price: data.dropInPrice !== '' ? parseFloat(data.dropInPrice) : null,
+          currency: data.currency,
+          duration_minutes: parseInt(data.sessionDuration, 10),
+          first_occurrence_starts_at: nextWeekdayAt(data.sessionDay, data.sessionTime, data.timezone).toISOString(),
+          is_recurring: true,
+          recurrence_rule: 'RRULE:FREQ=WEEKLY',
+          visibility: 'public',
+          booking_access_mode: 'open',
+          guest_bookings_enabled: true,
+          guest_max_per_booking: 1,
+        }),
+      })
+      if (!res.ok) setSessionNote("We couldn't add your first class. Add it from Sessions in your dashboard.")
+    } catch {
+      setSessionNote("We couldn't add your first class. Add it from Sessions in your dashboard.")
+    }
   }
 
   const handleComplete = async () => {
@@ -828,7 +863,7 @@ export default function OnboardingPage() {
           <PlanStep orgId={orgId} currency={data.currency} onDone={note => { setPlanNote(note ?? ''); setStep(7) }} />
         )}
         {step === 7 && (
-          <Step5 data={data} orgSlug={orgSlug} stripeNote={[stripeNote, planNote].filter(Boolean).join(' ')} />
+          <Step5 data={data} orgSlug={orgSlug} stripeNote={[sessionNote, stripeNote, planNote].filter(Boolean).join(' ')} />
         )}
       </div>
     </div>
