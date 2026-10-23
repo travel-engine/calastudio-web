@@ -113,6 +113,9 @@ interface Booking {
   total_credits_used?: number
   member_pass_id?: string | null
   attended_at?: string | null
+  // Roster endpoint: never attended a class at this studio before this one (so a past class still
+  // shows who was new that day).
+  first_visit?: boolean
   // Against the studio's live waiver version (roster endpoint). Absent when the studio has none.
   waiver_status?: 'current' | 'outdated' | 'not_signed' | null
   // Guests cancelled individually via the admin per-guest cancel — the owning booking stays
@@ -1181,10 +1184,17 @@ export default function OccurrenceDetailPage() {
                         const guests = parseGuests(b)
                         // Waiver: only flagged when it needs sorting; up to date is the norm, so it says nothing.
                         const waiver = b.waiver_status && b.waiver_status !== 'current' ? waiverChip[b.waiver_status] : null
+                        // Tags under the name, shown on phones too: first-timers (staff greet them) and waivers to sort.
+                        const tags = (b.first_visit || waiver) && (
+                          <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                            {b.first_visit && <Chip tone="info">First visit</Chip>}
+                            {waiver && <Chip tone={waiver.tone}>Waiver {waiver.label.toLowerCase()}</Chip>}
+                          </span>
+                        )
                         return (
                           <Fragment key={b.id}>
                             <tr>
-                              <td style={td}>{nameCell(b, waiver && <span style={{ marginTop: 4 }}><Chip tone={waiver.tone}>Waiver {waiver.label.toLowerCase()}</Chip></span>)}</td>
+                              <td style={td}>{nameCell(b, tags)}</td>
                               <td style={td} className={styles.desktopOnly}>{paymentCell(b)}</td>
                               {/* No Refund here: the roster is for attendance. Refunds live on the payment's own
                                   page, and on the Cancelled tab once a booking is cancelled. */}
