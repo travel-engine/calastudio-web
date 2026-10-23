@@ -83,7 +83,8 @@ interface GuestInfo {
   last_name: string | null
   email: string | null
   // 'attended' once checked in on their own (each guest is checked in separately from the member).
-  status: 'confirmed' | 'attended' | 'no_show' | 'cancelled'
+  // No-show isn't stored: a guest still 'confirmed' after the class is one.
+  status: 'confirmed' | 'attended' | 'cancelled'
   attended_at?: string | null
   credits_used: number
 }
@@ -722,6 +723,10 @@ export default function OccurrenceDetailPage() {
   // adding someone manually bypasses that list (BookingService.ValidateBookableAsync, §4.8).
   const { booked, capacity } = occupancy(occurrence, bookings)
 
+  // No-show is derived, never stored (04-booking-flow §4.5a): still 'confirmed' after the class.
+  // The API counts from the start; the roster labels it only once the class has ended, so
+  // latecomers being checked in mid-class aren't tagged.
+  const classEnded = new Date(occurrence.ends_at).getTime() <= Date.now()
   const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show')
   const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel')
 
@@ -1167,10 +1172,10 @@ export default function OccurrenceDetailPage() {
                                       <span key={gi} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                         <span style={cancelled ? { textDecoration: 'line-through', color: color.muted } : undefined}>{guestLabel}</span>
                                         {cancelled && <span style={{ fontSize: 13, color: color.muted }}>cancelled</span>}
-                                        {g.status === 'no_show' && <span style={{ fontSize: 13, color: color.muted }}>no-show</span>}
+                                        {g.status === 'confirmed' && classEnded && <span style={{ fontSize: 13, color: color.muted }}>no-show</span>}
                                         {/* Check-in per guest: a guest can arrive without the member, and vice versa. */}
-                                        {/* Also on a no-show, to correct a forgotten check-in after class. */}
-                                        {(g.status === 'confirmed' || g.status === 'no_show') && canMarkAttended(roles) && (
+                                        {/* Stays after class on a no-show, to correct a forgotten check-in. */}
+                                        {g.status === 'confirmed' && canMarkAttended(roles) && (
                                           <button type="button" onClick={() => handleGuestAttendance(b.id, gi, true)} disabled={manageBusy}
                                             aria-label={`Check in guest ${guestLabel}`} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
                                             Check in
@@ -1214,7 +1219,7 @@ export default function OccurrenceDetailPage() {
                               </div>
                             </td>
                             <td style={{ ...td, textAlign: 'right' }}>
-                              {b.status === 'no_show' && <Chip>No-show</Chip>}
+                              {(b.status === 'no_show' || (b.status === 'confirmed' && classEnded)) && <span style={{ marginRight: 8 }}><Chip>No-show</Chip></span>}
                               {(b.status === 'confirmed' || b.status === 'attended') && canMarkAttended(roles) && (
                                 b.status === 'attended' ? (
                                   <button type="button" onClick={() => handleUnmarkAttended(b.id)} disabled={manageBusy}
