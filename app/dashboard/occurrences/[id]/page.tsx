@@ -82,7 +82,9 @@ interface GuestInfo {
   first_name: string | null
   last_name: string | null
   email: string | null
-  status: 'confirmed' | 'cancelled'
+  // 'attended' once checked in on their own (each guest is checked in separately from the member).
+  status: 'confirmed' | 'attended' | 'no_show' | 'cancelled'
+  attended_at?: string | null
   credits_used: number
 }
 
@@ -416,6 +418,19 @@ export default function OccurrenceDetailPage() {
     const res = await authedFetch(`/bookings/${bookingId}/attend`, { method: 'POST' })
     if (res.ok) await refreshRoster(orgId, token)
     else setManageError('Could not mark this booking attended.')
+    setManageBusy(false)
+  }
+
+  // Per-guest check-in, mirroring per-guest cancel: guests are addressed by their index on the booking.
+  const handleGuestAttendance = async (bookingId: string, guestIndex: number, attend: boolean) => {
+    setManageBusy(true)
+    setManageError('')
+    const res = await authedFetch(`/bookings/${bookingId}/guests/${guestIndex}/${attend ? 'attend' : 'unattend'}`, { method: 'POST' })
+    if (res.ok) await refreshRoster(orgId, token)
+    else {
+      const data = await res.json().catch(() => null)
+      setManageError(data?.error ?? (attend ? "Couldn't check in this guest." : "Couldn't undo this guest's check-in."))
+    }
     setManageBusy(false)
   }
 
@@ -1152,6 +1167,22 @@ export default function OccurrenceDetailPage() {
                                       <span key={gi} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                         <span style={cancelled ? { textDecoration: 'line-through', color: color.muted } : undefined}>{guestLabel}</span>
                                         {cancelled && <span style={{ fontSize: 13, color: color.muted }}>cancelled</span>}
+                                        {g.status === 'no_show' && <span style={{ fontSize: 13, color: color.muted }}>no-show</span>}
+                                        {/* Check-in per guest: a guest can arrive without the member, and vice versa. */}
+                                        {g.status === 'confirmed' && canMarkAttended(roles) && (
+                                          <button type="button" onClick={() => handleGuestAttendance(b.id, gi, true)} disabled={manageBusy}
+                                            aria-label={`Check in guest ${guestLabel}`} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
+                                            Check in
+                                          </button>
+                                        )}
+                                        {g.status === 'attended' && canMarkAttended(roles) && (
+                                          <button type="button" onClick={() => handleGuestAttendance(b.id, gi, false)} disabled={manageBusy}
+                                            aria-label={`Undo check-in for guest ${guestLabel}`} className={ui.focusable}
+                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: 32, padding: '0 6px', border: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, color: color.primaryInk, cursor: manageBusy ? 'not-allowed' : 'pointer' }}>
+                                            <Check size={14} strokeWidth={2.5} aria-hidden />
+                                            <span style={tabularNums}>{g.attended_at ? formatClock(g.attended_at, timeZone) : 'Checked in'}</span>
+                                          </button>
+                                        )}
                                         {g.status === 'confirmed' && b.status === 'confirmed' && canManageBookings(roles) && (
                                           <button type="button" onClick={() => handleCancelGuest(b.id, gi, guestLabel)} disabled={manageBusy}
                                             aria-label={`Cancel guest ${guestLabel}`} className={ui.focusable}
