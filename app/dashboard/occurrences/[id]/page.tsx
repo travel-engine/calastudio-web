@@ -817,7 +817,7 @@ export default function OccurrenceDetailPage() {
                 </span>
               )}
               {canAdd && (
-                <Button variant="primary" onClick={openAddBooking} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Add booking</Button>
+                <Button variant="primary" onClick={openAddBooking} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Add member</Button>
               )}
             </>}
           >
@@ -915,7 +915,7 @@ export default function OccurrenceDetailPage() {
           {showAddBooking && (
             <Card padded aria-labelledby="add-booking-heading">
               <h2 id="add-booking-heading" style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>
-                {canManageBookings(roles) ? 'Add a booking' : 'Add a student'}
+                {canManageBookings(roles) ? 'Add a member' : 'Add a student'}
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
@@ -1140,7 +1140,7 @@ export default function OccurrenceDetailPage() {
                 <EmptyState
                   icon={<UserPlus size={22} strokeWidth={1.8} />}
                   message="No one's booked yet."
-                  action={canAdd ? <Button variant="primary" onClick={openAddBooking}>Add booking</Button> : undefined}
+                  action={canAdd ? <Button variant="primary" onClick={openAddBooking}>Add member</Button> : undefined}
                 />
               ) : (
                 <div style={{ overflowX: 'auto' }}>

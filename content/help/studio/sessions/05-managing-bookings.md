@@ -35,7 +35,7 @@ At the top: the session name, then chips for the status (Scheduled/Cancelled/Com
 
 | Button | What it does | Who can do it |
 |---|---|---|
-| **+ Add booking** | Puts a member on the roster — see below | Everyone who can add to the roster |
+| **+ Add member** | Puts a member on the roster — see below | Everyone who can add to the roster |
 | **Export sign-in sheet** | Downloads the roster as a CSV to print or keep (shown once someone is booked) | Everyone who can see the roster |
 | **Edit class** | Change the date, start/end time, capacity, or teacher for this class only | Admin, Super teacher, and Teacher (their own classes) |
 | **Cancel class** | Cancels the whole class — see below | Admin, Super teacher, and Teacher (their own classes) |
@@ -52,7 +52,7 @@ What the roster shows also depends on role — see **Team → Teacher roles** fo
 
 ## Booking a member manually (Admin, Super teacher)
 
-1. Click **+ Add booking**
+1. Click **+ Add member**
 2. Search for the member by name or email. Not a member yet? Click **+ Add a new member** to create them on the spot
 3. Under **Payment**, choose:
    - **A pass** — pick from the member's passes that are valid for this class; a credit is debited immediately
@@ -65,7 +65,7 @@ If the class is **Free**, no payment step is shown at all. If the session is **R
 
 Teacher and Basic teacher can't take payment, but can still put a student on their own roster at no charge:
 
-1. Open one of your own classes and click **+ Add booking**
+1. Open one of your own classes and click **+ Add member**
 2. Search for the member by name — Basic teacher's search doesn't show email, matching what the roster itself shows
 3. Click **Add student**
 
