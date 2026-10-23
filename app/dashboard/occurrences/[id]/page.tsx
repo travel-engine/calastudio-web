@@ -418,7 +418,11 @@ export default function OccurrenceDetailPage() {
     setManageError('')
     const res = await authedFetch(`/bookings/${bookingId}/attend`, { method: 'POST' })
     if (res.ok) await refreshRoster(orgId, token)
-    else setManageError('Could not mark this booking attended.')
+    else {
+      // Show the API's reason (e.g. check-in isn't open yet for a future class).
+      const data = await res.json().catch(() => null)
+      setManageError(data?.error ?? "Couldn't check in this member.")
+    }
     setManageBusy(false)
   }
 
@@ -440,7 +444,10 @@ export default function OccurrenceDetailPage() {
     setManageError('')
     const res = await authedFetch(`/bookings/${bookingId}/unattend`, { method: 'POST' })
     if (res.ok) await refreshRoster(orgId, token)
-    else setManageError('Could not undo attended for this booking.')
+    else {
+      const data = await res.json().catch(() => null)
+      setManageError(data?.error ?? "Couldn't undo this check-in.")
+    }
     setManageBusy(false)
   }
 
