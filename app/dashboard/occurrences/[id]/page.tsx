@@ -1169,7 +1169,8 @@ export default function OccurrenceDetailPage() {
                                         {cancelled && <span style={{ fontSize: 13, color: color.muted }}>cancelled</span>}
                                         {g.status === 'no_show' && <span style={{ fontSize: 13, color: color.muted }}>no-show</span>}
                                         {/* Check-in per guest: a guest can arrive without the member, and vice versa. */}
-                                        {g.status === 'confirmed' && canMarkAttended(roles) && (
+                                        {/* Also on a no-show, to correct a forgotten check-in after class. */}
+                                        {(g.status === 'confirmed' || g.status === 'no_show') && canMarkAttended(roles) && (
                                           <button type="button" onClick={() => handleGuestAttendance(b.id, gi, true)} disabled={manageBusy}
                                             aria-label={`Check in guest ${guestLabel}`} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
                                             Check in
