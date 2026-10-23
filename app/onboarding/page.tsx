@@ -728,7 +728,10 @@ export default function OnboardingPage() {
           guest_max_per_booking: 1,
         }),
       })
-      if (!res.ok) setSessionNote("We couldn't add your first class. Add it from Sessions in your dashboard.")
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setSessionNote(`We couldn't add your first class${body?.error ? ` (${body.error})` : ''}. Add it from Sessions in your dashboard.`)
+      }
     } catch {
       setSessionNote("We couldn't add your first class. Add it from Sessions in your dashboard.")
     }
