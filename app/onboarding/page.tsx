@@ -228,7 +228,7 @@ function Step1({ data, onChange, onNext, acceptTerms, onAcceptTerms }: {
         </span>
       </label>
 
-      <NextButton onClick={onNext} disabled={!data.name.trim() || !acceptTerms}>
+      <NextButton onClick={onNext} disabled={!data.name.trim() || !data.ownerName.trim() || !acceptTerms}>
         Continue →
       </NextButton>
     </div>
@@ -685,6 +685,8 @@ export default function OnboardingPage() {
         locale: 'en-AU',
         theme: data.theme,
         accept_terms: acceptTerms,
+        // The owner's own name; without it the API used the studio name as their first name.
+        owner_first_name: data.ownerName.trim() || null,
       }),
     })
     const org = await response.json().catch(() => null)

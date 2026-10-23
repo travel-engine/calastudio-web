@@ -90,3 +90,11 @@ export const canImportMembers = (roles: string[]) => has(roles, [ADMIN])
 // admin/teacher_super/teacher_general; the add-student search modal it also lives in is reachable
 // by teacher_general, who needs a way to add someone not yet in the system rather than dead-ending.
 export const canAddMember = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL])
+
+// The most senior staff role someone holds, for a chip next to their name ("Admin", "Teacher").
+// Null for a member-only account. Same wording as the activity feeds.
+const STAFF_RANK: [string, string][] = [
+  [ADMIN, 'Admin'], [TEACHER_SUPER, 'Senior teacher'], [TEACHER_GENERAL, 'Teacher'], [TEACHER_BASIC, 'Teacher'], [FRONT_DESK, 'Front desk'],
+]
+export const staffRoleLabel = (roles: string[] | null | undefined) =>
+  STAFF_RANK.find(([r]) => roles?.includes(r))?.[1] ?? null

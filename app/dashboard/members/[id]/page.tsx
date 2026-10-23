@@ -8,7 +8,7 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
-import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity } from '@/lib/roles'
+import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, staffRoleLabel } from '@/lib/roles'
 import ActivityFeed from '@/app/components/ActivityFeed'
 import { displayName } from '@/lib/names'
 import { formatClock, formatDayMonth, formatRelativeShort, formatShortDate } from '@/lib/dates'
@@ -385,6 +385,7 @@ export default function MemberDetailPage() {
                       {member.phone && <span>{member.phone}</span>}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                      {staffRoleLabel(member.roles) && <Chip tone="info">{staffRoleLabel(member.roles)}</Chip>}
                       {member.person_type && <Chip>{personTypeLabels[member.person_type] ?? member.person_type}</Chip>}
                       {member.join_date && <Chip>Joined {monthYear(member.join_date)}</Chip>}
                       {activity?.kind === 'seen'
