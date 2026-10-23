@@ -77,12 +77,12 @@ This always creates a free spot — no pass credit is used and no payment is rec
 
 ### Booked
 
-Each row shows the member, how they paid (pass, card, comp, or free), any guests, their status, and — when your studio requires one — their waiver status (**Up to date**, **Outdated** if they signed an older version, or **Not signed**).
+Each row shows the member, how they paid (pass, card, comp, or free), and any guests. The last column shows where they are: a **Check in** button, the time they were checked in, or **No-show**. When your studio requires a waiver, a tag appears under the member's name only if theirs needs sorting: **Waiver outdated** (they signed an older version) or **Waiver not signed**.
 
 | Action | What it does | Who can do it |
 |---|---|---|
 | **Check in** | Marks the member as having shown up. The button turns into the time they were checked in — click that to undo an accidental tap | Everyone who can see the roster |
-| **Cancel** | Cancels the booking. Pass credits are returned automatically if the studio's cancellation policy allows it | Admin, Super teacher only |
+| **Cancel** | Cancels the booking, including any guests on it. Pass credits are returned automatically if the studio's cancellation policy allows it | Admin, Super teacher only |
 | **Refund** | For card bookings: refund some or all of what they paid | Admin, Super teacher only |
 
 If someone brought guests, they're listed in the **Guests** column of the member's row, each with its own **Cancel** — see **Members → Guest bookings** for how those work.

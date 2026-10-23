@@ -428,8 +428,12 @@ export default function OccurrenceDetailPage() {
     setManageBusy(false)
   }
 
-  const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm('Cancel this booking?')) return
+  const handleCancelBooking = async (b: Booking) => {
+    // Guests ride on the member's booking, so they go with it; say so before confirming.
+    const activeGuests = parseGuests(b).filter(g => g.status !== 'cancelled').length
+    const guestNote = activeGuests === 0 ? '' : ` Their ${activeGuests === 1 ? 'guest' : `${activeGuests} guests`} will be cancelled too.`
+    if (!confirm(`Cancel ${memberName(b)}'s booking?${guestNote}`)) return
+    const bookingId = b.id
     setManageBusy(true)
     setManageError('')
     const res = await authedFetch(`/bookings/${bookingId}/cancel`, { method: 'POST' })
@@ -1164,7 +1168,7 @@ export default function OccurrenceDetailPage() {
                             <td style={td}>
                               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                 {b.status === 'confirmed' && canManageBookings(roles) && (
-                                  <button type="button" onClick={() => handleCancelBooking(b.id)} disabled={manageBusy}
+                                  <button type="button" onClick={() => handleCancelBooking(b)} disabled={manageBusy}
                                     aria-label={`Cancel booking for ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
                                     Cancel
                                   </button>
