@@ -705,8 +705,6 @@ export default function OccurrenceDetailPage() {
 
   const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show')
   const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel')
-  // Waiver data only exists when the studio requires a waiver.
-  const hasWaiverData = bookedRows.some(b => b.waiver_status != null)
 
   // Guests cancelled one-by-one (admin per-guest cancel) — the owning booking is still Confirmed,
   // so it isn't in cancelledRows. Surface each here, tied back to its booking's member.
@@ -754,7 +752,7 @@ export default function OccurrenceDetailPage() {
   const smallAction = { ...buttonStyle('secondary', 'sm') }
   const smallDanger = { ...buttonStyle('destructive', 'sm') }
 
-  const nameCell = (b: Booking) => (
+  const nameCell = (b: Booking, note?: React.ReactNode) => (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
       <span aria-hidden style={{
         width: 36, height: 36, borderRadius: '50%', flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -769,6 +767,7 @@ export default function OccurrenceDetailPage() {
         <span style={{ fontSize: 13, color: color.muted }}>
           {b.user?.email ? `${b.user.email} · ` : ''}{b.booked_mode === 'online' ? 'Online' : 'In person'}
         </span>
+        {note}
       </span>
     </div>
   )
@@ -1122,11 +1121,10 @@ export default function OccurrenceDetailPage() {
                 />
               ) : (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
+                  <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        <th style={th}>Name</th><th style={th}>Pass / payment</th><th style={th}>Guests</th><th style={th}>Status</th>
-                        {hasWaiverData && <th style={th}>Waiver</th>}
+                        <th style={th}>Name</th><th style={th}>Pass / payment</th><th style={th}>Guests</th>
                         <th style={th}><span className={styles.srOnly}>Actions</span></th>
                         <th style={{ ...th, textAlign: 'right' }}>Check-in</th>
                       </tr>
@@ -1134,10 +1132,11 @@ export default function OccurrenceDetailPage() {
                     <tbody>
                       {bookedRows.map(b => {
                         const guests = parseGuests(b)
-                        const s = bookingStatusChip[b.status] ?? { label: b.status, tone: 'neutral' as const }
+                        // Waiver: only flagged when it needs sorting; up to date is the norm, so it says nothing.
+                        const waiver = b.waiver_status && b.waiver_status !== 'current' ? waiverChip[b.waiver_status] : null
                         return (
                           <tr key={b.id}>
-                            <td style={td}>{nameCell(b)}</td>
+                            <td style={td}>{nameCell(b, waiver && <span style={{ marginTop: 4 }}><Chip tone={waiver.tone}>Waiver {waiver.label.toLowerCase()}</Chip></span>)}</td>
                             <td style={td}>{paymentCell(b)}</td>
                             <td style={td}>
                               {guests.length === 0 ? <span style={{ color: '#8A918D' }}>—</span> : (
@@ -1162,14 +1161,6 @@ export default function OccurrenceDetailPage() {
                                 </div>
                               )}
                             </td>
-                            <td style={td}><Chip tone={s.tone}>{s.label}</Chip></td>
-                            {hasWaiverData && (
-                              <td style={td}>
-                                {b.waiver_status && waiverChip[b.waiver_status]
-                                  ? <Chip tone={waiverChip[b.waiver_status].tone}>{waiverChip[b.waiver_status].label}</Chip>
-                                  : <span style={{ color: '#8A918D' }}>—</span>}
-                              </td>
-                            )}
                             <td style={td}>
                               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                 {b.status === 'confirmed' && canManageBookings(roles) && (
@@ -1187,6 +1178,7 @@ export default function OccurrenceDetailPage() {
                               </div>
                             </td>
                             <td style={{ ...td, textAlign: 'right' }}>
+                              {b.status === 'no_show' && <Chip>No-show</Chip>}
                               {(b.status === 'confirmed' || b.status === 'attended') && canMarkAttended(roles) && (
                                 b.status === 'attended' ? (
                                   <button type="button" onClick={() => handleUnmarkAttended(b.id)} disabled={manageBusy}
