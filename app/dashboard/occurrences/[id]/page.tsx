@@ -78,10 +78,9 @@ interface MemberPass {
   } | null
 }
 
+// Guests aren't named (only early bookings captured names); they're "Guest 1", "Guest 2" by their
+// position on the booking, which is also how the API addresses them.
 interface GuestInfo {
-  first_name: string | null
-  last_name: string | null
-  email: string | null
   // 'attended' once checked in on their own (each guest is checked in separately from the member).
   // No-show isn't stored: a guest still 'confirmed' after the class is one.
   status: 'confirmed' | 'attended' | 'cancelled'
@@ -756,8 +755,9 @@ export default function OccurrenceDetailPage() {
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`
     const lines = [['Name', 'Pass / payment', 'Guests', 'Status', 'Signed in'].map(esc).join(',')]
     for (const b of bookedRows) {
-      const guests = parseGuests(b).filter(g => g.status !== 'cancelled')
-        .map((g, i) => [g.first_name, g.last_name].filter(Boolean).join(' ') || `Guest ${i + 1}`).join('; ')
+      // Numbered by position, as on the roster, so a cancelled Guest 1 doesn't renumber Guest 2.
+      const guests = parseGuests(b).map((g, i) => (g.status === 'cancelled' ? null : `Guest ${i + 1}`))
+        .filter(Boolean).join('; ')
       lines.push([
         memberName(b),
         b.payment_type ? (paymentTypeLabels[b.payment_type] ?? b.payment_type) : '',
@@ -1172,8 +1172,7 @@ export default function OccurrenceDetailPage() {
                             </tr>
                             {guests.map((g, gi) => {
                               const n = gi + 1
-                              const guestName = [g.first_name, g.last_name].filter(Boolean).join(' ')
-                              const guestLabel = guestName || `Guest ${n}`
+                              const guestLabel = `Guest ${n}`
                               const cancelled = g.status === 'cancelled'
                               const sub: React.CSSProperties = { ...td, borderTop: 'none', paddingTop: 0 }
                               return (
@@ -1182,7 +1181,7 @@ export default function OccurrenceDetailPage() {
                                     {/* Indented under the member, past their initials. "G1" in the mobile layout. */}
                                     <span style={{ display: 'block', paddingLeft: 48, fontSize: 14, color: cancelled ? color.muted : undefined }}>
                                       <span style={cancelled ? { textDecoration: 'line-through' } : undefined}>
-                                        <span className={styles.desktopOnly}>{guestName ? `Guest ${n} · ${guestName}` : guestLabel}</span>
+                                        <span className={styles.desktopOnly}>{guestLabel}</span>
                                         <span className={styles.mobileOnly} aria-hidden>G{n}</span>
                                       </span>
                                       {cancelled && <span style={{ marginLeft: 8, fontSize: 13 }}>cancelled</span>}
