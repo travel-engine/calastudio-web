@@ -100,10 +100,29 @@
   border: 0;
 }
 
-/* Hidden once the dashboard switches to its mobile layout (same 900px as the sidebar). */
+/* One layout only: the dashboard's mobile layout starts at 900px, as in the sidebar. */
+.mobileOnly {
+  display: none !important;
+}
+
 @media (max-width: 900px) {
   .desktopOnly {
     display: none !important;
+  }
+  .mobileOnly {
+    display: inline !important;
+  }
+}
+
+/* Class roster: scrolls sideways on narrow desktops; in the mobile layout (Pass / payment
+   hidden) it fits the screen instead. */
+.rosterTable {
+  min-width: 720px;
+}
+
+@media (max-width: 900px) {
+  .rosterTable {
+    min-width: 0;
   }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Fragment, useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import { Check, Download, Plus, UserPlus, X } from 'lucide-react'
@@ -783,8 +783,22 @@ export default function OccurrenceDetailPage() {
   const smallAction = { ...buttonStyle('secondary', 'sm') }
   const smallDanger = { ...buttonStyle('destructive', 'sm') }
 
+  // "✓ 9:28 am": who's checked in, and the way to undo an accidental tap. Members and guests alike.
+  const CheckedInButton = ({ at, label, onUndo }: { at: string | null | undefined; label: string; onUndo: () => void }) => (
+    <button type="button" onClick={onUndo} disabled={manageBusy}
+      aria-label={`Undo check-in for ${label}`} className={ui.focusable}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 40, padding: '0 12px', border: 0,
+        borderRadius: radius.control, background: 'transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+        color: color.primaryInk, cursor: manageBusy ? 'not-allowed' : 'pointer',
+      }}>
+      <Check size={16} strokeWidth={2.5} aria-hidden />
+      <span style={tabularNums}>{at ? formatClock(at, timeZone) : 'Checked in'}</span>
+    </button>
+  )
+
   const nameCell = (b: Booking, note?: React.ReactNode) => (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
       <span aria-hidden style={{
         width: 36, height: 36, borderRadius: '50%', flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         background: color.primarySoft, color: color.primaryInk, fontWeight: 600, fontSize: 13,
@@ -795,7 +809,7 @@ export default function OccurrenceDetailPage() {
         ) : (
           <span style={{ fontWeight: 600 }}>{memberName(b)}</span>
         )}
-        <span style={{ fontSize: 13, color: color.muted }}>
+        <span style={{ fontSize: 13, color: color.muted, overflowWrap: 'anywhere' }}>
           {b.user?.email ? `${b.user.email} · ` : ''}{b.booked_mode === 'online' ? 'Online' : 'In person'}
         </span>
         {note}
@@ -1107,55 +1121,12 @@ export default function OccurrenceDetailPage() {
                 <EmptyState message="No one is on the waitlist." />
               ) : (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
-                    <thead><tr><th style={th}>Name</th><th style={th}>Wants</th><th style={th}>Place</th><th style={th}>Status</th></tr></thead>
-                    <tbody>
-                      {waitlist.map(w => {
-                        const s = waitlistStatusChip[w.status] ?? { label: w.status, tone: 'neutral' as const }
-                        return (
-                          <tr key={w.id}>
-                            <td style={td}>
-                              <span style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontWeight: 600 }}>{w.member_name || 'Unknown member'}</span>
-                                {w.email && <span style={{ fontSize: 13, color: color.muted }}>{w.email}</span>}
-                              </span>
-                            </td>
-                            <td style={{ ...td, color: color.ink2 }}>
-                              {w.preferred_mode === 'online' ? 'Online' : 'In person'}
-                              {w.intended_guest_count > 0 && ` · +${w.intended_guest_count} guest${w.intended_guest_count > 1 ? 's' : ''}`}
-                            </td>
-                            <td style={{ ...td, ...tabularNums }}>{w.status === 'waiting' ? `#${w.position}` : '—'}</td>
-                            <td style={td}>
-                              <span style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
-                                <Chip tone={s.tone}>{s.label}</Chip>
-                                {w.status === 'promoted' && (
-                                  <span style={{ fontSize: 13, color: color.warnInk }}>
-                                    {w.is_fast_track ? 'Fast-track blast' : 'Holding a spot'}
-                                    {w.hold_expires_at && ` · until ${formatWhen(w.hold_expires_at)}`}
-                                  </span>
-                                )}
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )
-            ) : tab === 'booked' ? (
-              bookedRows.length === 0 ? (
-                <EmptyState
-                  icon={<UserPlus size={22} strokeWidth={1.8} />}
-                  message="No one's booked yet."
-                  action={canAdd ? <Button variant="primary" onClick={openAddBooking}>Add member</Button> : undefined}
-                />
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
+                  {/* One row per member; each guest gets an indented row of their own underneath with
+                      their own Cancel and Check in. Pass / payment is dropped in the mobile layout. */}
+                  <table className={styles.rosterTable} style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        <th style={th}>Name</th><th style={th}>Pass / payment</th><th style={th}>Guests</th>
+                        <th style={th}>Name</th><th style={th} className={styles.desktopOnly}>Pass / payment</th>
                         <th style={th}><span className={styles.srOnly}>Actions</span></th>
                         <th style={{ ...th, textAlign: 'right' }}>Check-in</th>
                       </tr>
@@ -1166,87 +1137,85 @@ export default function OccurrenceDetailPage() {
                         // Waiver: only flagged when it needs sorting; up to date is the norm, so it says nothing.
                         const waiver = b.waiver_status && b.waiver_status !== 'current' ? waiverChip[b.waiver_status] : null
                         return (
-                          <tr key={b.id}>
-                            <td style={td}>{nameCell(b, waiver && <span style={{ marginTop: 4 }}><Chip tone={waiver.tone}>Waiver {waiver.label.toLowerCase()}</Chip></span>)}</td>
-                            <td style={td}>{paymentCell(b)}</td>
-                            <td style={td}>
-                              {guests.length === 0 ? <span style={{ color: '#8A918D' }}>—</span> : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
-                                  {guests.map((g, gi) => {
-                                    const guestLabel = [g.first_name, g.last_name].filter(Boolean).join(' ') || `Guest ${gi + 1}`
-                                    const cancelled = g.status === 'cancelled'
-                                    return (
-                                      <span key={gi} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                        <span style={cancelled ? { textDecoration: 'line-through', color: color.muted } : undefined}>{guestLabel}</span>
-                                        {cancelled && <span style={{ fontSize: 13, color: color.muted }}>cancelled</span>}
-                                        {g.status === 'confirmed' && classEnded && <span style={{ fontSize: 13, color: color.muted }}>no-show</span>}
-                                        {/* Check-in per guest: a guest can arrive without the member, and vice versa. */}
-                                        {/* Stays after class on a no-show, to correct a forgotten check-in. */}
-                                        {g.status === 'confirmed' && canMarkAttended(roles) && (
-                                          <button type="button" onClick={() => handleGuestAttendance(b.id, gi, true)} disabled={manageBusy}
-                                            aria-label={`Check in guest ${guestLabel}`} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
-                                            Check in
-                                          </button>
-                                        )}
-                                        {g.status === 'attended' && canMarkAttended(roles) && (
-                                          <button type="button" onClick={() => handleGuestAttendance(b.id, gi, false)} disabled={manageBusy}
-                                            aria-label={`Undo check-in for guest ${guestLabel}`} className={ui.focusable}
-                                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: 32, padding: '0 6px', border: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, color: color.primaryInk, cursor: manageBusy ? 'not-allowed' : 'pointer' }}>
-                                            <Check size={14} strokeWidth={2.5} aria-hidden />
-                                            <span style={tabularNums}>{g.attended_at ? formatClock(g.attended_at, timeZone) : 'Checked in'}</span>
-                                          </button>
-                                        )}
-                                        {g.status === 'confirmed' && b.status === 'confirmed' && canManageBookings(roles) && (
-                                          <button type="button" onClick={() => handleCancelGuest(b.id, gi, guestLabel)} disabled={manageBusy}
-                                            aria-label={`Cancel guest ${guestLabel}`} className={ui.focusable}
-                                            style={{ background: 'none', border: 0, padding: '4px 0', color: color.dangerInk, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                                            Cancel
-                                          </button>
-                                        )}
-                                      </span>
-                                    )
-                                  })}
+                          <Fragment key={b.id}>
+                            <tr>
+                              <td style={td}>{nameCell(b, waiver && <span style={{ marginTop: 4 }}><Chip tone={waiver.tone}>Waiver {waiver.label.toLowerCase()}</Chip></span>)}</td>
+                              <td style={td} className={styles.desktopOnly}>{paymentCell(b)}</td>
+                              <td style={td}>
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                  {b.status === 'confirmed' && canManageBookings(roles) && (
+                                    <button type="button" onClick={() => handleCancelBooking(b)} disabled={manageBusy}
+                                      aria-label={`Cancel booking for ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
+                                      Cancel
+                                    </button>
+                                  )}
+                                  {b.payment_type === 'card' && canManageBookings(roles) && (
+                                    <button type="button" onClick={() => openRefund(b)} disabled={manageBusy}
+                                      aria-label={`Refund ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
+                                      Refund
+                                    </button>
+                                  )}
                                 </div>
-                              )}
-                            </td>
-                            <td style={td}>
-                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                {b.status === 'confirmed' && canManageBookings(roles) && (
-                                  <button type="button" onClick={() => handleCancelBooking(b)} disabled={manageBusy}
-                                    aria-label={`Cancel booking for ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
-                                    Cancel
-                                  </button>
+                              </td>
+                              <td style={{ ...td, textAlign: 'right' }}>
+                                {(b.status === 'no_show' || (b.status === 'confirmed' && classEnded)) && <span style={{ marginRight: 8 }}><Chip>No-show</Chip></span>}
+                                {(b.status === 'confirmed' || b.status === 'attended') && canMarkAttended(roles) && (
+                                  b.status === 'attended'
+                                    ? <CheckedInButton at={b.attended_at} label={memberName(b)} onUndo={() => handleUnmarkAttended(b.id)} />
+                                    : (
+                                      <Button variant="primary" size="sm" onClick={() => handleMarkAttended(b.id)} disabled={manageBusy}>
+                                        Check in<span className={styles.srOnly}> {memberName(b)}</span>
+                                      </Button>
+                                    )
                                 )}
-                                {b.payment_type === 'card' && canManageBookings(roles) && (
-                                  <button type="button" onClick={() => openRefund(b)} disabled={manageBusy}
-                                    aria-label={`Refund ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
-                                    Refund
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                            <td style={{ ...td, textAlign: 'right' }}>
-                              {(b.status === 'no_show' || (b.status === 'confirmed' && classEnded)) && <span style={{ marginRight: 8 }}><Chip>No-show</Chip></span>}
-                              {(b.status === 'confirmed' || b.status === 'attended') && canMarkAttended(roles) && (
-                                b.status === 'attended' ? (
-                                  <button type="button" onClick={() => handleUnmarkAttended(b.id)} disabled={manageBusy}
-                                    aria-label={`Undo check-in for ${memberName(b)}`} className={ui.focusable}
-                                    style={{
-                                      display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 40, padding: '0 12px', border: 0,
-                                      borderRadius: radius.control, background: 'transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
-                                      color: color.primaryInk, cursor: manageBusy ? 'not-allowed' : 'pointer',
-                                    }}>
-                                    <Check size={16} strokeWidth={2.5} aria-hidden />
-                                    <span style={tabularNums}>{b.attended_at ? formatClock(b.attended_at, timeZone) : 'Checked in'}</span>
-                                  </button>
-                                ) : (
-                                  <Button variant="primary" size="sm" onClick={() => handleMarkAttended(b.id)} disabled={manageBusy}>
-                                    Check in<span className={styles.srOnly}> {memberName(b)}</span>
-                                  </Button>
-                                )
-                              )}
-                            </td>
-                          </tr>
+                              </td>
+                            </tr>
+                            {guests.map((g, gi) => {
+                              const n = gi + 1
+                              const guestName = [g.first_name, g.last_name].filter(Boolean).join(' ')
+                              const guestLabel = guestName || `Guest ${n}`
+                              const cancelled = g.status === 'cancelled'
+                              const sub: React.CSSProperties = { ...td, borderTop: 'none', paddingTop: 0 }
+                              return (
+                                <tr key={`${b.id}-g${gi}`}>
+                                  <td style={sub}>
+                                    {/* Indented under the member, past their initials. "G1" in the mobile layout. */}
+                                    <span style={{ display: 'block', paddingLeft: 48, fontSize: 14, color: cancelled ? color.muted : undefined }}>
+                                      <span style={cancelled ? { textDecoration: 'line-through' } : undefined}>
+                                        <span className={styles.desktopOnly}>{guestName ? `Guest ${n} · ${guestName}` : guestLabel}</span>
+                                        <span className={styles.mobileOnly} aria-hidden>G{n}</span>
+                                      </span>
+                                      {cancelled && <span style={{ marginLeft: 8, fontSize: 13 }}>cancelled</span>}
+                                    </span>
+                                  </td>
+                                  <td style={{ ...sub, fontSize: 14, color: color.muted }} className={styles.desktopOnly}>
+                                    {g.credits_used > 0 ? `${g.credits_used} credit${g.credits_used === 1 ? '' : 's'}` : ''}
+                                  </td>
+                                  <td style={sub}>
+                                    {g.status === 'confirmed' && b.status === 'confirmed' && canManageBookings(roles) && (
+                                      <button type="button" onClick={() => handleCancelGuest(b.id, gi, guestLabel)} disabled={manageBusy}
+                                        aria-label={`Cancel guest ${guestLabel}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
+                                        Cancel
+                                      </button>
+                                    )}
+                                  </td>
+                                  <td style={{ ...sub, textAlign: 'right' }}>
+                                    {/* A guest is checked in on their own: they can come without the member, and vice versa.
+                                        Not checked in once the class has ended = no-show; Check in stays to correct it. */}
+                                    {g.status === 'confirmed' && classEnded && <span style={{ marginRight: 8 }}><Chip>No-show</Chip></span>}
+                                    {g.status === 'confirmed' && canMarkAttended(roles) && (
+                                      <Button variant="primary" size="sm" onClick={() => handleGuestAttendance(b.id, gi, true)} disabled={manageBusy}>
+                                        Check in<span className={styles.srOnly}> guest {guestLabel}</span>
+                                      </Button>
+                                    )}
+                                    {g.status === 'attended' && canMarkAttended(roles) && (
+                                      <CheckedInButton at={g.attended_at ?? null} label={`guest ${guestLabel}`} onUndo={() => handleGuestAttendance(b.id, gi, false)} />
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </Fragment>
                         )
                       })}
                     </tbody>
