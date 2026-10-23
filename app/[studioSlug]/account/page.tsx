@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useParams, useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import { splitName } from '@/lib/names'
 import { formatDayMonth, formatShortDate, formatTimeRange, formatWhen } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
@@ -437,6 +438,8 @@ function MemberAccountContent() {
 
   const handleSignUp = async () => {
     if (!fullName.trim()) { setAuthMessage('Your name is required.'); return }
+    const problem = passwordProblem(password)
+    if (problem) { setAuthMessage(problem); return }
     setAuthBusy(true)
     setAuthMessage('')
     const supabase = createClient()
@@ -447,7 +450,7 @@ function MemberAccountContent() {
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${studioPath(studioSlug, '/account')}`,
       },
     })
-    if (error) { setAuthMessage(error.message); setAuthBusy(false); return }
+    if (error) { setAuthMessage(authErrorMessage(error)); setAuthBusy(false); return }
     if (data.session) {
       setAccessToken(data.session.access_token)
       await resolveMembership(data.session.access_token, { fullName, phone })
@@ -866,7 +869,12 @@ function MemberAccountContent() {
             )}
             <div>
               <label style={labelStyle}>Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle}
+                autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                aria-describedby={authMode === 'signup' ? 'password-hint' : undefined} />
+              {authMode === 'signup' && (
+                <p id="password-hint" style={{ margin: '6px 0 0', fontSize: '14px', color: 'var(--text-meta)' }}>{PASSWORD_HINT}</p>
+              )}
             </div>
 
             {authMode === 'signin' && (

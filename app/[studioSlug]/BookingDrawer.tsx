@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import { useBookingFlow, type PassTemplateOption } from '@/lib/store/bookingFlow'
 import { displayName, splitName } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
@@ -318,6 +319,8 @@ export default function BookingDrawer() {
 
   const handleSignUp = async () => {
     if (!fullName.trim()) { setAuthMessage('Your name is required.'); return }
+    const problem = passwordProblem(password)
+    if (problem) { setAuthMessage(problem); return }
     setAuthBusy(true)
     setAuthMessage('')
     const supabase = createClient()
@@ -328,7 +331,7 @@ export default function BookingDrawer() {
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${accountHref}`,
       },
     })
-    if (error) { setAuthMessage(error.message); setAuthBusy(false); return }
+    if (error) { setAuthMessage(authErrorMessage(error)); setAuthBusy(false); return }
     if (data.session) {
       await resolveAuth(data.session.access_token)
     } else {
@@ -693,7 +696,12 @@ export default function BookingDrawer() {
                 </div>
                 <div>
                   <label htmlFor="bk-password" className={styles.fieldLabel}>Password</label>
-                  <input id="bk-password" type="password" value={password} onChange={e => setPassword(e.target.value)} className={styles.inputRect} />
+                  <input id="bk-password" type="password" value={password} onChange={e => setPassword(e.target.value)} className={styles.inputRect}
+                    autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                    aria-describedby={authMode === 'signup' ? 'bk-password-hint' : undefined} />
+                  {authMode === 'signup' && (
+                    <p id="bk-password-hint" style={{ margin: '6px 0 0', fontSize: '14px', color: 'var(--text-meta)' }}>{PASSWORD_HINT}</p>
+                  )}
                   {authMode === 'signin' && (
                     <button type="button" onClick={handleForgotPassword} disabled={authBusy} className={styles.linkBtn} style={{ marginTop: '10px' }}>
                       Forgot password?
