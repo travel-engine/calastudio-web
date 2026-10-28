@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewMembers, canImportMembers, canAddMember } from '@/lib/roles'
+import { canViewMembers, canImportMembers, canAddMember, staffRoleLabel } from '@/lib/roles'
 import { displayName } from '@/lib/names'
 import { formatRelativeShort } from '@/lib/dates'
 import { memberActivity, memberActivityLabel } from '@/lib/members'
@@ -24,6 +24,8 @@ interface Member {
   email: string
   last_seen_at: string | null
   auth_provisioned_at: string | null
+  // Studio roles; staff (the owner is admin) get a chip so they don't read as ordinary members.
+  roles?: string[]
 }
 
 interface ImportRow {
@@ -261,6 +263,7 @@ export default function MembersPage() {
                     </div>
                     {filtered.map((m, i) => {
                       const activity = memberActivity(m.auth_provisioned_at, m.last_seen_at)
+                      const staff = staffRoleLabel(m.roles)
                       return (
                         <Link key={m.id} href={`/dashboard/members/${m.id}`} className={`${ui.rowLink} ${ui.focusable}`}
                           style={{
@@ -274,6 +277,7 @@ export default function MembersPage() {
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600,
                             }}>{initials(m)}</span>
                             <span style={{ fontSize: 15, fontWeight: 600 }}>{displayName(m)}</span>
+                            {staff && <Chip tone="info">{staff}</Chip>}
                           </span>
                           <span style={{ flex: '1 1 240px', minWidth: 0, fontSize: 14, color: color.ink2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.email}</span>
                           <span style={{ width: 140, flex: 'none', textAlign: 'right', fontSize: 14, color: activity.kind === 'seen' ? color.ink2 : color.muted, ...tabularNums }}>

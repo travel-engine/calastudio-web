@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Fragment, useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
-import { Check, Download, Plus, UserPlus, X } from 'lucide-react'
+import { Check, Download, Plus, Sparkles, UserPlus, X } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent, canAddMember, canViewMembers } from '@/lib/roles'
-import { displayName } from '@/lib/names'
+import { displayName, teacherName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
 import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
-import EntityActivity from '@/app/components/EntityActivity'
+import ClassActivity from '@/app/components/ClassActivity'
 import { dayKey, formatClock, formatShortDate } from '@/lib/dates'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, Card, Chip, EmptyState, PageHeader, buttonStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
@@ -36,14 +36,25 @@ interface OccurrenceDetail {
   status: 'scheduled' | 'cancelled' | 'completed'
   capacity: number | null
   instructor_id: string | null
-  instructor_name: string | null
+  instructor_name: string | null // the effective teacher: this class's own, else the session's; null = nobody
+  no_instructor?: boolean // explicitly "No teacher" for this class, regardless of the session's teacher
   session: SessionDetail | null
 }
+
+// Teacher choice in the edit form: a teacher's id, nobody, or follow whoever teaches the session.
+const NO_TEACHER = ''
+const SAME_AS_SESSION = 'session'
 
 interface Teacher {
   id: string
   first_name: string
   last_name: string
+  profile?: { display_name?: string | null } | null
+}
+
+function sessionTeacherName(teachers: Teacher[], id: string | null | undefined) {
+  if (!id) return 'no teacher'
+  return teacherName(teachers.find(x => x.id === id)) || 'its teacher'
 }
 
 interface Member {
@@ -67,11 +78,13 @@ interface MemberPass {
   } | null
 }
 
+// Guests aren't named (only early bookings captured names); they're "Guest 1", "Guest 2" by their
+// position on the booking, which is also how the API addresses them.
 interface GuestInfo {
-  first_name: string | null
-  last_name: string | null
-  email: string | null
-  status: 'confirmed' | 'cancelled'
+  // 'attended' once checked in on their own (each guest is checked in separately from the member).
+  // No-show isn't stored: a guest still 'confirmed' after the class is one.
+  status: 'confirmed' | 'attended' | 'cancelled'
+  attended_at?: string | null
   credits_used: number
 }
 
@@ -100,6 +113,9 @@ interface Booking {
   total_credits_used?: number
   member_pass_id?: string | null
   attended_at?: string | null
+  // Roster endpoint: never attended a class at this studio before this one (so a past class still
+  // shows who was new that day).
+  first_visit?: boolean
   // Against the studio's live waiver version (roster endpoint). Absent when the studio has none.
   waiver_status?: 'current' | 'outdated' | 'not_signed' | null
   // Guests cancelled individually via the admin per-guest cancel — the owning booking stays
@@ -256,6 +272,7 @@ export default function OccurrenceDetailPage() {
 
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState('')
+  const [orgCurrency, setOrgCurrency] = useState('AUD')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [forbidden, setForbidden] = useState(false)
@@ -370,6 +387,8 @@ export default function OccurrenceDetailPage() {
     if (bookingsRes.ok) setBookings(await bookingsRes.json())
     if (waitlistRes.ok) setWaitlist(await waitlistRes.json())
     setBookingsLoading(false)
+    // Every roster change (check-in, cancel, guest…) is also an activity event: re-pull the feed.
+    setActivityKey(k => k + 1)
   }, [occurrenceId])
 
   useEffect(() => {
@@ -382,6 +401,7 @@ export default function OccurrenceDetailPage() {
       setToken(t)
       const org = ctx.org
       setOrgId(org.id)
+      setOrgCurrency((org.currency ?? 'AUD').toUpperCase())
       setTimeZone(org.timezone ?? null)
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
@@ -404,7 +424,24 @@ export default function OccurrenceDetailPage() {
     setManageError('')
     const res = await authedFetch(`/bookings/${bookingId}/attend`, { method: 'POST' })
     if (res.ok) await refreshRoster(orgId, token)
-    else setManageError('Could not mark this booking attended.')
+    else {
+      // Show the API's reason (e.g. check-in isn't open yet for a future class).
+      const data = await res.json().catch(() => null)
+      setManageError(data?.error ?? "Couldn't check in this member.")
+    }
+    setManageBusy(false)
+  }
+
+  // Per-guest check-in, mirroring per-guest cancel: guests are addressed by their index on the booking.
+  const handleGuestAttendance = async (bookingId: string, guestIndex: number, attend: boolean) => {
+    setManageBusy(true)
+    setManageError('')
+    const res = await authedFetch(`/bookings/${bookingId}/guests/${guestIndex}/${attend ? 'attend' : 'unattend'}`, { method: 'POST' })
+    if (res.ok) await refreshRoster(orgId, token)
+    else {
+      const data = await res.json().catch(() => null)
+      setManageError(data?.error ?? (attend ? "Couldn't check in this guest." : "Couldn't undo this guest's check-in."))
+    }
     setManageBusy(false)
   }
 
@@ -413,12 +450,19 @@ export default function OccurrenceDetailPage() {
     setManageError('')
     const res = await authedFetch(`/bookings/${bookingId}/unattend`, { method: 'POST' })
     if (res.ok) await refreshRoster(orgId, token)
-    else setManageError('Could not undo attended for this booking.')
+    else {
+      const data = await res.json().catch(() => null)
+      setManageError(data?.error ?? "Couldn't undo this check-in.")
+    }
     setManageBusy(false)
   }
 
-  const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm('Cancel this booking?')) return
+  const handleCancelBooking = async (b: Booking) => {
+    // Guests ride on the member's booking, so they go with it; say so before confirming.
+    const activeGuests = parseGuests(b).filter(g => g.status !== 'cancelled').length
+    const guestNote = activeGuests === 0 ? '' : ` Their ${activeGuests === 1 ? 'guest' : `${activeGuests} guests`} will be cancelled too.`
+    if (!confirm(`Cancel ${memberName(b)}'s booking?${guestNote}`)) return
+    const bookingId = b.id
     setManageBusy(true)
     setManageError('')
     const res = await authedFetch(`/bookings/${bookingId}/cancel`, { method: 'POST' })
@@ -512,7 +556,7 @@ export default function OccurrenceDetailPage() {
       startTime: toTimeInputValue(occurrence.starts_at),
       endTime: toTimeInputValue(occurrence.ends_at),
       capacity: (occurrence.capacity ?? occurrence.session?.capacity ?? '')?.toString() ?? '',
-      instructorId: occurrence.instructor_id ?? occurrence.session?.instructor_id ?? '',
+      instructorId: occurrence.no_instructor ? NO_TEACHER : occurrence.instructor_id ?? SAME_AS_SESSION,
     })
     setShowEdit(true)
     setTeachersLoading(true)
@@ -543,8 +587,9 @@ export default function OccurrenceDetailPage() {
         starts_at: startsAt.toISOString(),
         ends_at: endsAt.toISOString(),
         capacity: editForm.capacity === '' ? null : parseInt(editForm.capacity),
-        instructor_id: editForm.instructorId === '' ? null : editForm.instructorId,
-        clear_instructor_id: editForm.instructorId === '',
+        ...(editForm.instructorId === NO_TEACHER ? { clear_instructor_id: true }
+          : editForm.instructorId === SAME_AS_SESSION ? { use_session_instructor: true }
+            : { instructor_id: editForm.instructorId }),
       })
     })
     if (res.ok) {
@@ -691,16 +736,12 @@ export default function OccurrenceDetailPage() {
   // adding someone manually bypasses that list (BookingService.ValidateBookableAsync, §4.8).
   const { booked, capacity } = occupancy(occurrence, bookings)
 
+  // No-show is derived, never stored (04-booking-flow §4.5a): still 'confirmed' after the class.
+  // The API counts from the start; the roster labels it only once the class has ended, so
+  // latecomers being checked in mid-class aren't tagged.
+  const classEnded = new Date(occurrence.ends_at).getTime() <= Date.now()
   const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show')
   const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel')
-  const checkedIn = bookings.filter(b => b.status === 'attended').length
-  const guestCount = bookings
-    .filter(b => b.status === 'confirmed' || b.status === 'attended')
-    .reduce((sum, b) => sum + (b.guest_count ?? 0), 0)
-  const waitingCount = waitlist.filter(w => w.status === 'waiting' || w.status === 'promoted').length
-  // Waiver data only exists when the studio requires a waiver; then count who still needs to sign.
-  const hasWaiverData = bookedRows.some(b => b.waiver_status != null)
-  const waiverToSort = bookedRows.filter(b => b.status !== 'no_show' && b.waiver_status != null && b.waiver_status !== 'current').length
 
   // Guests cancelled one-by-one (admin per-guest cancel) — the owning booking is still Confirmed,
   // so it isn't in cancelledRows. Surface each here, tied back to its booking's member.
@@ -721,8 +762,9 @@ export default function OccurrenceDetailPage() {
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`
     const lines = [['Name', 'Pass / payment', 'Guests', 'Status', 'Signed in'].map(esc).join(',')]
     for (const b of bookedRows) {
-      const guests = parseGuests(b).filter(g => g.status !== 'cancelled')
-        .map((g, i) => [g.first_name, g.last_name].filter(Boolean).join(' ') || `Guest ${i + 1}`).join('; ')
+      // Numbered by position, as on the roster, so a cancelled Guest 1 doesn't renumber Guest 2.
+      const guests = parseGuests(b).map((g, i) => (g.status === 'cancelled' ? null : `Guest ${i + 1}`))
+        .filter(Boolean).join('; ')
       lines.push([
         memberName(b),
         b.payment_type ? (paymentTypeLabels[b.payment_type] ?? b.payment_type) : '',
@@ -748,21 +790,39 @@ export default function OccurrenceDetailPage() {
   const smallAction = { ...buttonStyle('secondary', 'sm') }
   const smallDanger = { ...buttonStyle('destructive', 'sm') }
 
-  const nameCell = (b: Booking) => (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
-      <span aria-hidden style={{
+  // "✓ 9:28 am": who's checked in, and the way to undo an accidental tap. Members and guests alike.
+  const CheckedInButton = ({ at, label, onUndo }: { at: string | null | undefined; label: string; onUndo: () => void }) => (
+    <button type="button" onClick={onUndo} disabled={manageBusy}
+      aria-label={`Undo check-in for ${label}`} className={ui.focusable}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 40, padding: '0 12px', border: 0,
+        borderRadius: radius.control, background: 'transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+        color: color.primaryInk, cursor: manageBusy ? 'not-allowed' : 'pointer',
+      }}>
+      <Check size={16} strokeWidth={2.5} aria-hidden />
+      <span style={tabularNums}>{at ? formatClock(at, timeZone) : 'Checked in'}</span>
+    </button>
+  )
+
+  const nameCell = (b: Booking, note?: React.ReactNode, mark?: React.ReactNode) => (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+      <span aria-hidden className={styles.desktopOnly} style={{
         width: 36, height: 36, borderRadius: '50%', flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         background: color.primarySoft, color: color.primaryInk, fontWeight: 600, fontSize: 13,
       }}>{initials(memberName(b))}</span>
       <span style={{ display: 'flex', flexDirection: 'column' }}>
-        {canViewMembers(roles) && b.user_id ? (
-          <Link href={`/dashboard/members/${b.user_id}`} className={ui.focusable} style={{ fontWeight: 600, color: color.ink, textDecoration: 'none' }}>{memberName(b)}</Link>
-        ) : (
-          <span style={{ fontWeight: 600 }}>{memberName(b)}</span>
-        )}
-        <span style={{ fontSize: 13, color: color.muted }}>
+        <span>
+          {canViewMembers(roles) && b.user_id ? (
+            <Link href={`/dashboard/members/${b.user_id}`} className={ui.focusable} style={{ fontWeight: 600, color: color.ink, textDecoration: 'none' }}>{memberName(b)}</Link>
+          ) : (
+            <span style={{ fontWeight: 600 }}>{memberName(b)}</span>
+          )}
+          {mark}
+        </span>
+        <span className={styles.desktopOnly} style={{ fontSize: 13, color: color.muted, overflowWrap: 'anywhere' }}>
           {b.user?.email ? `${b.user.email} · ` : ''}{b.booked_mode === 'online' ? 'Online' : 'In person'}
         </span>
+        {note}
       </span>
     </div>
   )
@@ -796,11 +856,16 @@ export default function OccurrenceDetailPage() {
               {occurrence.status === 'scheduled' && canManageOccurrences(roles) && (
                 <Button onClick={openEdit}>Edit class</Button>
               )}
+              {/* Icon-only with a tooltip; desktop only (a CSV download isn't much use on a phone). */}
               {bookedRows.length > 0 && (
-                <Button onClick={exportSignInSheet} icon={<Download size={18} strokeWidth={1.8} aria-hidden />}>Export sign-in sheet</Button>
+                <span className={`${styles.desktopOnly} ${styles.tip}`} data-tip="Export sign-in sheet (CSV)">
+                  <Button onClick={exportSignInSheet} icon={<Download size={18} strokeWidth={1.8} aria-hidden />} style={{ width: 44, padding: 0 }}>
+                    <span className={styles.srOnly}>Export sign-in sheet</span>
+                  </Button>
+                </span>
               )}
               {canAdd && (
-                <Button variant="primary" onClick={openAddBooking} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Add booking</Button>
+                <Button variant="primary" onClick={openAddBooking} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Add member</Button>
               )}
             </>}
           >
@@ -808,32 +873,24 @@ export default function OccurrenceDetailPage() {
               <Chip tone={statusChip.tone}>{statusChip.label}</Chip>
               <Chip>{dateLabel} · {formatClock(occurrence.starts_at, timeZone)} – {formatClock(occurrence.ends_at, timeZone)}</Chip>
               {session?.location_name && <Chip>{session.location_name}</Chip>}
-              {occurrence.instructor_name ? <Chip>{occurrence.instructor_name}</Chip> : <Chip tone="warn">No teacher</Chip>}
+              {occurrence.instructor_name ? <Chip>{occurrence.instructor_name}</Chip> : <Chip tone="warn">No teacher assigned</Chip>}
               {session?.delivery_mode && <Chip>{session.delivery_mode === 'online' ? 'Online' : 'In person'}</Chip>}
             </div>
           </PageHeader>
+
+          {/* A teacher still sees a "no teacher" class of their own session (spec §17.8) — make sure
+              they don't read that as being down to teach it. */}
+          {occurrence.instructor_name == null && !canManageOccurrences(roles) && occurrence.status === 'scheduled' && (
+            <div role="status" style={{ padding: '12px 16px', background: color.warnBg, borderRadius: radius.control, color: color.warnInk, fontSize: 15, lineHeight: 1.45 }}>
+              <strong>No teacher is assigned to this class.</strong> You can see it because you teach this session, but you&apos;re not down to teach this date unless the studio assigns you.
+            </div>
+          )}
 
           {manageError && (
             <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>
               {manageError}
             </div>
           )}
-
-          {/* Stat strip */}
-          <Card style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }} aria-label="Class summary">
-            {[
-              { label: 'Booked', value: capacity === null ? `${booked}` : `${booked} / ${capacity}`, ink: color.ink },
-              { label: 'Checked in', value: `${checkedIn}`, ink: color.primaryInk },
-              { label: 'Guests', value: `${guestCount}`, ink: color.ink },
-              { label: 'On waitlist', value: `${waitingCount}`, ink: waitingCount > 0 ? color.warnInk : color.ink },
-              ...(hasWaiverData ? [{ label: 'Waiver to sort', value: `${waiverToSort}`, ink: waiverToSort > 0 ? color.warnInk : color.ink }] : []),
-            ].map((s, i) => (
-              <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '16px 20px', borderLeft: i ? `1px solid ${color.divider}` : 'none' }}>
-                <span style={smallCapsStyle}>{s.label}</span>
-                <span style={{ fontSize: 26, fontWeight: 600, color: s.ink, ...tabularNums }}>{s.value}</span>
-              </div>
-            ))}
-          </Card>
 
           {/* Edit panel */}
           {showEdit && (
@@ -866,8 +923,9 @@ export default function OccurrenceDetailPage() {
                       <p style={{ margin: 0, fontSize: 15, color: color.muted }}>Loading teachers…</p>
                     ) : (
                       <select id="edit-teacher" value={editForm.instructorId} onChange={e => setEditForm(p => ({ ...p, instructorId: e.target.value }))} style={inputStyle}>
-                        <option value="">No teacher</option>
-                        {teachers.map(t => <option key={t.id} value={t.id}>{displayName(t)}</option>)}
+                        <option value={SAME_AS_SESSION}>Same as session ({sessionTeacherName(teachers, occurrence?.session?.instructor_id)})</option>
+                        <option value={NO_TEACHER}>No teacher</option>
+                        {teachers.map(t => <option key={t.id} value={t.id}>{teacherName(t)}</option>)}
                       </select>
                     )}
                   </div>
@@ -889,7 +947,7 @@ export default function OccurrenceDetailPage() {
           {showAddBooking && (
             <Card padded aria-labelledby="add-booking-heading">
               <h2 id="add-booking-heading" style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>
-                {canManageBookings(roles) ? 'Add a booking' : 'Add a student'}
+                {canManageBookings(roles) ? 'Add a member' : 'Add a student'}
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
@@ -1114,15 +1172,16 @@ export default function OccurrenceDetailPage() {
                 <EmptyState
                   icon={<UserPlus size={22} strokeWidth={1.8} />}
                   message="No one's booked yet."
-                  action={canAdd ? <Button variant="primary" onClick={openAddBooking}>Add booking</Button> : undefined}
+                  action={canAdd ? <Button variant="primary" onClick={openAddBooking}>Add member</Button> : undefined}
                 />
               ) : (
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
+                  {/* One row per member; each guest gets an indented row of their own underneath with
+                      their own Cancel and Check in. Pass / payment is dropped in the mobile layout. */}
+                  <table className={styles.rosterTable} style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        <th style={th}>Name</th><th style={th}>Pass / payment</th><th style={th}>Guests</th><th style={th}>Status</th>
-                        {hasWaiverData && <th style={th}>Waiver</th>}
+                        <th style={th}>Name</th><th style={th} className={styles.desktopOnly}>Pass / payment</th>
                         <th style={th}><span className={styles.srOnly}>Actions</span></th>
                         <th style={{ ...th, textAlign: 'right' }}>Check-in</th>
                       </tr>
@@ -1130,79 +1189,87 @@ export default function OccurrenceDetailPage() {
                     <tbody>
                       {bookedRows.map(b => {
                         const guests = parseGuests(b)
-                        const s = bookingStatusChip[b.status] ?? { label: b.status, tone: 'neutral' as const }
+                        // Waiver: only flagged when it needs sorting; up to date is the norm, so it says nothing.
+                        const waiver = b.waiver_status && b.waiver_status !== 'current' ? waiverChip[b.waiver_status] : null
+                        // First-timers get a small sparkle after the name (no extra line on phones); hover says why.
+                        const firstVisit = b.first_visit && (
+                          <span title="First visit" style={{ display: 'inline-flex', verticalAlign: 'middle', marginLeft: 6, color: '#E0A526' /* gold */ }}>
+                            <Sparkles size={15} strokeWidth={1.5} fill="currentColor" aria-hidden />
+                            <span className={styles.srOnly}>First visit</span>
+                          </span>
+                        )
                         return (
-                          <tr key={b.id}>
-                            <td style={td}>{nameCell(b)}</td>
-                            <td style={td}>{paymentCell(b)}</td>
-                            <td style={td}>
-                              {guests.length === 0 ? <span style={{ color: '#8A918D' }}>—</span> : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
-                                  {guests.map((g, gi) => {
-                                    const guestLabel = [g.first_name, g.last_name].filter(Boolean).join(' ') || `Guest ${gi + 1}`
-                                    const cancelled = g.status === 'cancelled'
-                                    return (
-                                      <span key={gi} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                        <span style={cancelled ? { textDecoration: 'line-through', color: color.muted } : undefined}>{guestLabel}</span>
-                                        {cancelled && <span style={{ fontSize: 13, color: color.muted }}>cancelled</span>}
-                                        {g.status === 'confirmed' && b.status === 'confirmed' && canManageBookings(roles) && (
-                                          <button type="button" onClick={() => handleCancelGuest(b.id, gi, guestLabel)} disabled={manageBusy}
-                                            aria-label={`Cancel guest ${guestLabel}`} className={ui.focusable}
-                                            style={{ background: 'none', border: 0, padding: '4px 0', color: color.dangerInk, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                                            Cancel
-                                          </button>
-                                        )}
-                                      </span>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                            </td>
-                            <td style={td}><Chip tone={s.tone}>{s.label}</Chip></td>
-                            {hasWaiverData && (
+                          <Fragment key={b.id}>
+                            <tr>
+                              <td style={td}>{nameCell(b, waiver && <span style={{ marginTop: 4 }}><Chip tone={waiver.tone}>Waiver {waiver.label.toLowerCase()}</Chip></span>, firstVisit)}</td>
+                              <td style={td} className={styles.desktopOnly}>{paymentCell(b)}</td>
+                              {/* No Refund here: the roster is for attendance. Refunds live on the payment's own
+                                  page, and on the Cancelled tab once a booking is cancelled. */}
                               <td style={td}>
-                                {b.waiver_status && waiverChip[b.waiver_status]
-                                  ? <Chip tone={waiverChip[b.waiver_status].tone}>{waiverChip[b.waiver_status].label}</Chip>
-                                  : <span style={{ color: '#8A918D' }}>—</span>}
-                              </td>
-                            )}
-                            <td style={td}>
-                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                 {b.status === 'confirmed' && canManageBookings(roles) && (
-                                  <button type="button" onClick={() => handleCancelBooking(b.id)} disabled={manageBusy}
+                                  <button type="button" onClick={() => handleCancelBooking(b)} disabled={manageBusy}
                                     aria-label={`Cancel booking for ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
                                     Cancel
                                   </button>
                                 )}
-                                {b.payment_type === 'card' && canManageBookings(roles) && (
-                                  <button type="button" onClick={() => openRefund(b)} disabled={manageBusy}
-                                    aria-label={`Refund ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallAction}>
-                                    Refund
-                                  </button>
+                              </td>
+                              <td style={{ ...td, textAlign: 'right' }}>
+                                {(b.status === 'no_show' || (b.status === 'confirmed' && classEnded)) && <span style={{ marginRight: 8 }}><Chip>No-show</Chip></span>}
+                                {(b.status === 'confirmed' || b.status === 'attended') && canMarkAttended(roles) && (
+                                  b.status === 'attended'
+                                    ? <CheckedInButton at={b.attended_at} label={memberName(b)} onUndo={() => handleUnmarkAttended(b.id)} />
+                                    : (
+                                      <Button variant="primary" size="sm" onClick={() => handleMarkAttended(b.id)} disabled={manageBusy}>
+                                        Check in<span className={styles.srOnly}> {memberName(b)}</span>
+                                      </Button>
+                                    )
                                 )}
-                              </div>
-                            </td>
-                            <td style={{ ...td, textAlign: 'right' }}>
-                              {(b.status === 'confirmed' || b.status === 'attended') && canMarkAttended(roles) && (
-                                b.status === 'attended' ? (
-                                  <button type="button" onClick={() => handleUnmarkAttended(b.id)} disabled={manageBusy}
-                                    aria-label={`Undo check-in for ${memberName(b)}`} className={ui.focusable}
-                                    style={{
-                                      display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 40, padding: '0 12px', border: 0,
-                                      borderRadius: radius.control, background: 'transparent', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
-                                      color: color.primaryInk, cursor: manageBusy ? 'not-allowed' : 'pointer',
-                                    }}>
-                                    <Check size={16} strokeWidth={2.5} aria-hidden />
-                                    <span style={tabularNums}>{b.attended_at ? formatClock(b.attended_at, timeZone) : 'Checked in'}</span>
-                                  </button>
-                                ) : (
-                                  <Button variant="primary" size="sm" onClick={() => handleMarkAttended(b.id)} disabled={manageBusy}>
-                                    Check in<span className={styles.srOnly}> {memberName(b)}</span>
-                                  </Button>
-                                )
-                              )}
-                            </td>
-                          </tr>
+                              </td>
+                            </tr>
+                            {guests.map((g, gi) => {
+                              const n = gi + 1
+                              const guestLabel = `Guest ${n}`
+                              const cancelled = g.status === 'cancelled'
+                              const sub: React.CSSProperties = { ...td, borderTop: 'none', paddingTop: 0 }
+                              return (
+                                <tr key={`${b.id}-g${gi}`}>
+                                  <td style={sub}>
+                                    {/* Indented under the member, past their initials. */}
+                                    <span className={styles.guestIndent} style={{ display: 'block', fontSize: 14, color: cancelled ? color.muted : undefined }}>
+                                      <span style={cancelled ? { textDecoration: 'line-through' } : undefined}>
+                                        {guestLabel}
+                                      </span>
+                                      {cancelled && <span style={{ marginLeft: 8, fontSize: 13 }}>cancelled</span>}
+                                    </span>
+                                  </td>
+                                  <td style={{ ...sub, fontSize: 14, color: color.muted }} className={styles.desktopOnly}>
+                                    {g.credits_used > 0 ? `${g.credits_used} credit${g.credits_used === 1 ? '' : 's'}` : ''}
+                                  </td>
+                                  <td style={sub}>
+                                    {g.status === 'confirmed' && b.status === 'confirmed' && canManageBookings(roles) && (
+                                      <button type="button" onClick={() => handleCancelGuest(b.id, gi, guestLabel)} disabled={manageBusy}
+                                        aria-label={`Cancel guest ${guestLabel}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
+                                        Cancel
+                                      </button>
+                                    )}
+                                  </td>
+                                  <td style={{ ...sub, textAlign: 'right' }}>
+                                    {/* A guest is checked in on their own: they can come without the member, and vice versa.
+                                        Not checked in once the class has ended = no-show; Check in stays to correct it. */}
+                                    {g.status === 'confirmed' && classEnded && <span style={{ marginRight: 8 }}><Chip>No-show</Chip></span>}
+                                    {g.status === 'confirmed' && canMarkAttended(roles) && (
+                                      <Button variant="primary" size="sm" onClick={() => handleGuestAttendance(b.id, gi, true)} disabled={manageBusy}>
+                                        Check in<span className={styles.srOnly}> guest {guestLabel}</span>
+                                      </Button>
+                                    )}
+                                    {g.status === 'attended' && canMarkAttended(roles) && (
+                                      <CheckedInButton at={g.attended_at ?? null} label={`guest ${guestLabel}`} onUndo={() => handleGuestAttendance(b.id, gi, false)} />
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </Fragment>
                         )
                       })}
                     </tbody>
@@ -1268,7 +1335,7 @@ export default function OccurrenceDetailPage() {
             )}
           </Card>
 
-          <EntityActivity orgId={orgId} token={token} entityType="session_occurrence" entityId={occurrence.id} noun="class" refreshKey={activityKey} timeZone={timeZone} />
+          <ClassActivity orgId={orgId} token={token} occurrenceId={occurrence.id} refreshKey={activityKey} timeZone={timeZone} currency={orgCurrency} />
         </div>
       </div>
 

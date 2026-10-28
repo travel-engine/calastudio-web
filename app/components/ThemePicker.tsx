@@ -39,7 +39,7 @@ export default function ThemePicker({
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: 'auto' }}>
                   <span style={{ fontFamily: th.body, fontSize: '12px', fontWeight: 600, borderRadius: th.pill, padding: '5px 12px', background: th.accent, color: th.accentInk }}>Book</span>
-                  <span style={{ fontFamily: th.body, fontSize: '12px', color: th.muted }}>6.30 am · 75 min</span>
+                  <span style={{ fontFamily: th.body, fontSize: '12px', color: th.muted }}>6:30 am · 75 min</span>
                 </div>
               </div>
               <div style={{ padding: '14px 16px 16px' }}>

@@ -33,3 +33,13 @@ export function splitName(full: string): { first_name: string; last_name: string
   if (i === -1) return { first_name: trimmed, last_name: '' }
   return { first_name: trimmed.slice(0, i), last_name: trimmed.slice(i + 1).trim() }
 }
+
+/**
+ * The name a teacher goes by in the studio: their teacher-profile display name (set in Team →
+ * teacher → Display name), else their account name. It's the same name the API puts in
+ * `instructor_name` on classes, the booking page and emails — use it wherever a teacher is named,
+ * so a rename (typo, new surname, first name only) shows the same everywhere.
+ */
+export function teacherName(t: (PersonName & { profile?: { display_name?: string | null } | null }) | null | undefined): string {
+  return t?.profile?.display_name?.trim() || displayName(t)
+}

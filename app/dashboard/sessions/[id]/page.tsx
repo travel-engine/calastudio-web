@@ -8,10 +8,11 @@ import { createClient } from '@/lib/supabase'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '../../../components/Sidebar'
 import { canManageSessions, canCreateOccurrence, canManageOccurrences, canViewAuditLog } from '@/lib/roles'
-import { displayName } from '@/lib/names'
+import { displayName, teacherName as teacherDisplayName } from '@/lib/names'
 import { formatClock, formatShortDate, formatWhen } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { studioUrl } from '@/lib/seo'
+import DurationPicker, { durationProblem, formatDuration } from '@/app/components/DurationPicker'
 import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, CapacityBar, Card, Chip, Segmented, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
@@ -250,7 +251,7 @@ export default function EditSessionPage() {
 
       if (teachersRes?.ok) {
         const data = await teachersRes.json()
-        setTeachers(data.map((x: any) => ({ id: x.id, name: displayName(x) })))
+        setTeachers(data.map((x: any) => ({ id: x.id, name: teacherDisplayName(x) })))
       }
       if (passTemplatesRes?.ok) {
         const data = await passTemplatesRes.json()
@@ -463,6 +464,8 @@ export default function EditSessionPage() {
 
   const handleSave = () => {
     if (!form.name.trim()) { setError('Session name is required'); return }
+    const badDuration = durationProblem(form.durationMinutes)
+    if (badDuration) { setError(badDuration); return }
     if (!form.firstOccurrenceDate) { setError('First occurrence date is required'); return }
     submitSessionPatch(false)
   }
@@ -527,7 +530,7 @@ export default function EditSessionPage() {
   const scheduleSummary = !firstStart ? 'Not scheduled yet'
     : form.isRecurring ? `Every ${weekday} at ${firstTime}` : `${formatShortDate(firstStart)} at ${firstTime}`
   const scheduleChip = !firstStart ? null
-    : `${form.isRecurring ? `Every ${weekday.slice(0, 3)}` : formatShortDate(firstStart)} · ${firstTime} · ${form.durationMinutes} min`
+    : `${form.isRecurring ? `Every ${weekday.slice(0, 3)}` : formatShortDate(firstStart)} · ${firstTime} · ${formatDuration(parseInt(form.durationMinutes) || 0)}`
   const teacherName = teachers.find(t => t.id === form.instructorId)?.name
   const visibilityChip = form.visibility === 'public' ? { label: 'Public', tone: 'primary' as const }
     : form.visibility === 'draft' ? { label: 'Draft', tone: 'warn' as const } : { label: 'Private', tone: 'neutral' as const }
@@ -683,14 +686,7 @@ export default function EditSessionPage() {
               </Select>
             </Field>
             <Field label="Duration">
-              <Select value={form.durationMinutes} onChange={e => update('durationMinutes', e.target.value)}>
-                <option value="30">30 minutes</option>
-                <option value="45">45 minutes</option>
-                <option value="60">60 minutes</option>
-                <option value="75">75 minutes</option>
-                <option value="90">90 minutes</option>
-                <option value="120">2 hours</option>
-              </Select>
+              <DurationPicker value={form.durationMinutes} onChange={v => update('durationMinutes', v)} Select={Select} Input={Input} />
             </Field>
           </div>
 

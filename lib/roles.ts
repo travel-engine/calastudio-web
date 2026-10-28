@@ -11,6 +11,10 @@ export const MEMBER = 'member'
 
 const has = (roles: string[], allowed: string[]) => roles.some(r => allowed.includes(r))
 
+// Any studio staff role. A member-only account has no business in the dashboard; it belongs on
+// the studio's member site (/account).
+export const isStaff = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL, TEACHER_BASIC, FRONT_DESK])
+
 // Sessions (SessionEndpoints.cs). teacher_general/teacher_basic can view too, but scoped to
 // sessions where they're the instructor — enforced server-side (list is pre-filtered by the API;
 // single-session GET is gated by RequireSessionOwnershipFilter), not something this client needs
@@ -59,6 +63,10 @@ export const canAddStudent = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUP
 // reasons, is more sensitive than most screens here, so it doesn't reuse the admin/teacher_super
 // pattern used elsewhere.
 export const canViewAuditLog = (roles: string[]) => has(roles, [ADMIN])
+// Entity feed (GET /organisations/{orgId}/activity, AuditEndpoints.cs): everything linked to one
+// member, pass, payment, … — admin and teacher_super (who see all members, passes and payments,
+// 17.3; spec 08 §8.10b).
+export const canViewEntityActivity = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
 
 // Studio settings — PATCH /organisations/{id} (OrganisationEndpoints.cs). Admin only.
 export const canManageSettings = (roles: string[]) => has(roles, [ADMIN])
@@ -82,3 +90,11 @@ export const canImportMembers = (roles: string[]) => has(roles, [ADMIN])
 // admin/teacher_super/teacher_general; the add-student search modal it also lives in is reachable
 // by teacher_general, who needs a way to add someone not yet in the system rather than dead-ending.
 export const canAddMember = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER, TEACHER_GENERAL])
+
+// The most senior staff role someone holds, for a chip next to their name ("Admin", "Teacher").
+// Null for a member-only account. Same wording as the activity feeds.
+const STAFF_RANK: [string, string][] = [
+  [ADMIN, 'Admin'], [TEACHER_SUPER, 'Senior teacher'], [TEACHER_GENERAL, 'Teacher'], [TEACHER_BASIC, 'Teacher'], [FRONT_DESK, 'Front desk'],
+]
+export const staffRoleLabel = (roles: string[] | null | undefined) =>
+  STAFF_RANK.find(([r]) => roles?.includes(r))?.[1] ?? null

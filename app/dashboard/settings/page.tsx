@@ -10,9 +10,10 @@ import Forbidden from '@/app/components/Forbidden'
 import { canManageSettings } from '@/lib/roles'
 import { scanForMojibake } from '@/lib/mojibake'
 import ThemePicker from '@/app/components/ThemePicker'
+import BillingTab from './BillingTab'
 import type { ThemeKey } from '@/lib/studioTheme'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
-import { Button, Chip, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
+import { Button, Chip, Modal, alertStyle, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -177,6 +178,19 @@ const STUDIO_SECTIONS: { id: string; label: string }[] = [
   { id: 'tax', label: 'Tax (GST)' },
 ]
 
+// Messages for the API's Connect failure codes (StripeConnectEndpoints callback). Unknown or
+// missing codes fall back to the generic message.
+const STRIPE_FAIL_REASONS: Record<string, string> = {
+  denied: 'Stripe connection was cancelled. Connect again when you’re ready.',
+  platform_self: 'That Stripe account belongs to CalaStudio itself. Connect your studio’s own Stripe account, or create a new one on Stripe’s page.',
+  code_invalid: 'That Stripe link expired or was already used. Please connect again.',
+  mode_mismatch: 'Stripe couldn’t be connected because of a setup problem on our side. Please contact CalaStudio support.',
+  not_configured: 'Stripe connections aren’t available right now because of a setup problem on our side. Please contact CalaStudio support.',
+  studio_not_found: 'We couldn’t find your studio when Stripe sent you back. Please sign in again and retry.',
+  invalid_request: 'Stripe couldn’t complete the connection. Please try again.',
+  stripe_error: 'Stripe couldn’t complete the connection. Please try again in a few minutes.',
+}
+
 export default function SettingsPage() {
   return (
     <Suspense fallback={
@@ -197,7 +211,7 @@ function SettingsPageContent() {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [tab, setTab] = useState<'studio' | 'page'>('studio')
+  const [tab, setTab] = useState<'studio' | 'page' | 'billing'>('studio')
   const [error, setError] = useState('') // upload problems; section saves report on their own card
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
@@ -227,11 +241,17 @@ function SettingsPageContent() {
   // Set at onboarding, not editable here — shown read-only alongside timezone/locale.
   const [currency, setCurrency] = useState('')
 
-  const [stripeOnboardingComplete, setStripeOnboardingComplete] = useState(false)
-  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null)
+  // GET …/stripe/status checks the link live with Stripe. 'inaccessible' = an account is stored but
+  // this platform can't reach it (e.g. linked under an old platform account), so it needs reconnecting.
+  const [stripe, setStripe] = useState<{ status: 'connected' | 'not_connected' | 'inaccessible'; last4: string | null }>({ status: 'not_connected', last4: null })
   const [connectingStripe, setConnectingStripe] = useState(false)
   const [stripeError, setStripeError] = useState('')
+  const [disconnectOpen, setDisconnectOpen] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
+  const [disconnectError, setDisconnectError] = useState('')
   const [stripeBanner, setStripeBanner] = useState<'success' | 'failure' | null>(null)
+  // Why a Connect attempt failed: the API's ?reason= code on the callback redirect (PR #60).
+  const [stripeFailReason, setStripeFailReason] = useState('')
 
   const [openContentRow, setOpenContentRow] = useState<string | null>(null)
   const [zone, setZone] = useState('')
@@ -261,7 +281,7 @@ function SettingsPageContent() {
   useEffect(() => {
     const connected = searchParams.get('stripe_connected')
     if (connected === 'true') setStripeBanner('success')
-    else if (connected === 'false') setStripeBanner('failure')
+    else if (connected === 'false') { setStripeBanner('failure'); setStripeFailReason(searchParams.get('reason') ?? '') }
     if (connected !== null) router.replace('/dashboard/settings')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -351,8 +371,15 @@ function SettingsPageContent() {
       setInitialWaiverText(org.liability_waiver_text ?? '')
       setWaiverVersion(org.liability_waiver_version ?? null)
       setCurrency(org.currency ?? '')
-      setStripeOnboardingComplete(org.stripe_onboarding_complete ?? false)
-      setStripeAccountId(org.stripe_account_id ?? null)
+      // Fall back to the stored flags if the status endpoint isn't deployed yet.
+      const fromOrg = { status: org.stripe_onboarding_complete ? 'connected' as const : 'not_connected' as const, last4: org.stripe_account_id?.slice(-4) ?? null }
+      try {
+        const sRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/stripe/status`, { headers: { Authorization: `Bearer ${t}` } })
+        const st = sRes.ok ? await sRes.json() : null
+        setStripe(st?.status ? { status: st.status, last4: st.account_last4 ?? null } : fromOrg)
+      } catch {
+        setStripe(fromOrg)
+      }
       if (ratesRes.ok) setTaxRates(await ratesRes.json())
 
       setLoading(false)
@@ -388,6 +415,27 @@ function SettingsPageContent() {
     } catch {
       setStripeError('Could not start Stripe Connect. Please try again.')
       setConnectingStripe(false)
+    }
+  }
+
+  // POST …/stripe/disconnect revokes CalaStudio's access on Stripe and clears the link. A 409 means a
+  // member's card payment is mid-flight; nothing changed, so the admin can simply try again.
+  const handleDisconnectStripe = async () => {
+    setDisconnecting(true)
+    setDisconnectError('')
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/stripe/disconnect`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) { setDisconnectError(data?.error ?? 'Could not disconnect Stripe. Please try again.'); return }
+      setStripe({ status: data?.status ?? 'not_connected', last4: data?.account_last4 ?? null })
+      setStripeBanner(null)
+      setDisconnectOpen(false)
+    } catch {
+      setDisconnectError('Could not reach the server. Please try again.')
+    } finally {
+      setDisconnecting(false)
     }
   }
 
@@ -624,7 +672,7 @@ function SettingsPageContent() {
 
   const zones = zone && TIMEZONES.includes(zone) ? [zone, ...TIMEZONES.filter(z => z !== zone)] : TIMEZONES
   const currentRateId = taxRates.find(r => !r.effective_until)?.id
-  const tabs = [['studio', 'Studio'], ['page', 'Booking page']] as const
+  const tabs = [['studio', 'Studio'], ['page', 'Booking page'], ['billing', 'Plan & billing']] as const
 
   // Booking page content as rows — each opens its group of fields.
   const contentRows: { id: string; label: string; summary: string; fields: React.ReactNode }[] = [
@@ -757,7 +805,7 @@ function SettingsPageContent() {
       <div className={styles.main}>
         {forbidden ? <Forbidden /> : (
           <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
-            <PageHeader eyebrow="Settings" title={tab === 'studio' ? 'Studio settings' : 'Booking page'} />
+            <PageHeader eyebrow="Settings" title={tab === 'studio' ? 'Studio settings' : tab === 'page' ? 'Booking page' : 'Plan & billing'} />
 
             {/* A live-data problem worth fixing first: everything time-related uses this zone. */}
             {!savedForm.timezone && (
@@ -798,7 +846,9 @@ function SettingsPageContent() {
               </div>
             )}
 
-            {tab === 'studio' ? (
+            {tab === 'billing' ? (
+              <BillingTab orgId={orgId} token={token} currency={currency} />
+            ) : tab === 'studio' ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
                 {/* Section index */}
                 <nav aria-label="Settings sections" style={{ ...cardStyle, flex: '1 1 200px', maxWidth: 260, padding: 10, position: 'sticky', top: 24 }}>
@@ -904,34 +954,61 @@ function SettingsPageContent() {
                     </>
                   ), 'waiver')}
 
-                  {sectionCard('payments', 'Payments', 'Members pay for classes and passes through Stripe. Money goes straight to your bank account; CalaStudio takes no commission.', (
+                  {sectionCard('payments', 'Payments', 'Members pay for classes and passes through Stripe. Money goes straight to your bank account.', (
                     <>
                       {stripeBanner === 'success' && (
                         <div role="status" style={{ padding: '12px 16px', background: color.primarySoft, borderRadius: radius.control, color: color.primaryInk, fontSize: 15 }}>Stripe connected.</div>
                       )}
                       {stripeBanner === 'failure' && (
-                        <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>Stripe connection failed or was cancelled. Please try again.</div>
+                        <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{STRIPE_FAIL_REASONS[stripeFailReason] ?? 'Stripe connection failed or was cancelled. Please try again.'}</div>
                       )}
                       <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.card, padding: 18, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                           <span aria-hidden style={{ width: 44, height: 44, background: '#635BFF', borderRadius: radius.control, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF', fontWeight: 700, fontSize: 18, flex: 'none' }}>S</span>
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 15 }}>Stripe</div>
-                            {stripeOnboardingComplete ? (
+                            {stripe.status === 'connected' ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
                                 <Chip tone="primary">Connected</Chip>
-                                {stripeAccountId && <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>Account ending {stripeAccountId.slice(-4)}</span>}
+                                {stripe.last4 && <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>Account ending {stripe.last4}</span>}
+                              </div>
+                            ) : stripe.status === 'inaccessible' ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                                <Chip tone="danger">Needs reconnecting</Chip>
+                                {stripe.last4 && <span style={{ fontSize: 14, color: color.muted, ...tabularNums }}>Account ending {stripe.last4}</span>}
                               </div>
                             ) : (
                               <div style={{ fontSize: 14, color: color.muted, marginTop: 2 }}>Not connected</div>
                             )}
                           </div>
                         </div>
-                        {!stripeOnboardingComplete && (
-                          <Button variant="primary" onClick={handleConnectStripe} disabled={connectingStripe}>{connectingStripe ? 'Connecting…' : 'Connect with Stripe'}</Button>
+                        {stripe.status === 'connected' && (
+                          <Button onClick={() => { setDisconnectError(''); setDisconnectOpen(true) }}>Disconnect</Button>
+                        )}
+                        {stripe.status !== 'connected' && (
+                          <Button variant="primary" onClick={handleConnectStripe} disabled={connectingStripe}>{connectingStripe ? 'Connecting…' : stripe.status === 'inaccessible' ? 'Reconnect Stripe' : 'Connect with Stripe'}</Button>
                         )}
                       </div>
+                      {stripe.status === 'inaccessible' && (
+                        <div role="alert" style={alertStyle('danger')}>
+                          Your Stripe connection needs to be renewed. Until you reconnect, members can&apos;t pay by card, for passes or drop-ins. Click <strong>Reconnect Stripe</strong> and sign in to your Stripe account.
+                        </div>
+                      )}
                       {stripeError && <p role="alert" style={{ margin: 0, fontSize: 14, color: color.dangerInk }}>{stripeError}</p>}
+                      {disconnectOpen && (
+                        <Modal title="Disconnect Stripe?" onClose={() => { if (!disconnecting) setDisconnectOpen(false) }} width={460}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+                            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.ink2 }}>
+                              Members won&apos;t be able to pay by card until you connect Stripe again, and refunds for earlier card payments will need to be made in your Stripe dashboard.
+                            </p>
+                            {disconnectError && <div role="alert" style={alertStyle()}>{disconnectError}</div>}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                              <Button onClick={() => setDisconnectOpen(false)} disabled={disconnecting} style={{ flex: '1 1 140px' }}>Stay connected</Button>
+                              <Button variant="destructive" onClick={handleDisconnectStripe} disabled={disconnecting} style={{ flex: '1 1 140px' }}>{disconnecting ? 'Disconnecting…' : 'Disconnect Stripe'}</Button>
+                            </div>
+                          </div>
+                        </Modal>
+                      )}
                     </>
                   ))}
 

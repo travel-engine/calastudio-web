@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import { useBookingFlow, type PassTemplateOption } from '@/lib/store/bookingFlow'
 import { displayName, splitName } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
 import { formatDate, formatDateTimeWithWeekday, formatTime } from '@/lib/dates'
 import styles from './photofirst.module.css'
+import CalendarLinks from './CalendarLinks'
 import { studioPath } from '@/lib/seo'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -234,6 +236,14 @@ export default function BookingDrawer() {
     }
   }
 
+  // Escape closes the sheet, like the pass purchase sheet.
+  useEffect(() => {
+    if (!occurrence) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [occurrence, close])
+
   // New occurrence → fresh agreements attempt budget + purchase snapshot.
   useEffect(() => {
     agreementsAttemptsRef.current = 0
@@ -309,6 +319,8 @@ export default function BookingDrawer() {
 
   const handleSignUp = async () => {
     if (!fullName.trim()) { setAuthMessage('Your name is required.'); return }
+    const problem = passwordProblem(password)
+    if (problem) { setAuthMessage(problem); return }
     setAuthBusy(true)
     setAuthMessage('')
     const supabase = createClient()
@@ -319,7 +331,7 @@ export default function BookingDrawer() {
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${accountHref}`,
       },
     })
-    if (error) { setAuthMessage(error.message); setAuthBusy(false); return }
+    if (error) { setAuthMessage(authErrorMessage(error)); setAuthBusy(false); return }
     if (data.session) {
       await resolveAuth(data.session.access_token)
     } else {
@@ -362,7 +374,7 @@ export default function BookingDrawer() {
       })
       const data = await res.json().catch(() => null)
       if (res.ok && data?.booked) {
-        setConfirmedBooking({ id: data.booking.id, status: data.booking.status })
+        setConfirmedBooking({ id: data.booking.id, status: data.booking.status, calendar_ics_url: data.booking.calendar_ics_url, calendar_google_url: data.booking.calendar_google_url })
       } else if (res.ok && !data?.booked) {
         setNote('That pass is no longer usable — choose another option below.')
         setBookingOptions({
@@ -437,7 +449,7 @@ export default function BookingDrawer() {
         const match = bookings
           .filter((b: any) => b.status === 'confirmed' && new Date(b.booked_at).getTime() >= since)
           .sort((a: any, b: any) => new Date(b.booked_at).getTime() - new Date(a.booked_at).getTime())[0]
-        if (match) { setConfirmedBooking({ id: match.id, status: match.status }); return }
+        if (match) { setConfirmedBooking({ id: match.id, status: match.status, calendar_ics_url: match.calendar_ics_url, calendar_google_url: match.calendar_google_url }); return }
       }
     }
     setError("Your payment succeeded, but we're still confirming your booking. Check My Bookings in a minute — if it's not there, contact the studio.")
@@ -462,7 +474,13 @@ export default function BookingDrawer() {
     setError("Your payment succeeded, but we're still issuing your pass. Check My Passes in a minute, then come back and book.")
   }
 
+  // A double-tap fires before the busy state disables the button; this ref stops the second tap from
+  // creating a second PaymentIntent on the studio's Stripe account.
+  const paymentStartingRef = useRef(false)
+
   const startDropInPayment = async () => {
+    if (paymentStartingRef.current) return
+    paymentStartingRef.current = true
     setDropInBusy(true)
     setNote('')
     try {
@@ -489,11 +507,14 @@ export default function BookingDrawer() {
       }
       setDropInSecret(data.client_secret)
     } finally {
+      paymentStartingRef.current = false
       setDropInBusy(false)
     }
   }
 
   const startPassPurchase = async (templateId: string) => {
+    if (paymentStartingRef.current) return
+    paymentStartingRef.current = true
     setPurchaseBusyId(templateId)
     setNote('')
     try {
@@ -517,6 +538,7 @@ export default function BookingDrawer() {
         }
       } catch { /* fall back to first-match */ }
     } finally {
+      paymentStartingRef.current = false
       setPurchaseBusyId('')
     }
   }
@@ -568,7 +590,6 @@ export default function BookingDrawer() {
               key={purchaseSecret.clientSecret}
               clientSecret={purchaseSecret.clientSecret}
               stripeAccountId={stripeAccountId}
-              dark
               submitLabel="Buy & book"
               onSuccess={() => pollForIssuedPassThenBook(pt.id)}
               onError={msg => setNote(msg)}
@@ -604,7 +625,7 @@ export default function BookingDrawer() {
           </select>
         </div>
         {credits && (
-          <div style={{ fontSize: '12.5px', color: 'var(--text-meta)', marginTop: '8px' }}>
+          <div style={{ fontSize: '14px', color: 'var(--text-meta)', marginTop: '8px' }}>
             {credits}
           </div>
         )}
@@ -622,11 +643,11 @@ export default function BookingDrawer() {
 
   return (
     <div className={styles.drawerOverlay} onClick={close}>
-      <div className={styles.drawerPanel} onClick={e => e.stopPropagation()}>
+      <div className={styles.drawerPanel} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="booking-drawer-title">
         <div className={styles.drawerHead}>
           <div style={{ minWidth: 0 }}>
             {STEP_LABELS[step] && <div className={styles.drawerStep}>{STEP_LABELS[step]}</div>}
-            <div className={styles.drawerTitle}>{occurrence.session_name}</div>
+            <div id="booking-drawer-title" className={styles.drawerTitle}>{occurrence.session_name}</div>
             <div className={styles.drawerMeta}>{drawerMeta}</div>
             {occurrence.instructor_name && (
               <div className={styles.drawerMeta} style={{ marginTop: 2 }}>with {occurrence.instructor_name}</div>
@@ -675,7 +696,12 @@ export default function BookingDrawer() {
                 </div>
                 <div>
                   <label htmlFor="bk-password" className={styles.fieldLabel}>Password</label>
-                  <input id="bk-password" type="password" value={password} onChange={e => setPassword(e.target.value)} className={styles.inputRect} />
+                  <input id="bk-password" type="password" value={password} onChange={e => setPassword(e.target.value)} className={styles.inputRect}
+                    autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                    aria-describedby={authMode === 'signup' ? 'bk-password-hint' : undefined} />
+                  {authMode === 'signup' && (
+                    <p id="bk-password-hint" style={{ margin: '6px 0 0', fontSize: '14px', color: 'var(--text-meta)' }}>{PASSWORD_HINT}</p>
+                  )}
                   {authMode === 'signin' && (
                     <button type="button" onClick={handleForgotPassword} disabled={authBusy} className={styles.linkBtn} style={{ marginTop: '10px' }}>
                       Forgot password?
@@ -693,7 +719,7 @@ export default function BookingDrawer() {
                   </div>
                 )}
 
-                <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-meta)' }}>
+                <p style={{ textAlign: 'center', fontSize: '15px', color: 'var(--text-meta)' }}>
                   {authMode === 'signin' ? (
                     <>New here? <button type="button" onClick={() => { setAuthMode('signup'); setAuthMessage('') }} className={styles.linkBtn}>Create an account</button></>
                   ) : (
@@ -720,20 +746,20 @@ export default function BookingDrawer() {
               </p>
 
               {waiverInfo?.text && (
-                <div className={styles.infoCard} style={{ maxHeight: '160px', overflowY: 'auto', whiteSpace: 'pre-wrap', fontSize: '13px', color: 'var(--text-body)' }}>
+                <div className={styles.infoCard} style={{ maxHeight: '160px', overflowY: 'auto', whiteSpace: 'pre-wrap', fontSize: '15px', color: 'var(--text-body)' }}>
                   {waiverInfo.text}
                 </div>
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
                 {agreementsContext === 'register' && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13.5px', cursor: 'pointer', color: 'var(--text-body)' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '15px', cursor: 'pointer', color: 'var(--text-body)' }}>
                     <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} style={{ marginTop: '2px' }} />
                     I accept the Terms &amp; Conditions
                   </label>
                 )}
                 {waiverInfo?.required && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13.5px', cursor: 'pointer', color: 'var(--text-body)' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '15px', cursor: 'pointer', color: 'var(--text-body)' }}>
                     <input type="checkbox" checked={agreeWaiver} onChange={e => setAgreeWaiver(e.target.checked)} style={{ marginTop: '2px' }} />
                     I accept the Liability Waiver
                   </label>
@@ -791,7 +817,7 @@ export default function BookingDrawer() {
               {note && <div className={styles.noticeWarn}>{note}</div>}
 
               {bookedMode && (
-                <div style={{ fontSize: '13px', color: 'var(--text-meta)', marginBottom: '16px' }}>
+                <div style={{ fontSize: '15px', color: 'var(--text-meta)', marginBottom: '16px' }}>
                   Attending: <strong style={{ color: 'var(--ink)' }}>{modeLabel(bookedMode)}</strong>
                 </div>
               )}
@@ -808,7 +834,7 @@ export default function BookingDrawer() {
                 <div>
                   <div className={styles.infoCard}>
                     <div style={{ fontWeight: 500, fontSize: '15px' }}>Using your pass</div>
-                    <div style={{ fontSize: '13.5px', color: 'var(--text-meta)', marginTop: '2px' }}>
+                    <div style={{ fontSize: '15px', color: 'var(--text-meta)', marginTop: '2px' }}>
                       {bookingOptions.usable_pass_name}
                       {bookingOptions.usable_pass_credits_remaining != null &&
                         ` · ${bookingOptions.usable_pass_credits_remaining} credit${bookingOptions.usable_pass_credits_remaining === 1 ? '' : 's'} left`}
@@ -872,7 +898,6 @@ export default function BookingDrawer() {
                                 key={dropInSecret}
                                 clientSecret={dropInSecret}
                                 stripeAccountId={stripeAccountId}
-                                dark
                                 submitLabel="Pay & book"
                                 onSuccess={() => pollForConfirmedBooking(Date.now() - 5000)}
                                 onError={msg => setNote(msg)}
@@ -931,7 +956,7 @@ export default function BookingDrawer() {
                     </select>
                   </div>
                   {guestCount > 0 && (
-                    <div style={{ fontSize: '12.5px', color: 'var(--text-meta)', marginTop: '8px' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--text-meta)', marginTop: '8px' }}>
                       You&apos;ll only be promoted once {guestCount + 1} spots open up together.
                     </div>
                   )}
@@ -972,6 +997,7 @@ export default function BookingDrawer() {
             <p className={styles.drawerText}>
               You&apos;re booked for {occurrence.session_name} on {formatDateTime(occurrence.starts_at, timeZone)}. A confirmation email is on its way.
             </p>
+            <CalendarLinks icsUrl={confirmedBooking.calendar_ics_url} googleUrl={confirmedBooking.calendar_google_url} />
             <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
               View my bookings
             </a>

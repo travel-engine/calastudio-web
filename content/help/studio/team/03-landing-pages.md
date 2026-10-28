@@ -12,13 +12,43 @@ Every teacher gets their own public page at `{your-studio}.calastudio.app/teache
 
 1. Go to **Team** and click **Edit** on a teacher
 2. Under **Landing page profile**, fill in:
-   - **Display name** — how their name appears on the page
+   - **Display name**: the name the teacher goes by everywhere in your studio, not just on this page. See **Changing a teacher's name** below.
+   - **Page address**: the last part of their page's web address. See **Changing a teacher's page address** below.
    - **Tagline** — one line shown under their name
    - **Bio** — full biography (Markdown supported)
    - **Specialties** and **Certifications** — comma-separated lists
    - **Years of experience**
    - **Instagram** and **website** links
 3. Click **Save changes** at the bottom of the page
+
+## Changing a teacher's name
+
+A teacher has two names:
+
+- their **account name**, which is on their sign-in
+- their **Display name**, which is what members and your team see
+
+Change the **Display name** to fix a typo, update a surname, or show just a first name. It updates straight away everywhere a teacher is named: the schedule, class pages, your booking page, their landing page, the Team list and new booking emails. The **Team** list shows the account name in small text underneath, so you can still tell which login it is.
+
+Only an **Admin** can change a teacher's name. Teachers can't rename themselves.
+
+Emails that have already been sent, and earlier **Activity log** entries, keep the name that was used at the time.
+
+Changing the Display name doesn't change the teacher's page address. If the address still shows an old name, change it too (see below).
+
+## Changing a teacher's page address
+
+The **Page address** is the part after `/teachers/`, for example `sarah-jones`. It's set when the teacher is added and stays the same until you change it.
+
+1. Go to **Team** and click **Edit** on the teacher
+2. Under **Page address**, type the new address, or click **Use …** to base it on their Display name
+3. Click **Save changes**
+
+An address can use lowercase letters, numbers and single hyphens, 2 to 60 characters, and can't start or end with a hyphen. It can't be one another teacher uses or used before.
+
+**The old address keeps working.** Anyone who opens an old link, from Instagram, a flyer or a search result, is taken to the new page, and search engines update to the new address. Old addresses stay reserved for that teacher, so nobody else can take them. You can switch back to an old address later.
+
+Only an **Admin** can change a page address. Every change is recorded in the **Activity log**.
 
 ## Adding photos
 

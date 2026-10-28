@@ -58,6 +58,85 @@
   justify-content: center;
 }
 
+.studioMarkSmall {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.studioWrap {
+  margin: 6px 4px 4px;
+}
+
+.studioWrap .studio {
+  margin: 0;
+}
+
+.switchBtn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E1E3DE; /* border */
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: #3C4541; /* ink2 */
+  cursor: pointer;
+}
+
+.switchBtn:hover {
+  background: #EEF1EC;
+}
+
+.switcher {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 6px;
+  border: 1px solid #E1E3DE; /* border */
+  border-radius: 12px;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switchItem {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #17201C; /* ink */
+  font: inherit;
+  cursor: pointer;
+}
+
+.switchItem:hover:not(:disabled) {
+  background: #F2F4F0;
+}
+
+.switchItem:disabled {
+  cursor: default;
+}
+
+.switchCurrent {
+  background: #E2EEE9; /* primarySoft */
+  color: #0C3A2D; /* primaryInk */
+}
+
+.switchRole {
+  display: block;
+  font-size: 12px;
+  color: #5A635F; /* muted */
+}
+
 .studioMark img {
   width: 100%;
   height: 100%;

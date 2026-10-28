@@ -7,11 +7,12 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import { useSearchParams } from 'next/navigation'
 import { canManageSessions } from '@/lib/roles'
-import { displayName } from '@/lib/names'
+import { displayName, teacherName } from '@/lib/names'
 import { ImageIcon } from 'lucide-react'
 import { color, radius, space } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, CheckRow, PageHeader, alertStyle, buttonStyle, cardStyle, FormField as Field, TextInput as Input,
   SelectInput as Select, TextArea as Textarea, FormSection as SectionHeader, ChoiceGroup as ToggleGroup } from '@/app/components/admin'
+import DurationPicker, { durationProblem } from '@/app/components/DurationPicker'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -95,7 +96,7 @@ function NewSessionPageContent() {
       })
       if (teachersRes.ok) {
         const data = await teachersRes.json()
-        setTeachers(data.map((t: any) => ({ id: t.id, name: displayName(t) })))
+        setTeachers(data.map((t: any) => ({ id: t.id, name: teacherName(t) })))
       }
 
       const passTemplatesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/pass-templates`, {
@@ -237,6 +238,11 @@ function NewSessionPageContent() {
     }
     if (!form.firstOccurrenceDate) {
       setError('First occurrence date is required')
+      return
+    }
+    const badDuration = durationProblem(form.durationMinutes)
+    if (badDuration) {
+      setError(badDuration)
       return
     }
 
@@ -394,14 +400,7 @@ function NewSessionPageContent() {
                 </Select>
               </Field>
               <Field label="Duration">
-                <Select value={form.durationMinutes} onChange={e => update('durationMinutes', e.target.value)}>
-                  <option value="30">30 minutes</option>
-                  <option value="45">45 minutes</option>
-                  <option value="60">60 minutes</option>
-                  <option value="75">75 minutes</option>
-                  <option value="90">90 minutes</option>
-                  <option value="120">2 hours</option>
-                </Select>
+                <DurationPicker value={form.durationMinutes} onChange={v => update('durationMinutes', v)} Select={Select} Input={Input} />
               </Field>
             </div>
 

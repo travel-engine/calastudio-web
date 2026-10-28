@@ -3,11 +3,13 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useParams, useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import { splitName } from '@/lib/names'
-import { formatDate, formatDateTimeWithWeekday, safeZone } from '@/lib/dates'
+import { formatDayMonth, formatShortDate, formatTimeRange, formatWhen } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
+import CalendarLinks from '../CalendarLinks'
 import { studioPath } from '@/lib/seo'
 
 interface OrgInfo {
@@ -42,6 +44,8 @@ interface Booking {
   booked_at: string
   guest_count: number
   cancellation_reason: string | null
+  calendar_ics_url?: string | null
+  calendar_google_url?: string | null
   session_occurrence: {
     starts_at: string
     ends_at: string
@@ -131,21 +135,21 @@ const inputStyle: React.CSSProperties = {
   width: '100%', padding: '12px 16px', border: '1px solid var(--line-chip)', borderRadius: '10px',
   fontSize: '14px', outline: 'none', background: 'var(--inset)', color: 'var(--ink)',
 }
-const labelStyle: React.CSSProperties = { display: 'block', fontSize: '12.5px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.06em' }
+const labelStyle: React.CSSProperties = { display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.06em' }
 
 function StatusBadge({ status }: { status: string }) {
-  // Dark-palette badges: a low-alpha wash of the semantic hue with a light readable label.
-  const ok = { bg: 'rgba(245,244,241,0.10)', color: 'var(--text-body)' }
-  const warn = { bg: 'rgba(232,160,106,0.16)', color: '#e8a06a' }
-  const info = { bg: 'rgba(140,170,220,0.16)', color: '#a9c2e8' }
-  const bad = { bg: 'rgba(214,120,120,0.16)', color: '#e8a0a0' }
-  const mute = { bg: 'rgba(245,244,241,0.06)', color: 'var(--text-label)' }
+  // Theme colours, so badges read on light and dark themes alike.
+  const ok = { bg: 'var(--ok-bg)', color: 'var(--ink)' }
+  const warn = { bg: 'var(--warn-bg)', color: 'var(--text-warn)' }
+  const info = { bg: 'var(--ok-bg)', color: 'var(--text-body)' }
+  const bad = { bg: 'var(--danger-bg)', color: 'var(--danger)' }
+  const mute = { bg: 'transparent', color: 'var(--text-label)' }
   const map: Record<string, { bg: string; color: string; label: string }> = {
     active: { ...ok, label: 'Active' },
     low: { ...warn, label: 'Low' },
     frozen: { ...info, label: 'Frozen' },
     expired: { ...mute, label: 'Expired' },
-    exhausted: { ...bad, label: 'Exhausted' },
+    exhausted: { ...mute, label: 'Used up' },
     confirmed: { ...ok, label: 'Confirmed' },
     attended: { ...info, label: 'Attended' },
     cancelled: { ...mute, label: 'Cancelled' },
@@ -165,8 +169,8 @@ function StatusBadge({ status }: { status: string }) {
   if (!s) return null // no_show and any unknown status carry no badge
   return (
     <span style={{
-      display: 'inline-block', padding: '3px 10px', borderRadius: '99px',
-      fontSize: '12px', fontWeight: 500, backgroundColor: s.bg, color: s.color
+      display: 'inline-block', padding: '3px 10px', borderRadius: '99px', border: '1px solid var(--line-chip)',
+      fontSize: '14px', fontWeight: 600, backgroundColor: s.bg, color: s.color, whiteSpace: 'nowrap'
     }}>
       {s.label}
     </span>
@@ -178,13 +182,13 @@ function formatMoney(amount: number, currency: string) {
   catch { return `${currency} ${amount.toFixed(2)}` }
 }
 
+// "Today, 7:00 am" · "Sat 24 Oct, 7:00 am" (year only when it isn't this year)
 function formatDateTime(iso: string, timeZone?: string | null) {
-  return formatDateTimeWithWeekday(iso, timeZone)
+  return formatWhen(iso, timeZone)
 }
 
 function timeRange(startIso: string, endIso: string, timeZone?: string | null) {
-  const opts: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', timeZone: safeZone(timeZone) }
-  return `${new Date(startIso).toLocaleTimeString(undefined, opts)} – ${new Date(endIso).toLocaleTimeString(undefined, opts)}`
+  return formatTimeRange(startIso, endIso, timeZone)
 }
 
 const JOIN_WINDOW_MS = 15 * 60 * 1000
@@ -434,6 +438,8 @@ function MemberAccountContent() {
 
   const handleSignUp = async () => {
     if (!fullName.trim()) { setAuthMessage('Your name is required.'); return }
+    const problem = passwordProblem(password)
+    if (problem) { setAuthMessage(problem); return }
     setAuthBusy(true)
     setAuthMessage('')
     const supabase = createClient()
@@ -444,7 +450,7 @@ function MemberAccountContent() {
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${studioPath(studioSlug, '/account')}`,
       },
     })
-    if (error) { setAuthMessage(error.message); setAuthBusy(false); return }
+    if (error) { setAuthMessage(authErrorMessage(error)); setAuthBusy(false); return }
     if (data.session) {
       setAccessToken(data.session.access_token)
       await resolveMembership(data.session.access_token, { fullName, phone })
@@ -632,16 +638,16 @@ function MemberAccountContent() {
             <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
               {occ?.session?.name ?? 'Session'}
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
-              {occ ? `${formatDateTime(occ.starts_at, org?.timezone)} · ${timeRange(occ.starts_at, occ.ends_at, org?.timezone)}` : '—'}
+            <div style={{ fontSize: '15px', color: 'var(--text-meta)' }}>
+              {occ ? `${formatShortDate(occ.starts_at, org?.timezone)} · ${timeRange(occ.starts_at, occ.ends_at, org?.timezone)}` : '—'}
               {w.preferred_mode === 'online' ? ' · Online' : ' · In person'}
               {w.intended_guest_count > 0 ? ` · ${w.intended_guest_count + 1} spots` : ''}
             </div>
             {w.status === 'waiting' && (
-              <div style={{ fontSize: '13px', color: '#e8a06a', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
+              <div style={{ fontSize: '15px', color: 'var(--text-warn)', marginTop: '4px' }}>You&apos;re #{w.position} in line</div>
             )}
             {w.status === 'promoted' && !holdExpired && (
-              <div style={{ fontSize: '13px', color: 'var(--ink)', marginTop: '4px', fontWeight: 600 }}>
+              <div style={{ fontSize: '15px', color: 'var(--ink)', marginTop: '4px', fontWeight: 600 }}>
                 A spot opened — claim by {w.token_expires_at ? formatDateTime(w.token_expires_at, org?.timezone) : 'soon'}
               </div>
             )}
@@ -653,8 +659,8 @@ function MemberAccountContent() {
                 onClick={() => handleClaimWaitlist(w)}
                 disabled={claimingWaitlistId === w.id}
                 style={{
-                  padding: '6px 14px', backgroundColor: claimingWaitlistId === w.id ? 'rgba(245,244,241,0.3)' : brand, color: 'white',
-                  border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: claimingWaitlistId === w.id ? 'default' : 'pointer'
+                  display: 'inline-flex', alignItems: 'center', minHeight: '44px', padding: '0 16px', backgroundColor: claimingWaitlistId === w.id ? 'rgba(245,244,241,0.3)' : brand, color: 'white',
+                  border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 600, cursor: claimingWaitlistId === w.id ? 'default' : 'pointer'
                 }}
               >
                 {claimingWaitlistId === w.id ? 'Claiming…' : 'Claim my spot'}
@@ -664,8 +670,8 @@ function MemberAccountContent() {
               onClick={() => handleLeaveWaitlist(w.id)}
               disabled={leavingWaitlistId === w.id}
               style={{
-                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
-                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#e8a0a0'
+                minHeight: '44px', padding: '0 16px', backgroundColor: 'transparent', border: '1px solid var(--danger)',
+                borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', color: 'var(--danger)'
               }}
             >
               {leavingWaitlistId === w.id ? 'Leaving…' : 'Leave waitlist'}
@@ -686,17 +692,17 @@ function MemberAccountContent() {
           <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             {sess?.name ?? 'Session'}
             {b.guest_count > 0 && (
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#e8a06a', backgroundColor: '#fff3cd', borderRadius: '999px', padding: '2px 8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-warn)', backgroundColor: 'var(--warn-bg)', borderRadius: '999px', padding: '2px 8px' }}>
                 +{b.guest_count} guest{b.guest_count > 1 ? 's' : ''}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
-            {occ ? `${formatDateTime(occ.starts_at, org?.timezone)} · ${timeRange(occ.starts_at, occ.ends_at, org?.timezone)}` : '—'}
+          <div style={{ fontSize: '15px', color: 'var(--text-meta)' }}>
+            {occ ? `${formatShortDate(occ.starts_at, org?.timezone)} · ${timeRange(occ.starts_at, occ.ends_at, org?.timezone)}` : '—'}
             {b.booked_mode === 'online' ? ' · Online' : ' · In person'}
           </div>
           {b.booked_mode !== 'online' && sess?.location_name && (
-            <div style={{ fontSize: '12px', color: 'var(--text-label)', marginTop: '2px' }}>
+            <div style={{ fontSize: '14px', color: 'var(--text-label)', marginTop: '2px' }}>
               {sess.location_name}{sess.location_address ? ` · ${sess.location_address}` : ''}
             </div>
           )}
@@ -708,27 +714,28 @@ function MemberAccountContent() {
               href={join.url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ padding: '6px 14px', backgroundColor: brand, color: 'white', borderRadius: '6px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}
+              style={{ display: 'inline-flex', alignItems: 'center', minHeight: '44px', padding: '0 16px', backgroundColor: brand, color: 'white', borderRadius: '6px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
             >
               Join
             </a>
           )}
           {join?.kind === 'note' && (
-            <span style={{ fontSize: '11px', color: 'var(--text-label)' }}>{join.text}</span>
+            <span style={{ fontSize: '13px', color: 'var(--text-label)' }}>{join.text}</span>
           )}
           {upcoming && b.status === 'confirmed' && (
             <button
               onClick={() => handleCancelBooking(b.id)}
               disabled={cancellingId === b.id}
               style={{
-                padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
-                borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: '#e8a0a0'
+                minHeight: '44px', padding: '0 16px', backgroundColor: 'transparent', border: '1px solid var(--danger)',
+                borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', color: 'var(--danger)'
               }}
             >
               {cancellingId === b.id ? 'Cancelling...' : 'Cancel'}
             </button>
           )}
         </div>
+        {upcoming && <CalendarLinks compact icsUrl={b.calendar_ics_url} googleUrl={b.calendar_google_url} />}
       </div>
     )
   }
@@ -738,7 +745,7 @@ function MemberAccountContent() {
       <div style={{ color: 'var(--text-meta)', fontSize: '14px', marginBottom: '16px' }}>{text}</div>
       <a
         href={studioPath(studioSlug)}
-        style={{ display: 'inline-block', padding: '9px 20px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
+        style={{ display: 'inline-block', padding: '9px 20px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '15px', fontWeight: 600, textDecoration: 'none' }}
       >
         Go to schedule
       </a>
@@ -782,19 +789,19 @@ function MemberAccountContent() {
               {waiverInfo?.text && (
                 <div style={{
                   border: '1px solid var(--line-chip)', borderRadius: '8px', padding: '14px', marginBottom: '16px',
-                  maxHeight: '180px', overflowY: 'auto', fontSize: '13px', color: 'var(--text-body)', whiteSpace: 'pre-wrap'
+                  maxHeight: '180px', overflowY: 'auto', fontSize: '15px', color: 'var(--text-body)', whiteSpace: 'pre-wrap'
                 }}>
                   {waiverInfo.text}
                 </div>
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '15px', cursor: 'pointer' }}>
                   <input type="checkbox" checked={agreeTerms} onChange={e => setAgreeTerms(e.target.checked)} style={{ marginTop: '2px' }} />
                   I accept the Terms &amp; Conditions
                 </label>
                 {waiverInfo?.required && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '15px', cursor: 'pointer' }}>
                     <input type="checkbox" checked={agreeWaiver} onChange={e => setAgreeWaiver(e.target.checked)} style={{ marginTop: '2px' }} />
                     I accept the Liability Waiver
                   </label>
@@ -802,7 +809,7 @@ function MemberAccountContent() {
               </div>
 
               {agreementsError && (
-                <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px', marginBottom: '16px' }}>
+                <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px', marginBottom: '16px' }}>
                   {agreementsError}
                 </div>
               )}
@@ -838,7 +845,7 @@ function MemberAccountContent() {
           </div>
 
           {portalError && (
-            <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px', marginBottom: '16px' }}>
+            <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px', marginBottom: '16px' }}>
               {portalError}
             </div>
           )}
@@ -862,11 +869,16 @@ function MemberAccountContent() {
             )}
             <div>
               <label style={labelStyle}>Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle}
+                autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                aria-describedby={authMode === 'signup' ? 'password-hint' : undefined} />
+              {authMode === 'signup' && (
+                <p id="password-hint" style={{ margin: '6px 0 0', fontSize: '14px', color: 'var(--text-meta)' }}>{PASSWORD_HINT}</p>
+              )}
             </div>
 
             {authMode === 'signin' && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-meta)', cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: 'var(--text-meta)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={rememberMe}
@@ -896,7 +908,7 @@ function MemberAccountContent() {
                   disabled={authBusy}
                   style={{
                     background: 'none', border: 'none', padding: 0,
-                    color: brand, fontSize: '12px', fontWeight: 600,
+                    color: brand, fontSize: '14px', fontWeight: 600,
                     cursor: authBusy ? 'default' : 'pointer',
                   }}
                 >
@@ -907,15 +919,15 @@ function MemberAccountContent() {
 
             {authMessage && (
               <div style={{
-                padding: '12px', borderRadius: '8px', fontSize: '13px', textAlign: 'center',
+                padding: '12px', borderRadius: '8px', fontSize: '15px', textAlign: 'center',
                 backgroundColor: authMessage.includes('Check your email') ? 'rgba(245,244,241,0.08)' : 'rgba(214,120,120,0.16)',
-                color: authMessage.includes('Check your email') ? 'var(--text-body)' : '#e8a0a0',
+                color: authMessage.includes('Check your email') ? 'var(--text-body)' : 'var(--danger)',
               }}>
                 {authMessage}
               </div>
             )}
 
-            <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--text-meta)', marginTop: '4px' }}>
+            <p style={{ textAlign: 'center', fontSize: '15px', color: 'var(--text-meta)', marginTop: '4px' }}>
               {authMode === 'signin' ? (
                 <>New here? <button type="button" onClick={() => { setAuthMode('signup'); setAuthMessage('') }} style={{ background: 'none', border: 'none', color: brand, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Create an account</button></>
               ) : (
@@ -946,14 +958,15 @@ function MemberAccountContent() {
 
         <div className={styles.body}>
         {profile && (
-          <div style={{ display: 'flex', gap: '28px', marginBottom: '22px', flexWrap: 'wrap' }}>
+          // One row of equal columns, so the stats never wrap onto a second line on a phone.
+          <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(0, max-content)', marginBottom: '22px' }}>
             {[
-              { label: 'Member since', value: formatDate(profile.join_date) },
+              { label: 'Member since', value: formatDayMonth(profile.join_date) },
               { label: 'Bookings', value: String(bookings.length) },
               ...(nextClassLabel ? [{ label: 'Next class', value: nextClassLabel }] : []),
             ].map((s, i) => (
-              <div key={s.label} style={i === 0 ? undefined : { borderLeft: '1px solid var(--line-chip)', paddingLeft: '28px' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
+              <div key={s.label} style={{ paddingRight: 'clamp(14px, 4vw, 28px)', ...(i === 0 ? {} : { borderLeft: '1px solid var(--line-chip)', paddingLeft: 'clamp(14px, 4vw, 28px)' }) }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
                 <div style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px' }}>{s.value}</div>
               </div>
             ))}
@@ -961,7 +974,7 @@ function MemberAccountContent() {
         )}
 
         {portalError && (
-          <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px', marginBottom: '16px' }}>
+          <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px', marginBottom: '16px' }}>
             {portalError}
           </div>
         )}
@@ -980,9 +993,9 @@ function MemberAccountContent() {
               <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '28px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
                   <div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>{profile.email}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-label)', marginTop: '2px' }}>
-                      Member since {formatDate(profile.join_date)} · {profile.total_sessions_attended} session{profile.total_sessions_attended !== 1 ? 's' : ''} attended
+                    <div style={{ fontSize: '15px', color: 'var(--text-meta)' }}>{profile.email}</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-label)', marginTop: '2px' }}>
+                      Member since {formatDayMonth(profile.join_date)} · {profile.total_sessions_attended} session{profile.total_sessions_attended !== 1 ? 's' : ''} attended
                     </div>
                   </div>
                 </div>
@@ -1045,11 +1058,11 @@ function MemberAccountContent() {
                 >
                   {savingProfile ? 'Saving...' : 'Save changes'}
                 </button>
-                {profileSaved && <span style={{ marginLeft: '12px', fontSize: '13px', color: 'var(--ink)' }}>Saved.</span>}
+                {profileSaved && <span style={{ marginLeft: '12px', fontSize: '15px', color: 'var(--ink)' }}>Saved.</span>}
 
                 <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--line)' }}>
                   <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>Password</div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-meta)', margin: 0 }}>
+                  <p style={{ fontSize: '15px', color: 'var(--text-meta)', margin: 0 }}>
                     To change your password, sign out and use{' '}
                     <span style={{ fontWeight: 600 }}>&ldquo;Forgot password?&rdquo;</span> on the sign-in screen. We&apos;ll email you a secure reset link.
                   </p>
@@ -1060,12 +1073,12 @@ function MemberAccountContent() {
             {tab === 'upcoming' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {cancelError && (
-                  <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px' }}>
                     {cancelError}
                   </div>
                 )}
                 {waitlistActionError && (
-                  <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px' }}>
                     {waitlistActionError}
                   </div>
                 )}
@@ -1089,72 +1102,104 @@ function MemberAccountContent() {
             )}
 
 
-            {tab === 'passes' && (
+            {tab === 'passes' && (() => {
+              // Passes you can still use first (soonest expiry first), then used-up and expired ones.
+              const usable = (p: Pass) => p.status === 'active' || p.status === 'low' || p.status === 'frozen'
+              const sorted = [...passes].sort((a, b) =>
+                Number(usable(b)) - Number(usable(a)) ||
+                (usable(a) ? (a.expires_at ?? '9').localeCompare(b.expires_at ?? '9') : (b.expires_at ?? '').localeCompare(a.expires_at ?? '')))
+              const firstPast = sorted.findIndex(p => !usable(p))
+              const headline = (p: Pass) =>
+                p.credits_remaining === null ? 'Unlimited classes'
+                  : p.status === 'exhausted' || p.credits_remaining === 0 ? `All ${p.credits_total} class${p.credits_total === 1 ? '' : 'es'} used`
+                  : `${p.credits_remaining} of ${p.credits_total} class${p.credits_total === 1 ? '' : 'es'} left`
+              const when = (p: Pass) => {
+                if (!p.expires_at) return 'No expiry'
+                const d = formatDayMonth(p.expires_at)
+                if (p.effective_from && new Date(p.effective_from) > new Date()) return `Starts ${formatDayMonth(p.effective_from)} · expires ${d}`
+                return p.status === 'expired' ? `Expired ${d}` : `Expires ${d}`
+              }
+              return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {passes.length === 0 ? (
-                  <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '48px', textAlign: 'center', color: 'var(--text-meta)', fontSize: '14px' }}>
+                  <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '48px', textAlign: 'center', color: 'var(--text-meta)', fontSize: '15px' }}>
                     No passes yet.
                   </div>
-                ) : passes.map(p => {
+                ) : sorted.map((p, idx) => {
                   const isCredit = p.credits_total !== null
                   const open = expandedPassId === p.id
                   const entries = ledger.filter(e => e.member_pass_id === p.id)
+                  const past = !usable(p)
                   return (
-                    <div key={p.id} style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)', overflow: 'hidden' }}>
-                      <div
+                    <div key={p.id} style={{ display: 'contents' }}>
+                    {idx === firstPast && (
+                      <div style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-label)', margin: idx ? '12px 0 0' : 0 }}>
+                        Used up and expired
+                      </div>
+                    )}
+                    <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', boxShadow: '0 1px 4px rgba(0,0,0,0.12)', overflow: 'hidden', opacity: past ? 0.75 : 1 }}>
+                      <button
+                        type="button"
                         onClick={isCredit ? () => setExpandedPassId(open ? null : p.id) : undefined}
+                        aria-expanded={isCredit ? open : undefined}
+                        disabled={!isCredit}
                         style={{
-                          padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          flexWrap: 'wrap', gap: '12px', cursor: isCredit ? 'pointer' : 'default',
+                          width: '100%', textAlign: 'left', font: 'inherit', color: 'inherit', background: 'none', border: 0,
+                          padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                          gap: '12px', cursor: isCredit ? 'pointer' : 'default',
                         }}
                       >
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>
-                            {isCredit && <span style={{ color: 'var(--text-label)', marginRight: '6px' }}>{open ? '▾' : '▸'}</span>}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '15px', color: 'var(--text-meta)', marginBottom: '4px' }}>
                             {p.pass_template?.name ?? 'Pass'}
-                            {p.pass_template && <span style={{ fontWeight: 400, color: 'var(--text-label)', marginLeft: '8px' }}>{formatMoney(p.pass_template.price, p.pass_template.currency)}</span>}
                           </div>
-                          <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
-                            {p.credits_remaining === null ? 'Unlimited' : `${p.credits_remaining} / ${p.credits_total} credits`} · {formatDate(p.effective_from)} – {formatDate(p.expires_at)}
-                          </div>
+                          <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--ink)', lineHeight: 1.25 }}>{headline(p)}</div>
+                          <div style={{ fontSize: '15px', color: 'var(--text-meta)', marginTop: '4px' }}>{when(p)}</div>
+                          {isCredit && (
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)', marginTop: '10px', textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+                              {open ? 'Hide history' : 'Show history'}
+                            </div>
+                          )}
                         </div>
                         <StatusBadge status={p.status} />
-                      </div>
+                      </button>
 
                       {open && (
                         <div style={{ borderTop: '1px solid var(--line)' }}>
                           {entries.length === 0 ? (
-                            <div style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-label)', fontSize: '13px' }}>No credit activity on this pass yet.</div>
+                            <div style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-label)', fontSize: '15px' }}>No credit activity on this pass yet.</div>
                           ) : entries.map((entry, i) => (
                             <div key={entry.id} style={{
                               display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px',
                               borderBottom: i < entries.length - 1 ? '1px solid var(--line)' : 'none', gap: '12px', flexWrap: 'wrap',
                             }}>
                               <div>
-                                <div style={{ fontSize: '13px', fontWeight: 500 }}>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
-                                <div style={{ fontSize: '12px', color: 'var(--text-label)' }}>{formatDateTime(entry.created_at, org?.timezone)}</div>
-                                {entry.notes && <div style={{ fontSize: '12px', color: 'var(--text-meta)', marginTop: '2px' }}>{entry.notes}</div>}
+                                <div style={{ fontSize: '15px', fontWeight: 500 }}>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
+                                <div style={{ fontSize: '14px', color: 'var(--text-label)' }}>{formatDateTime(entry.created_at, org?.timezone)}</div>
+                                {entry.notes && <div style={{ fontSize: '14px', color: 'var(--text-meta)', marginTop: '2px' }}>{entry.notes}</div>}
                               </div>
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '13px', fontWeight: 600, color: entry.credits_delta >= 0 ? '#86c9a8' : '#e8a0a0' }}>
+                                <div style={{ fontSize: '15px', fontWeight: 600, color: entry.credits_delta >= 0 ? 'var(--ink)' : 'var(--danger)' }}>
                                   {entry.credits_delta >= 0 ? '+' : ''}{entry.credits_delta}
                                 </div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-label)' }}>balance: {entry.credits_after}</div>
+                                <div style={{ fontSize: '13px', color: 'var(--text-label)' }}>balance: {entry.credits_after}</div>
                               </div>
                             </div>
                           ))}
                         </div>
                       )}
                     </div>
+                    </div>
                   )
                 })}
               </div>
-            )}
+              )
+            })()}
 
             {tab === 'payments' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {receiptError && (
-                  <div style={{ padding: '12px', backgroundColor: 'rgba(214,120,120,0.16)', borderRadius: '8px', color: '#e8a0a0', fontSize: '13px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px' }}>
                     {receiptError}
                   </div>
                 )}
@@ -1173,11 +1218,11 @@ function MemberAccountContent() {
                         {paymentTypeLabels[p.payment_type] ?? p.payment_type}
                         <span style={{ fontWeight: 400, color: 'var(--text-label)', marginLeft: '8px' }}>{formatMoney(p.amount, p.currency)}</span>
                       </div>
-                      <div style={{ fontSize: '13px', color: 'var(--text-meta)' }}>
+                      <div style={{ fontSize: '15px', color: 'var(--text-meta)' }}>
                         {formatDateTime(p.created_at, org?.timezone)}{p.invoice_number ? ` · Invoice ${p.invoice_number}` : ''}
                       </div>
                       {p.refunded_amount > 0 && (
-                        <div style={{ fontSize: '12px', color: '#e8a0a0', marginTop: '2px' }}>
+                        <div style={{ fontSize: '14px', color: 'var(--danger)', marginTop: '2px' }}>
                           {p.status === 'refunded' ? 'Fully refunded' : `Refunded ${formatMoney(p.refunded_amount, p.currency)}`}
                         </div>
                       )}
@@ -1189,8 +1234,8 @@ function MemberAccountContent() {
                           onClick={e => { e.stopPropagation(); handleDownloadReceipt(p.id) }}
                           disabled={downloadingReceiptId === p.id}
                           style={{
-                            padding: '6px 14px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
-                            borderRadius: '6px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', color: 'var(--text-body)'
+                            display: 'inline-flex', alignItems: 'center', minHeight: '44px', padding: '0 16px', backgroundColor: 'transparent', border: '1px solid var(--line-chip)',
+                            borderRadius: '6px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', color: 'var(--text-body)'
                           }}
                         >
                           {downloadingReceiptId === p.id ? 'Downloading...' : 'Download receipt'}
@@ -1206,14 +1251,14 @@ function MemberAccountContent() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '20px 22px', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}>
                   <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '6px' }}>Terms &amp; Conditions</div>
-                  <p style={{ fontSize: '13px', color: 'var(--text-meta)', margin: '0 0 12px' }}>
+                  <p style={{ fontSize: '15px', color: 'var(--text-meta)', margin: '0 0 12px' }}>
                     The CalaStudio platform terms you agreed to when you created your account.
                   </p>
                   <a
                     href="https://calastudio.app/terms"
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ fontSize: '13px', fontWeight: 600, color: brand }}
+                    style={{ fontSize: '15px', fontWeight: 600, color: brand }}
                   >
                     Read the Terms &amp; Conditions →
                   </a>
@@ -1224,19 +1269,19 @@ function MemberAccountContent() {
                     {org?.name ? `${org.name} Liability Waiver` : 'Liability Waiver'}
                   </div>
                   {waiverInfo === null ? (
-                    <p style={{ fontSize: '13px', color: 'var(--text-label)', margin: 0 }}>Loading…</p>
+                    <p style={{ fontSize: '15px', color: 'var(--text-label)', margin: 0 }}>Loading…</p>
                   ) : waiverInfo.text ? (
                     <>
                       <div style={{
-                        fontSize: '13px', color: 'var(--text-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+                        fontSize: '15px', color: 'var(--text-body)', lineHeight: 1.6, whiteSpace: 'pre-wrap',
                         maxHeight: '260px', overflowY: 'auto', border: '1px solid var(--line)', borderRadius: '8px', padding: '14px',
                       }}>
                         {waiverInfo.text}
                       </div>
-                      <p style={{ fontSize: '11px', color: 'var(--text-label)', margin: '8px 0 0' }}>Version {waiverInfo.version}</p>
+                      <p style={{ fontSize: '13px', color: 'var(--text-label)', margin: '8px 0 0' }}>Version {waiverInfo.version}</p>
                     </>
                   ) : (
-                    <p style={{ fontSize: '13px', color: 'var(--text-label)', margin: 0 }}>This studio hasn&apos;t published a liability waiver.</p>
+                    <p style={{ fontSize: '15px', color: 'var(--text-label)', margin: 0 }}>This studio hasn&apos;t published a liability waiver.</p>
                   )}
                 </div>
               </div>
@@ -1263,12 +1308,12 @@ function MemberAccountContent() {
                 <button onClick={() => setInvoicePayment(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-meta)' }}>×</button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: '6px', columnGap: '16px', fontSize: '13px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: '6px', columnGap: '16px', fontSize: '15px', marginBottom: '16px' }}>
                 {p.invoice_number && (<><span style={{ color: 'var(--text-label)' }}>Invoice number</span><span style={{ fontWeight: 600 }}>{p.invoice_number}</span></>)}
                 <span style={{ color: 'var(--text-label)' }}>Date</span><span>{formatDateTime(p.created_at, org?.timezone)}</span>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--line)', paddingTop: '12px', fontSize: '13px' }}>
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: '12px', fontSize: '15px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                   <span>{label}</span><span>{formatMoney(p.subtotal || p.amount, p.currency)}</span>
                 </div>
@@ -1281,7 +1326,7 @@ function MemberAccountContent() {
                   <span>Total</span><span>{formatMoney(p.amount, p.currency)}</span>
                 </div>
                 {p.refunded_amount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 0', color: '#e8a0a0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 0', color: 'var(--danger)' }}>
                     <span>Refunded{p.refund_reason ? ` — ${p.refund_reason}` : ''}</span>
                     <span>−{formatMoney(p.refunded_amount, p.currency)}</span>
                   </div>
@@ -1292,7 +1337,7 @@ function MemberAccountContent() {
                 <button
                   onClick={() => handleDownloadReceipt(p.id)}
                   disabled={downloadingReceiptId === p.id}
-                  style={{ marginTop: '18px', width: '100%', padding: '10px', backgroundColor: brand, color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ marginTop: '18px', width: '100%', padding: '10px', backgroundColor: brand, color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 600, cursor: 'pointer' }}
                 >
                   {downloadingReceiptId === p.id ? 'Downloading…' : 'Download receipt (PDF)'}
                 </button>

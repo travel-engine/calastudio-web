@@ -71,7 +71,7 @@ function Card({ t, studioSlug }: { t: TeacherCard; studioSlug: string }) {
           </p>
         )}
         {t.is_page_published && (
-          <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--ink)', marginTop: '10px' }}>View profile →</div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)', marginTop: '10px' }}>View profile →</div>
         )}
       </div>
     </>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useBookingFlow, type BookableOccurrence } from '@/lib/store/bookingFlow'
-import { dayKey, safeZone } from '@/lib/dates'
+import { dayKey, formatTime, safeZone } from '@/lib/dates'
 import styles from './photofirst.module.css'
 
 // This is a Client Component that renders during SSR *and* re-renders on hydration, so every
@@ -19,7 +19,7 @@ function dayLabel(iso: string, timeZone?: string | null) {
 }
 
 function timeLabel(iso: string, timeZone?: string | null) {
-  return new Date(iso).toLocaleTimeString(LOCALE, { hour: 'numeric', minute: '2-digit', timeZone: safeZone(timeZone) })
+  return formatTime(iso, timeZone)
 }
 
 function formatMoney(amount: number, currency: string) {

@@ -12,7 +12,7 @@ const money = (n: number, c: string) => {
   catch { return `${c} ${n.toFixed(2)}` }
 }
 
-type Phase = 'loading' | 'pay' | 'confirming' | 'done' | 'error'
+type Phase = 'loading' | 'pay' | 'confirming' | 'done' | 'pending' | 'error'
 
 // Standalone pass purchase — the same PaymentIntent → PaymentElement → poll-for-issuance flow the
 // booking drawer runs, lifted out so it works from the Pricing page (and, later, the account page)
@@ -37,39 +37,51 @@ export default function PassPurchaseModal({
   const passIdsBefore = useRef<Set<string>>(new Set())
   const price = money(template.price, template.currency || currency)
 
+  // Create the PaymentIntent once per open. React runs effects twice in development (and could
+  // re-run them), and each run used to create its own PaymentIntent on the studio's Stripe account —
+  // so the request is kept in a ref and every run waits on the same one.
+  const intentRef = useRef<Promise<{ ok: true; clientSecret: string } | { ok: false; error: string }> | null>(null)
   useEffect(() => {
-    let cancelled = false
-    const start = async () => {
-      try {
-        const listRes = await fetch(`${apiUrl}/api/organisations/${orgId}/members/me/passes`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (listRes.ok) {
-          const list = await listRes.json()
-          passIdsBefore.current = new Set(list.map((p: { id: string }) => p.id))
+    let active = true
+    if (!intentRef.current) {
+      intentRef.current = (async () => {
+        try {
+          const listRes = await fetch(`${apiUrl}/api/organisations/${orgId}/members/me/passes`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          if (listRes.ok) {
+            const list = await listRes.json()
+            passIdsBefore.current = new Set(list.map((p: { id: string }) => p.id))
+          }
+          const res = await fetch(`${apiUrl}/api/organisations/${orgId}/members/me/passes/${template.id}/payment-intent`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          const data = await res.json().catch(() => null)
+          if (!res.ok) {
+            return { ok: false as const, error: res.status === 404
+              ? "You're not a member of this studio yet. Join from your account, then come back to buy a pass."
+              : data?.error ?? 'Could not start the purchase. Please try again.' }
+          }
+          return { ok: true as const, clientSecret: data.client_secret as string }
+        } catch {
+          return { ok: false as const, error: 'Could not reach the server. Please try again.' }
         }
-        const res = await fetch(`${apiUrl}/api/organisations/${orgId}/members/me/passes/${template.id}/payment-intent`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const data = await res.json().catch(() => null)
-        if (cancelled) return
-        if (!res.ok) {
-          setError(res.status === 404
-            ? "You're not a member of this studio yet. Join from your account, then come back to buy a pass."
-            : data?.error ?? 'Could not start the purchase. Please try again.')
-          setPhase('error')
-          return
-        }
-        setClientSecret(data.client_secret)
-        setPhase('pay')
-      } catch {
-        if (!cancelled) { setError('Could not reach the server. Please try again.'); setPhase('error') }
-      }
+      })()
     }
-    start()
-    return () => { cancelled = true }
+    intentRef.current.then(r => {
+      if (!active) return
+      if (r.ok) { setClientSecret(r.clientSecret); setPhase('pay') }
+      else { setError(r.error); setPhase('error') }
+    })
+    return () => { active = false }
   }, [apiUrl, orgId, token, template.id])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   // The webhook issues the pass a beat after the charge confirms — poll briefly, then stop nagging.
   const pollForPass = async () => {
@@ -86,15 +98,17 @@ export default function PassPurchaseModal({
         if (fresh) { setPhase('done'); return }
       }
     }
-    setPhase('done') // charged and confirmed; issuance is just lagging
+    // Charged, but the pass hasn't shown up (the payment notification from Stripe is late or lost).
+    // Say so honestly rather than claiming the pass is there.
+    setPhase('pending')
   }
 
   return (
     <div onClick={onClose} className={styles.modalOverlay}>
-      <div onClick={e => e.stopPropagation()} className={styles.modalPanel}>
+      <div onClick={e => e.stopPropagation()} className={styles.modalPanel} role="dialog" aria-modal="true" aria-labelledby="pass-purchase-title">
         <div className={styles.drawerHead} style={{ marginBottom: '18px' }}>
           <div style={{ minWidth: 0 }}>
-            <div className={styles.drawerTitle}>{template.name}</div>
+            <div id="pass-purchase-title" className={styles.drawerTitle}>{template.name}</div>
             <div className={styles.drawerMeta}>{price}</div>
           </div>
           <button onClick={onClose} aria-label="Close" className={styles.iconClose}>✕</button>
@@ -118,7 +132,6 @@ export default function PassPurchaseModal({
             clientSecret={clientSecret}
             stripeAccountId={stripeAccountId}
             submitLabel={`Pay ${price}`}
-            dark
             onSuccess={pollForPass}
             onError={m => { setError(m); setPhase('error') }}
           />
@@ -132,6 +145,19 @@ export default function PassPurchaseModal({
             <div className={styles.resultTitle}>Pass added to your account</div>
             <p className={styles.drawerText}>You can use it next time you book.</p>
             <button onClick={onPurchased} className={styles.blockBtn}>Done</button>
+          </div>
+        )}
+
+        {phase === 'pending' && (
+          <div className={styles.resultWrap}>
+            <div className={`${styles.resultCircle} ${styles.resultCircleSolid}`}>✓</div>
+            <div className={styles.resultTitle}>Payment received</div>
+            <p className={styles.drawerText}>
+              Your pass is still being added. It should appear in My passes in a few minutes. If it isn&apos;t there by then, contact the studio. Your payment is safe.
+            </p>
+            <Link href={studioPath(studioSlug, '/account')} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
+              Go to My passes
+            </Link>
           </div>
         )}
       </div>

@@ -526,7 +526,17 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
   margin-bottom: 24px;
+}
+
+/* A filter group (mode / type / location). On desktop its chips just flow with the rest. */
+.chipGroup {
+  display: contents;
+}
+
+.chipDivider {
+  display: none;
 }
 
 .chip {
@@ -697,6 +707,7 @@
   border-radius: var(--radius-drawer) var(--radius-drawer) 0 0;
   padding: clamp(22px, 4vw, 32px);
   border-top: 1px solid var(--line-strong);
+  padding-bottom: calc(clamp(22px, 4vw, 32px) + env(safe-area-inset-bottom, 0px));
   animation: drawer-in 220ms ease-out;
 }
 
@@ -968,9 +979,9 @@
 
 .teacherGrid {
   display: grid;
-  /* Text column, then a slightly wider column for the portrait; both fall to full width
-     when the container is too narrow. */
-  grid-template-columns: minmax(min(100%, 300px), 1fr) minmax(min(100%, 340px), 1.2fr);
+  /* Text column, then a slightly wider column for the portrait. On a phone it's one column
+     with the portrait on top (see the media query below). */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   gap: clamp(24px, 5vw, 64px);
   align-items: start;
   padding: clamp(28px, 5vw, 64px) 0 clamp(24px, 4vw, 44px);
@@ -1032,6 +1043,12 @@
   object-fit: cover;
   border-radius: var(--img-radius, var(--radius-card));
   filter: var(--photo-filter, none);
+}
+
+@media (max-width: 720px) {
+  .teacherGrid { grid-template-columns: minmax(0, 1fr); }
+  /* Portrait first, a little shorter, so the name and bio start on the first screen. */
+  .teacherPortrait { order: -1; aspect-ratio: 4 / 5; max-height: 62vh; }
 }
 
 .metaList {
@@ -1191,4 +1208,195 @@
   border-radius: var(--radius, 20px);
   padding: clamp(22px, 4vw, 28px);
   border: 1px solid var(--line-strong);
+}
+
+/* Add to calendar (CalendarLinks). Phone-sized tap targets: members book on their phones. */
+.calWrap {
+  margin: 4px 0 16px;
+  text-align: left;
+}
+
+.calLabel {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.calRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calBtn {
+  flex: 1 1 140px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--line-chip);
+  border-radius: var(--pill);
+  background: var(--surface);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.calMenu {
+  width: 100%;
+}
+
+.calSummary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  list-style: none;
+}
+
+.calSummary::-webkit-details-marker {
+  display: none;
+}
+
+.calSummary::after {
+  content: '▾';
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+.calMenu[open] .calSummary::after {
+  content: '▴';
+}
+
+/* Phones (members book almost entirely on their phones). Readable text: the details members act on
+   (times, places, prices, spots left) at 15px, small labels at 13–14px, never below. Tap targets:
+   anything you press is at least 44px tall. Desktop keeps the denser layout above. */
+@media (max-width: 720px) {
+  .rowMeta,
+  .drawerMeta,
+  .optionNote,
+  .metaList,
+  .passNote,
+  .passListDetail,
+  .noticeWarn,
+  .noticeError,
+  .noticeOk,
+  .drawerStatus {
+    font-size: 15px;
+  }
+
+  .rowLoc,
+  .rowSpots,
+  .rowPrice,
+  .drawerFootnote,
+  .footer,
+  .passListMuted,
+  .fieldLabel {
+    font-size: 14px;
+  }
+
+  .kicker,
+  .dayLabel,
+  .galleryLabel,
+  .tag,
+  .fixedBarLabel,
+  .drawerStep {
+    font-size: 13px;
+  }
+
+  /* Buttons and links you tap */
+  .btnGhost,
+  .btnSolid,
+  .rowBtn,
+  .smallBtn,
+  .fixedBarBtn,
+  .chip {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .smallBtn,
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .navLink,
+  .textBtn,
+  .linkBtn,
+  .onlineLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .selectPf {
+    min-height: 44px;
+    font-size: 16px; /* 16px stops iOS Safari zooming into the field */
+  }
+
+  .footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Phones: schedule filters on ONE row that scrolls sideways, so classes start on the first screen.
+   The row runs edge to edge (past the page gutter) and fades out on the right as a scroll hint. */
+@media (max-width: 720px) {
+  .chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * var(--gutter)) 20px;
+    padding: 2px var(--gutter);
+    scroll-padding-inline: var(--gutter);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+
+  .chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chip {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .chipDivider {
+    display: block;
+    flex: none;
+    width: 1px;
+    height: 24px;
+    margin: 0 4px;
+    background: var(--line-chip);
+  }
+}
+
+/* Phones: the pass purchase box becomes a bottom sheet, like booking a class, easy to reach with a
+   thumb and with room for the card form. Bottom padding clears the iPhone home indicator. */
+@media (max-width: 720px) {
+  .modalOverlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modalPanel {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius-drawer) var(--radius-drawer) 0 0;
+    border-width: 1px 0 0;
+    padding-bottom: calc(clamp(22px, 4vw, 28px) + env(safe-area-inset-bottom, 0px));
+    animation: drawer-in 220ms ease-out;
+  }
 }

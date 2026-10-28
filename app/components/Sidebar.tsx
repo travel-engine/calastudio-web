@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import { CalendarDays, ChartColumn, Clock, ExternalLink, House, Layers, LogOut, Menu, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
+import { CalendarDays, ChartColumn, Check, ChevronsUpDown, Clock, ExternalLink, House, Layers, LogOut, Menu, ShieldCheck, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
-import { clearOrgContext, getOrgContext } from '@/lib/orgContext'
+import { clearOrgContext, getMyStudios, getOrgContext, switchStudio, PLATFORM_ADMIN, type MyStudio } from '@/lib/orgContext'
 import { STUDIO_SUBDOMAINS, studioOrigin, studioUrl } from '@/lib/seo'
 import { canViewSessions, canViewOccurrences, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
 import { color } from '@/lib/ui/tokens'
@@ -35,6 +35,8 @@ type NavItem = {
   key: string
   section: (typeof SECTIONS)[number]['key']
   canView?: (roles: string[]) => boolean
+  /** Hidden until roles are known (most items show while roles load; this one must not). */
+  strict?: boolean
 }
 
 // No Bookings item: its job is Schedule → a class's roster (handoff §2); next.config redirects it.
@@ -48,6 +50,8 @@ const navItems: NavItem[] = [
   { href: '/dashboard/team', icon: UserPlus, label: 'Team', key: 'team', section: 'settings', canView: canViewTeam },
   { href: '/dashboard/audit-log', icon: Clock, label: 'Activity log', key: 'audit-log', section: 'settings', canView: canViewAuditLog },
   { href: '/dashboard/settings', icon: SlidersHorizontal, label: 'Settings', key: 'settings', section: 'settings', canView: canManageSettings },
+  // CalaStudio's own staff (Travel Engine staff) only — not a studio role.
+  { href: '/admin', icon: ShieldCheck, label: 'CalaStudio admin', key: 'platform', section: 'settings', canView: r => r.includes(PLATFORM_ADMIN), strict: true },
 ]
 
 function BrandMark({ size = 28 }: { size?: number }) {
@@ -64,13 +68,19 @@ export default function Sidebar({ active, roles }: SidebarProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   // Which studio this dashboard belongs to — from the per-tab org cache every page already loads.
-  const [studio, setStudio] = useState<{ name: string; slug: string; logo: string | null } | null>(null)
+  const [studio, setStudio] = useState<{ id: string; name: string; slug: string; logo: string | null } | null>(null)
+  // Other studios this person is on staff at; the switcher only appears when there's more than one.
+  const [studios, setStudios] = useState<MyStudio[]>([])
+  const [switcherOpen, setSwitcherOpen] = useState(false)
+  const [switching, setSwitching] = useState<string | null>(null)
   useEffect(() => {
     getOrgContext().then(ctx => {
-      if (ctx.status === 'ok') setStudio({ name: ctx.org.name ?? '', slug: ctx.org.slug, logo: ctx.org.logo_url ?? null })
+      if (ctx.status === 'ok') setStudio({ id: ctx.org.id, name: ctx.org.name ?? '', slug: ctx.org.slug, logo: ctx.org.logo_url ?? null })
     }).catch(() => {})
+    getMyStudios().then(setStudios).catch(() => {})
   }, [])
-  const visible = (item: NavItem) => !item.canView || !roles || item.canView(roles)
+  const canSwitch = studios.length > 1
+  const visible = (item: NavItem) => !item.canView || (!roles ? !item.strict : item.canView(roles))
 
   useEffect(() => {
     if (!open) return
@@ -116,18 +126,55 @@ export default function Sidebar({ active, roles }: SidebarProps) {
         </Link>
 
         {studio && (
-          <div className={styles.studio}>
-            <span className={styles.studioMark} aria-hidden>
-              {studio.logo ? <img src={studio.logo} alt="" /> : (studio.name.trim()[0] ?? '?').toUpperCase()}
-            </span>
-            <span style={{ minWidth: 0 }}>
-              <span className={styles.studioLabel}>Your studio</span>
-              <span className={styles.studioName}>{studio.name}</span>
-              <a href={studioUrl(studio.slug)} target="_blank" rel="noreferrer" className={`${styles.studioLink} ${ui.focusable}`}>
-                {STUDIO_SUBDOMAINS ? studioOrigin(studio.slug).replace(/^https?:\/\//, '') : 'View booking page'}
-                <ExternalLink size={12} strokeWidth={2} aria-hidden />
-              </a>
-            </span>
+          <div className={styles.studioWrap}>
+            <div className={styles.studio}>
+              <StudioMark name={studio.name} logo={studio.logo} />
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span className={styles.studioLabel}>Your studio</span>
+                <span className={styles.studioName}>{studio.name}</span>
+                <a href={studioUrl(studio.slug)} target="_blank" rel="noreferrer" className={`${styles.studioLink} ${ui.focusable}`}>
+                  {STUDIO_SUBDOMAINS ? studioOrigin(studio.slug).replace(/^https?:\/\//, '') : 'View booking page'}
+                  <ExternalLink size={12} strokeWidth={2} aria-hidden />
+                </a>
+              </span>
+              {canSwitch && (
+                <button
+                  type="button"
+                  onClick={() => setSwitcherOpen(o => !o)}
+                  aria-expanded={switcherOpen}
+                  aria-controls="studio-switcher"
+                  aria-label={`Switch studio (${studios.length} studios)`}
+                  className={`${styles.switchBtn} ${ui.focusable}`}
+                >
+                  <ChevronsUpDown size={18} strokeWidth={1.8} aria-hidden />
+                </button>
+              )}
+            </div>
+            {canSwitch && switcherOpen && (
+              <ul id="studio-switcher" className={styles.switcher} aria-label="Your studios">
+                {studios.map(s => {
+                  const current = s.id === studio.id
+                  return (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        disabled={current || switching !== null}
+                        aria-current={current ? 'true' : undefined}
+                        onClick={() => { setSwitching(s.id); switchStudio(s.id) }}
+                        className={`${styles.switchItem} ${current ? styles.switchCurrent : ''} ${ui.focusable}`}
+                      >
+                        <StudioMark name={s.name} logo={s.logo_url} small />
+                        <span style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
+                          <span className={styles.studioName}>{s.name}</span>
+                          <span className={styles.switchRole}>{switching === s.id ? 'Opening…' : roleLabel(s.roles)}</span>
+                        </span>
+                        {current && <Check size={16} strokeWidth={2} aria-hidden />}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </div>
         )}
 
@@ -158,6 +205,27 @@ export default function Sidebar({ active, roles }: SidebarProps) {
       </nav>
     </>
   )
+}
+
+function StudioMark({ name, logo, small }: { name: string; logo: string | null; small?: boolean }) {
+  return (
+    <span className={`${styles.studioMark} ${small ? styles.studioMarkSmall : ''}`} aria-hidden>
+      {logo ? <img src={logo} alt="" /> : (name.trim()[0] ?? '?').toUpperCase()}
+    </span>
+  )
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Admin',
+  teacher_super: 'Senior teacher',
+  teacher_general: 'Teacher',
+  teacher_basic: 'Teacher',
+  front_desk: 'Front desk',
+}
+// The highest staff role, in the same order the API ranks studios by.
+function roleLabel(roles: string[]): string {
+  const top = ['admin', 'teacher_super', 'teacher_general', 'teacher_basic', 'front_desk'].find(r => roles.includes(r))
+  return top ? ROLE_LABEL[top] : ''
 }
 
 function NavLink({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
