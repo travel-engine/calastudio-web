@@ -25,5 +25,10 @@ export function authErrorMessage(error: { message: string } | null | undefined, 
     if (error.reasons.includes('length')) return `Your password needs at least ${MIN_PASSWORD_LENGTH} characters.`
     return 'That password is too weak. Please choose a longer one.'
   }
+  // Auth emails go through the API's Send Email Hook; when it fails Supabase reports
+  // "Unexpected status code returned from hook: 500", which means nothing to a visitor.
+  if (/returned from hook|hook/i.test(error.message)) {
+    return 'We couldn’t send your confirmation email just now. Please try again in a few minutes.'
+  }
   return error.message || fallback
 }
