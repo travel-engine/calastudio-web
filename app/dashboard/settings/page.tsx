@@ -178,6 +178,19 @@ const STUDIO_SECTIONS: { id: string; label: string }[] = [
   { id: 'tax', label: 'Tax (GST)' },
 ]
 
+// Messages for the API's Connect failure codes (StripeConnectEndpoints callback). Unknown or
+// missing codes fall back to the generic message.
+const STRIPE_FAIL_REASONS: Record<string, string> = {
+  denied: 'Stripe connection was cancelled. Connect again when you’re ready.',
+  platform_self: 'That Stripe account belongs to CalaStudio itself. Connect your studio’s own Stripe account, or create a new one on Stripe’s page.',
+  code_invalid: 'That Stripe link expired or was already used. Please connect again.',
+  mode_mismatch: 'Stripe couldn’t be connected because of a setup problem on our side. Please contact CalaStudio support.',
+  not_configured: 'Stripe connections aren’t available right now because of a setup problem on our side. Please contact CalaStudio support.',
+  studio_not_found: 'We couldn’t find your studio when Stripe sent you back. Please sign in again and retry.',
+  invalid_request: 'Stripe couldn’t complete the connection. Please try again.',
+  stripe_error: 'Stripe couldn’t complete the connection. Please try again in a few minutes.',
+}
+
 export default function SettingsPage() {
   return (
     <Suspense fallback={
@@ -237,6 +250,8 @@ function SettingsPageContent() {
   const [disconnecting, setDisconnecting] = useState(false)
   const [disconnectError, setDisconnectError] = useState('')
   const [stripeBanner, setStripeBanner] = useState<'success' | 'failure' | null>(null)
+  // Why a Connect attempt failed: the API's ?reason= code on the callback redirect (PR #60).
+  const [stripeFailReason, setStripeFailReason] = useState('')
 
   const [openContentRow, setOpenContentRow] = useState<string | null>(null)
   const [zone, setZone] = useState('')
@@ -266,7 +281,7 @@ function SettingsPageContent() {
   useEffect(() => {
     const connected = searchParams.get('stripe_connected')
     if (connected === 'true') setStripeBanner('success')
-    else if (connected === 'false') setStripeBanner('failure')
+    else if (connected === 'false') { setStripeBanner('failure'); setStripeFailReason(searchParams.get('reason') ?? '') }
     if (connected !== null) router.replace('/dashboard/settings')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -945,7 +960,7 @@ function SettingsPageContent() {
                         <div role="status" style={{ padding: '12px 16px', background: color.primarySoft, borderRadius: radius.control, color: color.primaryInk, fontSize: 15 }}>Stripe connected.</div>
                       )}
                       {stripeBanner === 'failure' && (
-                        <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>Stripe connection failed or was cancelled. Please try again.</div>
+                        <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, borderRadius: radius.control, color: color.dangerInk, fontSize: 15 }}>{STRIPE_FAIL_REASONS[stripeFailReason] ?? 'Stripe connection failed or was cancelled. Please try again.'}</div>
                       )}
                       <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.card, padding: 18, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
