@@ -133,6 +133,11 @@ export default function BookingDrawer() {
   // Pass ids the member already held when a purchase started — so the post-payment poll can spot the
   // *newly issued* pass rather than comparing a date-only effective_from against a timestamp.
   const passIdsBeforePurchaseRef = useRef<Set<string>>(new Set())
+  // A double-tap fires before the busy state disables the button; this ref stops the second tap from
+  // creating a second PaymentIntent on the studio's Stripe account. Declared up here with the other
+  // hooks: below the `if (!occurrence) return null` it ran only once the drawer opened, and React
+  // threw #310 (more hooks than the previous render), so Book crashed the page.
+  const paymentStartingRef = useRef(false)
 
   const isWaiverOrTermsError = (message: string) =>
     message.includes('Terms & Conditions') || message.includes('Liability Waiver') || message.includes('liability waiver')
@@ -473,10 +478,6 @@ export default function BookingDrawer() {
     }
     setError("Your payment succeeded, but we're still issuing your pass. Check My Passes in a minute, then come back and book.")
   }
-
-  // A double-tap fires before the busy state disables the button; this ref stops the second tap from
-  // creating a second PaymentIntent on the studio's Stripe account.
-  const paymentStartingRef = useRef(false)
 
   const startDropInPayment = async () => {
     if (paymentStartingRef.current) return
