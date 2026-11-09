@@ -61,6 +61,16 @@ export default function PlanStep({ orgId, currency, onDone }: {
   const cur = (plan?.currency || currency).toUpperCase()
   const price = (p: PlanKey) => !plan ? '' : planPrice(p, plan, cur).replace(/^—$/, '')
 
+  // Tell the API Stripe saved the card, so the plan switch below doesn't race the webhook. A failure
+  // here isn't fatal: switchPlan reports it, and the webhook still records the card.
+  const confirmCard = async (setupIntentId: string) => {
+    await fetch(`${api}/setup-intent/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await token()}` },
+      body: JSON.stringify({ setup_intent_id: setupIntentId }),
+    }).catch(() => null)
+  }
+
   const switchPlan = async () => {
     const res = await fetch(`${api}/plan`, {
       method: 'PUT',
@@ -123,7 +133,7 @@ export default function PlanStep({ orgId, currency, onDone }: {
         <PlatformCardForm
           clientSecret={cardSecret}
           onCancel={() => { setCardSecret(null); setChoice('percentage') }}
-          onSaved={async () => { setBusy(true); try { await switchPlan() } finally { setBusy(false) } }}
+          onSaved={async (setupIntentId) => { setBusy(true); try { await confirmCard(setupIntentId); await switchPlan() } finally { setBusy(false) } }}
         />
         {busy && <p style={{ fontSize: '13px', color: '#666', marginTop: '12px' }}>Switching your plan…</p>}
       </div>

@@ -90,6 +90,25 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
     }
   }
 
+  // Stripe has saved the card. Tell the API straight away (POST …/setup-intent/confirm) so the plan
+  // shows "card saved" now, instead of only once the setup_intent.succeeded webhook lands.
+  const onCardSaved = async (setupIntentId: string) => {
+    setCardSecret(null)
+    try {
+      const res = await fetch(`${api}/setup-intent/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ setup_intent_id: setupIntentId }),
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data) { setPlan(data); setNotice({ ok: true, text: 'Card saved.' }); return }
+      setNotice({ ok: false, text: data?.error ?? 'Your card was saved with Stripe, but we couldn’t update your plan yet. Refresh in a minute.' })
+    } catch {
+      setNotice({ ok: false, text: 'Your card was saved with Stripe, but we couldn’t reach the server. Refresh in a minute.' })
+    }
+    load()
+  }
+
   // PUT …/plan. Leaving Monthly/Annual doesn't happen now: the API keeps the paid period running and
   // returns pending_plan + the date. Re-selecting the plan still being billed cancels that pending switch.
   const selectPlan = async (target: PlanKey): Promise<BillingPlan | string> => {
@@ -249,7 +268,7 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
           <PlatformCardForm
             clientSecret={cardSecret}
             onCancel={() => setCardSecret(null)}
-            onSaved={() => { setCardSecret(null); setNotice({ ok: true, text: 'Card saved.' }); load() }}
+            onSaved={onCardSaved}
           />
         </Modal>
       )}
