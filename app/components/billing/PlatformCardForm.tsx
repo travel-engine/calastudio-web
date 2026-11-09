@@ -14,7 +14,7 @@ import { Button, alertStyle } from '@/app/components/admin'
 let platformStripe: ReturnType<typeof loadStripe> | null = null
 const getPlatformStripe = () => (platformStripe ??= loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!))
 
-function CardForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => void }) {
+function CardForm({ onSaved, onCancel }: { onSaved: (setupIntentId: string) => void; onCancel: () => void }) {
   const stripe = useStripe()
   const elements = useElements()
   const [busy, setBusy] = useState(false)
@@ -27,7 +27,7 @@ function CardForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => 
     const { error: err, setupIntent } = await stripe.confirmSetup({ elements, redirect: 'if_required' })
     setBusy(false)
     if (err) { setError(err.message ?? 'Could not save this card.'); return }
-    if (setupIntent?.status === 'succeeded' || setupIntent?.status === 'processing') onSaved()
+    if (setupIntent && (setupIntent.status === 'succeeded' || setupIntent.status === 'processing')) onSaved(setupIntent.id)
     else setError('The card was not saved. Please try again.')
   }
 
@@ -45,7 +45,7 @@ function CardForm({ onSaved, onCancel }: { onSaved: () => void; onCancel: () => 
 
 
 /** Wraps the card form in Elements for one SetupIntent client_secret. */
-export function PlatformCardForm({ clientSecret, onSaved, onCancel }: { clientSecret: string; onSaved: () => void; onCancel: () => void }) {
+export function PlatformCardForm({ clientSecret, onSaved, onCancel }: { clientSecret: string; onSaved: (setupIntentId: string) => void; onCancel: () => void }) {
   return (
     <Elements stripe={getPlatformStripe()} options={{ clientSecret }}>
       <CardForm onSaved={onSaved} onCancel={onCancel} />
