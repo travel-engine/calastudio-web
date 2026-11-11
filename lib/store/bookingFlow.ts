@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { useMemberSchedule } from './memberSchedule'
+import type { MembershipOffer } from '@/lib/memberships'
 
 export interface BookableOccurrence {
   occurrence_id: string
@@ -61,6 +62,16 @@ export interface BookingOptions {
   guest_credits_cost: number
   guest_bookings_enabled: boolean
   guest_max_per_booking: number
+  // Memberships (API #74). The guest fields here come from the membership plan, not the pass.
+  usable_membership?: {
+    id: string
+    name: string
+    sessions_left_this_period: number | null // null = no cap
+    guest_bookings_enabled: boolean
+    guest_max_per_booking: number | null
+  } | null
+  membership_not_usable_reason?: 'not_covered' | 'cap_reached' | 'outside_period' | 'payment_overdue' | null
+  purchasable_membership_templates?: MembershipOffer[] | null
 }
 
 export interface ConfirmedBooking {

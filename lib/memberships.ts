@@ -87,6 +87,10 @@ export function capLabel(cap: number | null, type: PeriodType, value: number | n
 
 // ── Member side (API PR #73) ─────────────────────────────────────────────
 
+/** A plan offered for sale where a member can't book otherwise (booking-options). */
+export type MembershipOffer = Pick<MembershipTemplate,
+  'id' | 'name' | 'description' | 'price' | 'currency' | 'period_type' | 'period_rolling_value' | 'is_recurring' | 'session_cap'>
+
 /** GET …/members/me/memberships/{templateId}/quote?start_date= */
 export interface MembershipQuote {
   start_date: string

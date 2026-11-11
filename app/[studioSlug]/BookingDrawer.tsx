@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase'
 import { PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
-import { useBookingFlow, type PassTemplateOption } from '@/lib/store/bookingFlow'
+import { useBookingFlow, type BookingOptions, type PassTemplateOption } from '@/lib/store/bookingFlow'
 import { displayName, splitName } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
+import MembershipPurchaseModal from './MembershipPurchaseModal'
+import { priceLabel, type MembershipOffer } from '@/lib/memberships'
 import { formatDate, formatDateTimeWithWeekday, formatTime } from '@/lib/dates'
 import styles from './photofirst.module.css'
 import CalendarLinks from './CalendarLinks'
@@ -62,6 +65,14 @@ function formatMoney(amount: number, currency: string) {
   catch { return `${currency} ${amount.toFixed(2)}` }
 }
 
+// Why a member's membership can't book this class (booking-options membership_not_usable_reason).
+const MEMBERSHIP_NOT_USABLE: Record<NonNullable<BookingOptions['membership_not_usable_reason']>, string> = {
+  not_covered: 'Your membership doesn’t cover this class.',
+  cap_reached: 'You’ve used all the sessions on your membership for this period.',
+  outside_period: 'This class is outside your membership dates.',
+  payment_overdue: 'Your membership payment is overdue, so it can’t be used to book until it’s paid. Check your email for a link to pay.',
+}
+
 const STEP_LABELS: Record<string, string> = {
   auth: 'Step 1 of 2 — sign in',
   agreements: 'Before you continue',
@@ -98,6 +109,12 @@ export default function BookingDrawer() {
   // backend rejects a nonzero guest_count outright on the drop-in card payment-intent endpoint.
   // No per-guest name/email collection — each guest is just labelled "{member name} - Guest N".
   const [guestCount, setGuestCount] = useState(0)
+  // Membership vs pass, when both would work: the API books with the membership unless told
+  // "use": "pass". The last choice is kept so a retry (after re-accepting the waiver) books the same way.
+  const [preferPass, setPreferPass] = useState(false)
+  const lastUseRef = useRef<'membership' | 'pass' | undefined>(undefined)
+  const [joiningMembership, setJoiningMembership] = useState<MembershipOffer | null>(null)
+  const [optionsReload, setOptionsReload] = useState(0)
   const [memberName, setMemberName] = useState('')
 
   const [waitlistBusy, setWaitlistBusy] = useState(false)
@@ -285,6 +302,7 @@ export default function BookingDrawer() {
     setWaitlistError('')
     setAlreadyBooked(false)
     setGuestCount(0)
+    setPreferPass(false)
     Promise.all([
       fetch(`${apiUrl}/api/public/${studioSlug}/occurrences/${occurrence.occurrence_id}/booking-options`, {
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
@@ -308,7 +326,7 @@ export default function BookingDrawer() {
     }).finally(() => { if (!cancelled) setOptionsLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, occurrence?.occurrence_id, accessToken, orgId])
+  }, [step, occurrence?.occurrence_id, accessToken, orgId, optionsReload])
 
   if (!occurrence) return null
 
@@ -361,7 +379,8 @@ export default function BookingDrawer() {
 
   // `afterPurchase`: the member has just paid for a pass to make this booking — if the booking then
   // fails, say plainly that the pass is safe in their account.
-  const handleConfirmBooking = async (afterPurchase = false) => {
+  const handleConfirmBooking = async (afterPurchase = false, use: 'membership' | 'pass' | undefined = lastUseRef.current) => {
+    lastUseRef.current = use
     setConfirmingLabel('Confirming your booking...')
     setStep('confirming')
     try {
@@ -371,6 +390,7 @@ export default function BookingDrawer() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({
           session_occurrence_id: occurrence.occurrence_id,
+          ...(use ? { use } : {}),
           guest_count: guestCount,
           guests: Array.from({ length: guestCount }, (_, i) => ({
             first_name: `${guestLabel} - Guest ${i + 1}`, last_name: null, email: null,
@@ -381,12 +401,16 @@ export default function BookingDrawer() {
       if (res.ok && data?.booked) {
         setConfirmedBooking({ id: data.booking.id, status: data.booking.status, calendar_ics_url: data.booking.calendar_ics_url, calendar_google_url: data.booking.calendar_google_url })
       } else if (res.ok && !data?.booked) {
-        setNote('That pass is no longer usable — choose another option below.')
+        setNote(use === 'membership'
+          ? 'Your membership can’t be used for this class any more — choose another option below.'
+          : 'That pass is no longer usable — choose another option below.')
         setBookingOptions({
           ...bookingOptions!,
           usable_pass_id: null,
           usable_pass_name: null,
           purchasable_pass_templates: data?.suitable_pass_templates ?? [],
+          ...(use === 'membership' ? { usable_membership: null } : {}),
+          purchasable_membership_templates: data?.suitable_membership_templates ?? bookingOptions?.purchasable_membership_templates ?? [],
         })
         setStep('options')
       } else {
@@ -473,7 +497,7 @@ export default function BookingDrawer() {
         // The pass the webhook just issued: same template, and an id we didn't already hold.
         const found = passes.find((p: any) =>
           p.pass_template_id === templateId && !passIdsBeforePurchaseRef.current.has(p.id))
-        if (found) { await handleConfirmBooking(true); return }
+        if (found) { await handleConfirmBooking(true, 'pass'); return }
       }
     }
     setError("Your payment succeeded, but we're still issuing your pass. Check My Passes in a minute, then come back and book.")
@@ -601,15 +625,42 @@ export default function BookingDrawer() {
     )})
   }
 
-  const renderGuestSelector = () => {
-    if (!bookingOptions?.guest_bookings_enabled || bookingOptions.guest_max_per_booking <= 0) return null
+  // The membership's own guest rules apply when booking with it; each guest uses one of its sessions.
+  // The studio's memberships that would cover this class: Join opens the purchase modal on top of
+  // the drawer; once joined, booking-options is re-read and the membership is offered.
+  const renderMembershipOffers = () => {
+    const offers = bookingOptions?.purchasable_membership_templates ?? []
+    if (!canPay || offers.length === 0) return null
+    return offers.map(m => (
+      <div key={m.id} className={styles.optionCardPf} style={{ cursor: 'default', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+          <div style={{ minWidth: 0 }}>
+            <div className={styles.optionTitle}>{m.name}</div>
+            <span className={styles.optionNote}>Membership · {m.session_cap == null ? 'unlimited sessions' : `${m.session_cap} sessions per period`}</span>
+            {m.description && <span className={styles.optionNote}>{m.description}</span>}
+            <span className={styles.optionNote}>{priceLabel(m, formatMoney)}</span>
+          </div>
+          <button onClick={() => setJoiningMembership(m)} className={styles.smallBtn} style={{ flexShrink: 0 }}>Join</button>
+        </div>
+      </div>
+    ))
+  }
+
+  const renderGuestSelector = (membership?: NonNullable<BookingOptions['usable_membership']>) => {
+    if (!bookingOptions) return null
+    const enabled = membership ? membership.guest_bookings_enabled : bookingOptions.guest_bookings_enabled
+    const perBooking = membership ? (membership.guest_max_per_booking ?? 0) : bookingOptions.guest_max_per_booking
+    if (!enabled || perBooking <= 0) return null
 
     const spotsRemaining = occurrence!.spots_remaining
-    const spotsCap = spotsRemaining === null ? bookingOptions.guest_max_per_booking : Math.max(0, spotsRemaining - 1)
-    const maxGuests = Math.min(bookingOptions.guest_max_per_booking, spotsCap)
+    const spotsCap = spotsRemaining === null ? perBooking : Math.max(0, spotsRemaining - 1)
+    const sessionsCap = membership?.sessions_left_this_period != null ? Math.max(0, membership.sessions_left_this_period - 1) : perBooking
+    const maxGuests = Math.min(perBooking, spotsCap, sessionsCap)
     if (maxGuests <= 0) return null
 
-    const credits = creditsLine(bookingOptions.member_credits_cost, bookingOptions.guest_credits_cost, guestCount)
+    const credits = membership
+      ? (membership.sessions_left_this_period != null && guestCount > 0 ? `Uses ${guestCount + 1} of your membership sessions.` : null)
+      : creditsLine(bookingOptions.member_credits_cost, bookingOptions.guest_credits_cost, guestCount)
 
     return (
       <div className={styles.infoCard}>
@@ -823,6 +874,10 @@ export default function BookingDrawer() {
                 </div>
               )}
 
+              {!bookingOptions.is_free && bookingOptions.membership_not_usable_reason && (
+                <div className={styles.noticeWarn}>{MEMBERSHIP_NOT_USABLE[bookingOptions.membership_not_usable_reason]}</div>
+              )}
+
               {bookingOptions.is_free ? (
                 <div>
                   <p className={styles.drawerText}>This class is free — no payment required.</p>
@@ -831,7 +886,29 @@ export default function BookingDrawer() {
                     Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
                   </button>
                 </div>
-              ) : bookingOptions.usable_pass_id ? (
+              ) : bookingOptions.usable_membership && !preferPass ? (() => {
+                const m = bookingOptions.usable_membership
+                const left = m.sessions_left_this_period
+                return (
+                <div>
+                  <div className={styles.infoCard}>
+                    <div style={{ fontWeight: 500, fontSize: '15px' }}>Using your membership</div>
+                    <div style={{ fontSize: '15px', color: 'var(--text-meta)', marginTop: '2px' }}>
+                      {m.name} · {left == null ? 'unlimited sessions' : `${left} session${left === 1 ? '' : 's'} left this period`}
+                    </div>
+                  </div>
+                  {renderGuestSelector(m)}
+                  <button onClick={() => handleConfirmBooking(false, 'membership')} className={styles.blockBtn} style={{ marginTop: '12px' }}>
+                    Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
+                  </button>
+                  {bookingOptions.usable_pass_id && (
+                    <button onClick={() => { setPreferPass(true); setGuestCount(0) }} className={styles.linkBtn} style={{ marginTop: '12px' }}>
+                      Use my pass ({bookingOptions.usable_pass_name}) instead
+                    </button>
+                  )}
+                </div>
+                )
+              })() : bookingOptions.usable_pass_id ? (
                 <div>
                   <div className={styles.infoCard}>
                     <div style={{ fontWeight: 500, fontSize: '15px' }}>Using your pass</div>
@@ -856,13 +933,18 @@ export default function BookingDrawer() {
                     )
                   })()}
                   <button
-                    onClick={() => handleConfirmBooking()}
+                    onClick={() => handleConfirmBooking(false, 'pass')}
                     disabled={passCreditsShort}
                     className={styles.blockBtn}
                     style={{ marginTop: '12px' }}
                   >
                     Confirm booking{guestCount > 0 ? ` (${guestCount + 1} spots)` : ''}
                   </button>
+                  {bookingOptions.usable_membership && (
+                    <button onClick={() => { setPreferPass(false); setGuestCount(0) }} className={styles.linkBtn} style={{ marginTop: '12px' }}>
+                      Use my membership ({bookingOptions.usable_membership.name}) instead
+                    </button>
+                  )}
                 </div>
               ) : !canPay ? (
                 <p style={{ fontSize: '14px', color: 'var(--danger)' }}>
@@ -870,14 +952,18 @@ export default function BookingDrawer() {
                 </p>
               ) : (
                 <div>
-                  {!bookingOptions.drop_in_allowed && !bookingOptions.purchasable_pass_templates?.length ? (
+                  {!bookingOptions.drop_in_allowed && !bookingOptions.purchasable_pass_templates?.length && !bookingOptions.purchasable_membership_templates?.length ? (
                     <p style={{ fontSize: '14px', color: 'var(--danger)' }}>
                       No pricing options are available for this class. Please contact the studio.
                     </p>
                   ) : (
                     <>
                       <p className={styles.drawerText}>
-                        You need a pass to book this class, or you can pay for a single drop-in.
+                        {bookingOptions.purchasable_membership_templates?.length
+                          ? `To book this class you need a membership or a pass${bookingOptions.drop_in_allowed ? ', or you can pay for a single drop-in' : ''}.`
+                          : bookingOptions.drop_in_allowed
+                            ? 'You need a pass to book this class, or you can pay for a single drop-in.'
+                            : 'You need a pass to book this class.'}
                       </p>
 
                       {bookingOptions.drop_in_allowed && (
@@ -908,6 +994,7 @@ export default function BookingDrawer() {
                         </div>
                       )}
 
+                      {renderMembershipOffers()}
                       {renderPassOffers()}
                     </>
                   )}
@@ -1012,6 +1099,24 @@ export default function BookingDrawer() {
               {joiningWaitlist ? 'Back to waitlist' : 'Back to options'}
             </button>
           </div>
+        )}
+
+        {/* Portalled so it sits above the drawer; React events still bubble to this panel, not the overlay. */}
+        {joiningMembership && accessToken && stripeAccountId && studioSlug && createPortal(
+          <MembershipPurchaseModal
+            template={joiningMembership}
+            orgId={orgId}
+            token={accessToken}
+            studioSlug={studioSlug}
+            stripeAccountId={stripeAccountId}
+            onClose={() => setJoiningMembership(null)}
+            onPurchased={() => {
+              // Re-read booking-options: the new membership is offered if it covers this class.
+              setJoiningMembership(null)
+              setOptionsReload(n => n + 1)
+            }}
+          />,
+          document.body,
         )}
       </div>
     </div>

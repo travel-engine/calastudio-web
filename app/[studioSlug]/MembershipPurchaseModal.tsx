@@ -5,7 +5,7 @@ import Link from 'next/link'
 import StripePaymentForm from './StripePaymentForm'
 import styles from './photofirst.module.css'
 import { studioPath } from '@/lib/seo'
-import { dateOnlyLabel, localDateKey, periodUnit, priceLabel, type MembershipQuote, type MembershipTemplate } from '@/lib/memberships'
+import { dateOnlyLabel, localDateKey, periodUnit, priceLabel, type MembershipOffer, type MembershipQuote } from '@/lib/memberships'
 
 const money = (n: number, c: string) => {
   try { return new Intl.NumberFormat('en-AU', { style: 'currency', currency: c }).format(n) }
@@ -23,7 +23,7 @@ type Phase = 'choose' | 'starting' | 'pay' | 'confirming' | 'done' | 'pending' |
 export default function MembershipPurchaseModal({
   template, orgId, token, studioSlug, stripeAccountId, onClose, onPurchased,
 }: {
-  template: MembershipTemplate
+  template: MembershipOffer
   orgId: string
   token: string
   studioSlug: string

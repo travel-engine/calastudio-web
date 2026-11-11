@@ -94,6 +94,7 @@ interface Booking {
   booked_mode: 'in_person' | 'online'
   status: 'confirmed' | 'attended' | 'cancelled' | 'late_cancel' | 'no_show' | 'waitlisted'
   payment_type?: 'card' | 'pass' | 'membership' | 'admin_waived' | 'free'
+  membership_name?: string | null
   payment_id?: string | null
   amount_paid?: number | null
   currency?: string
@@ -851,6 +852,7 @@ export default function OccurrenceDetailPage() {
       <span>
         {b.payment_type ? (paymentTypeLabels[b.payment_type] ?? b.payment_type) : '—'}
         {b.payment_type === 'card' && b.amount_paid != null ? ` · ${formatMoney(b.amount_paid, b.currency ?? 'AUD')}` : ''}
+        {b.payment_type === 'membership' && b.membership_name ? ` · ${b.membership_name}` : ''}
       </span>
       {b.payment_type === 'admin_waived' && b.comp_reason && (
         <span style={{ fontSize: 13, color: color.muted }}>{b.comp_reason}{b.comp_added_by_name ? ` · ${b.comp_added_by_name}` : ''}</span>
