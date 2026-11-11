@@ -14,7 +14,7 @@ import CancelOccurrenceModal from '@/app/components/CancelOccurrenceModal'
 import ClassActivity from '@/app/components/ClassActivity'
 import { dayKey, formatClock, formatShortDate } from '@/lib/dates'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
-import { Breadcrumb, Button, Card, Chip, EmptyState, PageHeader, buttonStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import { Breadcrumb, Button, Card, CheckRow, Chip, EmptyState, Field, Modal, PageHeader, alertStyle, buttonStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -250,6 +250,9 @@ const paymentTypeLabels: Record<string, string> = {
   free: 'Free',
 }
 
+// The API's limit on the staff-cancel message to the member (POST …/bookings/{id}/cancel).
+const CANCEL_MESSAGE_MAX = 500
+
 const inputStyle: React.CSSProperties = { ...controlStyle, padding: '10px 12px' }
 const labelStyle: React.CSSProperties = { display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6, color: color.ink, padding: 0 }
 const paymentChoiceRow = (active: boolean): React.CSSProperties => ({
@@ -286,6 +289,10 @@ export default function OccurrenceDetailPage() {
   const [tab, setTab] = useState<Tab>('booked')
 
   const [manageError, setManageError] = useState('')
+  const [cancelTarget, setCancelTarget] = useState<Booking | null>(null)
+  const [cancelNotify, setCancelNotify] = useState(true)
+  const [cancelMessage, setCancelMessage] = useState('')
+  const [cancelError, setCancelError] = useState('')
   const [manageBusy, setManageBusy] = useState(false)
   const [showCancelOccurrence, setShowCancelOccurrence] = useState(false)
 
@@ -457,19 +464,31 @@ export default function OccurrenceDetailPage() {
     setManageBusy(false)
   }
 
-  const handleCancelBooking = async (b: Booking) => {
-    // Guests ride on the member's booking, so they go with it; say so before confirming.
-    const activeGuests = parseGuests(b).filter(g => g.status !== 'cancelled').length
-    const guestNote = activeGuests === 0 ? '' : ` Their ${activeGuests === 1 ? 'guest' : `${activeGuests} guests`} will be cancelled too.`
-    if (!confirm(`Cancel ${memberName(b)}'s booking?${guestNote}`)) return
-    const bookingId = b.id
+  // Staff cancel opens a dialog: by default the member is emailed (booking_cancelled_by_studio, with
+  // an optional message from the studio); unticking "Notify member" cancels quietly.
+  const handleCancelBooking = (b: Booking) => {
+    setCancelTarget(b)
+    setCancelNotify(true)
+    setCancelMessage('')
+    setCancelError('')
+  }
+
+  const confirmCancelBooking = async () => {
+    if (!cancelTarget) return
+    if (cancelMessage.trim().length > CANCEL_MESSAGE_MAX) { setCancelError(`Keep the message to ${CANCEL_MESSAGE_MAX} characters or fewer.`); return }
     setManageBusy(true)
-    setManageError('')
-    const res = await authedFetch(`/bookings/${bookingId}/cancel`, { method: 'POST' })
-    if (res.ok) await refreshRoster(orgId, token)
-    else {
+    setCancelError('')
+    const res = await authedFetch(`/bookings/${cancelTarget.id}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notify_member: cancelNotify, message: cancelNotify ? (cancelMessage.trim() || null) : null }),
+    })
+    if (res.ok) {
+      setCancelTarget(null)
+      await refreshRoster(orgId, token)
+    } else {
       const data = await res.json().catch(() => null)
-      setManageError(data?.error ?? 'Could not cancel this booking.')
+      setCancelError(data?.error ?? 'Could not cancel this booking.')
     }
     setManageBusy(false)
   }
@@ -1099,6 +1118,41 @@ export default function OccurrenceDetailPage() {
               }}
             />
           )}
+
+          {cancelTarget && (() => {
+            const activeGuests = parseGuests(cancelTarget).filter(g => g.status !== 'cancelled').length
+            return (
+              <Modal title={`Cancel ${memberName(cancelTarget)}’s booking?`} onClose={() => { if (!manageBusy) setCancelTarget(null) }} width={480}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+                  {activeGuests > 0 && (
+                    <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.ink2 }}>
+                      Their {activeGuests === 1 ? 'guest' : `${activeGuests} guests`} will be cancelled too.
+                    </p>
+                  )}
+                  <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.ink2 }}>
+                    Credits and refunds follow your cancellation policy, the same as when a member cancels.
+                  </p>
+                  <CheckRow checked={cancelNotify} onChange={setCancelNotify}>
+                    Email {memberName(cancelTarget)} to say the studio cancelled it, with what happened to their credit or payment.
+                  </CheckRow>
+                  {cancelNotify && (
+                    <Field label="Message to member (optional)" htmlFor="cancel-message" hint="Included in the email, e.g. the reason.">
+                      <textarea id="cancel-message" value={cancelMessage} onChange={e => setCancelMessage(e.target.value)}
+                        maxLength={CANCEL_MESSAGE_MAX} rows={3} aria-describedby="cancel-message-hint"
+                        style={{ ...controlStyle, padding: '10px 12px', minHeight: 88, resize: 'vertical', lineHeight: 1.45 }} />
+                    </Field>
+                  )}
+                  {cancelError && <div role="alert" style={alertStyle()}>{cancelError}</div>}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    <Button onClick={() => setCancelTarget(null)} disabled={manageBusy} style={{ flex: '1 1 140px' }}>Keep booking</Button>
+                    <Button variant="destructive" onClick={confirmCancelBooking} disabled={manageBusy} style={{ flex: '1 1 140px' }}>
+                      {manageBusy ? 'Cancelling…' : 'Cancel booking'}
+                    </Button>
+                  </div>
+                </div>
+              </Modal>
+            )
+          })()}
 
           {showCancelOccurrence && (
             <CancelOccurrenceModal
