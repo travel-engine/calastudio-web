@@ -126,7 +126,7 @@ function classSentence(e: ActivityEntry, currency: string): ReactNode {
 }
 
 // Everything that isn't a class event, by namespaced event (catalogue: spec 08 §8.10b).
-function eventSentence(e: ActivityEntry): ReactNode {
+function eventSentence(e: ActivityEntry, currency: string): ReactNode {
   const actor = b(e.actor_name ?? (e.actor_type === 'stripe' ? 'Stripe' : 'System'))
   const member = b(e.subject_name ?? 'A member')
   const label = e.entity_label ? b(e.entity_label) : null
@@ -179,14 +179,18 @@ function eventSentence(e: ActivityEntry): ReactNode {
     case 'pass_template.deleted': return <>{actor} deleted the pass {label}</>
     // Membership plans: the label is the plan's name.
     case 'membership_template.created': return <>{actor} created the membership {label}</>
-    case 'membership_template.updated': {
-      const active = e.details?.is_active?.new
-      if (active === false) return <>{actor} hid the membership {label}</>
-      if (active === true) return <>{actor} put the membership {label} on sale</>
-      return <>{actor} edited the membership {label}</>
+    case 'membership_template.updated': return <>{actor} edited the membership {label}</>
+    case 'membership_template.price_changed': {
+      const before = e.details?.price?.old
+      const after = e.details?.price?.new
+      const cur = currency
+      const change = typeof before === 'number' && typeof after === 'number'
+        ? <> from {formatMoney(before, cur)} to {formatMoney(after, cur)}</> : null
+      const who = e.metadata?.apply_to === 'existing' ? ' (existing members too)' : e.metadata?.apply_to === 'new_only' ? ' (new members only)' : ''
+      return <>{actor} changed the price of {label ?? 'a membership'}{change}{who}</>
     }
-    case 'membership_template.price_changed': return <>{actor} changed the price of {label ?? 'a membership'}</>
     case 'membership_template.deactivated': return <>{actor} hid the membership {label}</>
+    case 'membership_template.reactivated': return <>{actor} put the membership {label} back on sale</>
     case 'membership.price_changed': return <>{actor} changed {member}&apos;s membership price{label ? <> on {label}</> : null}</>
 
     case 'session.created': return <>{actor} created {label ?? 'a class'}</>
@@ -227,7 +231,7 @@ function eventSentence(e: ActivityEntry): ReactNode {
 }
 
 export function sentence(e: ActivityEntry, currency: string, context: 'class' | 'entity'): ReactNode {
-  if (!e.kind) return eventSentence(e)
+  if (!e.kind) return eventSentence(e, currency)
   const s = classSentence(e, currency)
   const where = context === 'entity' ? classLabel(e) : null
   return where ? <>{s} · <span style={{ color: color.ink2 }}>{where}</span></> : s
