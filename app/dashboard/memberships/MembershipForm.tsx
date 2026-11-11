@@ -109,18 +109,18 @@ export default function MembershipForm({ orgId, token, currency, template }: {
       valid_until: form.validUntil || null,
     }
 
-    // PATCH sends only what changed; the API clears a cap or renewal limit with clear_* flags, not null.
+    // PATCH sends only what changed; null there means "unchanged", so a blanked field goes in "clear".
     let body: Record<string, unknown> = full
     if (template) {
       const orig = template as unknown as Record<string, unknown>
       body = {}
+      const clear: string[] = []
       for (const [k, v] of Object.entries(full)) {
         const before = k === 'session_type_restriction' ? (template.session_type_restriction ?? []) : orig[k]
-        if (JSON.stringify(v) !== JSON.stringify(before ?? null)) body[k] = v
+        if (JSON.stringify(v) === JSON.stringify(before ?? null)) continue
+        if (v == null) { if (k !== 'period_rolling_value') clear.push(k) } else body[k] = v
       }
-      if ('session_cap' in body && body.session_cap == null) { delete body.session_cap; body.clear_session_cap = true }
-      if ('max_cycles' in body && body.max_cycles == null) { delete body.max_cycles; body.clear_max_cycles = true }
-      if (fixed) delete body.period_rolling_value
+      if (clear.length) body.clear = clear
       if (Object.keys(body).length === 0) { router.push('/dashboard/memberships'); return }
     }
     if (priceChanged) body.price_change = { apply_to: applyTo, effective_from: applyTo === 'existing' ? (effectiveFrom || null) : null }
