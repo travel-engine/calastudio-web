@@ -59,8 +59,11 @@ export function periodUnit(type: PeriodType, value: number | null): string | nul
 }
 
 /** "$45.00 a week", "$180.00 every 2 weeks", "$300.00 for the dates". */
-export function priceLabel(t: Pick<MembershipTemplate, 'price' | 'currency' | 'period_type' | 'period_rolling_value' | 'is_recurring'>): string {
-  const money = formatMoney(t.price, t.currency)
+export function priceLabel(
+  t: Pick<MembershipTemplate, 'price' | 'currency' | 'period_type' | 'period_rolling_value' | 'is_recurring'>,
+  fmt: (amount: number, currency: string) => string = formatMoney,
+): string {
+  const money = fmt(t.price, t.currency)
   const unit = periodUnit(t.period_type, t.period_rolling_value)
   if (!unit) return money
   if (!t.is_recurring) return `${money} for ${unit.includes(' ') ? unit : `1 ${unit}`}`
@@ -80,4 +83,63 @@ export function capLabel(cap: number | null, type: PeriodType, value: number | n
   if (cap == null) return 'Unlimited'
   const unit = periodUnit(type, value)
   return unit ? `${cap} ${unit.includes(' ') ? `per ${unit}` : `a ${unit}`}` : `${cap} in total`
+}
+
+// ── Member side (API PR #73) ─────────────────────────────────────────────
+
+/** GET …/members/me/memberships/{templateId}/quote?start_date= */
+export interface MembershipQuote {
+  start_date: string
+  first_period_end: string | null
+  next_charge_on: string | null // null = won't renew
+  price: number
+  subtotal: number
+  tax_amount: number
+  tax_name: string | null
+  currency: string
+  renews: boolean
+}
+
+/** GET …/members/me/memberships, newest first. */
+export interface MyMembership {
+  id: string
+  template_id: string
+  name: string
+  status: MembershipStatus
+  is_comp: boolean
+  price: number
+  currency: string
+  period_type: PeriodType
+  period_rolling_value: number | null
+  started_on: string
+  current_period_start: string | null
+  current_period_end: string | null
+  next_charge_on: string | null
+  cancel_at: string | null // last day with access, when an end is scheduled
+  cancelled_at: string | null
+  cancellation_reason: string | null
+  session_cap: number | null
+  sessions_used_this_period: number
+  sessions_left_this_period: number | null // null = no cap
+  cycles_completed: number
+  max_cycles: number | null
+  scheduled_price: { price: number; from: string } | null
+  past_due: { since: string; amount: number; attempts: number; next_retry_on: string | null; grace_until: string | null; can_book: boolean } | null
+  card: { brand: string; last4: string } | null
+}
+
+/** A date-only "YYYY-MM-DD" as "Thu 12 Nov" (or "Thu 12 Nov 2027" outside this year), with no timezone shift. */
+export function dateOnlyLabel(d: string): string {
+  const [y, m, day] = d.slice(0, 10).split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, day, 12))
+  const opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }
+  if (y !== new Date().getFullYear()) opts.year = 'numeric'
+  return new Intl.DateTimeFormat('en-AU', opts).format(date).replace(/,/g, '')
+}
+
+/** Today (or today + n days) as "YYYY-MM-DD" in the browser's own calendar. */
+export function localDateKey(addDays = 0): string {
+  const d = new Date()
+  d.setDate(d.getDate() + addDays)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }

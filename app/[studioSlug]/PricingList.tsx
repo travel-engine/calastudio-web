@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { formatDate } from '@/lib/dates'
 import PassPurchaseModal from './PassPurchaseModal'
+import MembershipPurchaseModal from './MembershipPurchaseModal'
+import { capLabel, coverageLabel, priceLabel, type MembershipTemplate } from '@/lib/memberships'
 import styles from './photofirst.module.css'
 import { studioPath } from '@/lib/seo'
 
@@ -52,10 +54,11 @@ function restrictionText(t: PassTemplate): string | null {
 }
 
 export default function PricingList({
-  studioSlug, templates, orgId, currency, brandColor, stripeAccountId, paymentsEnabled,
+  studioSlug, templates, memberships = [], orgId, currency, brandColor, stripeAccountId, paymentsEnabled,
 }: {
   studioSlug: string
   templates: PassTemplate[]
+  memberships?: MembershipTemplate[]
   orgId: string
   currency: string
   brandColor: string
@@ -66,6 +69,7 @@ export default function PricingList({
   const [token, setToken] = useState<string | null | undefined>(undefined)
   const [buying, setBuying] = useState<PassTemplate | null>(null)
   const [justBought, setJustBought] = useState<string | null>(null)
+  const [joining, setJoining] = useState<MembershipTemplate | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -74,15 +78,58 @@ export default function PricingList({
     return () => subscription.unsubscribe()
   }, [])
 
-  if (templates.length === 0) {
+  if (templates.length === 0 && memberships.length === 0) {
     return <div className={styles.emptyState}>This studio doesn&apos;t have any passes for sale right now.</div>
   }
 
   const canPay = paymentsEnabled && !!stripeAccountId
 
+  // The buy button's states are the same for a pass and a membership.
+  const action = (id: string, label: string, onBuy: () => void, doneText: string) =>
+    justBought === id ? (
+      <div style={{ fontSize: '15px', color: 'var(--ink)', fontWeight: 600 }}>
+        ✓ {doneText} — <Link href={studioPath(studioSlug, '/account?tab=passes')} style={{ textDecoration: 'underline' }}>view in your account</Link>
+      </div>
+    ) : token === undefined ? (
+      <button disabled className={styles.smallBtn}>…</button>
+    ) : token === null ? (
+      <Link href={studioPath(studioSlug, '/account')} className={styles.smallBtn}>Sign in to buy</Link>
+    ) : !canPay ? (
+      <div style={{ fontSize: '14px', color: 'var(--danger)' }}>This studio hasn&apos;t set up card payments yet.</div>
+    ) : (
+      <button onClick={onBuy} className={styles.smallBtn}>{label}</button>
+    )
+
+  const both = memberships.length > 0 && templates.length > 0
+
   return (
     <>
-      <div className={styles.passGridFull}>
+      {memberships.length > 0 && (
+        <section style={{ marginBottom: both ? '40px' : 0 }}>
+          {both && <h2 className={styles.passesH2}>Memberships</h2>}
+          <div className={styles.passGridFull}>
+            {memberships.map(m => {
+              const cap = capLabel(m.session_cap, m.period_type, m.period_rolling_value)
+              return (
+                <div key={m.id} className={styles.passListCard}>
+                  <div className={styles.passListName}>{m.name}</div>
+                  <div className={styles.passListPrice}>{priceLabel(m, money)}</div>
+                  <div className={styles.passListDetail}>{m.session_cap == null ? 'Unlimited sessions' : cap.replace(/^(\d+)/, '$1 sessions')}</div>
+                  <div className={styles.passListMuted}>{coverageLabel(m.session_type_restriction)}</div>
+                  {m.is_recurring && <div className={styles.passListMuted}>Renews automatically · cancel any time</div>}
+                  {m.description && <p className={styles.passListDetail} style={{ marginTop: '10px', color: 'var(--text-body)' }}>{m.description}</p>}
+                  <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
+                    {action(m.id, 'Join', () => setJoining(m), 'Joined')}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {both && <h2 className={styles.passesH2}>Class passes</h2>}
+      {templates.length > 0 && <div className={styles.passGridFull}>
         {templates.map(t => {
           const expiry = expiryText(t)
           const restriction = restrictionText(t)
@@ -99,24 +146,12 @@ export default function PricingList({
               {t.description && <p className={styles.passListDetail} style={{ marginTop: '10px', color: 'var(--text-body)' }}>{t.description}</p>}
 
               <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
-                {justBought === t.id ? (
-                  <div style={{ fontSize: '15px', color: 'var(--ink)', fontWeight: 600 }}>
-                    ✓ Added — <Link href={studioPath(studioSlug, '/account')} style={{ textDecoration: 'underline' }}>view your passes</Link>
-                  </div>
-                ) : token === undefined ? (
-                  <button disabled className={styles.smallBtn}>…</button>
-                ) : token === null ? (
-                  <Link href={studioPath(studioSlug, '/account')} className={styles.smallBtn}>Sign in to buy</Link>
-                ) : !canPay ? (
-                  <div style={{ fontSize: '14px', color: 'var(--danger)' }}>This studio hasn&apos;t set up card payments yet.</div>
-                ) : (
-                  <button onClick={() => setBuying(t)} className={styles.smallBtn}>Buy this pass</button>
-                )}
+                {action(t.id, 'Buy this pass', () => setBuying(t), 'Added')}
               </div>
             </div>
           )
         })}
-      </div>
+      </div>}
 
       {buying && token && stripeAccountId && (
         <PassPurchaseModal
@@ -129,6 +164,18 @@ export default function PricingList({
           brandColor={brandColor}
           onClose={() => setBuying(null)}
           onPurchased={() => { setJustBought(buying.id); setBuying(null) }}
+        />
+      )}
+
+      {joining && token && stripeAccountId && (
+        <MembershipPurchaseModal
+          template={joining}
+          orgId={orgId}
+          token={token}
+          studioSlug={studioSlug}
+          stripeAccountId={stripeAccountId}
+          onClose={() => setJoining(null)}
+          onPurchased={() => { setJustBought(joining.id); setJoining(null) }}
         />
       )}
     </>

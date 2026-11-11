@@ -10,6 +10,7 @@ import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
 import CalendarLinks from '../CalendarLinks'
+import MyMemberships from './MyMemberships'
 import { studioPath } from '@/lib/seo'
 
 interface OrgInfo {
@@ -260,6 +261,7 @@ function MemberAccountContent() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([])
   const [passes, setPasses] = useState<Pass[]>([])
+  const [membershipCount, setMembershipCount] = useState(0)
   const [ledger, setLedger] = useState<LedgerEntry[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [dataLoading, setDataLoading] = useState(false)
@@ -951,7 +953,7 @@ function MemberAccountContent() {
               onClick={() => chooseTab(t)}
               className={`${styles.navItem} ${tab === t ? styles.navItemActive : ''}`}
             >
-              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? 'My passes' : t === 'payments' ? 'Order history' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
+              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? (membershipCount ? 'Memberships & passes' : 'My passes') : t === 'payments' ? 'Order history' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
             </button>
           ))}
         </nav>
@@ -1120,7 +1122,10 @@ function MemberAccountContent() {
                 return p.status === 'expired' ? `Expired ${d}` : `Expires ${d}`
               }
               return (
+              <>
+              {accessToken && <MyMemberships apiBase={`${apiUrl}/api/organisations/${orgId}`} token={accessToken} onLoaded={setMembershipCount} />}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {membershipCount > 0 && <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'var(--ink)' }}>Passes</h2>}
                 {passes.length === 0 ? (
                   <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '48px', textAlign: 'center', color: 'var(--text-meta)', fontSize: '15px' }}>
                     No passes yet.
@@ -1193,6 +1198,7 @@ function MemberAccountContent() {
                   )
                 })}
               </div>
+              </>
               )
             })()}
 
