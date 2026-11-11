@@ -20,7 +20,7 @@ export default function TermsPage() {
     <LegalPage title="Terms & Conditions" version={VERSION} effective="[effective date]">
       <P>
         These terms apply when you use CalaStudio, whether you run a studio on it, work at one, or book classes
-        with one. CalaStudio is operated by <strong>[Travel Engine legal entity name]</strong> (ABN [ABN])
+        with one. CalaStudio is operated by <strong>[Travel Engine legal entity name]</strong> (ABN 42 668 448 011)
         (&ldquo;CalaStudio&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;). By creating an account or ticking
         &ldquo;I accept the Terms &amp; Conditions&rdquo;, you agree to them.
       </P>

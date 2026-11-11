@@ -15,7 +15,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage title="Privacy Policy" effective="[effective date]">
       <P>
-        This policy explains how <strong>[Travel Engine legal entity name]</strong> (ABN [ABN]), which operates
+        This policy explains how <strong>[Travel Engine legal entity name]</strong> (ABN 42 668 448 011), which operates
         CalaStudio, handles personal information. We follow the Australian Privacy Principles in the Privacy Act
         1988 (Cth).
       </P>
