@@ -40,7 +40,7 @@ function fromTemplate(t: MembershipTemplate | null): FormState {
     name: t?.name ?? '',
     description: t?.description ?? '',
     price: t ? String(t.price) : '',
-    taxRateOverride: t?.tax_rate_override != null ? String(t.tax_rate_override) : '',
+    taxRateOverride: t?.tax_rate_override != null ? String(+(t.tax_rate_override * 100).toFixed(4)) : '',
     periodType: t?.period_type ?? 'rolling_weeks',
     periodValue: t?.period_rolling_value != null ? String(t.period_rolling_value) : '1',
     fixedStart: t?.period_fixed_start ?? '',
@@ -86,12 +86,13 @@ export default function MembershipForm({ orgId, token, currency, template }: {
     if (fixed && (!form.fixedStart || !form.fixedEnd)) { setError('Choose the start and end dates.'); return }
     if (!fixed && !(parseInt(form.periodValue) >= 1)) { setError('The length must be at least 1.'); return }
 
-    const body: Record<string, unknown> = {
+    const full: Record<string, unknown> = {
       name: form.name.trim(),
       description: form.description.trim() || null,
       price: parseFloat(form.price),
       currency,
-      tax_rate_override: form.taxRateOverride ? parseFloat(form.taxRateOverride) : null,
+      // The form takes a percentage; the API stores a 0–1 rate.
+      tax_rate_override: form.taxRateOverride ? parseFloat(form.taxRateOverride) / 100 : null,
       period_type: form.periodType,
       period_rolling_value: fixed ? null : parseInt(form.periodValue),
       period_fixed_start: fixed ? form.fixedStart : null,
@@ -99,13 +100,28 @@ export default function MembershipForm({ orgId, token, currency, template }: {
       is_recurring: fixed ? false : form.isRecurring,
       max_cycles: !fixed && form.isRecurring && form.maxCycles ? parseInt(form.maxCycles) : null,
       session_cap: form.sessionCap ? parseInt(form.sessionCap) : null,
-      session_type_restriction: form.sessionTypes.length ? form.sessionTypes : null,
+      session_type_restriction: form.sessionTypes, // [] = every session type
       grace_days: form.graceDays ? parseInt(form.graceDays) : 0,
       guest_bookings_enabled: form.guests,
       guest_max_per_booking: form.guests && form.guestMax ? parseInt(form.guestMax) : null,
       is_active: form.isActive,
       valid_from: form.validFrom || null,
       valid_until: form.validUntil || null,
+    }
+
+    // PATCH sends only what changed; the API clears a cap or renewal limit with clear_* flags, not null.
+    let body: Record<string, unknown> = full
+    if (template) {
+      const orig = template as unknown as Record<string, unknown>
+      body = {}
+      for (const [k, v] of Object.entries(full)) {
+        const before = k === 'session_type_restriction' ? (template.session_type_restriction ?? []) : orig[k]
+        if (JSON.stringify(v) !== JSON.stringify(before ?? null)) body[k] = v
+      }
+      if ('session_cap' in body && body.session_cap == null) { delete body.session_cap; body.clear_session_cap = true }
+      if ('max_cycles' in body && body.max_cycles == null) { delete body.max_cycles; body.clear_max_cycles = true }
+      if (fixed) delete body.period_rolling_value
+      if (Object.keys(body).length === 0) { router.push('/dashboard/memberships'); return }
     }
     if (priceChanged) body.price_change = { apply_to: applyTo, effective_from: applyTo === 'existing' ? (effectiveFrom || null) : null }
 

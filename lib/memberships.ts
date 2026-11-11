@@ -29,6 +29,8 @@ export interface MembershipTemplate {
   valid_until: string | null
   sort_order: number | null
   active_member_count?: number // admin only
+  created_at?: string
+  updated_at?: string
 }
 
 export type MembershipStatus = 'pending' | 'active' | 'past_due' | 'capped' | 'cancelled' | 'expired'

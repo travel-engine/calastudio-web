@@ -32,7 +32,7 @@ export default function MembershipsPage() {
       setRoles(ctx.roles)
       if (!canViewMembershipTemplates(ctx.roles)) return
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${ctx.org.id}/membership-templates`,
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${ctx.org.id}/membership-templates?include_inactive=true`,
           { headers: { Authorization: `Bearer ${ctx.token}` } })
         if (res.status === 404) { setUnavailable(true); setTemplates([]); return }
         if (!res.ok) { setError('Could not load memberships.'); setTemplates([]); return }
