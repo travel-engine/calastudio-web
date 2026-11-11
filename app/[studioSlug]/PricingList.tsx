@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { formatDate } from '@/lib/dates'
 import PassPurchaseModal from './PassPurchaseModal'
 import MembershipPurchaseModal from './MembershipPurchaseModal'
-import { capLabel, coverageLabel, priceLabel, type MembershipTemplate } from '@/lib/memberships'
+import { capLabel, coverageLabel, membershipTerms, priceLabel, type MembershipTemplate } from '@/lib/memberships'
 import styles from './photofirst.module.css'
 import { studioPath } from '@/lib/seo'
 
@@ -116,7 +116,9 @@ export default function PricingList({
                   <div className={styles.passListPrice}>{priceLabel(m, money)}</div>
                   <div className={styles.passListDetail}>{m.session_cap == null ? 'Unlimited sessions' : cap.replace(/^(\d+)/, '$1 sessions')}</div>
                   <div className={styles.passListMuted}>{coverageLabel(m.session_type_restriction)}</div>
-                  {m.is_recurring && <div className={styles.passListMuted}>Renews automatically · cancel any time</div>}
+                  <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0 }}>
+                    {membershipTerms(m, money).map(line => <li key={line} className={styles.passListMuted}>{line}</li>)}
+                  </ul>
                   {m.description && <p className={styles.passListDetail} style={{ marginTop: '10px', color: 'var(--text-body)' }}>{m.description}</p>}
                   <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
                     {action(m.id, 'Join', () => setJoining(m), 'Joined')}

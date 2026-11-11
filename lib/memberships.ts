@@ -240,3 +240,32 @@ export interface MembershipRefundQuote {
 
 /** pending, active, past_due and capped: the ones still running. */
 export const isLiveMembership = (s: MembershipStatus) => s !== 'cancelled' && s !== 'expired'
+
+/**
+ * The plan's terms in plain words, for buyers: renewal, notice, holds, guests. Each line stands alone,
+ * e.g. ["Renews every week", "Cancel with 2 weeks’ notice", "Hold up to 4 weeks a year, free"].
+ */
+export function membershipTerms(
+  t: Pick<MembershipTemplate, 'period_type' | 'period_rolling_value' | 'is_recurring' | 'max_cycles' | 'currency'
+    | 'cancel_notice_periods' | 'hold_allowed' | 'hold_max_periods_per_year' | 'hold_fee' | 'guest_bookings_enabled' | 'guest_max_per_booking'>,
+  fmt: (amount: number, currency: string) => string = formatMoney,
+): string[] {
+  const unit = periodUnit(t.period_type, t.period_rolling_value)
+  const many = (n: number) => (unit ? `${n} ${unit.includes(' ') ? 'periods' : `${unit}${n === 1 ? '' : 's'}`}` : `${n}`)
+  const lines: string[] = []
+  if (!t.is_recurring || !unit) {
+    lines.push('One payment, doesn’t renew')
+  } else {
+    lines.push(t.max_cycles ? `Runs for ${many(t.max_cycles)}, then ends` : `Renews every ${unit}`)
+    const notice = t.cancel_notice_periods ?? 0
+    lines.push(notice > 0 ? `Cancel with ${many(notice)}’ notice` : 'Cancel any time')
+    if (t.hold_allowed && t.hold_max_periods_per_year) {
+      lines.push(`Hold up to ${many(t.hold_max_periods_per_year)} a year${t.hold_fee ? `, ${fmt(t.hold_fee, t.currency)} a ${unit.includes(' ') ? 'period' : unit}` : ', free'}`)
+    }
+  }
+  if (t.guest_bookings_enabled) {
+    const g = t.guest_max_per_booking ?? 1
+    lines.push(`Bring up to ${g} guest${g === 1 ? '' : 's'}`)
+  }
+  return lines
+}
