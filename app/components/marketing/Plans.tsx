@@ -36,7 +36,7 @@ export default function Plans() {
           <Plan
             name="Pay as you go"
             price={`${PRICING.percentage}%`}
-            per="of each booking, after Stripe fees, + GST"
+            per="of each booking, + GST"
             points={['No monthly fee', 'No card needed to start', 'You only pay when members book']}
             cta="Start free"
           />
@@ -58,9 +58,8 @@ export default function Plans() {
         </div>
         <div className={styles.planNotes}>
           <p>
-            <strong>How Pay as you go works:</strong>{' '}a member buys a $20 class pass. Stripe&apos;s card fee is
-            about {aud(ex.stripeFee)}, leaving {aud(ex.net)}. CalaStudio&apos;s fee is {PRICING.percentage}% of that,
-            {' '}{aud(ex.fee)}, plus {aud(ex.gst)} GST.
+            <strong>How Pay as you go works:</strong>{' '}
+            {`a member buys a ${aud(ex.sale)} class pass. CalaStudio’s fee is ${PRICING.percentage}% of it, ${aud(ex.fee)}, plus ${aud(ex.gst)} GST. Stripe’s own card fee, about ${aud(ex.stripeFee)}, is separate.`}
           </p>
           <p>
             Prices are in Australian dollars. Australian businesses get a tax invoice showing GST; teachers and
