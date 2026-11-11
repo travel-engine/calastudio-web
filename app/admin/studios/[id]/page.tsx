@@ -143,7 +143,7 @@ function StudioView({ token }: { token: string }) {
           {plan ? (
             <>
               {row('Plan', PLAN[plan.plan] ?? plan.plan)}
-              {row('Percentage', plan.percentage_rate != null ? `${+(plan.percentage_rate * 100).toFixed(3)}% after Stripe fees${plan.gst_applies ? ' + GST' : ''}` : '—')}
+              {row('Percentage', plan.percentage_rate != null ? `${+(plan.percentage_rate * 100).toFixed(3)}% of each booking${plan.gst_applies ? ' + GST' : ''}` : '—')}
               {row('Monthly', plan.monthly_amount != null ? `${formatMoney(plan.monthly_amount, cur)}${plan.gst_applies ? ' incl. GST' : ''}` : '—')}
               {row('Annual', plan.annual_amount != null ? `${formatMoney(plan.annual_amount, cur)}${plan.gst_applies ? ' incl. GST' : ''}` : '—')}
               {plan.gst_applies != null && row('GST', plan.gst_applies ? 'Charged (Australian studio)' : 'Not charged (outside Australia)')}
@@ -175,7 +175,7 @@ function StudioView({ token }: { token: string }) {
             </select>
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-            <Field label="Percentage (%)" htmlFor="ov-pct" hint="e.g. 5 for 5%">
+            <Field label="Percentage (%)" htmlFor="ov-pct" hint="e.g. 2 for 2%">
               <input id="ov-pct" type="number" min="0" step="0.01" value={form.percent} onChange={set('percent')} style={{ ...controlStyle, ...tabularNums }} />
             </Field>
             <Field label={`Monthly (${cur})`} htmlFor="ov-mo">

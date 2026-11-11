@@ -8,7 +8,7 @@ import { LegalPage, H2, P, UL } from '@/app/components/LegalPage'
 // re-prompts everyone at their next sign-in.
 // Draft prepared for review; the [bracketed] details must be filled in before it goes live.
 
-const VERSION = 'v1'
+const VERSION = 'v2'
 
 export const metadata: Metadata = {
   title: 'Terms & Conditions',
@@ -63,8 +63,8 @@ export default function TermsPage() {
 
       <H2>5. Fees for studios</H2>
       <P>
-        Studios choose a plan. <strong>Pay as you go</strong>: a fee of 5% of each member payment, calculated after
-        Stripe&rsquo;s processing fee, plus GST. <strong>Monthly</strong>: A$45 a month, GST included.
+        Studios choose a plan. <strong>Pay as you go</strong>: a fee of 2% of each member payment, plus GST.
+        <strong> Monthly</strong>: A$45 a month, GST included.
         <strong> Annual</strong>: A$360 a year, GST included. Stripe&rsquo;s own processing fees are separate and
         charged by Stripe. We issue tax invoices for our fees. We may change prices with at least 30 days&rsquo;
         notice; the change applies from your next billing period. Monthly and Annual plans renew automatically

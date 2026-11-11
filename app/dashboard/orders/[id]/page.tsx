@@ -50,7 +50,13 @@ interface OrderDetail {
   method: string
   card_brand: string | null
   card_last4: string | null
+  // Stripe's balance-transaction total. On a Pay-as-you-go charge it includes CalaStudio's fee, so
+  // it's only shown (as "Fees") when the split below isn't available.
   fee: number | null
+  // Stripe's fee incl. its GST, and CalaStudio's Pay-as-you-go fee incl. GST after settlement (null
+  // when the charge carried none). Optional until the API that sends them is deployed.
+  stripe_fee?: number | null
+  platform_fee?: number | null
   net_amount: number | null
   // Not present on the live API response as of this writing (checked against a real booking
   // order) — kept optional so a future addition is picked up without a type change, and every use
@@ -334,8 +340,15 @@ export default function OrderDetailPage() {
                       <Row label="Subtotal" value={formatMoney(order.subtotal, order.currency)} />
                       {hasTax && <Row label={`${order.tax_name ?? 'Tax'} (${order.tax_rate}%)`} value={formatMoney(order.tax_amount, order.currency)} />}
                       <Row label="Total" value={formatMoney(order.amount, order.currency)} strong />
-                      {order.fee != null && <Row label="Stripe processing fee" value={`− ${formatMoney(order.fee, order.currency)}`} muted />}
-                      {order.fee != null && order.net_amount != null && <Row label="Net to studio" value={formatMoney(order.net_amount, order.currency)} />}
+                      {order.stripe_fee != null ? (
+                        <>
+                          <Row label="Stripe processing fee" value={`− ${formatMoney(order.stripe_fee, order.currency)}`} muted />
+                          {!!order.platform_fee && <Row label="CalaStudio fee" value={`− ${formatMoney(order.platform_fee, order.currency)}`} muted />}
+                        </>
+                      ) : order.fee != null && (
+                        <Row label="Fees" value={`− ${formatMoney(order.fee, order.currency)}`} muted />
+                      )}
+                      {(order.stripe_fee != null || order.fee != null) && order.net_amount != null && <Row label="Net to studio" value={formatMoney(order.net_amount, order.currency)} />}
                       {!!order.refunded_amount && <Row label="Refunded" value={`− ${formatMoney(order.refunded_amount, order.currency)}`} muted />}
                     </dl>
                   </Card>

@@ -12,7 +12,7 @@ export const FAQ = [
   },
   {
     q: 'What does it cost?',
-    a: `Start on Pay as you go: no monthly fee, just ${PRICING.percentage}% of each booking after Stripe's fees, plus GST. Or pay a flat ${aud(PRICING.monthly)} a month or ${aud(PRICING.annual)} a year, including GST, with no CalaStudio fee on bookings. Stripe's card fees apply on every plan.`,
+    a: `Start on Pay as you go: no monthly fee, just ${PRICING.percentage}% of each booking, plus GST. Or pay a flat ${aud(PRICING.monthly)} a month or ${aud(PRICING.annual)} a year, including GST, with no CalaStudio fee on bookings. Stripe's card fees apply on every plan.`,
   },
 ]
 

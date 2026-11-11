@@ -3,7 +3,7 @@ import { formatMoney } from '@/lib/money'
 // CalaStudio's own plans — what Travel Engine charges a studio (not what members pay the studio).
 // Wording only: the API owns the rates and whether GST applies (gst_applies = the studio is in
 // Australia). Monthly/Annual prices include GST; the Pay as you go fee is taken on the booking
-// amount after Stripe's fee, with GST added on top.
+// amount, with GST added on top.
 
 export type PlanKey = 'percentage' | 'monthly' | 'annual'
 
@@ -20,7 +20,7 @@ export function planPrice(p: PlanKey, pl: PlanPricing, currency: string): string
   const gst = pl.gst_applies === true
   if (p === 'percentage') {
     if (pl.percentage_rate == null) return '—'
-    return `${+(pl.percentage_rate * 100).toFixed(2)}% of each booking after Stripe fees${gst ? ', + GST' : ''}`
+    return `${+(pl.percentage_rate * 100).toFixed(2)}% of each booking${gst ? ', + GST' : ''}`
   }
   const amount = p === 'monthly' ? pl.monthly_amount : pl.annual_amount
   if (amount == null) return '—'
