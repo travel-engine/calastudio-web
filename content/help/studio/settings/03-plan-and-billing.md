@@ -20,7 +20,7 @@ The tab shows your rates in your studio's currency.
 
 CalaStudio is run by Travel Engine, which charges GST to studios in Australia:
 
-- **Monthly and Annual** prices **include GST**, e.g. "$45 a month incl. GST".
+- **Monthly and Annual** prices **include GST**, e.g. "$46 a month incl. GST".
 - **Pay as you go** has **GST added on top of the fee**. For example, a member pays $20 by card. At 2%, CalaStudio's fee is $0.40, plus $0.04 GST, so $0.44 in total. Stripe's own processing fee (about $0.64 on $20) is separate.
 
 The Pay as you go fee comes out of each card payment automatically. Each order in **Members → Orders** shows Stripe's fee, CalaStudio's fee and what's left for your studio. If you refund a member, CalaStudio refunds the same share of its fee, including its GST. Stripe keeps its own processing fee.

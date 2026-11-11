@@ -64,8 +64,8 @@ export default function TermsPage() {
       <H2>5. Fees for studios</H2>
       <P>
         Studios choose a plan. <strong>Pay as you go</strong>: a fee of 2% of each member payment, plus GST.
-        <strong> Monthly</strong>: A$45 a month, GST included.
-        <strong> Annual</strong>: A$360 a year, GST included. Stripe&rsquo;s own processing fees are separate and
+        <strong> Monthly</strong>: A$46 a month, GST included.
+        <strong> Annual</strong>: A$500 a year, GST included. Stripe&rsquo;s own processing fees are separate and
         charged by Stripe. We issue tax invoices for our fees. We may change prices with at least 30 days&rsquo;
         notice; the change applies from your next billing period. Monthly and Annual plans renew automatically
         until cancelled, and cancelling stops the next renewal. Fees already paid aren&rsquo;t refundable except
