@@ -17,6 +17,7 @@ import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, Card, CheckRow, Chip, EmptyState, Field, Modal, PageHeader, alertStyle, buttonStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
+import { MEMBERSHIP_STATUS, isLiveMembership, type StaffMembership } from '@/lib/memberships'
 
 interface SessionDetail {
   id: string
@@ -317,10 +318,12 @@ export default function OccurrenceDetailPage() {
   const [membersLoading, setMembersLoading] = useState(false)
   const [memberSearch, setMemberSearch] = useState('')
   const [memberPasses, setMemberPasses] = useState<MemberPass[]>([])
+  // The member's running memberships. Staff bookings skip the plan's cap and coverage, so all are offered.
+  const [memberMemberships, setMemberMemberships] = useState<StaffMembership[]>([])
   const [passesLoading, setPassesLoading] = useState(false)
   // Approved pass-template ids for a restricted session (null = not restricted, or not loaded yet).
   const [approvedPassTemplateIds, setApprovedPassTemplateIds] = useState<string[] | null>(null)
-  // `choice` is '' (nothing picked), a member-pass id (pay with that pass), or 'comp' (admin-waived).
+  // `choice` is '' (nothing picked), a member-pass id (pay with that pass), 'm:' + a membership id, or 'comp' (admin-waived).
   const [addForm, setAddForm] = useState({ userId: '', choice: '', compNote: '' })
   const [addingBooking, setAddingBooking] = useState(false)
   const [addBookingError, setAddBookingError] = useState('')
@@ -627,6 +630,7 @@ export default function OccurrenceDetailPage() {
     setAddBookingError('')
     setAddForm({ userId: '', choice: '', compNote: '' })
     setMemberPasses([])
+    setMemberMemberships([])
     setMemberSearch('')
     setShowAddBooking(true)
     setMembersLoading(true)
@@ -640,7 +644,15 @@ export default function OccurrenceDetailPage() {
     if (!canManageBookings(roles)) return
 
     setPassesLoading(true)
-    const res = await authedFetch(`/members/${memberId}/passes`)
+    setMemberMemberships([])
+    const [res, membershipsRes] = await Promise.all([
+      authedFetch(`/members/${memberId}/passes`),
+      authedFetch(`/members/${memberId}/memberships`).catch(() => null),
+    ])
+    if (membershipsRes?.ok) {
+      const list: StaffMembership[] = await membershipsRes.json()
+      setMemberMemberships(list.filter(m => isLiveMembership(m.status)))
+    }
     if (res.ok) {
       const all: MemberPass[] = await res.json()
       // Session eligibility is applied in `usablePasses`; store everything still live here.
@@ -671,8 +683,9 @@ export default function OccurrenceDetailPage() {
     setAddBookingError('')
 
     try {
-      const paymentType = isFree ? 'free' : addForm.choice === 'comp' ? 'admin_waived' : 'pass'
+      const paymentType = isFree ? 'free' : addForm.choice === 'comp' ? 'admin_waived' : addForm.choice.startsWith('m:') ? 'membership' : 'pass'
       const memberPassId = paymentType === 'pass' ? addForm.choice : null
+      const memberMembershipId = paymentType === 'membership' ? addForm.choice.slice(2) : null
 
       const res = useAddStudent
         ? await authedFetch(`/occurrences/${occurrence.id}/add-student`, {
@@ -690,6 +703,7 @@ export default function OccurrenceDetailPage() {
               session_occurrence_id: occurrence.id,
               payment_type: paymentType,
               member_pass_id: memberPassId,
+              member_membership_id: memberMembershipId,
               reason: paymentType === 'admin_waived' ? addForm.compNote.trim() : null,
             })
           })
@@ -1057,6 +1071,22 @@ export default function OccurrenceDetailPage() {
                       <p style={{ margin: 0, fontSize: 15, color: color.muted }}>Loading passes…</p>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {memberMemberships.map(m => {
+                          const value = `m:${m.id}`
+                          const flag = m.status === 'past_due' || m.status === 'capped' || m.status === 'pending' ? MEMBERSHIP_STATUS[m.status].label.toLowerCase() : null
+                          return (
+                            <label key={m.id} style={paymentChoiceRow(addForm.choice === value)}>
+                              <input type="radio" name="add-payment" checked={addForm.choice === value} onChange={() => setAddForm(f => ({ ...f, choice: value }))} />
+                              <span style={{ fontSize: 15 }}>
+                                {m.name}
+                                <span style={{ color: color.muted }}>
+                                  {' · membership · '}{m.session_cap == null ? 'unlimited' : `${m.sessions_left_this_period ?? 0} of ${m.session_cap} left`}
+                                </span>
+                                {flag && <span style={{ color: m.status === 'past_due' ? color.dangerInk : color.warnInk, fontWeight: 600 }}>{' · '}{flag}</span>}
+                              </span>
+                            </label>
+                          )
+                        })}
                         {usablePasses.map(p => (
                           <label key={p.id} style={paymentChoiceRow(addForm.choice === p.id)}>
                             <input type="radio" name="add-payment" checked={addForm.choice === p.id} onChange={() => setAddForm(f => ({ ...f, choice: p.id }))} />
@@ -1069,7 +1099,7 @@ export default function OccurrenceDetailPage() {
                             </span>
                           </label>
                         ))}
-                        {usablePasses.length === 0 && (
+                        {usablePasses.length === 0 && memberMemberships.length === 0 && (
                           <p style={{ fontSize: 14, color: color.muted, margin: '2px 0' }}>
                             {memberPasses.length > 0 ? 'No pass is valid for this class. Comp it below.' : 'This member has no usable passes. Comp it below.'}
                           </p>

@@ -1,24 +1,34 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Repeat } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
-import { canViewMembershipTemplates, canManageMembershipTemplates } from '@/lib/roles'
+import { canViewMembershipTemplates, canManageMembershipTemplates, canManageMemberMemberships } from '@/lib/roles'
+import MemberMembershipList from './MemberMembershipList'
 import { capLabel, coverageLabel, priceLabel, type MembershipTemplate } from '@/lib/memberships'
 import { color, space, tabularNums } from '@/lib/ui/tokens'
-import { Button, Card, Chip, EmptyState, PageHeader } from '@/app/components/admin'
+import { Button, Card, Chip, EmptyState, PageHeader, Segmented } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
-// Dashboard → Memberships: the studio's membership plans (GET …/membership-templates). Members'
-// memberships (staff list, cancel, comp) come with the API's staff-tools PR.
+// Dashboard → Memberships: the studio's plans (GET …/membership-templates), and on the Members tab
+// everyone's memberships (GET …/member-memberships). The tab lives in ?tab= so Back returns to it.
+
+type Tab = 'plans' | 'members'
 
 export default function MembershipsPage() {
+  return <Suspense fallback={null}><MembershipsContent /></Suspense>
+}
+
+function MembershipsContent() {
   const router = useRouter()
+  const pathname = usePathname()
+  const tab: Tab = useSearchParams().get('tab') === 'members' ? 'members' : 'plans'
+  const [ctx, setCtx] = useState<{ orgId: string; token: string } | null>(null)
   const [roles, setRoles] = useState<string[] | null>(null)
   const [templates, setTemplates] = useState<MembershipTemplate[] | null>(null)
   const [unavailable, setUnavailable] = useState(false)
@@ -31,6 +41,7 @@ export default function MembershipsPage() {
       if (ctx.status === 'no-org') { router.push('/onboarding'); return }
       setRoles(ctx.roles)
       if (!canViewMembershipTemplates(ctx.roles)) return
+      setCtx({ orgId: ctx.org.id, token: ctx.token })
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${ctx.org.id}/membership-templates?include_inactive=true`,
           { headers: { Authorization: `Bearer ${ctx.token}` } })
@@ -46,6 +57,7 @@ export default function MembershipsPage() {
 
   const forbidden = roles != null && !canViewMembershipTemplates(roles)
   const canManage = roles != null && canManageMembershipTemplates(roles)
+  const showMembers = roles != null && canManageMemberMemberships(roles) && !unavailable
 
   return (
     <div className={styles.shell}>
@@ -60,9 +72,17 @@ export default function MembershipsPage() {
             Plans members pay for by the week or month, instead of buying credits.
           </PageHeader>
 
+          {showMembers && (
+            <Segmented label="Show" value={tab}
+              onChange={t => router.replace(t === 'members' ? `${pathname}?tab=members` : pathname, { scroll: false })}
+              options={[{ value: 'plans', label: 'Plans' }, { value: 'members', label: 'Members' }]} />
+          )}
+
           {error && <div role="alert" style={{ padding: '12px 16px', background: color.dangerBg, color: color.dangerInk, borderRadius: 8 }}>{error}</div>}
 
-          {templates == null ? (
+          {showMembers && tab === 'members' ? (
+            ctx && templates ? <MemberMembershipList orgId={ctx.orgId} token={ctx.token} templates={templates} /> : <div style={{ color: color.muted }}>Loading…</div>
+          ) : templates == null ? (
             <div style={{ color: color.muted }}>Loading…</div>
           ) : unavailable ? (
             <EmptyState icon={<Repeat size={28} aria-hidden />} message="Memberships aren’t switched on for your studio yet." />

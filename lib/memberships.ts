@@ -147,3 +147,32 @@ export function localDateKey(addDays = 0): string {
   d.setDate(d.getDate() + addDays)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+// ── Staff side (API PR #78, spec 05 §5.2 "Staff tools") ───────────────────
+
+/** GET …/member-memberships (paged) and …/members/{id}/memberships. */
+export interface StaffMembership extends MyMembership {
+  member_id: string
+  member_name: string
+  notes: string | null
+}
+
+/** GET …/member-memberships/{id}: adds the charges taken for it. */
+export interface StaffMembershipDetail extends StaffMembership {
+  payments: { id: string; period_start: string | null; amount: number; refunded_amount: number; currency: string; status: string; created_at: string }[]
+}
+
+/** GET …/member-memberships/{id}/refund-quote. A comp is all zeros with a null payment_id. */
+export interface MembershipRefundQuote {
+  payment_id: string | null
+  amount_paid: number
+  refundable: number
+  period_start: string | null
+  period_end: string | null
+  unused_days: number
+  period_days: number
+  suggested_refund: number
+}
+
+/** pending, active, past_due and capped: the ones still running. */
+export const isLiveMembership = (s: MembershipStatus) => s !== 'cancelled' && s !== 'expired'

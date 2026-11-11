@@ -8,7 +8,8 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
-import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, staffRoleLabel } from '@/lib/roles'
+import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, staffRoleLabel } from '@/lib/roles'
+import MemberMembershipsCard from './MemberMembershipsCard'
 import ActivityFeed from '@/app/components/ActivityFeed'
 import { displayName } from '@/lib/names'
 import { formatClock, formatDayMonth, formatRelativeShort, formatShortDate } from '@/lib/dates'
@@ -489,6 +490,11 @@ export default function MemberDetailPage() {
                         )
                       })}
                     </Card>
+
+                    {canManageMemberMemberships(roles) && (
+                      <MemberMembershipsCard orgId={orgId} token={token} memberId={memberId} memberName={name}
+                        onChanged={() => setActivityKey(k => k + 1)} />
+                    )}
 
                     <Card style={{ overflow: 'hidden' }} aria-labelledby="orders-heading">
                       <SectionHead id="orders-heading" title="Orders" action={orders.length > 0 && (

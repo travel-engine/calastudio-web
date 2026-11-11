@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { formatClock, formatShortDate, dayKey } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
+import { dateOnlyLabel } from '@/lib/memberships'
 import { color, radius, tabularNums } from '@/lib/ui/tokens'
 import { Button, cardStyle } from '@/app/components/admin'
 import { ChangesDetail } from '@/app/components/EntityActivity'
@@ -191,7 +192,50 @@ function eventSentence(e: ActivityEntry, currency: string): ReactNode {
     }
     case 'membership_template.deactivated': return <>{actor} hid the membership {label}</>
     case 'membership_template.reactivated': return <>{actor} put the membership {label} back on sale</>
-    case 'membership.price_changed': return <>{actor} changed {member}&apos;s membership price{label ? <> on {label}</> : null}</>
+    // A member's membership: the label is the plan's name, the subject is the member.
+    case 'membership.purchased': return <>{member} joined {label ?? 'a membership'}</>
+    case 'membership.comped': {
+      const periods = e.metadata?.periods
+      const n = typeof periods === 'number' && periods > 1 ? ` for ${periods} periods` : ''
+      return <>{actor} gave {member} {label ?? 'a membership'} free{n}</>
+    }
+    case 'membership.started': return <>{member}&apos;s {label ?? 'membership'} started</>
+    case 'membership.renewed': {
+      const amount = typeof e.metadata?.amount === 'number' ? <> ({formatMoney(e.metadata.amount, currency)})</> : null
+      return <>{member}&apos;s {label ?? 'membership'} renewed{amount}</>
+    }
+    case 'membership.recovered': {
+      const amount = typeof e.metadata?.amount === 'number' ? <> {formatMoney(e.metadata.amount, currency)}</> : null
+      return <>{member} paid the overdue{amount} on {label ?? 'their membership'}</>
+    }
+    case 'membership.payment_failed': {
+      const attempt = e.metadata?.attempt
+      return <>Renewal payment failed on {member}&apos;s {label ?? 'membership'}{typeof attempt === 'number' && attempt > 1 ? <> (attempt {attempt})</> : null}</>
+    }
+    case 'membership.cancel_scheduled': return self || e.metadata?.reason === 'member'
+      ? <>{member} cancelled {label ?? 'their membership'} from the end of the period</>
+      : <>{actor} set {member}&apos;s {label ?? 'membership'} to end at the end of the period</>
+    case 'membership.cancel_undone': return <>{member} undid cancelling {label ?? 'their membership'}</>
+    case 'membership.cancelled': {
+      const reason = e.metadata?.reason
+      const refund = typeof e.metadata?.refund_amount === 'number' && e.metadata.refund_amount > 0
+        ? <>, refunded {formatMoney(e.metadata.refund_amount, currency)}</> : null
+      if (e.metadata?.scheduled) return <>{member}&apos;s {label ?? 'membership'} ended as scheduled</>
+      if (reason === 'payment_failed') return <>{member}&apos;s {label ?? 'membership'} was cancelled after the last payment retry failed</>
+      if (reason === 'member') return <>{member} cancelled {label ?? 'their membership'}{refund}</>
+      return <>{actor} cancelled {member}&apos;s {label ?? 'membership'}{refund}</>
+    }
+    case 'membership.expired': return <>{member}&apos;s {label ?? 'membership'} ended</>
+    case 'membership.price_changed': {
+      const before = e.metadata?.old
+      const after = e.metadata?.new
+      const change = typeof before === 'number' && typeof after === 'number'
+        ? <> from {formatMoney(before, currency)} to {formatMoney(after, currency)}</> : null
+      const from = typeof e.metadata?.effective_from === 'string' ? <>, from {dateOnlyLabel(e.metadata.effective_from)}</> : null
+      return e.metadata?.source === 'template'
+        ? <>{member}&apos;s price on {label ?? 'their membership'} changed{change}{from} (plan price change)</>
+        : <>{actor} changed {member}&apos;s price on {label ?? 'their membership'}{change}{from}</>
+    }
 
     case 'session.created': return <>{actor} created {label ?? 'a class'}</>
     case 'session.updated': return <>{actor} edited {label ?? 'a class'}</>
