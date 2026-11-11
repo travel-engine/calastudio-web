@@ -53,6 +53,18 @@ function restrictionText(t: PassTemplate): string | null {
   return parts.length > 0 ? `Valid for: ${parts.join(', ')}` : null
 }
 
+// Cards stay collapsed to name + price; what's included and the terms open underneath.
+function CardDetails({ children }: { children: React.ReactNode }) {
+  return (
+    <details style={{ marginTop: '6px' }}>
+      <summary className={styles.passListMuted} style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--ink)', minHeight: '32px', display: 'list-item' }}>
+        Details
+      </summary>
+      {children}
+    </details>
+  )
+}
+
 export default function PricingList({
   studioSlug, templates, memberships = [], orgId, currency, brandColor, stripeAccountId, paymentsEnabled,
 }: {
@@ -114,18 +126,14 @@ export default function PricingList({
                 <div key={m.id} className={styles.passListCard}>
                   <div className={styles.passListName}>{m.name}</div>
                   <div className={styles.passListPrice}>{priceLabel(m, money)}</div>
-                  {/* Collapsed to name + price; the plan's details and terms open underneath. */}
-                  <details style={{ marginTop: '6px' }}>
-                    <summary className={styles.passListMuted} style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--ink)', minHeight: '32px', display: 'list-item' }}>
-                      Details
-                    </summary>
+                  <CardDetails>
                     <div className={styles.passListDetail}>{m.session_cap == null ? 'Unlimited sessions' : cap.replace(/^(\d+)/, '$1 sessions')}</div>
                     <div className={styles.passListMuted}>{coverageLabel(m.session_type_restriction)}</div>
                     <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0 }}>
                       {membershipTerms(m, money).map(line => <li key={line} className={styles.passListMuted}>{line}</li>)}
                     </ul>
                     {m.description && <p className={styles.passListDetail} style={{ marginTop: '10px', color: 'var(--text-body)' }}>{m.description}</p>}
-                  </details>
+                  </CardDetails>
                   <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
                     {action(m.id, 'Join', () => setJoining(m), 'Joined')}
                   </div>
@@ -146,12 +154,14 @@ export default function PricingList({
             <div key={t.id} className={styles.passListCard}>
               <div className={styles.passListName}>{t.name}</div>
               <div className={styles.passListPrice}>{money(t.price, t.currency || currency)}</div>
-              <div className={styles.passListDetail}>
-                {unlimited ? 'Unlimited classes' : `${t.credit_count} class${t.credit_count === 1 ? '' : 'es'}`}
-              </div>
-              {expiry && <div className={styles.passListMuted}>{expiry}</div>}
-              {restriction && <div className={styles.passListMuted}>{restriction}</div>}
-              {t.description && <p className={styles.passListDetail} style={{ marginTop: '10px', color: 'var(--text-body)' }}>{t.description}</p>}
+              <CardDetails>
+                <div className={styles.passListDetail}>
+                  {unlimited ? 'Unlimited classes' : `${t.credit_count} class${t.credit_count === 1 ? '' : 'es'}`}
+                </div>
+                {expiry && <div className={styles.passListMuted}>{expiry}</div>}
+                {restriction && <div className={styles.passListMuted}>{restriction}</div>}
+                {t.description && <p className={styles.passListDetail} style={{ marginTop: '10px', color: 'var(--text-body)' }}>{t.description}</p>}
+              </CardDetails>
 
               <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
                 {action(t.id, 'Buy this pass', () => setBuying(t), 'Added')}
