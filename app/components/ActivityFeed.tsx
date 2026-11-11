@@ -202,8 +202,21 @@ function eventSentence(e: ActivityEntry, currency: string): ReactNode {
     case 'membership.started': return <>{member}&apos;s {label ?? 'membership'} started</>
     case 'membership.renewed': {
       const amount = typeof e.metadata?.amount === 'number' ? <> ({formatMoney(e.metadata.amount, currency)})</> : null
-      return <>{member}&apos;s {label ?? 'membership'} renewed{amount}</>
+      return <>{member}&apos;s {label ?? 'membership'} {e.metadata?.held ? 'continued on hold' : 'renewed'}{amount}</>
     }
+    case 'membership.hold_scheduled': {
+      const periods = typeof e.metadata?.periods === 'number' ? e.metadata.periods : null
+      const range = typeof e.metadata?.start_date === 'string' && typeof e.metadata?.end_date === 'string'
+        ? <> from {dateOnlyLabel(e.metadata.start_date)} to {dateOnlyLabel(e.metadata.end_date)}</> : null
+      const fee = typeof e.metadata?.fee === 'number' && e.metadata.fee > 0 ? <>, {formatMoney(e.metadata.fee, currency)} per period</> : null
+      const waived = e.metadata?.limits_waived ? ' (limit waived)' : ''
+      const cancelled = typeof e.metadata?.cancelled_bookings === 'number' && e.metadata.cancelled_bookings > 0
+        ? `; ${e.metadata.cancelled_bookings} booking${e.metadata.cancelled_bookings === 1 ? '' : 's'} cancelled` : ''
+      const what = <>{label ?? 'membership'} on hold{periods ? ` for ${periods} period${periods === 1 ? '' : 's'}` : ''}{range}{fee}{waived}{cancelled}</>
+      return self ? <>{member} put their {what}</> : <>{actor} put {member}&apos;s {what}</>
+    }
+    case 'membership.hold_ended_early': return self ? <>{member} ended their hold early</> : <>{actor} ended {member}&apos;s hold early</>
+    case 'membership.hold_cancelled': return self ? <>{member} removed their planned hold</> : <>{actor} removed {member}&apos;s planned hold</>
     case 'membership.recovered': {
       const amount = typeof e.metadata?.amount === 'number' ? <> {formatMoney(e.metadata.amount, currency)}</> : null
       return <>{member} paid the overdue{amount} on {label ?? 'their membership'}</>
@@ -212,9 +225,15 @@ function eventSentence(e: ActivityEntry, currency: string): ReactNode {
       const attempt = e.metadata?.attempt
       return <>Renewal payment failed on {member}&apos;s {label ?? 'membership'}{typeof attempt === 'number' && attempt > 1 ? <> (attempt {attempt})</> : null}</>
     }
-    case 'membership.cancel_scheduled': return self || e.metadata?.reason === 'member'
-      ? <>{member} cancelled {label ?? 'their membership'} from the end of the period</>
-      : <>{actor} set {member}&apos;s {label ?? 'membership'} to end at the end of the period</>
+    case 'membership.cancel_scheduled': {
+      const n = e.metadata?.notice_periods
+      const amt = e.metadata?.notice_amount
+      const notice = typeof n === 'number' && n > 0
+        ? <> with {n} period{n === 1 ? '' : 's'}&apos; notice{typeof amt === 'number' && amt > 0 ? <> ({formatMoney(amt, currency)} charged)</> : null}</> : null
+      return self || e.metadata?.reason === 'member'
+        ? <>{member} cancelled {label ?? 'their membership'}{notice ?? ' from the end of the period'}</>
+        : <>{actor} set {member}&apos;s {label ?? 'membership'} to end{notice ?? ' at the end of the period'}</>
+    }
     case 'membership.cancel_undone': return <>{member} undid cancelling {label ?? 'their membership'}</>
     case 'membership.cancelled': {
       const reason = e.metadata?.reason

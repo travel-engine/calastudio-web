@@ -70,7 +70,7 @@ export interface BookingOptions {
     guest_bookings_enabled: boolean
     guest_max_per_booking: number | null
   } | null
-  membership_not_usable_reason?: 'not_covered' | 'cap_reached' | 'outside_period' | 'payment_overdue' | null
+  membership_not_usable_reason?: 'not_covered' | 'cap_reached' | 'outside_period' | 'payment_overdue' | 'on_hold' | null
   purchasable_membership_templates?: MembershipOffer[] | null
 }
 

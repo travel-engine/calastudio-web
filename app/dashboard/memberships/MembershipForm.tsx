@@ -30,6 +30,10 @@ type FormState = {
   graceDays: string
   guests: boolean
   guestMax: string
+  holdAllowed: boolean
+  holdMax: string
+  holdFee: string
+  noticePeriods: string
   isActive: boolean
   validFrom: string
   validUntil: string
@@ -52,6 +56,10 @@ function fromTemplate(t: MembershipTemplate | null): FormState {
     graceDays: t ? String(t.grace_days) : '3',
     guests: t?.guest_bookings_enabled ?? false,
     guestMax: t?.guest_max_per_booking != null ? String(t.guest_max_per_booking) : '1',
+    holdAllowed: t?.hold_allowed ?? false,
+    holdMax: t?.hold_max_periods_per_year != null ? String(t.hold_max_periods_per_year) : '4',
+    holdFee: t?.hold_fee != null ? String(t.hold_fee) : '0',
+    noticePeriods: t?.cancel_notice_periods != null ? String(t.cancel_notice_periods) : '0',
     isActive: t?.is_active ?? true,
     validFrom: t?.valid_from ?? '',
     validUntil: t?.valid_until ?? '',
@@ -85,6 +93,11 @@ export default function MembershipForm({ orgId, token, currency, template }: {
     if (form.price.trim() === '' || isNaN(parseFloat(form.price))) { setError('Enter a price.'); return }
     if (fixed && (!form.fixedStart || !form.fixedEnd)) { setError('Choose the start and end dates.'); return }
     if (!fixed && !(parseInt(form.periodValue) >= 1)) { setError('The length must be at least 1.'); return }
+    const renews = !fixed && form.isRecurring
+    const holdMax = parseInt(form.holdMax)
+    if (renews && form.holdAllowed && !(holdMax >= 1 && holdMax <= 52)) { setError('Holds per year must be between 1 and 52.'); return }
+    const notice = form.noticePeriods.trim() ? parseInt(form.noticePeriods) : 0
+    if (renews && !(notice >= 0 && notice <= 52)) { setError('Notice must be between 0 and 52.'); return }
 
     const full: Record<string, unknown> = {
       name: form.name.trim(),
@@ -104,6 +117,10 @@ export default function MembershipForm({ orgId, token, currency, template }: {
       grace_days: form.graceDays ? parseInt(form.graceDays) : 0,
       guest_bookings_enabled: form.guests,
       guest_max_per_booking: form.guests && form.guestMax ? parseInt(form.guestMax) : null,
+      // Holds and notice only apply to plans that renew.
+      hold_allowed: renews && form.holdAllowed,
+      ...(renews && form.holdAllowed ? { hold_max_periods_per_year: holdMax, hold_fee: form.holdFee ? parseFloat(form.holdFee) : 0 } : {}),
+      cancel_notice_periods: renews ? notice : 0,
       is_active: form.isActive,
       valid_from: form.validFrom || null,
       valid_until: form.validUntil || null,
@@ -226,6 +243,34 @@ export default function MembershipForm({ orgId, token, currency, template }: {
       <Field label="Payment grace (days)" hint="If a renewal payment fails, members can keep booking this many days while we retry.">
         <Input type="number" min="0" value={form.graceDays} onChange={e => update('graceDays', e.target.value)} />
       </Field>
+
+      {!fixed && form.isRecurring && (
+        <>
+          <SectionHeader title="Holds and cancelling" />
+
+          <Field label="Members can put it on hold" hint={`A hold pauses the membership for whole ${unit}s, from the end of the period they’ve paid for. Booked classes in the hold are cancelled.`}>
+            <ToggleGroup
+              value={String(form.holdAllowed) as 'true' | 'false'}
+              onChange={v => update('holdAllowed', v === 'true')}
+              options={[{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }]}
+            />
+          </Field>
+          {form.holdAllowed && (
+            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <Field label={`Most ${unit}s on hold per year`} hint="Counted per membership year, from the date they joined.">
+                <Input type="number" min="1" max="52" value={form.holdMax} onChange={e => update('holdMax', e.target.value)} />
+              </Field>
+              <Field label={`Hold fee per ${unit} (${currency})`} hint="0 for free holds.">
+                <Input type="number" min="0" step="0.01" value={form.holdFee} onChange={e => update('holdFee', e.target.value)} />
+              </Field>
+            </div>
+          )}
+
+          <Field label={`Cancellation notice (${unit}s)`} hint={`0 = cancel at the end of the paid ${unit}. Otherwise members pay this many more ${unit}s at full price when they cancel, and keep access until the notice ends.`}>
+            <Input type="number" min="0" max="52" value={form.noticePeriods} onChange={e => update('noticePeriods', e.target.value)} />
+          </Field>
+        </>
+      )}
 
       <SectionHeader title="What it covers" description="Leave all unselected to cover every session type." />
 

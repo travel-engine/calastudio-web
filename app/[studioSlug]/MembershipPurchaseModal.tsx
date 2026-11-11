@@ -156,7 +156,13 @@ export default function MembershipPurchaseModal({
                 <button onClick={startPayment} className={styles.blockBtn}>Continue to payment</button>
                 {quote.renews && (
                   <p className={styles.drawerFootnote}>
-                    Your card is saved for renewals. Cancel any time from your account; you keep access until the end of the period you&apos;ve paid for.
+                    Your card is saved for renewals.{' '}
+                    {template.cancel_notice_periods
+                      ? <>Cancel any time from your account with {template.cancel_notice_periods} {periodUnit(template.period_type, template.period_rolling_value)}{template.cancel_notice_periods === 1 ? '' : 's'}&apos; notice, charged when you cancel; you keep access until the notice ends.</>
+                      : <>Cancel any time from your account; you keep access until the end of the period you&apos;ve paid for.</>}
+                    {template.hold_allowed && template.hold_max_periods_per_year
+                      ? <> You can put it on hold for up to {template.hold_max_periods_per_year} {periodUnit(template.period_type, template.period_rolling_value)}{template.hold_max_periods_per_year === 1 ? '' : 's'} a year.</>
+                      : null}
                   </p>
                 )}
               </>

@@ -1073,7 +1073,7 @@ export default function OccurrenceDetailPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {memberMemberships.map(m => {
                           const value = `m:${m.id}`
-                          const flag = m.status === 'past_due' || m.status === 'capped' || m.status === 'pending' ? MEMBERSHIP_STATUS[m.status].label.toLowerCase() : null
+                          const flag = m.status === 'past_due' || m.status === 'capped' || m.status === 'pending' || m.status === 'on_hold' ? MEMBERSHIP_STATUS[m.status].label.toLowerCase() : null
                           return (
                             <label key={m.id} style={paymentChoiceRow(addForm.choice === value)}>
                               <input type="radio" name="add-payment" checked={addForm.choice === value} onChange={() => setAddForm(f => ({ ...f, choice: value }))} />

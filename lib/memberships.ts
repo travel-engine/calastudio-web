@@ -24,6 +24,10 @@ export interface MembershipTemplate {
   grace_days: number
   guest_bookings_enabled: boolean
   guest_max_per_booking: number | null
+  hold_allowed?: boolean
+  hold_max_periods_per_year?: number | null
+  hold_fee?: number | null
+  cancel_notice_periods?: number
   is_active: boolean
   valid_from: string | null
   valid_until: string | null
@@ -33,11 +37,12 @@ export interface MembershipTemplate {
   updated_at?: string
 }
 
-export type MembershipStatus = 'pending' | 'active' | 'past_due' | 'capped' | 'cancelled' | 'expired'
+export type MembershipStatus = 'pending' | 'active' | 'on_hold' | 'past_due' | 'capped' | 'cancelled' | 'expired'
 
 export const MEMBERSHIP_STATUS: Record<MembershipStatus, { label: string; tone: ChipTone }> = {
   pending: { label: 'Starts soon', tone: 'info' },
   active: { label: 'Active', tone: 'primary' },
+  on_hold: { label: 'On hold', tone: 'info' },
   past_due: { label: 'Payment overdue', tone: 'danger' },
   capped: { label: 'Limit reached', tone: 'warn' },
   cancelled: { label: 'Cancelled', tone: 'neutral' },
@@ -89,7 +94,8 @@ export function capLabel(cap: number | null, type: PeriodType, value: number | n
 
 /** A plan offered for sale where a member can't book otherwise (booking-options). */
 export type MembershipOffer = Pick<MembershipTemplate,
-  'id' | 'name' | 'description' | 'price' | 'currency' | 'period_type' | 'period_rolling_value' | 'is_recurring' | 'session_cap'>
+  'id' | 'name' | 'description' | 'price' | 'currency' | 'period_type' | 'period_rolling_value' | 'is_recurring' | 'session_cap'
+  | 'cancel_notice_periods' | 'hold_allowed' | 'hold_max_periods_per_year'>
 
 /** GET …/members/me/memberships/{templateId}/quote?start_date= */
 export interface MembershipQuote {
@@ -130,6 +136,64 @@ export interface MyMembership {
   scheduled_price: { price: number; from: string } | null
   past_due: { since: string; amount: number; attempts: number; next_retry_on: string | null; grace_until: string | null; can_book: boolean } | null
   card: { brand: string; last4: string } | null
+  hold?: MembershipHold | null
+  hold_allowance?: HoldAllowance | null
+  cancel_notice_periods?: number
+}
+
+/** A hold: whole periods from the day after the paid-up period (API PR #79). */
+export interface MembershipHold {
+  id: string
+  start_date: string
+  end_date: string
+  periods: number
+  fee_per_period: number
+  status: 'scheduled' | 'active'
+}
+
+export interface HoldAllowance {
+  max_periods_per_year: number
+  used_this_year: number
+  periods_left: number
+  fee_per_period: number
+  membership_year_start: string
+  membership_year_end: string
+}
+
+/** GET …/memberships/{id}/hold-options?periods=n (member or staff). */
+export interface HoldOptions {
+  allowed: boolean
+  not_allowed_reason: 'not_allowed' | 'not_renewing' | 'already_on_hold' | 'limit_reached' | null
+  starts_on: string
+  period_label: string
+  fee_per_period: number
+  currency: string
+  max_periods_per_year: number
+  used_this_year: number
+  periods_left_this_year: number
+  membership_year_start: string
+  membership_year_end: string
+  ends_on?: string
+  resumes_on?: string
+  bookings_to_cancel?: { booking_id: string; session_name: string; starts_at: string }[]
+}
+
+export const HOLD_NOT_ALLOWED: Record<string, string> = {
+  not_allowed: 'This membership can’t be put on hold.',
+  not_renewing: 'Only a membership that renews can be put on hold. This one is ending.',
+  already_on_hold: 'There’s already a hold on this membership.',
+  limit_reached: 'All the hold time for this membership year has been used.',
+}
+
+/** GET …/members/me/memberships/{id}/cancel-preview (API PR #80). */
+export interface CancelPreview {
+  mode: 'notice' | 'period_end' | 'refund_now' | 'end_now' | 'not_possible'
+  access_until: string | null
+  notice_periods: number
+  notice_amount: number
+  currency: string
+  refund_amount: number
+  notice_starts_on: string | null
 }
 
 /** A date-only "YYYY-MM-DD" as "Thu 12 Nov" (or "Thu 12 Nov 2027" outside this year), with no timezone shift. */

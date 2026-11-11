@@ -16,6 +16,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'active', label: 'Active' },
   { value: 'past_due', label: 'Payment overdue' },
   { value: 'pending', label: 'Starts soon' },
+  { value: 'on_hold', label: 'On hold' },
   { value: 'capped', label: 'Limit reached' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'expired', label: 'Ended' },
@@ -25,6 +26,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 // What's next for this membership, in a few words: the date that matters for its status.
 export function membershipWhen(m: StaffMembership): string {
   if (m.status === 'pending') return `Starts ${dateOnlyLabel(m.started_on)}`
+  if (m.hold?.status === 'active') return `On hold until ${dateOnlyLabel(m.hold.end_date)}`
   if (m.status === 'past_due' && m.past_due) return `Overdue since ${dateOnlyLabel(m.past_due.since)}`
   if (m.status === 'cancelled') return m.cancelled_at ? `Cancelled ${dateOnlyLabel(m.cancelled_at)}` : 'Cancelled'
   if (m.status === 'expired') return m.current_period_end ? `Ended ${dateOnlyLabel(m.current_period_end)}` : 'Ended'

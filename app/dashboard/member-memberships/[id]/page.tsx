@@ -10,8 +10,8 @@ import Toast from '@/app/components/Toast'
 import ActivityFeed from '@/app/components/ActivityFeed'
 import { canManageMemberMemberships, canChangeMemberMembershipPrice, canViewEntityActivity } from '@/lib/roles'
 import {
-  MEMBERSHIP_STATUS, dateOnlyLabel, isLiveMembership, localDateKey, periodUnit,
-  type MembershipRefundQuote, type StaffMembershipDetail,
+  HOLD_NOT_ALLOWED, MEMBERSHIP_STATUS, dateOnlyLabel, isLiveMembership, localDateKey, periodUnit,
+  type HoldOptions, type MembershipRefundQuote, type StaffMembershipDetail,
 } from '@/lib/memberships'
 import { formatMoney } from '@/lib/money'
 import { color, space, tabularNums } from '@/lib/ui/tokens'
@@ -49,7 +49,8 @@ export default function MemberMembershipPage() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [activityKey, setActivityKey] = useState(0)
-  const [dialog, setDialog] = useState<'' | 'cancel' | 'price'>('')
+  const [dialog, setDialog] = useState<'' | 'cancel' | 'price' | 'hold'>('')
+  const [endingHold, setEndingHold] = useState(false)
 
   const api = useCallback((c: Ctx, path: string, init?: RequestInit) =>
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${c.orgId}/member-memberships/${id}${path}`, {
@@ -80,6 +81,20 @@ export default function MemberMembershipPage() {
     setDialog('')
     setToast(message)
     setActivityKey(k => k + 1)
+  }
+
+  const endHold = async () => {
+    if (!ctx || !m?.hold) return
+    setEndingHold(true)
+    try {
+      const res = await api(ctx, '/hold/end', { method: 'POST' })
+      if (!res.ok) { setToast(await errorText(res, 'Could not end the hold.')); return }
+      updated(await res.json(), m.hold.status === 'active' ? 'The hold ends after the current period.' : 'Hold removed.')
+    } catch {
+      setToast('Could not reach the server. Please try again.')
+    } finally {
+      setEndingHold(false)
+    }
   }
 
   const s = m ? MEMBERSHIP_STATUS[m.status] : null
@@ -115,6 +130,9 @@ export default function MemberMembershipPage() {
                     </div>
                     {live && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                        {m.hold
+                          ? <Button onClick={endHold} disabled={endingHold}>{endingHold ? 'Saving…' : m.hold.status === 'active' ? 'End hold early' : 'Remove hold'}</Button>
+                          : !m.cancel_at && (m.status === 'active' || m.status === 'capped') && !m.is_comp && <Button onClick={() => setDialog('hold')}>Put on hold</Button>}
                         {renews && canChangeMemberMembershipPrice(ctx.roles) && <Button onClick={() => setDialog('price')}>Change price</Button>}
                         <Button variant="destructive" onClick={() => setDialog('cancel')}>Cancel membership</Button>
                       </div>
@@ -137,6 +155,8 @@ export default function MemberMembershipPage() {
                       ['This period', m.current_period_start && m.current_period_end ? `${dateOnlyLabel(m.current_period_start)} – ${dateOnlyLabel(m.current_period_end)}` : null],
                       ['Sessions', m.session_cap == null ? 'Unlimited' : `${m.sessions_used_this_period} of ${m.session_cap} used${unit ? ` this ${unit.includes(' ') ? 'period' : unit}` : ''}`],
                       ['Next payment', renews && m.status !== 'past_due' ? `${dateOnlyLabel(m.next_charge_on!)}${m.card ? ` · ${m.card.brand} ••${m.card.last4}` : ''}` : null],
+                      ['Hold', m.hold ? `${m.hold.status === 'active' ? 'On hold' : 'Planned'}: ${dateOnlyLabel(m.hold.start_date)} – ${dateOnlyLabel(m.hold.end_date)}${m.hold.fee_per_period > 0 ? ` · ${formatMoney(m.hold.fee_per_period, m.currency)} a ${unit ?? 'period'}` : ''}` : null],
+                      ['Hold allowance', m.hold_allowance ? `${m.hold_allowance.used_this_year} of ${m.hold_allowance.max_periods_per_year} used until ${dateOnlyLabel(m.hold_allowance.membership_year_end)}` : null],
                       ['Price change', m.scheduled_price ? `${formatMoney(m.scheduled_price.price, m.currency)} from ${dateOnlyLabel(m.scheduled_price.from)}` : null],
                       ['Periods', m.max_cycles ? `${m.cycles_completed} of ${m.max_cycles}` : null],
                       ['Cancelled', m.cancelled_at ? `${dateOnlyLabel(m.cancelled_at)}${m.cancellation_reason ? ` · ${cancelReasonLabel(m.cancellation_reason)}` : ''}` : null],
@@ -195,7 +215,14 @@ export default function MemberMembershipPage() {
       {dialog === 'cancel' && m && ctx && (
         <CancelDialog m={m} onClose={() => setDialog('')}
           getQuote={() => api(ctx, '/refund-quote')}
+          getPlan={() => fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${ctx.orgId}/membership-templates/${m.template_id}`, { headers: { Authorization: `Bearer ${ctx.token}` } })}
           submit={body => api(ctx, '/cancel', { method: 'POST', body: JSON.stringify(body) })}
+          onDone={(next, msg) => updated(next, msg)} />
+      )}
+      {dialog === 'hold' && m && ctx && (
+        <HoldDialog m={m} onClose={() => setDialog('')}
+          getOptions={periods => api(ctx, `/hold-options?periods=${periods}`)}
+          submit={body => api(ctx, '/hold', { method: 'POST', body: JSON.stringify(body) })}
           onDone={(next, msg) => updated(next, msg)} />
       )}
       {dialog === 'price' && m && ctx && (
@@ -222,23 +249,33 @@ async function errorText(res: Response, fallback: string) {
   return data?.error ?? fallback
 }
 
-function CancelDialog({ m, onClose, getQuote, submit, onDone }: {
+function CancelDialog({ m, onClose, getQuote, getPlan, submit, onDone }: {
   m: StaffMembershipDetail
   onClose: () => void
   getQuote: () => Promise<Response>
+  getPlan: () => Promise<Response>
   submit: (body: object) => Promise<Response>
   onDone: (next: StaffMembershipDetail, message: string) => void
 }) {
   // End of period is only offered while it's running normally (the API refuses it for pending / past due).
-  const canWait = (m.status === 'active' || m.status === 'capped') && !m.cancel_at
+  const canWait = (m.status === 'active' || m.status === 'capped' || m.status === 'on_hold') && !m.cancel_at
+  // The plan's notice, in periods; the API charges it at full price on an end-of-period cancel unless waived.
+  // The plan's notice, from the membership if the API sends it, else from the plan itself.
+  const [planNotice, setPlanNotice] = useState<number | null>(null)
+  const notice = m.cancel_notice_periods ?? planNotice ?? 0
+  const unit = periodUnit(m.period_type, m.period_rolling_value) ?? 'period'
   const [when, setWhen] = useState<'now' | 'period_end'>('now')
   const [quote, setQuote] = useState<MembershipRefundQuote | null>(null)
   const [refund, setRefund] = useState('')
   const [reason, setReason] = useState('')
+  const [chargeNotice, setChargeNotice] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (m.cancel_notice_periods == null) {
+      getPlan().then(async res => { if (res.ok) setPlanNotice((await res.json()).cancel_notice_periods ?? 0) }).catch(() => {})
+    }
     getQuote().then(async res => {
       if (!res.ok) return
       const q: MembershipRefundQuote = await res.json()
@@ -255,11 +292,14 @@ function CancelDialog({ m, onClose, getQuote, submit, onDone }: {
     setBusy(true)
     setError('')
     try {
-      const res = await submit({ when, refund_amount: when === 'now' && amount > 0 ? amount : null, reason: reason.trim() || null })
+      const res = await submit({
+        when, refund_amount: when === 'now' && amount > 0 ? amount : null, reason: reason.trim() || null,
+        ...(when === 'period_end' && notice > 0 ? { charge_notice: chargeNotice } : {}),
+      })
       if (!res.ok) { setError(await errorText(res, 'Could not cancel this membership.')); return }
       onDone(await res.json(), when === 'now'
         ? `Membership cancelled${amount > 0 ? ` and ${formatMoney(amount, m.currency)} refunded` : ''}.`
-        : 'Membership will end at the end of this period.')
+        : notice > 0 && chargeNotice ? 'Notice charged. The membership ends when the notice runs out.' : 'Membership will end at the end of this period.')
     } catch {
       setError('Could not reach the server. Please try again.')
     } finally {
@@ -301,9 +341,18 @@ function CancelDialog({ m, onClose, getQuote, submit, onDone }: {
             )}
           </>
         ) : (
-          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.ink2 }}>
-            They keep access until {m.current_period_end ? dateOnlyLabel(m.current_period_end) : 'the end of this period'} and won’t be charged again. No refund.
-          </p>
+          <>
+            {notice > 0 && (
+              <CheckRow checked={chargeNotice} onChange={setChargeNotice}>
+                Charge {notice} {unit}{notice === 1 ? '' : 's'}’ notice at {formatMoney(m.price, m.currency)} a {unit} to the card on file. They keep access until the notice ends.
+              </CheckRow>
+            )}
+            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.ink2 }}>
+              {notice > 0 && chargeNotice
+                ? 'No further payments after the notice. No refund.'
+                : <>They keep access until {m.current_period_end ? dateOnlyLabel(m.current_period_end) : 'the end of this period'} and won’t be charged again. No refund.</>}
+            </p>
+          </>
         )}
 
         <Field label="Note (optional)" htmlFor="cancel-reason" hint="Kept in the membership’s history. Not shown to the member.">
@@ -369,6 +418,95 @@ function PriceDialog({ m, onClose, submit, onDone }: {
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
           <Button onClick={onClose} style={{ flex: 1 }}>Cancel</Button>
           <Button variant="primary" onClick={go} disabled={busy || bad} style={{ flex: 1 }}>{busy ? 'Saving…' : 'Change price'}</Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function HoldDialog({ m, onClose, getOptions, submit, onDone }: {
+  m: StaffMembershipDetail
+  onClose: () => void
+  getOptions: (periods: number) => Promise<Response>
+  submit: (body: object) => Promise<Response>
+  onDone: (next: StaffMembershipDetail, message: string) => void
+}) {
+  const [periods, setPeriods] = useState('1')
+  const [ignoreLimits, setIgnoreLimits] = useState(false)
+  const [opts, setOpts] = useState<HoldOptions | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const n = Number(periods)
+  const validN = Number.isInteger(n) && n >= 1 && n <= 52
+
+  useEffect(() => {
+    if (!validN) return
+    let active = true
+    getOptions(n).then(async res => {
+      const data = await res.json().catch(() => null)
+      if (!active) return
+      if (res.ok) setOpts(data)
+      else setError(data?.error ?? 'Could not load hold options.')
+    }).catch(() => { if (active) setError('Could not reach the server. Please try again.') })
+    return () => { active = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n, validN])
+
+  // Staff can override the yearly limit, or hold a plan that doesn't offer holds; not the other reasons.
+  const overridable = opts?.not_allowed_reason === 'limit_reached' || opts?.not_allowed_reason === 'not_allowed'
+  const blocked = !opts || (!opts.allowed && !(overridable && ignoreLimits))
+  const label = opts?.period_label ?? 'period'
+
+  const go = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const res = await submit({ periods: n, ignore_limits: ignoreLimits || undefined })
+      if (!res.ok) { setError(await errorText(res, 'Could not put this membership on hold.')); return }
+      onDone(await res.json(), 'Hold booked. The member has been emailed.')
+    } catch {
+      setError('Could not reach the server. Please try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title={`Put ${m.member_name}’s membership on hold`} onClose={onClose} width={520}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
+        {error && <div role="alert" style={alertStyle()}>{error}</div>}
+        <Field label={`How many ${label}s`} htmlFor="hold-periods" hint="Starts the day after the period they’ve paid for.">
+          <input id="hold-periods" type="number" min="1" max="52" step="1" value={periods} onChange={e => setPeriods(e.target.value)} aria-describedby="hold-periods-hint" style={controlStyle} />
+        </Field>
+        {!opts ? <div style={{ fontSize: 14, color: color.muted }}>Loading…</div> : (
+          <>
+            {!opts.allowed && (
+              <div style={alertStyle('warn')}>{HOLD_NOT_ALLOWED[opts.not_allowed_reason ?? ''] ?? 'A hold isn’t possible right now.'}</div>
+            )}
+            {overridable && (
+              <CheckRow checked={ignoreLimits} onChange={setIgnoreLimits}>
+                {opts.not_allowed_reason === 'limit_reached' ? 'Allow it anyway, beyond this year’s limit' : 'Allow it anyway, though the plan doesn’t offer holds'}
+              </CheckRow>
+            )}
+            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.ink2 }}>
+              {opts.ends_on ? <>On hold {dateOnlyLabel(opts.starts_on)} – {dateOnlyLabel(opts.ends_on)}</> : <>Starts {dateOnlyLabel(opts.starts_on)}</>}
+              {opts.resumes_on && <>, back on {dateOnlyLabel(opts.resumes_on)}</>}.
+              {' '}{opts.fee_per_period > 0 ? `Hold fee ${formatMoney(opts.fee_per_period, opts.currency)} a ${label} instead of the usual price.` : 'No charge while on hold.'}
+              {opts.max_periods_per_year > 0 && <> {opts.used_this_year} of {opts.max_periods_per_year} {label}s used this membership year.</>}
+            </p>
+            {opts.bookings_to_cancel && opts.bookings_to_cancel.length > 0 && (
+              <div style={{ fontSize: 15, color: color.ink2 }}>
+                These bookings will be cancelled:
+                <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+                  {opts.bookings_to_cancel.map(b => <li key={b.booking_id}>{b.session_name}, {dateOnlyLabel(b.starts_at)}</li>)}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+          <Button onClick={onClose} style={{ flex: 1 }}>Cancel</Button>
+          <Button variant="primary" onClick={go} disabled={busy || !validN || blocked} style={{ flex: 1 }}>{busy ? 'Saving…' : 'Put on hold'}</Button>
         </div>
       </div>
     </Modal>

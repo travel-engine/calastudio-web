@@ -71,6 +71,7 @@ const MEMBERSHIP_NOT_USABLE: Record<NonNullable<BookingOptions['membership_not_u
   cap_reached: 'You’ve used all the sessions on your membership for this period.',
   outside_period: 'This class is outside your membership dates.',
   payment_overdue: 'Your membership payment is overdue, so it can’t be used to book until it’s paid. Check your email for a link to pay.',
+  on_hold: 'Your membership is on hold on this date.',
 }
 
 const STEP_LABELS: Record<string, string> = {
