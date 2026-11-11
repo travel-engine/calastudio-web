@@ -114,12 +114,18 @@ export default function PricingList({
                 <div key={m.id} className={styles.passListCard}>
                   <div className={styles.passListName}>{m.name}</div>
                   <div className={styles.passListPrice}>{priceLabel(m, money)}</div>
-                  <div className={styles.passListDetail}>{m.session_cap == null ? 'Unlimited sessions' : cap.replace(/^(\d+)/, '$1 sessions')}</div>
-                  <div className={styles.passListMuted}>{coverageLabel(m.session_type_restriction)}</div>
-                  <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0 }}>
-                    {membershipTerms(m, money).map(line => <li key={line} className={styles.passListMuted}>{line}</li>)}
-                  </ul>
-                  {m.description && <p className={styles.passListDetail} style={{ marginTop: '10px', color: 'var(--text-body)' }}>{m.description}</p>}
+                  {/* Collapsed to name + price; the plan's details and terms open underneath. */}
+                  <details style={{ marginTop: '6px' }}>
+                    <summary className={styles.passListMuted} style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--ink)', minHeight: '32px', display: 'list-item' }}>
+                      Details
+                    </summary>
+                    <div className={styles.passListDetail}>{m.session_cap == null ? 'Unlimited sessions' : cap.replace(/^(\d+)/, '$1 sessions')}</div>
+                    <div className={styles.passListMuted}>{coverageLabel(m.session_type_restriction)}</div>
+                    <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0 }}>
+                      {membershipTerms(m, money).map(line => <li key={line} className={styles.passListMuted}>{line}</li>)}
+                    </ul>
+                    {m.description && <p className={styles.passListDetail} style={{ marginTop: '10px', color: 'var(--text-body)' }}>{m.description}</p>}
+                  </details>
                   <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
                     {action(m.id, 'Join', () => setJoining(m), 'Joined')}
                   </div>
