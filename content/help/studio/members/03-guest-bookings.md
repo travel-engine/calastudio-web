@@ -31,6 +31,12 @@ If the session and their pass both allow it, the booking flow shows a **Bringing
 
 Guests can only be brought along on a pass-paid booking — there's no separate guest payment step for a card or free booking.
 
+## Checking in guests
+
+Each guest is checked in separately from the member. On the class roster, every guest listed under the member's row has their own **Check in** button. Tap it when they arrive; it turns into the time they were checked in, which you can tap to undo. The member's own **Check in** covers only the member, so a member who comes without their guest is recorded correctly, and so is a guest who comes without the member.
+
+Anyone not checked in once the class is over counts as a **no-show**, member or guest. If someone did come and nobody tapped, you can still check them in afterwards. Guests on classes before 23 October 2026 weren't checked in separately, so they're left out of attendance and no-show figures.
+
 ## Cancelling a guest
 
 A member can't cancel just one guest themselves — cancelling their own booking cancels any guests on it too. From the occurrence's roster, though, Admin and Super teacher can cancel an individual guest without touching the member's own confirmed spot: find the guest listed under the member's row and click **Cancel** next to their name. Any credit used for that guest is returned in full — unlike cancelling the member's own spot, this doesn't check the cancellation window.

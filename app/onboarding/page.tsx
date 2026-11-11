@@ -3,9 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { getOrgContext, rememberStudio } from '@/lib/orgContext'
+import { isStaff } from '@/lib/roles'
 import { type ThemeKey } from '@/lib/studioTheme'
 import ThemePicker from '@/app/components/ThemePicker'
+import PlanStep from './PlanStep'
 import { STUDIO_DOMAIN, studioOrigin } from '@/lib/seo'
+import { nextWeekdayAt } from '@/lib/dates'
+import DurationPicker, { durationProblem } from '@/app/components/DurationPicker'
 
 // ── Step components ──────────────────────────────────────
 function ProgressBar({ step, total }: { step: number; total: number }) {
@@ -223,7 +228,7 @@ function Step1({ data, onChange, onNext, acceptTerms, onAcceptTerms }: {
         </span>
       </label>
 
-      <NextButton onClick={onNext} disabled={!data.name.trim() || !acceptTerms}>
+      <NextButton onClick={onNext} disabled={!data.name.trim() || !data.ownerName.trim() || !acceptTerms}>
         Continue →
       </NextButton>
     </div>
@@ -284,14 +289,7 @@ function Step2({ data, onChange, onNext, onBack }: {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         <Field label="Duration">
-          <Select value={data.sessionDuration} onChange={e => onChange('sessionDuration', e.target.value)}>
-            <option value="30">30 minutes</option>
-            <option value="45">45 minutes</option>
-            <option value="60">60 minutes</option>
-            <option value="75">75 minutes</option>
-            <option value="90">90 minutes</option>
-            <option value="120">2 hours</option>
-          </Select>
+          <DurationPicker value={data.sessionDuration} onChange={v => onChange('sessionDuration', v)} Select={Select} Input={Input} />
         </Field>
 
         <Field label="Max capacity">
@@ -315,7 +313,10 @@ function Step2({ data, onChange, onNext, onBack }: {
         </Field>
       ) : null}
 
-      <NextButton onClick={onNext}>Continue →</NextButton>
+      {data.sessionDuration && durationProblem(data.sessionDuration) && (
+        <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#a32d2d' }}>{durationProblem(data.sessionDuration)}</p>
+      )}
+      <NextButton onClick={onNext} disabled={!!durationProblem(data.sessionDuration)}>Continue →</NextButton>
     </div>
   )
 }
@@ -621,17 +622,22 @@ export default function OnboardingPage() {
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [error, setError] = useState('')
   const [stripeNote, setStripeNote] = useState('')
+  const [orgId, setOrgId] = useState('')
+  const [planNote, setPlanNote] = useState('')
+  const [sessionNote, setSessionNote] = useState('')
 
-  // Guard the wizard: must be signed in, and must not already have a studio.
+  // Guard the wizard: must be signed in, and must not already run a studio. Being a member of
+  // someone else's studio doesn't count, so a member can still set up their own.
   useEffect(() => {
     const check = async () => {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace('/login'); return }
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      if (res.ok) { router.replace('/dashboard'); return }
+      const ctx = await getOrgContext({ fresh: true }).catch(() => null)
+      if (ctx?.status === 'ok' && isStaff(ctx.roles)) { router.replace('/dashboard'); return }
+      // CalaStudio admins (Travel Engine staff) with no studio of their own belong in /admin, not here.
+      const me = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, { headers: { Authorization: `Bearer ${session.access_token}` } }).catch(() => null)
+      if (me?.ok && (await me.json().catch(() => null))?.is_platform_admin === true) { router.replace('/admin'); return }
       setChecking(false)
     }
     check()
@@ -679,6 +685,8 @@ export default function OnboardingPage() {
         locale: 'en-AU',
         theme: data.theme,
         accept_terms: acceptTerms,
+        // The owner's own name; without it the API used the studio name as their first name.
+        owner_first_name: data.ownerName.trim() || null,
       }),
     })
     const org = await response.json().catch(() => null)
@@ -686,7 +694,46 @@ export default function OnboardingPage() {
       setError(org?.error ?? 'Something went wrong creating your studio. Please try again.')
       return null
     }
+    // The guard above may have cached a membership at someone else's studio, or a switcher choice
+    // may point elsewhere; the dashboard must open this new one.
+    await rememberStudio(org.id)
+    await createFirstSession(org.id, token)
     return { id: org.id, slug: org.slug }
+  }
+
+  // Step 2–3's class, created right after the studio (01-onboarding.md: "one real session exists"):
+  // weekly on the chosen day from its next date in the studio's timezone, public, open booking.
+  // A failure doesn't undo the studio; the done screen says so and points at Sessions.
+  const createFirstSession = async (orgId: string, token: string) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: data.sessionName.trim() || 'Morning class',
+          session_type: 'class',
+          delivery_mode: data.deliveryMode,
+          location_name: data.deliveryMode === 'in_person' && data.locationName.trim() ? data.locationName.trim() : null,
+          capacity: data.sessionCapacity ? parseInt(data.sessionCapacity, 10) : null,
+          price: data.dropInPrice !== '' ? parseFloat(data.dropInPrice) : null,
+          currency: data.currency,
+          duration_minutes: parseInt(data.sessionDuration, 10),
+          first_occurrence_starts_at: nextWeekdayAt(data.sessionDay, data.sessionTime, data.timezone).toISOString(),
+          is_recurring: true,
+          recurrence_rule: 'RRULE:FREQ=WEEKLY',
+          visibility: 'public',
+          booking_access_mode: 'open',
+          guest_bookings_enabled: true,
+          guest_max_per_booking: 1,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        setSessionNote(`We couldn't add your first class${body?.error ? ` (${body.error})` : ''}. Add it from Sessions in your dashboard.`)
+      }
+    } catch {
+      setSessionNote("We couldn't add your first class. Add it from Sessions in your dashboard.")
+    }
   }
 
   const handleComplete = async () => {
@@ -696,7 +743,8 @@ export default function OnboardingPage() {
       const org = await createOrg()
       if (!org) return
       setOrgSlug(org.slug)
-      setStep(6)
+      setOrgId(org.id)
+      setStep(6) // plan, then done
     } catch {
       setError('Could not reach the server. Please check your connection and try again.')
     } finally {
@@ -714,6 +762,7 @@ export default function OnboardingPage() {
       const org = await createOrg()
       if (!org) return
       setOrgSlug(org.slug)
+      setOrgId(org.id)
       try {
         const supabase = createClient()
         const { data: { session } } = await supabase.auth.getSession()
@@ -738,7 +787,7 @@ export default function OnboardingPage() {
     }
   }
 
-  const TOTAL_STEPS = 5
+  const TOTAL_STEPS = 6
 
   if (checking) {
     return (
@@ -780,7 +829,7 @@ export default function OnboardingPage() {
             CalaStudio
           </div>
 
-          {step < 6 && <ProgressBar step={step} total={TOTAL_STEPS} />}
+          {step < 7 && <ProgressBar step={step} total={TOTAL_STEPS} />}
         </div>
 
         {/* Steps */}
@@ -812,7 +861,11 @@ export default function OnboardingPage() {
           </>
         )}
         {step === 6 && (
-          <Step5 data={data} orgSlug={orgSlug} stripeNote={stripeNote} />
+          // The studio exists from here on, so this step can't go back — the plan is the last choice.
+          <PlanStep orgId={orgId} currency={data.currency} onDone={note => { setPlanNote(note ?? ''); setStep(7) }} />
+        )}
+        {step === 7 && (
+          <Step5 data={data} orgSlug={orgSlug} stripeNote={[sessionNote, stripeNote, planNote].filter(Boolean).join(' ')} />
         )}
       </div>
     </div>

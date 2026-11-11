@@ -8,7 +8,8 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
-import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings } from '@/lib/roles'
+import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, staffRoleLabel } from '@/lib/roles'
+import ActivityFeed from '@/app/components/ActivityFeed'
 import { displayName } from '@/lib/names'
 import { formatClock, formatDayMonth, formatRelativeShort, formatShortDate } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
@@ -178,6 +179,9 @@ export default function MemberDetailPage() {
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [timeZone, setTimeZone] = useState<string | null>(null)
+  const [currency, setCurrency] = useState('')
+  // Bumped after a change on this page so the Activity feeds re-pull.
+  const [activityKey, setActivityKey] = useState(0)
 
   const [member, setMember] = useState<MemberDetail | null>(null)
   const [passes, setPasses] = useState<MemberPass[]>([])
@@ -208,6 +212,7 @@ export default function MemberDetailPage() {
     const p = await authedFetch(`/members/${memberId}/passes`)
     if (p.ok) setPasses(await p.json())
     setPassLedgers({})
+    setActivityKey(k => k + 1)
   }, [authedFetch, memberId])
 
   const togglePassHistory = useCallback(async (passId: string) => {
@@ -248,6 +253,7 @@ export default function MemberDetailPage() {
       const org = ctx.org
       setOrgId(org.id)
       setTimeZone(org.timezone ?? null)
+      setCurrency(org.currency ?? '')
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
       if (!canViewMembers(myRoles)) { setForbidden(true); setLoading(false); return }
@@ -348,6 +354,7 @@ export default function MemberDetailPage() {
   const activity = member ? memberActivity(member.auth_provisioned_at, member.last_seen_at) : null
   const notSignedIn = activity != null && activity.kind !== 'seen'
   const nowMs = Date.now()
+  const showActivity = canViewEntityActivity(roles) && !!orgId && !!token
 
   return (
     <div className={styles.shell}>
@@ -378,6 +385,7 @@ export default function MemberDetailPage() {
                       {member.phone && <span>{member.phone}</span>}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                      {staffRoleLabel(member.roles) && <Chip tone="info">{staffRoleLabel(member.roles)}</Chip>}
                       {member.person_type && <Chip>{personTypeLabels[member.person_type] ?? member.person_type}</Chip>}
                       {member.join_date && <Chip>Joined {monthYear(member.join_date)}</Chip>}
                       {activity?.kind === 'seen'
@@ -394,7 +402,7 @@ export default function MemberDetailPage() {
                 </section>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
-                  {/* Left: passes, orders */}
+                  {/* Left: passes, orders, activity */}
                   <div style={{ flex: '999 1 520px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
                     <Card style={{ overflow: 'hidden' }} aria-labelledby="passes-heading">
                       <SectionHead id="passes-heading" title="Passes" action={canManageMemberPasses(roles) && (
@@ -432,7 +440,7 @@ export default function MemberDetailPage() {
                                 Expires {formatDayMonth(p.expires_at, timeZone)}
                               </span>
                               <Chip tone={s.tone}>{s.label}</Chip>
-                              {isCredit && (
+                              {(isCredit || showActivity) && (
                                 <button type="button" onClick={() => togglePassHistory(p.id)} aria-expanded={open}
                                   className={`${ui.button} ${ui.focusable}`} style={buttonStyle('secondary', 'sm')}>
                                   {open ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}History
@@ -440,8 +448,8 @@ export default function MemberDetailPage() {
                               )}
                             </div>
                             {open && (
-                              <div style={{ padding: '0 20px 14px 20px' }}>
-                                {!entries ? (
+                              <div style={{ padding: '0 20px 14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {!isCredit ? null : !entries ? (
                                   <p style={{ margin: 0, fontSize: 14, color: color.muted }}>Loading history…</p>
                                 ) : entries.length === 0 ? (
                                   <p style={{ margin: 0, fontSize: 14, color: color.muted }}>No credit movements.</p>
@@ -464,6 +472,13 @@ export default function MemberDetailPage() {
                                         <span style={{ textAlign: 'right', color: color.muted, ...tabularNums }} title="Credits after">{e.credits_after}</span>
                                       </div>
                                     ))}
+                                  </div>
+                                )}
+                                {showActivity && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <span style={smallCapsStyle}>Activity</span>
+                                    <ActivityFeed embedded orgId={orgId} token={token} entityType="member_pass" entityId={p.id}
+                                      noun="pass" currency={currency} timeZone={timeZone} refreshKey={activityKey} />
                                   </div>
                                 )}
                               </div>
@@ -507,6 +522,11 @@ export default function MemberDetailPage() {
                         </div>
                       )}
                     </Card>
+
+                    {showActivity && (
+                      <ActivityFeed orgId={orgId} token={token} entityType="member" entityId={memberId}
+                        noun="member" currency={currency} timeZone={timeZone} refreshKey={activityKey} />
+                    )}
                   </div>
 
                   {/* Right: upcoming, details, notes */}

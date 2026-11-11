@@ -20,6 +20,8 @@ Refunds work differently depending on how the booking was paid for — a card ch
 
 Payments older than 90 days can't be refunded from here — the button will tell you to use the Stripe dashboard directly instead.
 
+Payments taken on a Stripe account that's no longer connected (after you disconnect, or switch to a different account) also can't be refunded from here. Refund them from that account's Stripe dashboard.
+
 ## Pass credits
 
 **Automatic** — cancelling inside the cancellation window returns the credit immediately, whether the member cancelled it themselves or you cancelled it for them. Cancelling outside the window (a "late cancel") forfeits it instead, per your studio's cancellation policy — see **Sessions → Cancellation policy**.

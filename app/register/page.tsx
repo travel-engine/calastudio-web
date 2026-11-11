@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
+import { MIN_PASSWORD_LENGTH, PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -11,6 +12,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
 
   const handleRegister = async () => {
+    const problem = passwordProblem(password)
+    if (problem) { setMessage(problem); return }
     setLoading(true)
     const supabase = createClient()
 
@@ -24,7 +27,7 @@ export default function RegisterPage() {
     })
 
     if (error) {
-      setMessage(error.message)
+      setMessage(authErrorMessage(error))
     } else {
       setMessage('Check your email for a verification link!')
     }
@@ -97,9 +100,11 @@ export default function RegisterPage() {
             </label>
             <input
               type="password"
-              placeholder="Minimum 8 characters"
+              placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
               value={password}
               onChange={e => setPassword(e.target.value)}
+              autoComplete="new-password"
+              aria-describedby="password-hint"
               style={{
                 width: '100%',
                 padding: '10px 14px',
@@ -109,6 +114,7 @@ export default function RegisterPage() {
                 outline: 'none'
               }}
             />
+            <p id="password-hint" style={{ margin: '6px 0 0', fontSize: '13px', color: '#666' }}>{PASSWORD_HINT}</p>
           </div>
 
           <button

@@ -10,6 +10,7 @@ import { formatClock, formatShortDate } from '@/lib/dates'
 import { History } from 'lucide-react'
 import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, Card, Chip, EmptyState, PageHeader, controlStyle, type ChipTone } from '@/app/components/admin'
+import { sentence, type ActivityEntry } from '@/app/components/ActivityFeed'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -24,6 +25,59 @@ interface AuditEntry {
   changes: string | null
   reason: string | null
   created_at: string
+  // Activity log fields (spec 08 §8.10a/§8.10b); null on rows the backfill couldn't classify.
+  event?: string | null
+  kind?: string | null
+  channel?: ActivityEntry['channel']
+  check_in_method?: ActivityEntry['method']
+  actor_type?: ActivityEntry['actor_type']
+  source?: string | null
+  subject_user_id?: string | null
+  subject_name?: string | null
+  guest_index?: number | null
+  guest_label?: string | null
+  entity_label?: string | null
+  is_override?: boolean
+  correlation_id?: string | null
+  metadata?: string | null
+  // With group=correlation: how many rows the action wrote, this one included.
+  group_size?: number
+}
+
+function parseJson<T>(raw: string | null | undefined): T | null {
+  if (!raw) return null
+  try { return JSON.parse(raw) as T } catch { return null }
+}
+
+// An org-log row in the shape the shared activity sentences read.
+function toActivity(e: AuditEntry): ActivityEntry {
+  return {
+    id: e.id, at: e.created_at, kind: e.kind ?? null, event: e.event ?? null,
+    actor_id: e.actor_id, actor_name: e.actor_name, actor_role: e.actor_role,
+    actor_type: e.actor_type ?? null, source: e.source ?? null, channel: e.channel ?? null,
+    method: e.check_in_method ?? null, subject_user_id: e.subject_user_id ?? null, subject_name: e.subject_name ?? null,
+    guest_index: e.guest_index ?? null, guest_label: e.guest_label ?? null,
+    entity_type: e.entity_type, entity_id: e.entity_id, entity_label: e.entity_label ?? null,
+    details: parseJson(e.changes), metadata: parseJson(e.metadata), reason: e.reason,
+  }
+}
+
+// Rows with no event (older API) still read as "Updated · Booking".
+function WhatHappened({ entry, currency }: { entry: AuditEntry; currency: string }) {
+  if (!entry.event && !entry.kind) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <ActionBadge action={effectiveAction(entry)} />
+        <span style={{ color: color.ink2 }}>{entityLabel(entry.entity_type)}</span>
+      </span>
+    )
+  }
+  return (
+    <span style={{ lineHeight: 1.45 }}>
+      {sentence(toActivity(entry), currency, 'entity')}
+      {entry.is_override && <> <Chip tone="warn">Override</Chip></>}
+    </span>
+  )
 }
 
 interface AuditActor {
@@ -151,6 +205,7 @@ export default function AuditLogPage() {
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [timeZone, setTimeZone] = useState<string | null>(null)
+  const [currency, setCurrency] = useState('')
   const [forbidden, setForbidden] = useState(false)
 
   const [entries, setEntries] = useState<AuditEntry[]>([])
@@ -163,6 +218,9 @@ export default function AuditLogPage() {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [expandedId, setExpandedId] = useState('')
+  // correlation_id -> the rest of that action's rows, loaded when its "+N related" is opened.
+  const [groups, setGroups] = useState<Record<string, AuditEntry[] | 'loading'>>({})
+  const [openGroup, setOpenGroup] = useState('')
 
   const fetchEntries = useCallback(async (org: string, t: string, currentOffset: number, append: boolean) => {
     const params = new URLSearchParams()
@@ -170,6 +228,8 @@ export default function AuditLogPage() {
     if (entityType) params.set('entity_type', entityType)
     if (from) params.set('from', new Date(from).toISOString())
     if (to) params.set('to', new Date(to + 'T23:59:59').toISOString())
+    // One lead row per user action; the rest of its rows load on demand (toggleGroup).
+    params.set('group', 'correlation')
     params.set('limit', String(PAGE_SIZE))
     params.set('offset', String(currentOffset))
 
@@ -194,6 +254,7 @@ export default function AuditLogPage() {
       const org = ctx.org
       setOrgId(org.id)
       setTimeZone(org.timezone ?? null)
+      setCurrency(org.currency ?? '')
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
@@ -236,6 +297,22 @@ export default function AuditLogPage() {
     await fetchEntries(orgId, token, nextOffset, true)
     setOffset(nextOffset)
     setLoadingMore(false)
+  }
+
+  const toggleGroup = async (correlationId: string) => {
+    if (openGroup === correlationId) { setOpenGroup(''); return }
+    setOpenGroup(correlationId)
+    if (groups[correlationId]) return
+    setGroups(g => ({ ...g, [correlationId]: 'loading' }))
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/audit-log/groups/${correlationId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const rows: AuditEntry[] = res.ok ? await res.json() : []
+      setGroups(g => ({ ...g, [correlationId]: rows }))
+    } catch {
+      setGroups(g => ({ ...g, [correlationId]: [] }))
+    }
   }
 
   const filtered = !!(actorId || entityType || from || to)
@@ -300,9 +377,9 @@ export default function AuditLogPage() {
                   <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: 15 }}>
                     <thead>
                       <tr>
-                        {['When', 'Who', 'Action', 'What', ''].map((h, i) => (
+                        {['When', 'Who', 'What happened', ''].map((h, i) => (
                           <th key={i} scope="col" style={{
-                            textAlign: i === 4 ? 'right' : 'left', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
+                            textAlign: i === 3 ? 'right' : 'left', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
                             color: color.muted, padding: '12px 20px', borderBottom: `1px solid ${color.border}`, whiteSpace: 'nowrap',
                           }}>{h || <span className={styles.srOnly}>Details</span>}</th>
                         ))}
@@ -312,6 +389,10 @@ export default function AuditLogPage() {
                       {entries.map((entry, i) => {
                         const isExpanded = expandedId === entry.id
                         const hasDetail = !!entry.changes || !!entry.reason
+                        const related = (entry.group_size ?? 1) - 1
+                        const groupId = related > 0 ? entry.correlation_id ?? '' : ''
+                        const groupOpen = !!groupId && openGroup === groupId
+                        const groupRows = groupId ? groups[groupId] : undefined
                         const last = i === entries.length - 1
                         const td: React.CSSProperties = { padding: '12px 20px', borderBottom: last && !isExpanded ? 'none' : `1px solid ${color.divider}`, verticalAlign: 'middle' }
                         return (
@@ -326,8 +407,15 @@ export default function AuditLogPage() {
                                   <span style={{ display: 'block', fontSize: 14, color: color.muted }}>{roleLabels[entry.actor_role] ?? entry.actor_role}</span>
                                 )}
                               </td>
-                              <td style={td}><ActionBadge action={effectiveAction(entry)} /></td>
-                              <td style={{ ...td, color: color.ink2 }}>{entityLabel(entry.entity_type)}</td>
+                              <td style={td}>
+                                <WhatHappened entry={entry} currency={currency} />
+                                {groupId && (
+                                  <button type="button" onClick={() => toggleGroup(groupId)} aria-expanded={groupOpen} className={ui.focusable}
+                                    style={{ display: 'block', marginTop: 4, background: 'none', border: 0, padding: 0, fontFamily: 'inherit', fontSize: 14, fontWeight: 600, color: color.primary, cursor: 'pointer' }}>
+                                    {groupOpen ? 'Hide related' : `+${related} related`}
+                                  </button>
+                                )}
+                              </td>
                               <td style={{ ...td, textAlign: 'right' }}>
                                 {hasDetail && (
                                   <Button size="sm" onClick={() => setExpandedId(isExpanded ? '' : entry.id)} aria-expanded={isExpanded}>
@@ -336,9 +424,24 @@ export default function AuditLogPage() {
                                 )}
                               </td>
                             </tr>
+                            {groupOpen && (
+                              <tr>
+                                <td colSpan={4} style={{ padding: '0 20px 12px 20px', borderBottom: last && !isExpanded ? 'none' : `1px solid ${color.divider}` }}>
+                                  {groupRows === 'loading' || !groupRows ? (
+                                    <p style={{ margin: 0, fontSize: 14, color: color.muted }}>Loading…</p>
+                                  ) : (
+                                    <ul style={{ listStyle: 'none', margin: 0, padding: '0 0 0 14px', borderLeft: `2px solid ${color.divider}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                      {groupRows.filter(r => r.id !== entry.id).map(r => (
+                                        <li key={r.id} style={{ fontSize: 14 }}><WhatHappened entry={r} currency={currency} /></li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
                             {isExpanded && (
                               <tr>
-                                <td colSpan={5} style={{ padding: '4px 20px 16px', borderBottom: last ? 'none' : `1px solid ${color.divider}` }}>
+                                <td colSpan={4} style={{ padding: '4px 20px 16px', borderBottom: last ? 'none' : `1px solid ${color.divider}` }}>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                     {entry.reason && (
                                       <div style={{ padding: '10px 14px', background: color.warnBg, borderRadius: radius.control, fontSize: 14, color: color.warnInk }}>

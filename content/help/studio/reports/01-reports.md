@@ -18,7 +18,7 @@ A one-page summary:
 
 - **Revenue** — total sales, split into drop-ins and passes
 - **Booked spots** — bookings in the range, and what share of available spots they filled
-- **Attended** — how many showed up, as a percentage, plus no-shows
+- **Attended** — how many people showed up, plus no-shows, and the show-up rate (attended out of attended plus no-shows, for classes that have run). Members and their guests count individually: a member who came with a guest who didn't is 1 attended and 1 no-show
 - **New members** — sign-ups in the range, and how many active members you have in total
 - **Active passes** — passes in use right now, and how many credits members haven't used yet
 

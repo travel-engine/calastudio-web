@@ -50,7 +50,7 @@ const productLd = {
   url: SITE_URL,
   description,
   offers: [
-    { '@type': 'Offer', name: 'Pay as you go', priceCurrency: PRICING.currency, price: '0', description: `No fixed fee: ${PRICING.percentage}% of each booking after Stripe fees, plus GST.` },
+    { '@type': 'Offer', name: 'Pay as you go', priceCurrency: PRICING.currency, price: '0', description: `No fixed fee: ${PRICING.percentage}% of each booking, plus GST.` },
     { '@type': 'Offer', name: 'Monthly', priceCurrency: PRICING.currency, price: String(PRICING.monthly), description: 'Flat fee each month, including GST.' },
     { '@type': 'Offer', name: 'Annual', priceCurrency: PRICING.currency, price: String(PRICING.annual), description: 'Flat fee each year, including GST.' },
   ],

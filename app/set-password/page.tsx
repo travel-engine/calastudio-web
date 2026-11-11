@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
+import { MIN_PASSWORD_LENGTH, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { studioSlugFromHost, studioUrl } from '@/lib/seo'
@@ -132,8 +133,9 @@ export default function SetPasswordPage() {
     if (busy) return
     setMessage('')
 
-    if (password.length < 8) {
-      setMessage('Password must be at least 8 characters.')
+    const problem = passwordProblem(password)
+    if (problem) {
+      setMessage(problem)
       return
     }
     if (password !== confirm) {
@@ -165,7 +167,7 @@ export default function SetPasswordPage() {
     const { data, error } = await supabase.auth.updateUser({ password })
 
     if (error || !data.user) {
-      setMessage(error?.message ?? 'Could not set your password. Please try again.')
+      setMessage(authErrorMessage(error, 'Could not set your password. Please try again.'))
       setBusy(false)
       return
     }
@@ -268,9 +270,11 @@ export default function SetPasswordPage() {
               </label>
               <input
                 type="password"
-                placeholder="Minimum 8 characters"
+                placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD_LENGTH}
                 required
                 style={{
                   width: '100%',

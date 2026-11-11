@@ -106,6 +106,9 @@ function fieldLabel(key: string) {
 function formatValue(v: unknown) {
   if (v === null || v === undefined || v === '') return '—'
   if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  // Lists (a teacher page's photos) read as a count; other objects as their JSON, never "[object Object]".
+  if (Array.isArray(v)) return v.length === 0 ? 'None' : `${v.length} item${v.length === 1 ? '' : 's'}`
+  if (typeof v === 'object') return JSON.stringify(v)
   return String(v)
 }
 
@@ -124,7 +127,7 @@ function ActionBadge({ action }: { action: string }) {
   return <Chip tone={s.tone}>{s.label}</Chip>
 }
 
-function ChangesDetail({ changes, timeZone }: { changes: string; timeZone: string | null }) {
+export function ChangesDetail({ changes, timeZone }: { changes: string; timeZone: string | null }) {
   let parsed: Record<string, { old: unknown; new: unknown }>
   try {
     parsed = JSON.parse(changes)

@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { setRememberChoice } from '@/lib/authRemember'
+import { getOrgContext, PLATFORM_ADMIN } from '@/lib/orgContext'
+import { isStaff } from '@/lib/roles'
+import { studioUrl } from '@/lib/seo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -33,10 +36,12 @@ export default function LoginPage() {
     setRememberChoice(rememberMe)
 
     try {
-      const orgRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/mine`, {
-        headers: { Authorization: `Bearer ${data.session.access_token}` }
-      })
-      router.push(orgRes.ok ? '/dashboard' : '/onboarding')
+      // Staff → dashboard; member-only → the studio's member site; no studio yet → onboarding.
+      const ctx = await getOrgContext({ fresh: true })
+      if (ctx.status !== 'ok') { router.push('/onboarding'); return }
+      if (isStaff(ctx.roles)) { router.push('/dashboard'); return }
+      if (ctx.roles.includes(PLATFORM_ADMIN)) { router.push('/admin'); return }
+      window.location.href = studioUrl(ctx.org.slug, '/account')
     } catch {
       setMessage("Signed in, but couldn't reach the server. Please try again.")
       setLoading(false)

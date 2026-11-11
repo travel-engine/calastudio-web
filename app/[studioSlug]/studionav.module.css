@@ -134,6 +134,24 @@
 @media (max-width: 680px) {
   .burger {
     display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .signIn,
+  .navCta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 15px;
   }
 
   .links {
@@ -158,5 +176,6 @@
   .link {
     padding: 13px 0;
     border-bottom: 1px solid var(--line);
+    font-size: 16px;
   }
 }

@@ -16,11 +16,11 @@ import { STUDIO_DOMAIN, STUDIO_SUBDOMAINS, studioOrigin, studioSlugFromHost } fr
 // when adding a top-level route, or the apex will redirect it to a studio subdomain.
 const APEX_ROUTES = new Set([
   'dashboard', 'onboarding', 'login', 'register', 'set-password', 'forgot-password',
-  'auth', 'help', 'api',
+  'auth', 'help', 'api', 'admin', 'terms', 'privacy',
 ])
 
 // Apex-only pages: on a studio subdomain, send them to the apex.
-const APEX_ONLY = new Set(['dashboard', 'onboarding', 'login', 'register', 'forgot-password', 'help'])
+const APEX_ONLY = new Set(['dashboard', 'onboarding', 'login', 'register', 'forgot-password', 'help', 'admin', 'terms', 'privacy'])
 
 // Served as-is on a studio subdomain: the email-link callback and the password page members land
 // on from it must run on the studio host so the session cookie is set there.

@@ -6,7 +6,7 @@ order: 1
 
 # Studio settings
 
-**Settings** in the sidebar has two tabs: **Studio**, covered here, and **Booking page** — see **Booking page settings**. Only **Admin** can open Settings.
+**Settings** in the sidebar has three tabs: **Studio**, covered here, **Booking page** — see **Booking page settings** — and **Plan & billing**, see **Plan & billing**. Only **Admin** can open Settings.
 
 The Studio tab is a set of cards with a list of them on the left — click a name to jump to it. **Each card saves on its own**: its **Save** button lights up once you change something in that card, and **Discard** puts it back. Saving one card never saves half-finished edits in another.
 

@@ -52,8 +52,8 @@ export function CheckRow({ checked, onChange, children }: { checked: boolean; on
   )
 }
 
-export const alertStyle = (tone: 'danger' | 'ok' = 'danger') => ({
+export const alertStyle = (tone: 'danger' | 'ok' | 'warn' = 'danger') => ({
   padding: '12px 16px', borderRadius: radius.control, fontSize: 15,
-  background: tone === 'danger' ? color.dangerBg : color.primarySoft,
-  color: tone === 'danger' ? color.dangerInk : color.primaryInk,
+  background: tone === 'danger' ? color.dangerBg : tone === 'warn' ? color.warnBg : color.primarySoft,
+  color: tone === 'danger' ? color.dangerInk : tone === 'warn' ? color.warnInk : color.primaryInk,
 })

@@ -36,3 +36,13 @@ If you don't have a pass, you can pay the drop-in price by card. Your payment de
 ## After booking
 
 Your booking appears in **My bookings**. If you booked an online session, your join link will either be in the confirmation email or sent 15 minutes before the session starts.
+## Adding a class to your calendar
+
+Once you're booked, tap **Apple / Outlook** or **Google Calendar** under **Add to your calendar** on the booking screen. You can also do it later: under **Upcoming** in your account, tap **Add to calendar** on the class.
+
+- **Apple / Outlook** opens your phone's calendar (or Outlook) with the class filled in.
+- **Google Calendar** opens Google Calendar with the class filled in. Use this one if you use Gmail or an Android phone.
+
+Your confirmation email has the same two options, plus a calendar file attached.
+
+If you cancel, or the studio cancels or moves the class, the email you get has an updated calendar file. If you added the class from a calendar file, opening the new one updates or removes the entry. If you added it with **Google Calendar**, change or delete the entry yourself. Your calendar's own reminder settings apply.

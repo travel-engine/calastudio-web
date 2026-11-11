@@ -10,7 +10,7 @@ order: 6
 
 ## Week view
 
-The main panel shows one week at a time, Monday to Sunday. Each day lists its classes by start time with the venue, the teacher (or **No teacher**), and how full it is — a bar plus a count like `5 / 12`. The bar turns amber when a class is almost full and red once it's full. Today's row is highlighted; a day with nothing on shows **No classes**, with an **Add one** link if you can create sessions.
+The main panel shows one week at a time, Monday to Sunday. Each day lists its classes by start time with the venue, the teacher (or **No teacher assigned**), and how full it is — a bar plus a count like `5 / 12`. The bar turns amber when a class is almost full and red once it's full. Today's row is highlighted; a day with nothing on shows **No classes**, with an **Add one** link if you can create sessions.
 
 Use the **‹** and **›** buttons to move to the previous or next week, and **This week** to jump straight back.
 

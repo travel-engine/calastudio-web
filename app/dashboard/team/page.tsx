@@ -8,7 +8,7 @@ import Sidebar from '../../components/Sidebar'
 import Forbidden from '../../components/Forbidden'
 import Toast from '../../components/Toast'
 import { canViewTeam, canResendTeacherInvite } from '@/lib/roles'
-import { displayName } from '@/lib/names'
+import { displayName, teacherName } from '@/lib/names'
 import { color, font, radius, space } from '@/lib/ui/tokens'
 import { Button, Card, Chip, EmptyState, Field, PageHeader, buttonStyle, controlStyle, type ChipTone } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
@@ -162,7 +162,7 @@ export default function TeamPage() {
       if (res.ok) {
         setToast(`Invite re-sent to ${teacher.email}.`)
       } else if (res.status === 404) {
-        setToast(`${displayName(teacher)} is no longer an active teacher.`)
+        setToast(`${teacherName(teacher)} is no longer an active teacher.`)
       } else {
         setToast('Could not resend the invite. Please try again.')
       }
@@ -228,13 +228,16 @@ export default function TeamPage() {
                           <tr key={teacher.id}>
                             <td style={td}>
                               <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <Avatar name={displayName(teacher)} photoUrl={teacher.profile?.photo_url} />
+                                <Avatar name={teacherName(teacher)} photoUrl={teacher.profile?.photo_url} />
                                 <span style={{ minWidth: 0 }}>
                                   <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontWeight: 600, fontSize: 16 }}>
-                                    {displayName(teacher)}
+                                    {teacherName(teacher)}
                                     {teacher.profile?.is_primary && <Chip tone="primary">Lead</Chip>}
                                   </span>
-                                  <span style={{ display: 'block', fontSize: 14, color: color.muted }}>{teacher.email}</span>
+                                  {/* The account (sign-in) name, when the teacher goes by something else */}
+                                  <span style={{ display: 'block', fontSize: 14, color: color.muted }}>
+                                    {teacherName(teacher) !== displayName(teacher) && displayName(teacher) ? `${displayName(teacher)} · ` : ''}{teacher.email}
+                                  </span>
                                 </span>
                               </span>
                             </td>
@@ -257,7 +260,7 @@ export default function TeamPage() {
                                     {resendingId === teacher.id ? 'Sending…' : 'Resend invite'}
                                   </Button>
                                 )}
-                                <Button size="sm" href={`/dashboard/team/${teacher.id}`}>Edit<span className={styles.srOnly}> {displayName(teacher)}</span></Button>
+                                <Button size="sm" href={`/dashboard/team/${teacher.id}`}>Edit<span className={styles.srOnly}> {teacherName(teacher)}</span></Button>
                               </span>
                             </td>
                           </tr>
