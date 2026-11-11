@@ -574,14 +574,7 @@ export default function PassesPage() {
               <p style={{ fontSize: '12px', color: color.muted, marginTop: '6px' }}>Leave blank to start today</p>
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={issueForm.autoRenewEnabled}
-                onChange={e => setIssueForm(p => ({ ...p, autoRenewEnabled: e.target.checked }))}
-              />
-              Enable auto-renew
-            </label>
+            {/* "Enable auto-renew" is hidden until the API acts on it (nothing renews or charges yet). */}
 
             <div>
               <label style={labelStyle}>Notes</label>

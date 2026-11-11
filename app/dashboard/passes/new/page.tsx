@@ -326,26 +326,8 @@ export default function NewPassTemplatePage() {
             </div>
           )}
 
-          <SectionHeader title="Auto-renew" />
-
-          <Field label="Offer auto-renew on this pass">
-            <ToggleGroup
-              value={String(form.autoRenewEnabled) as 'true' | 'false'}
-              onChange={v => update('autoRenewEnabled', v === 'true')}
-              options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]}
-            />
-          </Field>
-
-          {form.autoRenewEnabled && (
-            <Field label="Renew into" hint="Which pass type members move to on renewal. Leave as Same pass type to renew into this one.">
-              <Select value={form.autoRenewPassTemplateId} onChange={e => update('autoRenewPassTemplateId', e.target.value)}>
-                <option value="">Same pass type</option>
-                {templates.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </Select>
-            </Field>
-          )}
+          {/* Auto-renew is hidden until the API acts on it: today the flags are stored but nothing renews or
+              charges. The form still round-trips the saved values. */}
 
           <SectionHeader title="Pricing" description="Members see this price, in your studio's currency" />
 

@@ -30,7 +30,6 @@ It's active immediately and appears as a card on the **Pass types** tab, showing
 | **Credit return on cancel** | Reserved for a future per-pass override. Today, whether a cancellation returns its credit is decided studio-wide by your cancellation policy, not per pass template — see **Sessions → Cancellation policy**. |
 | **Multi-pass priority** | When a member holds more than one usable pass, which one gets debited first — soonest to expire, oldest purchased, or let the member choose. |
 | **Guest bookings** | Whether this pass can bring guests, how many, and the credit cost per guest. Leave as "studio default" to inherit your org-wide setting. |
-| **Auto-renew** | Offer auto-renewal, and which template a member is moved into when it renews (defaults to the same template). |
 | **Sale window** | Restrict when the pass can be purchased — useful for limited-time offers. |
 
 ## Issue a pass to a member
@@ -40,7 +39,7 @@ Use this to comp a pass, backfill a purchase made outside the platform, or set s
 1. Go to **Passes** → **Issued to members**
 2. Click **+ Issue a pass**
 3. Search for the member by name or email
-4. Choose the pass type, an optional **Effective from** date (leave blank to start today), and whether to enable auto-renew
+4. Choose the pass type and an optional **Effective from** date (leave blank to start today)
 5. Click **Issue pass**
 
 Only **Admin** and **Super teacher** roles can issue passes.

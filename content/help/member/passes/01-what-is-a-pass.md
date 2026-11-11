@@ -22,9 +22,3 @@ Every pass has an expiry date. Credits not used by the expiry date are forfeited
 ## Checking your balance
 
 Go to **My passes** to see all your active passes, credits remaining, and expiry dates.
-
-## Auto-renewal
-
-Some passes can be set to auto-renew. When your pass is close to expiring, it will automatically renew and charge your saved card — so you never lose access.
-
-You can turn auto-renewal on or off at any time from **My passes**.
