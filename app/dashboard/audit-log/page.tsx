@@ -92,6 +92,8 @@ const entityTypeLabels: Record<string, string> = {
   booking: 'Booking',
   pass_template: 'Pass template',
   member_pass: 'Member pass',
+  membership_template: 'Membership',
+  member_membership: 'Member membership',
   organisation: 'Organisation',
   organisation_member: 'Team member',
   teacher_profile: 'Teacher profile',

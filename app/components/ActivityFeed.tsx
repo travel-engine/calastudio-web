@@ -64,7 +64,7 @@ const b = (s: ReactNode) => <strong style={{ fontWeight: 600 }}>{s}</strong>
 // Events whose `details` diff is worth opening: edits to a thing's fields. Booking rows carry
 // payment bookkeeping there instead, which the sentence already covers.
 const DIFF_KINDS = new Set(['class_edited', 'class_rescheduled'])
-const DIFF_NAMESPACES = new Set(['member', 'pass', 'pass_template', 'session', 'settings', 'billing', 'teacher_page'])
+const DIFF_NAMESPACES = new Set(['member', 'pass', 'pass_template', 'session', 'settings', 'billing', 'teacher_page', 'membership_template', 'membership'])
 function showsDiff(e: ActivityEntry) {
   if (!e.details || Object.keys(e.details).length === 0) return false
   if (e.kind) return DIFF_KINDS.has(e.kind)
@@ -177,6 +177,18 @@ function eventSentence(e: ActivityEntry): ReactNode {
     case 'pass_template.created': return <>{actor} created the pass {label}</>
     case 'pass_template.updated': return <>{actor} edited the pass {label}</>
     case 'pass_template.deleted': return <>{actor} deleted the pass {label}</>
+    // Membership plans: the label is the plan's name.
+    case 'membership_template.created': return <>{actor} created the membership {label}</>
+    case 'membership_template.updated': {
+      const active = e.details?.is_active?.new
+      if (active === false) return <>{actor} hid the membership {label}</>
+      if (active === true) return <>{actor} put the membership {label} on sale</>
+      return <>{actor} edited the membership {label}</>
+    }
+    case 'membership_template.price_changed': return <>{actor} changed the price of {label ?? 'a membership'}</>
+    case 'membership_template.deactivated': return <>{actor} hid the membership {label}</>
+    case 'membership.price_changed': return <>{actor} changed {member}&apos;s membership price{label ? <> on {label}</> : null}</>
+
     case 'session.created': return <>{actor} created {label ?? 'a class'}</>
     case 'session.updated': return <>{actor} edited {label ?? 'a class'}</>
     case 'session.deleted': return <>{actor} deleted {label ?? 'a class'}</>
@@ -279,9 +291,10 @@ const PAGE = 25
 
 // Everything linked to one record (a member, a pass, a payment, …), newest first, 25 at a time.
 // Admin and teacher_super only (canViewEntityActivity).
-export default function ActivityFeed({ orgId, token, entityType, entityId, currency, timeZone = null, refreshKey = 0, noun, embedded = false }: {
+export default function ActivityFeed({ orgId, token, entityType, entityId, currency, timeZone = null, refreshKey = 0, noun, embedded = false, description }: {
   orgId: string; token: string; entityType: string; entityId: string; currency: string
   timeZone?: string | null; refreshKey?: number; noun: string
+  description?: string // the card's subtitle; defaults to the member-page wording
   // Embedded: no card, no Show/Hide; for a panel that's already been opened (a pass's history).
   embedded?: boolean
 }) {
@@ -355,7 +368,7 @@ export default function ActivityFeed({ orgId, token, entityType, entityId, curre
         <div>
           <h2 id={headingId} style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Activity</h2>
           <p style={{ margin: '4px 0 0', fontSize: 14, color: color.muted }}>
-            {status ?? `Bookings, check-ins, passes, payments and changes, and who made them.`}
+            {status ?? description ?? `Bookings, check-ins, passes, payments and changes, and who made them.`}
           </p>
         </div>
         {count > 0 && <Button size="sm" onClick={() => setOpen(o => !o)} aria-expanded={open}>{open ? 'Hide' : 'Show'}</Button>}
