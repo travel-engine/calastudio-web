@@ -185,7 +185,7 @@ export default function MembershipForm({ orgId, token, currency, template }: {
             />
           </Field>
           {form.isRecurring && (
-            <Field label="Stop after this many renewals" hint="Leave blank to keep renewing until the member cancels.">
+            <Field label="Total number of periods" hint={`Includes the first ${unit}: 4 means the member pays 4 times, then it ends. Leave blank to keep renewing until the member cancels.`}>
               <Input type="number" min="1" placeholder="No limit" value={form.maxCycles} onChange={e => update('maxCycles', e.target.value)} />
             </Field>
           )}

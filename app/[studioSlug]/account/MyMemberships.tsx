@@ -1,6 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { studioPath } from '@/lib/seo'
 import { dateOnlyLabel, MEMBERSHIP_STATUS, periodUnit, type MyMembership } from '@/lib/memberships'
 
 const money = (n: number, c: string) => {
@@ -39,6 +42,7 @@ export default function MyMemberships({ apiBase, token, onLoaded }: {
   token: string
   onLoaded?: (count: number) => void
 }) {
+  const studioSlug = useParams().studioSlug as string
   const [items, setItems] = useState<MyMembership[] | null>(null)
   const [confirmId, setConfirmId] = useState('')
   const [busyId, setBusyId] = useState('')
@@ -130,7 +134,14 @@ export default function MyMemberships({ apiBase, token, onLoaded }: {
                 {m.past_due.grace_until && (m.past_due.can_book
                   ? <> You can keep booking until {dateOnlyLabel(m.past_due.grace_until)}.</>
                   : <> Booking is paused until it&apos;s paid.</>)}
-                {' '}Check your email for a link to pay now.
+                <div style={{ marginTop: '10px' }}>
+                  <Link
+                    href={studioPath(studioSlug, `/account/memberships/${m.id}/pay`)}
+                    style={{ display: 'inline-block', padding: '8px 16px', borderRadius: '99px', backgroundColor: 'var(--danger)', color: '#fff', fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    Pay now
+                  </Link>
+                </div>
               </div>
             )}
 
