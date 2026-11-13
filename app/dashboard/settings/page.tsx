@@ -89,6 +89,8 @@ type FormState = {
   // Days before a pass expires to email the member, up to 3 boxes ('' = unused). null = the API
   // doesn't have the setting yet, so it's left out of the PATCH rather than switched off.
   passExpiryDays: string[] | null
+  // Emails to the studio's own address when a member does something (spec 07 §7.3, studio-facing).
+  notifyMemberRegistered: boolean; notifyPassPurchased: boolean; notifyBookingCreated: boolean; notifyBookingCancelled: boolean
 }
 type Key = keyof FormState
 
@@ -106,6 +108,7 @@ const EMPTY_FORM: FormState = {
   cancellationHours: '', bookingWindowDays: '', minAdvanceBookingHours: '',
   lateCancelCreditsForfeited: true, liabilityWaiverRequired: true,
   passExpiryDays: null,
+  notifyMemberRegistered: true, notifyPassPurchased: true, notifyBookingCreated: true, notifyBookingCancelled: true,
 }
 
 // Which fields each card saves. Every save still sends the whole organisation (see saveSection).
@@ -114,6 +117,7 @@ const SECTION_KEYS = {
   region: ['timezone', 'locale'],
   policy: ['cancellationHours', 'bookingWindowDays', 'minAdvanceBookingHours', 'lateCancelCreditsForfeited'],
   reminders: ['passExpiryDays'],
+  notifications: ['notifyMemberRegistered', 'notifyPassPurchased', 'notifyBookingCreated', 'notifyBookingCancelled'],
   waiver: ['liabilityWaiverRequired'],
   tax: ['taxEnabled', 'taxLabel', 'taxRegistrationNumber'],
   branding: ['logoUrl', 'brandColor'],
@@ -171,6 +175,10 @@ function orgBody(f: FormState) {
     min_advance_booking_hours: f.minAdvanceBookingHours !== '' ? parseInt(f.minAdvanceBookingHours, 10) : null,
     late_cancel_credits_forfeited: f.lateCancelCreditsForfeited,
     liability_waiver_required: f.liabilityWaiverRequired,
+    notify_studio_on_member_registered: f.notifyMemberRegistered,
+    notify_studio_on_pass_purchased: f.notifyPassPurchased,
+    notify_studio_on_booking_created: f.notifyBookingCreated,
+    notify_studio_on_booking_cancelled: f.notifyBookingCancelled,
     ...(f.passExpiryDays ? { pass_expiry_reminder_days: expiryDays(f.passExpiryDays) } : {}),
   }
 }
@@ -184,9 +192,19 @@ const STUDIO_SECTIONS: { id: string; label: string }[] = [
   { id: 'region', label: 'Region & time zone' },
   { id: 'policy', label: 'Booking policy' },
   { id: 'reminders', label: 'Pass reminders' },
+  { id: 'notifications', label: 'Emails to you' },
   { id: 'waiver', label: 'Liability waiver' },
   { id: 'payments', label: 'Payments' },
   { id: 'tax', label: 'Tax (GST)' },
+]
+
+// Studio-facing email switches (spec 07 §7.3). Only member-initiated actions send these — nothing
+// a studio does itself. A membership ended by failed payments is always emailed (no switch).
+const NOTIFY_TOGGLES: { key: 'notifyMemberRegistered' | 'notifyPassPurchased' | 'notifyBookingCreated' | 'notifyBookingCancelled'; label: string; hint: string }[] = [
+  { key: 'notifyMemberRegistered', label: 'A new member signs up', hint: 'When someone creates an account on your booking page. Not when you add a member yourself.' },
+  { key: 'notifyPassPurchased', label: 'A pass or membership is bought', hint: 'When a member buys a pass or a membership online.' },
+  { key: 'notifyBookingCreated', label: 'A member books a class', hint: 'When a member books themselves — with a pass, by card or for free. Not for bookings you make.' },
+  { key: 'notifyBookingCancelled', label: 'A booking or membership is cancelled', hint: 'When a member cancels a booking or their membership. You’ll always hear when a membership ends because its payments failed.' },
 ]
 
 // Messages for the API's Connect failure codes (StripeConnectEndpoints callback). Unknown or
@@ -375,6 +393,10 @@ function SettingsPageContent() {
         minAdvanceBookingHours: org.min_advance_booking_hours != null ? String(org.min_advance_booking_hours) : '',
         lateCancelCreditsForfeited: org.late_cancel_credits_forfeited ?? true,
         liabilityWaiverRequired: org.liability_waiver_required ?? true,
+        notifyMemberRegistered: org.notify_studio_on_member_registered ?? true,
+        notifyPassPurchased: org.notify_studio_on_pass_purchased ?? true,
+        notifyBookingCreated: org.notify_studio_on_booking_created ?? true,
+        notifyBookingCancelled: org.notify_studio_on_booking_cancelled ?? true,
         passExpiryDays: Array.isArray(org.pass_expiry_reminder_days)
           ? [0, 1, 2].map(i => (org.pass_expiry_reminder_days[i] != null ? String(org.pass_expiry_reminder_days[i]) : ''))
           : null,
@@ -965,6 +987,22 @@ function SettingsPageContent() {
                       </div>
                     </>
                   ), 'reminders')}
+
+                  {sectionCard('notifications', 'Emails to you', null, (
+                    <>
+                      <p style={{ margin: '-8px 0 0', fontSize: 14, color: color.muted, lineHeight: 1.45 }}>
+                        {savedForm.email
+                          ? <>We email <strong style={{ color: color.ink2 }}>{savedForm.email}</strong> when a member does one of these things. Turn off any you don’t need — they’re all on your dashboard’s activity feed too.</>
+                          : <>These go to your studio’s contact email, which isn’t set — add one under <a href="#profile" style={{ color: color.primaryInk }}>Studio profile</a> or none will be sent.</>}
+                      </p>
+                      {NOTIFY_TOGGLES.map(t => (
+                        <div key={t.key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <Toggle checked={form[t.key]} onChange={v => update(t.key, v)} label={t.label} />
+                          <span style={{ fontSize: 13, color: color.muted, lineHeight: 1.4, paddingLeft: 54 }}>{t.hint}</span>
+                        </div>
+                      ))}
+                    </>
+                  ), 'notifications')}
 
                   {sectionCard('waiver', 'Liability waiver', "Your studio's own waiver. The platform Terms & Conditions are CalaStudio's and the same for every studio.", (
                     <>
