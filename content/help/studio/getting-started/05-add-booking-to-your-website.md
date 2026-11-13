@@ -10,6 +10,10 @@ Already have a website? You can put your CalaStudio schedule on it. Members brow
 
 Your booking page at `{your-studio}.calastudio.app` keeps working as well. Use both: the widget on your website, and the booking page for your Instagram bio, QR codes and emails.
 
+## Get your code
+
+The easiest way is **Settings → Website widget**. Choose a style and colour, see a live preview, copy your code, and follow the steps for your website builder. The rest of this article explains the same options in more detail.
+
 ## Choose a style
 
 **Schedule on the page.** Your class list sits inside a page of your website, for example a "Timetable" or "Book a class" page. It sizes itself to fit, so there's no box to scroll inside.
