@@ -20,6 +20,16 @@ const nextConfig: NextConfig = {
     ]
   },
 
+  // Who may put our pages in an iframe. Only the website widget (/embed/…, loaded by
+  // public/widget.js on studios' own sites) may be framed by anyone; everything else — dashboard,
+  // login, payments — only by ourselves, which stops clickjacking.
+  async headers() {
+    return [
+      { source: '/embed/:path*', headers: [{ key: 'Content-Security-Policy', value: 'frame-ancestors *' }] },
+      { source: '/((?!embed/).*)', headers: [{ key: 'Content-Security-Policy', value: "frame-ancestors 'self'" }] },
+    ]
+  },
+
   images: {
     // Studio logos, banners, class and teacher photos all live in the Supabase Storage bucket.
     remotePatterns: [
