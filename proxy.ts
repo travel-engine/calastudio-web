@@ -16,15 +16,16 @@ import { STUDIO_DOMAIN, STUDIO_SUBDOMAINS, studioOrigin, studioSlugFromHost } fr
 // when adding a top-level route, or the apex will redirect it to a studio subdomain.
 const APEX_ROUTES = new Set([
   'dashboard', 'onboarding', 'login', 'register', 'set-password', 'forgot-password',
-  'auth', 'help', 'api', 'admin', 'terms', 'privacy',
+  'auth', 'help', 'api', 'admin', 'terms', 'privacy', 'embed',
 ])
 
 // Apex-only pages: on a studio subdomain, send them to the apex.
 const APEX_ONLY = new Set(['dashboard', 'onboarding', 'login', 'register', 'forgot-password', 'help', 'admin', 'terms', 'privacy'])
 
 // Served as-is on a studio subdomain: the email-link callback and the password page members land
-// on from it must run on the studio host so the session cookie is set there.
-const SHARED = new Set(['auth', 'set-password', 'api'])
+// on from it must run on the studio host so the session cookie is set there. `embed` is the website
+// widget's iframe page — host-independent, so a widget.js loaded from any CalaStudio host works.
+const SHARED = new Set(['auth', 'set-password', 'api', 'embed'])
 
 export function proxy(request: NextRequest) {
   if (!STUDIO_SUBDOMAINS) return NextResponse.next()

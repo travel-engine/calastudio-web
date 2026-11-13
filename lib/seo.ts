@@ -31,13 +31,16 @@ export function studioUrl(slug: string, path = '/'): string {
   return STUDIO_SUBDOMAINS ? `${studioOrigin(slug)}${path}` : studioPath(slug, path)
 }
 
+// Subdomains that are CalaStudio's own, never a studio (embed.{domain} serves the website widget).
+const RESERVED_SUBDOMAINS = new Set(['www', 'embed'])
+
 /** The studio slug when the browser is on a studio subdomain, else null. Client-only. */
 export function studioSlugFromHost(host: string): string | null {
   const suffix = `.${STUDIO_DOMAIN.toLowerCase()}`
   const h = host.toLowerCase()
   if (!STUDIO_SUBDOMAINS || !h.endsWith(suffix)) return null
   const sub = h.slice(0, -suffix.length)
-  return sub && !sub.includes('.') && sub !== 'www' ? sub : null
+  return sub && !sub.includes('.') && !RESERVED_SUBDOMAINS.has(sub) ? sub : null
 }
 
 /** Clean free text down to a meta-description-sized string. */
