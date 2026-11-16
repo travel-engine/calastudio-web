@@ -4,7 +4,8 @@ import { Manrope } from 'next/font/google'
 import StudioNav from './StudioNav'
 import ThemeSwitcher from './ThemeSwitcher'
 import { InstallCapture } from './InstallAppPrompt'
-import { studioOrigin, studioPath, metaDescription } from '@/lib/seo'
+import { appIconPath, appManifestPath } from '@/lib/appIcon'
+import { studioOrigin, metaDescription } from '@/lib/seo'
 import { themeVars, fontHref } from '@/lib/studioTheme'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 
@@ -95,8 +96,8 @@ export default async function StudioLayout({ children, params }: Props) {
       {/* Installable studio app (PWA): manifest + iOS home-screen tags. Rendered as tags, not via
           metadata, so the paths stay on the current host instead of resolving against metadataBase
           (the production subdomain) in local dev and previews. React hoists them into <head>. */}
-      <link rel="manifest" href={studioPath(studioSlug, '/app-manifest')} />
-      <link rel="apple-touch-icon" href={studioPath(studioSlug, '/app-icon/180')} />
+      <link rel="manifest" href={appManifestPath(studioSlug, org)} />
+      <link rel="apple-touch-icon" href={appIconPath(studioSlug, 180, org)} />
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-title" content={org.name} />
