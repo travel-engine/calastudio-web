@@ -11,6 +11,7 @@ import MembershipPurchaseModal from './MembershipPurchaseModal'
 import { priceLabel, type MembershipOffer } from '@/lib/memberships'
 import { formatDate, formatDateTimeWithWeekday, formatTime } from '@/lib/dates'
 import styles from './photofirst.module.css'
+import InstallAppPrompt from './InstallAppPrompt'
 import CalendarLinks from './CalendarLinks'
 import { studioPath } from '@/lib/seo'
 
@@ -1090,6 +1091,9 @@ export default function BookingDrawer() {
             <a href={accountHref} className={styles.blockBtn} style={{ display: 'block', textAlign: 'center' }}>
               View my bookings
             </a>
+            {/* Right after booking is when members are most likely to want the app. Renders nothing
+                inside the website widget, once installed, or after "Not now". */}
+            {studioSlug && <div style={{ marginTop: 16 }}><InstallAppPrompt studioSlug={studioSlug} /></div>}
           </div>
         )}
 
