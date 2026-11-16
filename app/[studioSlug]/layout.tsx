@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation'
 import { Manrope } from 'next/font/google'
 import StudioNav from './StudioNav'
 import ThemeSwitcher from './ThemeSwitcher'
-import { studioOrigin, metaDescription } from '@/lib/seo'
+import { InstallCapture } from './InstallAppPrompt'
+import { studioOrigin, studioPath, metaDescription } from '@/lib/seo'
 import { themeVars, fontHref } from '@/lib/studioTheme'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 
@@ -91,12 +92,23 @@ export default async function StudioLayout({ children, params }: Props) {
   // Converted pages apply the `.root` class (see photofirst.module.css) to opt into the look.
   return (
     <div className={manrope.variable} style={{ ...themeVars(theme), position: 'relative' }} data-studio-theme={theme.key}>
+      {/* Installable studio app (PWA): manifest + iOS home-screen tags. Rendered as tags, not via
+          metadata, so the paths stay on the current host instead of resolving against metadataBase
+          (the production subdomain) in local dev and previews. React hoists them into <head>. */}
+      <link rel="manifest" href={studioPath(studioSlug, '/app-manifest')} />
+      <link rel="apple-touch-icon" href={studioPath(studioSlug, '/app-icon/180')} />
+      <meta name="apple-mobile-web-app-capable" content="yes" />
+      <meta name="mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-title" content={org.name} />
+      <meta name="apple-mobile-web-app-status-bar-style" content={theme.colorScheme === 'dark' ? 'black-translucent' : 'default'} />
+      <meta name="theme-color" content={theme.tokens['--bg']} />
       {themeFontHref && (
         <>
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
           <link rel="stylesheet" href={themeFontHref} />
         </>
       )}
+      <InstallCapture />
       {process.env.NODE_ENV === 'development' && <ThemeSwitcher current={theme.key} />}
       <StudioNav
         studioSlug={studioSlug}

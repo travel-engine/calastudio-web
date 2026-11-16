@@ -10,6 +10,7 @@ import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
 import CalendarLinks from '../CalendarLinks'
+import InstallAppPrompt from '../InstallAppPrompt'
 import { studioPath } from '@/lib/seo'
 
 interface OrgInfo {
@@ -972,6 +973,11 @@ function MemberAccountContent() {
             ))}
           </div>
         )}
+
+        {/* Offer the home-screen app to signed-in members (hidden once installed or dismissed). */}
+        <div style={{ marginBottom: '18px' }}>
+          <InstallAppPrompt studioSlug={studioSlug} studioName={org?.name} />
+        </div>
 
         {portalError && (
           <div style={{ padding: '12px', backgroundColor: 'var(--danger-bg)', borderRadius: '8px', color: 'var(--danger)', fontSize: '15px', marginBottom: '16px' }}>
