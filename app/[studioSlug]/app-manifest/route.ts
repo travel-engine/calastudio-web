@@ -1,21 +1,23 @@
 import { resolveTheme } from '@/lib/studioTheme'
 import { studioPath } from '@/lib/seo'
+import { appIconPath } from '@/lib/appIcon'
 
 // Web app manifest for a studio's site, so "Install app" / "Add to Home Screen" gives the studio's
 // own name, icon and colours and opens at its schedule. Served at {slug}.calastudio.app/app-manifest
 // (no file extension: proxy.ts passes dotted paths through unrewritten, so it couldn't reach this
 // route on a studio subdomain) and linked from app/[studioSlug]/layout.tsx.
-export const revalidate = 3600
+// Same freshness as the studio pages, so a new logo reaches the manifest within a minute.
+export const revalidate = 60
 
 export async function GET(_req: Request, { params }: { params: Promise<{ studioSlug: string }> }) {
   const { studioSlug } = await params
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}`, { next: { revalidate: 3600 } })
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}`, { next: { revalidate: 60 } })
   if (!res.ok) return new Response('Not found', { status: 404 })
-  const org: { name: string; description: string | null; theme?: string | null } = await res.json()
+  const org: { name: string; description: string | null; theme?: string | null; logo_url: string | null; brand_color: string | null } = await res.json()
 
   const bg = resolveTheme(org.theme).tokens['--bg'] ?? '#ffffff'
-  const icon = (size: number, purpose: 'any' | 'maskable') => ({
-    src: studioPath(studioSlug, `/app-icon/${size}${purpose === 'maskable' ? '?maskable=1' : ''}`),
+  const icon = (size: 192 | 512, purpose: 'any' | 'maskable') => ({
+    src: appIconPath(studioSlug, size, org, purpose === 'maskable'),
     sizes: `${size}x${size}`,
     type: 'image/png',
     purpose,
@@ -35,6 +37,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ studioS
   }
 
   return new Response(JSON.stringify(manifest), {
-    headers: { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'public, max-age=3600' },
+    headers: { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'public, max-age=60, s-maxage=60' },
   })
 }
