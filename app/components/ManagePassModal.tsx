@@ -7,7 +7,7 @@ import { color, tabularNums } from '@/lib/ui/tokens'
 import { Chip, Modal, alertStyle, buttonStyle, controlStyle, type ChipTone } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 
-// Staff "Manage pass" dialog: freeze/unfreeze, set credits, change expiry, credit history. Opened
+// Staff "Manage pass" dialog: freeze/unfreeze, set credits, change start and expiry dates, credit history. Opened
 // from Passes → Issued to members and from a member's profile. Thin over the API: every change is
 // the existing member-passes endpoint (admin + teacher_super), and the server decides what's allowed.
 
@@ -15,6 +15,7 @@ export interface ManagedPass {
   id: string
   credits_total: number | null
   credits_remaining: number | null
+  effective_from: string
   expires_at: string
   status: 'active' | 'low' | 'frozen' | 'expired' | 'exhausted'
   user?: { first_name: string; last_name: string; email: string } | null
@@ -71,8 +72,9 @@ export default function ManagePassModal({ orgId, token, passId, timeZone, onClos
   const [balance, setBalance] = useState('')
   const [change, setChange] = useState('')
   const [creditReason, setCreditReason] = useState('')
+  const [startDate, setStartDate] = useState('')
   const [expiryDate, setExpiryDate] = useState('')
-  const [expiryReason, setExpiryReason] = useState('')
+  const [datesReason, setDatesReason] = useState('')
 
   const api = useCallback((path: string, init?: RequestInit) =>
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}${path}`, {
@@ -85,6 +87,7 @@ export default function ManagePassModal({ orgId, token, passId, timeZone, onClos
     if (p.ok) {
       const updated: ManagedPass = await p.json()
       setPass(updated)
+      setStartDate(updated.effective_from.slice(0, 10))
       setExpiryDate(updated.expires_at.slice(0, 10))
       return updated
     }
@@ -162,12 +165,19 @@ export default function ManagePassModal({ orgId, token, passId, timeZone, onClos
     }
   }
 
-  const saveExpiry = async () => {
-    if (!expiryDate) { setError('Choose an expiry date.'); return }
-    if (!expiryReason.trim()) { setError('Add a reason for changing the expiry date.'); return }
-    if (await post(`/member-passes/${pass.id}/extend-expiry`, { new_expires_at: expiryDate, reason: expiryReason.trim() }, 'Could not change the expiry date.')) {
-      setExpiryReason('')
-    }
+  // One Save for both dates: each changed date is its own API call (extend-expiry / change-start),
+  // expiry first so moving both later never trips the server's "start after expiry" check.
+  const startChanged = !!startDate && startDate !== pass.effective_from.slice(0, 10)
+  const expiryChanged = !!expiryDate && expiryDate !== pass.expires_at.slice(0, 10)
+  const saveDates = async () => {
+    if (!startDate || !expiryDate) { setError('Choose both dates.'); return }
+    if (!startChanged && !expiryChanged) { setError('Change the start or expiry date first.'); return }
+    if (startDate > expiryDate) { setError('The start date can’t be after the expiry date.'); return }
+    if (!datesReason.trim()) { setError('Add a reason for changing the dates.'); return }
+    const reason = datesReason.trim()
+    if (expiryChanged && !await post(`/member-passes/${pass.id}/extend-expiry`, { new_expires_at: expiryDate, reason }, 'Could not change the expiry date.')) return
+    if (startChanged && !await post(`/member-passes/${pass.id}/change-start`, { new_effective_from: startDate, reason }, 'Could not change the start date.')) return
+    setDatesReason('')
   }
 
   const frozen = pass.status === 'frozen'
@@ -185,10 +195,14 @@ export default function ManagePassModal({ orgId, token, passId, timeZone, onClos
           <Chip tone={s.tone}>{s.label}</Chip>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, fontSize: 14 }}>
           <div>
             <div style={{ color: color.muted }}>Credits left</div>
             <div style={{ fontWeight: 600, fontSize: 16, ...tabularNums }}>{credit ? `${current} of ${pass.credits_total}` : 'Unlimited'}</div>
+          </div>
+          <div>
+            <div style={{ color: color.muted }}>Starts</div>
+            <div style={{ fontWeight: 600, fontSize: 16, ...tabularNums }}>{formatDayMonth(pass.effective_from, timeZone)}</div>
           </div>
           <div>
             <div style={{ color: color.muted }}>Expires</div>
@@ -230,15 +244,22 @@ export default function ManagePassModal({ orgId, token, passId, timeZone, onClos
         )}
 
         <div style={sectionStyle}>
-          <span style={headStyle}>Expiry date</span>
+          <span style={headStyle}>Dates</span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            <input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} style={{ ...inputStyle, width: 170 }} aria-label="New expiry date" />
-            <input type="text" value={expiryReason} onChange={e => setExpiryReason(e.target.value)}
-              placeholder="Reason (required)" style={{ ...inputStyle, flex: '1 1 200px' }} />
+            <label style={smallLabel}>
+              Starts
+              <input type="date" value={startDate} max={expiryDate || undefined} onChange={e => setStartDate(e.target.value)} style={{ ...inputStyle, width: 170 }} />
+            </label>
+            <label style={smallLabel}>
+              Expires
+              <input type="date" value={expiryDate} min={startDate || undefined} onChange={e => setExpiryDate(e.target.value)} style={{ ...inputStyle, width: 170 }} />
+            </label>
           </div>
+          <input type="text" value={datesReason} onChange={e => setDatesReason(e.target.value)}
+            placeholder="Reason (required), e.g. Matching the old system's dates" style={inputStyle} />
           <div>
-            <button type="button" onClick={saveExpiry} disabled={busy} className={`${ui.button} ${ui.focusable}`} style={buttonStyle('secondary')}>
-              Change expiry
+            <button type="button" onClick={saveDates} disabled={busy || (!startChanged && !expiryChanged)} className={`${ui.button} ${ui.focusable}`} style={buttonStyle('secondary')}>
+              Save dates
             </button>
           </div>
         </div>
