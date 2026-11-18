@@ -6,12 +6,13 @@ import { useRouter } from 'next/navigation'
 import { CalendarCheck, CreditCard, Plus, TriangleAlert, Dot } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
-import { canManageSessions, canManageBookings, canManageOccurrences, canViewOccurrences, canViewAllReports } from '@/lib/roles'
+import { canManageSessions, canManageBookings, canManageOccurrences, canManageSettings, canViewOccurrences, canViewAllReports } from '@/lib/roles'
 import { formatClock, formatDayLabel, formatDayMonth, formatShortDate, formatWhen } from '@/lib/dates'
 import { color, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, CapacityBar, Card, Chip, PageHeader, StatTile } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
+import GoogleLinkTip from './GoogleLinkTip'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -131,6 +132,7 @@ export default function DashboardPage() {
   const [home, setHome] = useState<HomeDashboard | null>(null)
   const [fallbackUpcoming, setFallbackUpcoming] = useState<UpcomingOccurrence[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const [studio, setStudio] = useState<{ id: string; slug: string } | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -144,6 +146,7 @@ export default function DashboardPage() {
       setRoles(myRoles)
       setTimeZone(org.timezone ?? null)
       setFirstName(ctx.firstName)
+      setStudio({ id: org.id, slug: org.slug })
 
       if (canViewAllReports(myRoles)) {
         const res = await fetch(`${API}/api/organisations/${org.id}/dashboard/home`, auth)
@@ -274,6 +277,8 @@ export default function DashboardPage() {
                   ))}
                 </section>
               )}
+
+              {studio?.slug && canManageSettings(roles) && <GoogleLinkTip orgId={studio.id} slug={studio.slug} />}
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
                 <Card style={{ flex: '999 1 520px', minWidth: 0, overflow: 'hidden' }} aria-labelledby="next-up-heading">
