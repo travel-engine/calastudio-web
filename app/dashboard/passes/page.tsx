@@ -7,9 +7,10 @@ import { Plus, Ticket, X } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
+import ManagePassModal from '@/app/components/ManagePassModal'
 import { canViewPassTemplates, canManagePassTemplates } from '@/lib/roles'
 import { displayName } from '@/lib/names'
-import { formatClock, formatDayMonth, formatShortDate } from '@/lib/dates'
+import { formatDayMonth } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, Card, Chip, EmptyState, PageHeader, buttonStyle, cardStyle, controlStyle, type ChipTone } from '@/app/components/admin'
@@ -52,15 +53,6 @@ interface MemberPass {
   pass_template: PassTemplate | null
 }
 
-interface LedgerEntry {
-  id: string
-  movement_type: 'purchase' | 'booking_debit' | 'cancel_credit' | 'expired_forfeit' | 'promotion_credit' | 'studio_adjustment'
-  credits_delta: number
-  credits_after: number
-  notes: string | null
-  created_at: string
-}
-
 function expiryRuleLabel(pt: Pick<PassTemplate, 'expiry_type' | 'expiry_fixed_date' | 'expiry_rolling_value'>) {
   if (pt.expiry_type === 'fixed_date') return pt.expiry_fixed_date ? `Expires ${formatDayMonth(pt.expiry_fixed_date)}` : 'Fixed expiry date'
   if (pt.expiry_type === 'rolling_days') return `Expires ${pt.expiry_rolling_value ?? '?'} days after purchase`
@@ -78,15 +70,6 @@ const passStatusChip: Record<string, { label: string; tone: ChipTone }> = {
 function StatusBadge({ status }: { status: string }) {
   const s = passStatusChip[status] ?? { label: status, tone: 'neutral' as const }
   return <Chip tone={s.tone}>{s.label}</Chip>
-}
-
-const movementLabels: Record<string, string> = {
-  purchase: 'Purchase',
-  booking_debit: 'Booking',
-  cancel_credit: 'Cancellation credit',
-  expired_forfeit: 'Expired',
-  promotion_credit: 'Promotion',
-  studio_adjustment: 'Studio adjustment',
 }
 
 const inputStyle: React.CSSProperties = { ...controlStyle, padding: '10px 12px' }
@@ -122,16 +105,8 @@ export default function PassesPage() {
   const [issuing, setIssuing] = useState(false)
   const [issueError, setIssueError] = useState('')
 
-  // Manage pass modal
-  const [managingPass, setManagingPass] = useState<MemberPass | null>(null)
-  const [ledger, setLedger] = useState<LedgerEntry[]>([])
-  const [ledgerLoading, setLedgerLoading] = useState(false)
-  const [manageError, setManageError] = useState('')
-  const [manageBusy, setManageBusy] = useState(false)
-  const [adjustDelta, setAdjustDelta] = useState('')
-  const [adjustReason, setAdjustReason] = useState('')
-  const [extendDate, setExtendDate] = useState('')
-  const [extendReason, setExtendReason] = useState('')
+  // Manage pass modal (shared with the member profile)
+  const [managingPassId, setManagingPassId] = useState<string | null>(null)
 
   const authedFetch = useCallback((path: string, init?: RequestInit) =>
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}${path}`, {
@@ -224,91 +199,6 @@ export default function PassesPage() {
     } finally {
       setIssuing(false)
     }
-  }
-
-  const openManageModal = async (pass: MemberPass) => {
-    setManagingPass(pass)
-    setManageError('')
-    setAdjustDelta('')
-    setAdjustReason('')
-    setExtendDate(pass.expires_at)
-    setExtendReason('')
-    setLedgerLoading(true)
-    const res = await authedFetch(`/member-passes/${pass.id}/ledger`)
-    if (res.ok) setLedger(await res.json())
-    setLedgerLoading(false)
-  }
-
-  const refreshManagingPass = async (passId: string) => {
-    const res = await authedFetch(`/member-passes/${passId}`)
-    if (res.ok) {
-      const updated = await res.json()
-      setManagingPass(updated)
-      setPasses(prev => prev.map(p => p.id === passId ? updated : p))
-    }
-    const ledgerRes = await authedFetch(`/member-passes/${passId}/ledger`)
-    if (ledgerRes.ok) setLedger(await ledgerRes.json())
-  }
-
-  const handleFreezeToggle = async () => {
-    if (!managingPass) return
-    setManageBusy(true)
-    setManageError('')
-    const action = managingPass.status === 'frozen' ? 'unfreeze' : 'freeze'
-    const res = await authedFetch(`/member-passes/${managingPass.id}/${action}`, { method: 'POST' })
-    if (res.ok) {
-      await refreshManagingPass(managingPass.id)
-    } else {
-      const data = await res.json().catch(() => null)
-      setManageError(data?.error ?? `Could not ${action} this pass.`)
-    }
-    setManageBusy(false)
-  }
-
-  const handleAdjust = async () => {
-    if (!managingPass) return
-    const delta = parseInt(adjustDelta)
-    if (!delta) { setManageError('Enter a non-zero credit adjustment'); return }
-    if (!adjustReason.trim()) { setManageError('A reason is required for credit adjustments'); return }
-
-    setManageBusy(true)
-    setManageError('')
-    const res = await authedFetch(`/member-passes/${managingPass.id}/adjust-credits`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ delta, reason: adjustReason })
-    })
-    if (res.ok) {
-      setAdjustDelta('')
-      setAdjustReason('')
-      await refreshManagingPass(managingPass.id)
-    } else {
-      const data = await res.json().catch(() => null)
-      setManageError(data?.error ?? 'Could not adjust credits.')
-    }
-    setManageBusy(false)
-  }
-
-  const handleExtend = async () => {
-    if (!managingPass) return
-    if (!extendDate) { setManageError('Choose a new expiry date'); return }
-    if (!extendReason.trim()) { setManageError('A reason is required to change the expiry date'); return }
-
-    setManageBusy(true)
-    setManageError('')
-    const res = await authedFetch(`/member-passes/${managingPass.id}/extend-expiry`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ new_expires_at: extendDate, reason: extendReason })
-    })
-    if (res.ok) {
-      setExtendReason('')
-      await refreshManagingPass(managingPass.id)
-    } else {
-      const data = await res.json().catch(() => null)
-      setManageError(data?.error ?? 'Could not extend expiry.')
-    }
-    setManageBusy(false)
   }
 
   const filteredMembers = members.filter(m => {
@@ -470,7 +360,7 @@ export default function PassesPage() {
                               </td>
                               <td style={{ ...td, textAlign: 'right' }}>
                                 <span style={{ display: 'inline-flex', gap: 12, alignItems: 'center' }}>
-                                  <button type="button" onClick={() => openManageModal(p)} aria-label={`Manage ${member}'s pass`}
+                                  <button type="button" onClick={() => setManagingPassId(p.id)} aria-label={`Manage ${member}'s pass`}
                                     className={`${ui.button} ${ui.focusable}`} style={buttonStyle('secondary', 'sm')}>
                                     Manage
                                   </button>
@@ -600,125 +490,10 @@ export default function PassesPage() {
         </ModalShell>
       )}
 
-      {/* Manage pass modal */}
-      {managingPass && (
-        <ModalShell title="Manage pass" onClose={() => setManagingPass(null)} wide>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ fontSize: '16px', fontWeight: 700 }}>{displayName(managingPass.user)}</div>
-                <div style={{ fontSize: '13px', color: color.muted }}>{managingPass.user?.email}</div>
-                <div style={{ fontSize: '13px', marginTop: '8px' }}>{managingPass.pass_template?.name}</div>
-              </div>
-              <StatusBadge status={managingPass.status} />
-            </div>
-
-            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
-              <div>
-                <div style={{ color: color.muted }}>Credits</div>
-                <div style={{ fontWeight: 600 }}>
-                  {managingPass.credits_remaining === null ? 'Unlimited' : `${managingPass.credits_remaining} / ${managingPass.credits_total}`}
-                </div>
-              </div>
-              <div>
-                <div style={{ color: color.muted }}>Expires</div>
-                <div style={{ fontWeight: 600 }}>{managingPass.expires_at}</div>
-              </div>
-            </div>
-
-            {manageError && <ErrorBanner message={manageError} />}
-
-            {/* Freeze / unfreeze */}
-            <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: '16px' }}>
-              <button
-                onClick={handleFreezeToggle}
-                disabled={manageBusy || managingPass.status === 'expired' || managingPass.status === 'exhausted'}
-                style={secondaryButtonStyle}
-              >
-                {managingPass.status === 'frozen' ? 'Unfreeze pass' : 'Freeze pass'}
-              </button>
-            </div>
-
-            {/* Adjust credits */}
-            {managingPass.credits_remaining !== null && (
-              <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: '16px' }}>
-                <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px' }}>Adjust credits</div>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                  <input
-                    type="number"
-                    placeholder="e.g. -1 or 2"
-                    value={adjustDelta}
-                    onChange={e => setAdjustDelta(e.target.value)}
-                    style={{ ...inputStyle, width: '120px' }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Reason (required)"
-                    value={adjustReason}
-                    onChange={e => setAdjustReason(e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-                <button onClick={handleAdjust} disabled={manageBusy} style={secondaryButtonStyle}>
-                  Apply adjustment
-                </button>
-              </div>
-            )}
-
-            {/* Extend expiry */}
-            <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: '16px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px' }}>Extend expiry</div>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <input
-                  type="date"
-                  value={extendDate}
-                  onChange={e => setExtendDate(e.target.value)}
-                  style={{ ...inputStyle, width: '160px' }}
-                />
-                <input
-                  type="text"
-                  placeholder="Reason (required)"
-                  value={extendReason}
-                  onChange={e => setExtendReason(e.target.value)}
-                  style={inputStyle}
-                />
-              </div>
-              <button onClick={handleExtend} disabled={manageBusy} style={secondaryButtonStyle}>
-                Update expiry
-              </button>
-            </div>
-
-            {/* Ledger */}
-            <div style={{ borderTop: `1px solid ${color.border}`, paddingTop: '16px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px' }}>Credit history</div>
-              {ledgerLoading ? (
-                <div style={{ fontSize: '13px', color: color.muted }}>Loading...</div>
-              ) : ledger.length === 0 ? (
-                <div style={{ fontSize: '13px', color: color.muted }}>No credit movements yet</div>
-              ) : (
-                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                  {ledger.slice().reverse().map(entry => (
-                    <div key={entry.id} style={{
-                      display: 'flex', justifyContent: 'space-between', padding: '8px 0',
-                      borderBottom: `1px solid ${color.divider}`, fontSize: '13px'
-                    }}>
-                      <div>
-                        <div>{movementLabels[entry.movement_type] ?? entry.movement_type}</div>
-                        {entry.notes && <div style={{ fontSize: '12px', color: color.muted }}>{entry.notes}</div>}
-                        <div style={{ fontSize: '11px', color: color.muted }}>{formatShortDate(entry.created_at)}, {formatClock(entry.created_at)}</div>
-                      </div>
-                      <div style={{ textAlign: 'right', fontWeight: 600, color: entry.credits_delta < 0 ? color.dangerInk : color.primary }}>
-                        {entry.credits_delta > 0 ? `+${entry.credits_delta}` : entry.credits_delta}
-                        <div style={{ fontSize: '11px', color: color.muted, fontWeight: 400 }}>→ {entry.credits_after}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </ModalShell>
+      {managingPassId && (
+        <ManagePassModal orgId={orgId} token={token} passId={managingPassId}
+          onClose={() => setManagingPassId(null)}
+          onChanged={reloadPasses} />
       )}
     </div>
   )
