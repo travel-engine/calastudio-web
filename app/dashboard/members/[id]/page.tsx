@@ -10,6 +10,7 @@ import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
 import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, staffRoleLabel } from '@/lib/roles'
 import ActivityFeed from '@/app/components/ActivityFeed'
+import ManagePassModal from '@/app/components/ManagePassModal'
 import { displayName } from '@/lib/names'
 import { formatClock, formatDayMonth, formatRelativeShort, formatShortDate } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
@@ -189,6 +190,7 @@ export default function MemberDetailPage() {
   const [upcoming, setUpcoming] = useState<UpcomingBooking[]>([])
 
   const [expandedPassId, setExpandedPassId] = useState<string | null>(null)
+  const [managingPassId, setManagingPassId] = useState<string | null>(null)
   const [passLedgers, setPassLedgers] = useState<Record<string, LedgerEntry[]>>({})
   // booking_id -> "Sat 17 Oct, 7:00 am" for ledger rows tied to a booking.
   const [bookingWhen, setBookingWhen] = useState<Record<string, string>>({})
@@ -440,6 +442,12 @@ export default function MemberDetailPage() {
                                 Expires {formatDayMonth(p.expires_at, timeZone)}
                               </span>
                               <Chip tone={s.tone}>{s.label}</Chip>
+                              {canManageMemberPasses(roles) && (
+                                <button type="button" onClick={() => setManagingPassId(p.id)} aria-label={`Manage ${p.pass_template?.name ?? 'pass'}`}
+                                  className={`${ui.button} ${ui.focusable}`} style={buttonStyle('secondary', 'sm')}>
+                                  Manage
+                                </button>
+                              )}
                               {(isCredit || showActivity) && (
                                 <button type="button" onClick={() => togglePassHistory(p.id)} aria-expanded={open}
                                   className={`${ui.button} ${ui.focusable}`} style={buttonStyle('secondary', 'sm')}>
@@ -656,7 +664,7 @@ export default function MemberDetailPage() {
                 </select>
               </Field>
 
-              <Field label="Starts" htmlFor="issue-from" hint="Leave blank for today. Expiry comes from the pass type.">
+              <Field label="Starts" htmlFor="issue-from" hint="Leave blank for today. Expiry comes from the pass type; to carry over a balance from another system, add the pass, then use Manage to set the credits left and expiry date.">
                 <input id="issue-from" type="date" value={issueForm.effectiveFrom} onChange={e => setIssueForm(f => ({ ...f, effectiveFrom: e.target.value }))} style={controlStyle} />
               </Field>
 
@@ -689,6 +697,11 @@ export default function MemberDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {managingPassId && (
+        <ManagePassModal orgId={orgId} token={token} passId={managingPassId} timeZone={timeZone}
+          onClose={() => setManagingPassId(null)} onChanged={reloadPasses} />
       )}
 
       <Toast message={toast} onDismiss={() => setToast('')} />
