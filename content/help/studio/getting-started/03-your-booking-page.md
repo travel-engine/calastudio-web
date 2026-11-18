@@ -24,6 +24,10 @@ Go to **Settings** and open the **Booking page** tab:
 
 Each card has its own **Save**. See **Settings → Booking page settings** for the details.
 
+## Get found on Google
+
+Add your schedule as the booking link on your Google Business Profile, so people can book straight from Google Search and Maps — see **Getting started → Add your booking link to Google**.
+
 ## Teacher pages
 
 Each teacher can also get their own page with a bio, photos, and their own upcoming sessions — see **Team → Teacher landing pages** for how to set one up and publish it.
