@@ -18,10 +18,13 @@ export default function FilterChips({ mode, sessionType, location, locations }: 
   const pathname = usePathname()
 
   const apply = (next: { mode: string; type: string; location: string }) => {
-    const params = new URLSearchParams()
-    if (next.mode !== 'all') params.set('mode', next.mode)
-    if (next.type !== 'all') params.set('type', next.type)
-    if (next.location !== 'all') params.set('location', next.location)
+    // Start from the current query so params that aren't filters survive (the website widget's
+    // `color` / `popup`); then set or drop each filter.
+    const params = new URLSearchParams(window.location.search)
+    const put = (key: string, value: string) => (value === 'all' ? params.delete(key) : params.set(key, value))
+    put('mode', next.mode)
+    put('type', next.type)
+    put('location', next.location)
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname)
   }
