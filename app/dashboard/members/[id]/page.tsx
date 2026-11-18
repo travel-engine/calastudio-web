@@ -672,7 +672,7 @@ export default function MemberDetailPage() {
                 </select>
               </Field>
 
-              <Field label="Starts" htmlFor="issue-from" hint="Leave blank for today. Expiry comes from the pass type; to carry over a balance from another system, add the pass, then use Manage to set the credits left and expiry date.">
+              <Field label="Starts" htmlFor="issue-from" hint="Leave blank for today. Expiry comes from the pass type; to carry over a balance from another system, add the pass, then use Manage to set the credits left and dates.">
                 <input id="issue-from" type="date" value={issueForm.effectiveFrom} onChange={e => setIssueForm(f => ({ ...f, effectiveFrom: e.target.value }))} style={controlStyle} />
               </Field>
 
