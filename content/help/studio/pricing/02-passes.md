@@ -46,14 +46,23 @@ Only **Admin** and **Super teacher** roles can issue passes.
 
 ## Manage an issued pass
 
-Click **Manage** on any row in **Issued to members** to:
+Click **Manage** on any row in **Issued to members**, or next to a pass on the member's own page, to:
 
-- **Freeze / unfreeze** — pause the expiry clock (only if the template allows freezing)
-- **Adjust credits** — add or remove credits by hand; you must give a reason, which is recorded permanently
-- **Extend expiry** — override the expiry date; also requires a reason
-- **View credit history** — every purchase, booking debit, cancellation credit, and manual adjustment on that pass, oldest to newest
+- **Set credits** — type the new number in **Credits left** (for example 4), or the change in **Change by** (for example -6 or 2); the other box fills itself in. You must give a reason, which is recorded permanently
+- **Change the expiry date** — pick any date, earlier or later; also requires a reason
+- **Freeze / unfreeze** — pause the pass (only if the template allows freezing)
+- **View credit history** — every purchase, booking debit, cancellation credit, and manual adjustment on that pass
 
 Every credit movement is logged and can't be edited or deleted, so the history always reconciles.
+
+## Carry over a pass from another system
+
+Moving a member across with a part-used pass from your old booking system:
+
+1. On the member's page, click **Add pricing option** and add the matching pass type. Leave **Payment** on **No payment recorded**, so it isn't counted as revenue (they paid your old system)
+2. Click **Manage** on the new pass
+3. Under **Set credits**, type how many classes they have left in **Credits left**, with a reason like "Carried over from old system", and click **Save credits**
+4. Under **Expiry date**, pick the date the old pass expires, add a reason, and click **Change expiry**
 
 ## Deactivating a pass type
 
