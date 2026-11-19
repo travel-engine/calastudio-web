@@ -2,6 +2,7 @@ import Image from 'next/image'
 import type { BookableOccurrence } from '@/lib/store/bookingFlow'
 import { formatDayLabel, formatTime } from '@/lib/dates'
 import RowBookButton from './RowBookButton'
+import HideWhenFinished from './HideWhenFinished'
 import styles from './photofirst.module.css'
 
 function durationLabel(startIso: string, endIso: string) {
@@ -46,6 +47,7 @@ export default function SessionRow({
   const s = spots(occ)
 
   return (
+    <HideWhenFinished endsAt={occ.ends_at}>
     <article className={styles.row}>
       {thumb ? (
         <Image src={thumb} alt={occ.session_name} width={64} height={64} className={styles.rowThumb} />
@@ -74,5 +76,6 @@ export default function SessionRow({
         />
       </div>
     </article>
+    </HideWhenFinished>
   )
 }
