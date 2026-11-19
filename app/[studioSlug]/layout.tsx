@@ -4,6 +4,7 @@ import { Manrope } from 'next/font/google'
 import StudioNav from './StudioNav'
 import ThemeSwitcher from './ThemeSwitcher'
 import { InstallCapture } from './InstallAppPrompt'
+import RefreshWhenStale from './RefreshWhenStale'
 import { appIconPath, appManifestPath } from '@/lib/appIcon'
 import { studioOrigin, metaDescription } from '@/lib/seo'
 import { themeVars, fontHref } from '@/lib/studioTheme'
@@ -110,6 +111,7 @@ export default async function StudioLayout({ children, params }: Props) {
         </>
       )}
       <InstallCapture />
+      <RefreshWhenStale />
       {process.env.NODE_ENV === 'development' && <ThemeSwitcher current={theme.key} />}
       <StudioNav
         studioSlug={studioSlug}
