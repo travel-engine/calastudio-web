@@ -13,12 +13,15 @@ export type MemberActivity =
   | { kind: 'seen'; at: string }
   | { kind: 'never' }
   | { kind: 'pending' }
+  | { kind: 'held' } // imported, welcome email held until the studio sends it (welcome_pending)
 
 export function memberActivity(
   authProvisionedAt: string | null,
   lastSeenAt: string | null,
+  welcomePending = false,
 ): MemberActivity {
   if (lastSeenAt) return { kind: 'seen', at: lastSeenAt }
+  if (welcomePending) return { kind: 'held' }
   if (authProvisionedAt) return { kind: 'never' }
   return { kind: 'pending' }
 }
@@ -27,6 +30,7 @@ export function memberActivity(
 export function memberActivityLabel(a: MemberActivity): string {
   switch (a.kind) {
     case 'pending': return 'Invite pending'
+    case 'held': return 'Welcome not sent'
     case 'never': return 'Not signed in yet'
     case 'seen': return 'Active'
   }
