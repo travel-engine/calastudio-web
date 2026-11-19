@@ -5,7 +5,7 @@ import FilterChips from '../../[studioSlug]/FilterChips'
 import SessionRow from '../../[studioSlug]/SessionRow'
 import BookingDrawer from '../../[studioSlug]/BookingDrawer'
 import MemberScheduleLoader from '../../[studioSlug]/MemberScheduleLoader'
-import { dayKey, formatFriendlyDay } from '@/lib/dates'
+import { dayKey, formatDayHeading } from '@/lib/dates'
 import { studioUrl } from '@/lib/seo'
 import EmbedFrame from './EmbedFrame'
 
@@ -97,7 +97,7 @@ export default async function EmbedSchedulePage({ params, searchParams }: Props)
           ) : (
             Array.from(groups.entries()).map(([day, dayOccurrences]) => (
               <section key={day} className={styles.dayGroup}>
-                <h2 className={styles.dayLabel}>{formatFriendlyDay(dayOccurrences[0].starts_at, org.timezone)}</h2>
+                <h2 className={styles.dayLabel}>{formatDayHeading(dayOccurrences[0].starts_at, org.timezone)}</h2>
                 <div className={styles.rowList}>
                   {dayOccurrences.map(occ => (
                     <SessionRow key={occ.occurrence_id} occ={occ} showLocation showDay={false} {...bookProps} />

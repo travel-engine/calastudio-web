@@ -9,7 +9,7 @@ import MemberScheduleLoader from '../MemberScheduleLoader'
 import StudioFooter from '../StudioFooter'
 import { getStudioContent, type PageContentDto } from '../studioContent'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
-import { dayKey, formatFriendlyDay } from '@/lib/dates'
+import { dayKey, formatDayHeading } from '@/lib/dates'
 import { metaDescription, studioOpenGraph, studioOrigin } from '@/lib/seo'
 import { JsonLd, eventLd, breadcrumbLd } from '@/lib/jsonLd'
 
@@ -145,7 +145,7 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
         ) : (
           Array.from(groups.entries()).map(([day, dayOccurrences]) => (
             <section key={day} className={styles.dayGroup}>
-              <h2 className={styles.dayLabel}>{formatFriendlyDay(dayOccurrences[0].starts_at, org.timezone)}</h2>
+              <h2 className={styles.dayLabel}>{formatDayHeading(dayOccurrences[0].starts_at, org.timezone)}</h2>
               <div className={styles.rowList}>
                 {dayOccurrences.map(occ => (
                   <SessionRow key={occ.occurrence_id} occ={occ} showLocation showDay={false} {...bookProps} />
