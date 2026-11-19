@@ -8,11 +8,15 @@ import styles from './photofirst.module.css'
 // mode and type — that map to the existing `?mode=` / `?type=` search params ("all" = omitted),
 // plus a location group when the studio runs more than one venue. On a phone the chips sit on one
 // row that scrolls sideways (groups separated by a thin divider), so classes start on the first screen.
-export default function FilterChips({ mode, sessionType, location, locations }: {
+export default function FilterChips({ mode, sessionType, location, locations, modes, types }: {
   mode: string
   sessionType: string
   location: string
   locations?: string[]
+  // Values present in the studio's upcoming sessions, ignoring the current filters. A group only
+  // shows when there's a real choice (2+ values) — or when it's filtered, so it can be cleared.
+  modes?: string[]
+  types?: string[]
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -29,24 +33,35 @@ export default function FilterChips({ mode, sessionType, location, locations }: 
   const current = { mode, type: sessionType, location }
 
   type Chip = { label: string; on: boolean; patch: Partial<typeof current> }
-  const groups: { name: string; chips: Chip[] }[] = [
-    { name: 'Mode', chips: [
-      { label: 'All modes', on: mode === 'all', patch: { mode: 'all' } },
-      { label: 'In-person', on: mode === 'in_person', patch: { mode: 'in_person' } },
-      { label: 'Online', on: mode === 'online', patch: { mode: 'online' } },
-    ] },
-    { name: 'Type', chips: [
-      { label: 'All types', on: sessionType === 'all', patch: { type: 'all' } },
-      { label: 'Classes', on: sessionType === 'class', patch: { type: 'class' } },
-      { label: 'Workshops', on: sessionType === 'workshop', patch: { type: 'workshop' } },
-    ] },
-    ...(locations && locations.length > 1
-      ? [{ name: 'Location', chips: [
+  type Group = { name: string; chips: Chip[] }
+  // Builds a group from the values actually on offer; null when there's nothing to choose between.
+  const group = (
+    name: string, allLabel: string, selected: string, key: 'mode' | 'type',
+    options: { value: string; label: string }[], present: string[] | undefined,
+  ): Group | null => {
+    const offered = present ? options.filter(o => present.includes(o.value) || o.value === selected) : options
+    if (offered.length < 2 && selected === 'all') return null
+    return { name, chips: [
+      { label: allLabel, on: selected === 'all', patch: { [key]: 'all' } },
+      ...offered.map(o => ({ label: o.label, on: selected === o.value, patch: { [key]: o.value } })),
+    ] }
+  }
+  const groups = [
+    group('Mode', 'All modes', mode, 'mode', [
+      { value: 'in_person', label: 'In-person' },
+      { value: 'online', label: 'Online' },
+    ], modes),
+    group('Type', 'All types', sessionType, 'type', [
+      { value: 'class', label: 'Classes' },
+      { value: 'workshop', label: 'Workshops' },
+    ], types),
+    locations && (locations.length > 1 || location !== 'all')
+      ? { name: 'Location', chips: [
           { label: 'All locations', on: location === 'all', patch: { location: 'all' } },
           ...locations.map(l => ({ label: l, on: location === l, patch: { location: l } })),
-        ] }]
-      : []),
-  ]
+        ] }
+      : null,
+  ].filter((g): g is Group => g !== null)
 
   // On the scrolling row, bring a chosen filter (not an "All …") into view.
   const rowRef = useRef<HTMLDivElement>(null)
@@ -56,6 +71,8 @@ export default function FilterChips({ mode, sessionType, location, locations }: 
       rowRef.current.scrollLeft = chosen.offsetLeft - 16
     }
   }, [mode, sessionType, location])
+
+  if (groups.length === 0) return null
 
   return (
     <div ref={rowRef} className={styles.chips}>
