@@ -127,6 +127,17 @@ export function formatShortDate(input: DateInput, timeZone?: string | null): str
   return `${weekday} ${day} ${MONTHS[m - 1]}${y === thisYear ? '' : ` ${y}`}`
 }
 
+/** Member-site day heading: "Today", "Tomorrow", else "Sunday 22 Nov" (year only when it isn't this year). */
+export function formatFriendlyDay(input: DateInput, timeZone?: string | null): string {
+  const d = toDate(input)
+  if (!d) return ''
+  const label = formatDayLabel(d, timeZone)
+  if (label === 'Today' || label === 'Tomorrow') return label
+  const zone = safeZone(timeZone)
+  const weekday = d.toLocaleDateString(ADMIN_LOCALE, { weekday: 'long', timeZone: zone })
+  return `${weekday} ${formatDayMonth(d, timeZone)}`
+}
+
 /** "11 Sep", with the year only when it isn't this year: "11 Sep 2025" */
 export function formatDayMonth(input: DateInput, timeZone?: string | null): string {
   const d = toDate(input)
