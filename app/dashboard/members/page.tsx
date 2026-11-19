@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
@@ -10,10 +10,11 @@ import { displayName } from '@/lib/names'
 import { formatRelativeShort } from '@/lib/dates'
 import { memberActivity, memberActivityLabel } from '@/lib/members'
 import AddMemberModal from '@/app/components/AddMemberModal'
+import ImportMembersModal from './ImportMembersModal'
 import Link from 'next/link'
 import { Plus, Search, Upload, Users } from 'lucide-react'
-import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
-import { Button, Card, Chip, EmptyState, Field, Modal, PageHeader, alertStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import { color, space, tabularNums } from '@/lib/ui/tokens'
+import { Button, Card, Chip, EmptyState, PageHeader, alertStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -26,65 +27,11 @@ interface Member {
   auth_provisioned_at: string | null
   // Studio roles; staff (the owner is admin) get a chip so they don't read as ordinary members.
   roles?: string[]
-}
-
-interface ImportRow {
-  row_number: number
-  first_name: string
-  last_name: string
-  email: string | null
-  join_date: string | null
-  phone: string | null
-  date_of_birth: string | null
-  gender: string | null
-  person_type: string | null
-  emergency_contact_name: string | null
-  emergency_contact_phone: string | null
-  address: string | null
-  status: 'valid' | 'invalid' | 'already_member'
-  reason: string | null
-}
-
-interface ImportResult {
-  rows: ImportRow[]
-  valid_count: number
-  invalid_count: number
-  already_member_count: number
-  imported_count: number
-}
-
-const IMPORT_STATUS: Record<string, { label: string; tone: ChipTone }> = {
-  valid: { label: 'Valid', tone: 'primary' },
-  invalid: { label: 'Invalid', tone: 'danger' },
-  already_member: { label: 'Already a member', tone: 'warn' },
-}
-
-// Kept in sync with the "Columns recognized" copy in the import modal and the API's
-// MemberEndpoints.cs importer. Enum values (gender, person_type) and the ISO date format
-// mirror calastudio-spec/03-member-management.md §3.3–3.4 and §CSV import.
-const SAMPLE_MEMBERS_CSV = [
-  'first_name,last_name,email,join_date,phone,date_of_birth,gender,person_type,emergency_contact_name,emergency_contact_phone,address',
-  'Jane,Smith,jane.smith@example.com,2026-01-15,+61 400 000 111,1990-06-24,female,adult,John Smith,+61 400 000 222,"12 Yoga Lane, Bondi NSW 2026"',
-  'Arjun,Patel,arjun.patel@example.com,,,,,,,,',
-  'Mei,Chen,mei.chen@example.com,2025-11-03,,1978-02-09,prefer_not_to_say,senior,,,',
-  '',
-].join('\n')
-
-function downloadSampleMembersCsv() {
-  const blob = new Blob([SAMPLE_MEMBERS_CSV], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'calastudio-members-sample.csv'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  welcome_pending?: boolean
 }
 
 export default function MembersPage() {
   const router = useRouter()
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState('')
@@ -97,13 +44,10 @@ export default function MembersPage() {
 
   const [showAddMember, setShowAddMember] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
-  const [csvText, setCsvText] = useState('')
-  const [fileName, setFileName] = useState('')
-  const [previewing, setPreviewing] = useState(false)
-  const [committing, setCommitting] = useState(false)
-  const [preview, setPreview] = useState<ImportResult | null>(null)
-  const [importError, setImportError] = useState('')
-  const [committed, setCommitted] = useState(false)
+  // Imported members whose welcome email is held until the studio presses send (API #85).
+  const [pendingWelcomes, setPendingWelcomes] = useState(0)
+  const [welcomeBusy, setWelcomeBusy] = useState(false)
+  const [welcomeNote, setWelcomeNote] = useState('')
 
   const authedFetch = useCallback((path: string, init?: RequestInit) =>
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}${path}`, {
@@ -146,56 +90,28 @@ export default function MembersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router])
 
-  const openImportModal = () => {
-    setCsvText('')
-    setFileName('')
-    setPreview(null)
-    setImportError('')
-    setCommitted(false)
-    setShowImportModal(true)
-  }
+  const loadPendingWelcomes = useCallback(async () => {
+    const res = await authedFetch('/members/pending-welcome-count')
+    if (res.ok) setPendingWelcomes((await res.json()).count ?? 0)
+  }, [authedFetch])
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setFileName(file.name)
-    setCsvText(await file.text())
-    setPreview(null)
-    setImportError('')
-  }
+  useEffect(() => {
+    if (orgId && token && canImportMembers(roles)) loadPendingWelcomes()
+  }, [orgId, token, roles, loadPendingWelcomes])
 
-  const handlePreview = async () => {
-    if (!csvText.trim()) { setImportError('Add some CSV content first — upload a file or paste rows below.'); return }
-    setPreviewing(true)
-    setImportError('')
+  const sendPendingWelcomes = async () => {
+    setWelcomeBusy(true)
+    setWelcomeNote('')
     try {
-      const res = await authedFetch('/members/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv_content: csvText, commit: false })
-      })
-      if (!res.ok) { setImportError('Could not validate this file. Check the format and try again.'); return }
-      setPreview(await res.json())
+      const res = await authedFetch('/members/send-pending-welcomes', { method: 'POST' })
+      if (!res.ok) { setWelcomeNote("Couldn't send the welcome emails. Please try again."); return }
+      const queued: number = (await res.json()).queued ?? 0
+      setWelcomeNote(queued === 0
+        ? 'No welcome emails were waiting to go out.'
+        : `${queued} welcome email${queued === 1 ? '' : 's'} will go out over the next few minutes.`)
+      await Promise.all([loadPendingWelcomes(), reloadMembers()])
     } finally {
-      setPreviewing(false)
-    }
-  }
-
-  const handleCommit = async () => {
-    setCommitting(true)
-    setImportError('')
-    try {
-      const res = await authedFetch('/members/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csv_content: csvText, commit: true })
-      })
-      if (!res.ok) { setImportError('Import failed. Nothing was saved.'); return }
-      setPreview(await res.json())
-      setCommitted(true)
-      await reloadMembers()
-    } finally {
-      setCommitting(false)
+      setWelcomeBusy(false)
     }
   }
 
@@ -218,7 +134,7 @@ export default function MembersPage() {
 
   const actions = (
     <>
-      {canImportMembers(roles) && <Button onClick={openImportModal} icon={<Upload size={18} strokeWidth={1.8} aria-hidden />}>Import CSV</Button>}
+      {canImportMembers(roles) && <Button onClick={() => setShowImportModal(true)} icon={<Upload size={18} strokeWidth={1.8} aria-hidden />}>Import CSV</Button>}
       {canAddMember(roles) && <Button variant="primary" onClick={() => setShowAddMember(true)} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Add member</Button>}
     </>
   )
@@ -232,6 +148,18 @@ export default function MembersPage() {
         {forbidden ? <Forbidden /> : (
           <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
             <PageHeader eyebrow={`${members.length} member${members.length !== 1 ? 's' : ''} in your studio`} title="Members" actions={actions} />
+
+            {pendingWelcomes > 0 && (
+              <div style={{ ...alertStyle('warn'), display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <span>
+                  {pendingWelcomes} imported member{pendingWelcomes === 1 ? " hasn't" : "s haven't"} been sent their welcome email yet.
+                </span>
+                <Button variant="primary" size="sm" onClick={sendPendingWelcomes} disabled={welcomeBusy}>
+                  {welcomeBusy ? 'Sending…' : 'Send welcome emails'}
+                </Button>
+              </div>
+            )}
+            {welcomeNote && <div role="status" style={alertStyle(welcomeNote.startsWith("Couldn't") ? 'danger' : 'ok')}>{welcomeNote}</div>}
 
             {members.length === 0 ? (
               <Card>
@@ -262,7 +190,7 @@ export default function MembersPage() {
                       <span style={{ width: 140, flex: 'none', textAlign: 'right' }}>Last active</span>
                     </div>
                     {filtered.map((m, i) => {
-                      const activity = memberActivity(m.auth_provisioned_at, m.last_seen_at)
+                      const activity = memberActivity(m.auth_provisioned_at, m.last_seen_at, m.welcome_pending)
                       const staff = staffRoleLabel(m.roles)
                       return (
                         <Link key={m.id} href={`/dashboard/members/${m.id}`} className={`${ui.rowLink} ${ui.focusable}`}
@@ -304,96 +232,12 @@ export default function MembersPage() {
       )}
 
       {showImportModal && (
-        <Modal title="Import members from CSV" onClose={() => setShowImportModal(false)} width={820}>
-          {!preview ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: color.ink2 }}>
-                Columns recognised: first_name, last_name, email, join_date, phone, date_of_birth,
-                gender, person_type, emergency_contact_name, emergency_contact_phone, address.
-                Only first_name and email are required — a single full_name column is also accepted
-                and split automatically. Include a header row so any subset works in any order.
-                Dates must be YYYY-MM-DD. If given, gender must be male, female, other or
-                prefer_not_to_say, and person_type must be adult, child, senior or student.
-              </p>
-              <div>
-                <button type="button" onClick={downloadSampleMembersCsv} className={ui.focusable}
-                  style={{ background: 'none', border: 0, padding: '6px 0', color: color.primary, fontFamily: 'inherit', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-                  Download sample CSV
-                </button>
-              </div>
-
-              {importError && <div role="alert" style={alertStyle()}>{importError}</div>}
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
-                <Button onClick={() => fileInputRef.current?.click()} icon={<Upload size={18} strokeWidth={1.8} aria-hidden />}>Choose CSV file</Button>
-                {fileName && <span style={{ fontSize: 14, color: color.ink2 }}>{fileName}</span>}
-                <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleFileChange} style={{ display: 'none' }} />
-              </div>
-
-              <Field label="Or paste rows" htmlFor="csv-paste">
-                <textarea id="csv-paste" value={csvText} onChange={e => { setCsvText(e.target.value); setFileName('') }}
-                  placeholder={'first_name,last_name,email,join_date\nJane,Smith,jane@example.com,2026-01-15'}
-                  style={{ ...controlStyle, minHeight: 140, padding: '10px 12px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 13, resize: 'vertical' }} />
-              </Field>
-
-              <div><Button variant="primary" onClick={handlePreview} disabled={previewing}>{previewing ? 'Checking…' : 'Preview import'}</Button></div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: space.formGap }}>
-              {committed ? (
-                <div role="status" style={alertStyle('ok')}>Imported {preview.imported_count} member{preview.imported_count !== 1 ? 's' : ''}.</div>
-              ) : (
-                <p style={{ margin: 0, fontSize: 15, color: color.ink2, ...tabularNums }}>
-                  {preview.valid_count} row{preview.valid_count !== 1 ? 's' : ''} ready to import,{' '}
-                  {preview.already_member_count} already a member, {preview.invalid_count} invalid.
-                  Nothing has been saved yet.
-                </p>
-              )}
-
-              {importError && <div role="alert" style={alertStyle()}>{importError}</div>}
-
-              <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, overflow: 'auto', maxHeight: 340 }}>
-                <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse', fontSize: 14 }}>
-                  <thead>
-                    <tr>
-                      {['Row', 'Name', 'Email', 'Status', 'Reason'].map(h => (
-                        <th key={h} scope="col" style={{ ...smallCapsStyle, textAlign: 'left', padding: '10px 14px', borderBottom: `1px solid ${color.border}`, position: 'sticky', top: 0, background: color.surface }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.rows.map(row => {
-                      const st = IMPORT_STATUS[row.status] ?? { label: row.status, tone: 'neutral' as ChipTone }
-                      const td: React.CSSProperties = { padding: '10px 14px', borderBottom: `1px solid ${color.divider}`, verticalAlign: 'top' }
-                      return (
-                        <tr key={row.row_number}>
-                          <td style={{ ...td, color: color.muted, ...tabularNums }}>{row.row_number}</td>
-                          <td style={td}>{displayName(row) || '—'}</td>
-                          <td style={{ ...td, color: color.ink2, wordBreak: 'break-word' }}>{row.email || '—'}</td>
-                          <td style={td}><Chip tone={st.tone}>{st.label}</Chip></td>
-                          <td style={{ ...td, color: color.muted }}>{row.reason ?? '—'}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {!committed ? (
-                  <>
-                    <Button onClick={() => setPreview(null)}>Back</Button>
-                    <Button variant="primary" onClick={handleCommit} disabled={committing || preview.valid_count === 0}>
-                      {committing ? 'Importing…' : `Import ${preview.valid_count} member${preview.valid_count !== 1 ? 's' : ''}`}
-                    </Button>
-                  </>
-                ) : (
-                  <Button variant="primary" onClick={() => setShowImportModal(false)}>Done</Button>
-                )}
-              </div>
-            </div>
-          )}
-        </Modal>
+        <ImportMembersModal
+          orgId={orgId}
+          token={token}
+          onClose={() => setShowImportModal(false)}
+          onImported={() => { reloadMembers(); loadPendingWelcomes() }}
+        />
       )}
     </div>
   )

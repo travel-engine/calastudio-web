@@ -40,6 +40,10 @@ interface MemberDetail {
   last_seen_at: string | null
   auth_provisioned_at: string | null
   total_sessions_attended: number
+  // From a migration import (API #85): classes attended in the studio's previous system.
+  legacy_sessions_attended?: number | null
+  // Imported with the welcome email held until the studio sends it.
+  welcome_pending?: boolean
   health_notes: string | null
   notes: string | null
 }
@@ -286,7 +290,8 @@ export default function MemberDetailPage() {
     try {
       const res = await authedFetch(`/members/${memberId}/resend-welcome`, { method: 'POST' })
       if (res.ok) {
-        setToast(`Welcome email re-sent${member ? ` to ${member.email}` : ''}.`)
+        setToast(`Welcome email ${member?.welcome_pending ? 'sent' : 're-sent'}${member ? ` to ${member.email}` : ''}.`)
+        setMember(m => m && { ...m, welcome_pending: false })
       } else if (res.status === 404) {
         setToast('This person is no longer an active member.')
       } else {
@@ -356,7 +361,7 @@ export default function MemberDetailPage() {
     ?? (b.payment_type === 'membership' ? b.membership_name ?? 'Membership' : null)
     ?? (b.payment_type === 'card' ? 'Drop-in' : b.payment_type === 'free' || b.payment_type === 'admin_waived' ? 'Free' : null)
   const name = (member && displayName(member)) || 'Member'
-  const activity = member ? memberActivity(member.auth_provisioned_at, member.last_seen_at) : null
+  const activity = member ? memberActivity(member.auth_provisioned_at, member.last_seen_at, member.welcome_pending) : null
   const notSignedIn = activity != null && activity.kind !== 'seen'
   const nowMs = Date.now()
   const showActivity = canViewEntityActivity(roles) && !!orgId && !!token
@@ -395,12 +400,12 @@ export default function MemberDetailPage() {
                       {member.join_date && <Chip>Joined {monthYear(member.join_date)}</Chip>}
                       {activity?.kind === 'seen'
                         ? <Chip>Active {formatRelativeShort(activity.at)}</Chip>
-                        : activity && <Chip tone="warn">{activity.kind === 'pending' ? 'Invite pending' : "Hasn't signed in yet"}</Chip>}
+                        : activity && <Chip tone="warn">{activity.kind === 'never' ? "Hasn't signed in yet" : memberActivityLabel(activity)}</Chip>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                     {canResendMemberWelcome(roles) && notSignedIn && (
-                      <Button onClick={handleResendWelcome} disabled={resendingWelcome}>{resendingWelcome ? 'Sending…' : 'Resend invite'}</Button>
+                      <Button onClick={handleResendWelcome} disabled={resendingWelcome}>{resendingWelcome ? 'Sending…' : activity?.kind === 'held' ? 'Send welcome email' : 'Resend invite'}</Button>
                     )}
                     {canManageBookings(roles) && <Button variant="primary" href="/dashboard/schedule">Book a class</Button>}
                   </div>
@@ -598,6 +603,8 @@ export default function MemberDetailPage() {
                           ['Gender', member.gender ? genderLabels[member.gender] ?? member.gender : null],
                           ['Joined via', member.join_source ? member.join_source.replace(/_/g, ' ') : null],
                           ['Classes attended', String(member.total_sessions_attended)],
+                          ...(member.legacy_sessions_attended != null
+                            ? [['Classes before CalaStudio', String(member.legacy_sessions_attended)]] : []),
                         ].map(([label, value]) => (
                           <div key={label as string}>
                             <dt style={{ ...smallCapsStyle, marginBottom: 4 }}>{label}</dt>
