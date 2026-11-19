@@ -13,6 +13,7 @@ import CalendarLinks from '../CalendarLinks'
 import MyMemberships from './MyMemberships'
 import InstallAppPrompt from '../InstallAppPrompt'
 import { studioPath } from '@/lib/seo'
+import PasswordInput from '@/app/components/PasswordInput'
 
 interface OrgInfo {
   id: string
@@ -872,7 +873,7 @@ function MemberAccountContent() {
             )}
             <div>
               <label style={labelStyle}>Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle}
+              <PasswordInput value={password} onChange={e => setPassword(e.target.value)} style={inputStyle}
                 autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
                 aria-describedby={authMode === 'signup' ? 'password-hint' : undefined} />
               {authMode === 'signup' && (
