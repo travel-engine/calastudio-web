@@ -1421,7 +1421,7 @@ export default function OccurrenceDetailPage() {
             )}
           </Card>
 
-          <ClassActivity orgId={orgId} token={token} occurrenceId={occurrence.id} refreshKey={activityKey} timeZone={timeZone} currency={orgCurrency} />
+          <ClassActivity orgId={orgId} token={token} occurrenceId={occurrence.id} refreshKey={activityKey} timeZone={timeZone} currency={orgCurrency} linkMembers={canViewMembers(roles)} />
         </div>
       </div>
 

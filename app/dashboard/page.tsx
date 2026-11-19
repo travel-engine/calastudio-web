@@ -26,7 +26,18 @@ interface UpcomingOccurrence {
   booked: number
   capacity: number | null
 }
-interface ActivityItemData { at: string; text: string }
+// `text` is the whole sentence; newer APIs also send the parts and ids so names can link.
+interface ActivityItemData {
+  at: string
+  text: string
+  kind?: 'booked' | 'purchased'
+  member_id?: string | null
+  member_name?: string | null
+  occurrence_id?: string | null
+  session_name?: string | null
+  location_name?: string | null
+  pass_name?: string | null
+}
 interface Birthday { member_id: string; name: string; date: string; days_until: number }
 interface HomeDashboard {
   week_spots: { booked: number; capacity: number }
@@ -93,7 +104,17 @@ function NextUpRow({ occ, timeZone }: { occ: UpcomingOccurrence; timeZone: strin
 }
 
 function ActivityRow({ item, timeZone }: { item: ActivityItemData; timeZone: string | null }) {
-  const a = splitActivity(item.text)
+  const a = item.kind && item.member_name
+    ? {
+        who: item.member_name,
+        verb: item.kind === 'purchased' ? 'bought' : 'booked',
+        what: (item.kind === 'purchased' ? item.pass_name : [item.session_name, item.location_name].filter(Boolean).join(' – ')) ?? '',
+        kind: item.kind === 'purchased' ? 'bought' as const : 'booked' as const,
+      }
+    : splitActivity(item.text)
+  const whoHref = item.member_id ? `/dashboard/members/${item.member_id}` : null
+  const whatHref = a.kind === 'booked' && item.occurrence_id ? rosterHref(item.occurrence_id) : null
+  const nameLink = `${ui.inlineLink} ${ui.focusable}`
   const icon = a.kind === 'booked'
     ? { Icon: CalendarCheck, bg: color.primarySoft, ink: color.primaryInk }
     : a.kind === 'bought'
@@ -109,9 +130,13 @@ function ActivityRow({ item, timeZone }: { item: ActivityItemData; timeZone: str
       </span>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
         <span style={{ fontSize: 15, lineHeight: 1.35 }}>
-          {a.who && <strong style={{ fontWeight: 600 }}>{a.who}</strong>}
+          {a.who && (whoHref
+            ? <Link href={whoHref} className={nameLink}><strong style={{ fontWeight: 600 }}>{a.who}</strong></Link>
+            : <strong style={{ fontWeight: 600 }}>{a.who}</strong>)}
           {a.verb && ` ${a.verb} `}
-          <span style={{ color: a.who ? color.ink2 : color.ink }}>{a.what}</span>
+          <span style={{ color: a.who ? color.ink2 : color.ink }}>
+            {whatHref ? <Link href={whatHref} className={nameLink}>{a.what}</Link> : a.what}
+          </span>
         </span>
         <span style={{ fontSize: 13, color: color.muted, ...tabularNums }}>{formatDayMonth(item.at, timeZone)}</span>
       </div>

@@ -10,8 +10,10 @@ import { ActivityItems, type ActivityEntry } from '@/app/components/ActivityFeed
 // (GET …/occurrences/{id}/activity), where each event is recorded once. Sentences live in
 // ActivityFeed, shared with the member and pass feeds.
 
-export default function ClassActivity({ orgId, token, occurrenceId, refreshKey = 0, timeZone = null, currency }: {
+export default function ClassActivity({ orgId, token, occurrenceId, refreshKey = 0, timeZone = null, currency, linkMembers = false }: {
   orgId: string; token: string; occurrenceId: string; refreshKey?: number; timeZone?: string | null; currency: string
+  // Member names open their record — only for viewers allowed to (canViewMembers).
+  linkMembers?: boolean
 }) {
   const [entries, setEntries] = useState<ActivityEntry[] | null>(null)
   const [failed, setFailed] = useState(false)
@@ -53,7 +55,7 @@ export default function ClassActivity({ orgId, token, occurrenceId, refreshKey =
 
       {open && count > 0 && (
         <div style={{ borderTop: `1px solid ${color.border}` }}>
-          <ActivityItems entries={entries!} currency={currency} timeZone={timeZone} context="class" />
+          <ActivityItems entries={entries!} currency={currency} timeZone={timeZone} context="class" links={linkMembers} />
         </div>
       )}
     </section>

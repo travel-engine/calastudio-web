@@ -37,6 +37,9 @@ interface AuditEntry {
   guest_index?: number | null
   guest_label?: string | null
   entity_label?: string | null
+  // The class the row is about, when known (booking, waitlist, payment-for-a-booking rows).
+  occurrence_id?: string | null
+  session_id?: string | null
   is_override?: boolean
   correlation_id?: string | null
   metadata?: string | null
@@ -58,6 +61,7 @@ function toActivity(e: AuditEntry): ActivityEntry {
     method: e.check_in_method ?? null, subject_user_id: e.subject_user_id ?? null, subject_name: e.subject_name ?? null,
     guest_index: e.guest_index ?? null, guest_label: e.guest_label ?? null,
     entity_type: e.entity_type, entity_id: e.entity_id, entity_label: e.entity_label ?? null,
+    occurrence_id: e.occurrence_id ?? null, session_id: e.session_id ?? null,
     details: parseJson(e.changes), metadata: parseJson(e.metadata), reason: e.reason,
   }
 }

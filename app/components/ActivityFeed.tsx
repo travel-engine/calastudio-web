@@ -1,12 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import Link from 'next/link'
 import { formatClock, formatShortDate, dayKey } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { dateOnlyLabel } from '@/lib/memberships'
 import { color, radius, tabularNums } from '@/lib/ui/tokens'
 import { Button, cardStyle } from '@/app/components/admin'
 import { ChangesDetail } from '@/app/components/EntityActivity'
+import ui from '@/app/components/admin/admin.module.css'
 
 // The activity log as plain sentences: who did what to whom, and how. One item shape serves the
 // class feed (GET …/occurrences/{id}/activity, see ClassActivity) and the entity feed
@@ -33,6 +35,9 @@ export interface ActivityEntry {
   entity_type: string | null
   entity_id: string | null
   entity_label: string | null
+  // The class a row is about (booking, waitlist, payment-for-a-booking rows); newer API only.
+  occurrence_id?: string | null
+  session_id?: string | null
   details: Record<string, { old: unknown; new: unknown }> | null
   metadata: Record<string, unknown> | null
   reason: string | null
@@ -62,6 +67,17 @@ const PASS_STATUS: Record<string, string> = {
 
 const b = (s: ReactNode) => <strong style={{ fontWeight: 600 }}>{s}</strong>
 
+// Names in a sentence open their record: the member, the class (occurrence) or the class template.
+// `links` is off where the viewer can't open member records.
+const linkTo = (node: ReactNode, href: string | null) =>
+  href ? <Link href={href} className={`${ui.inlineLink} ${ui.focusable}`}>{node}</Link> : node
+const memberHref = (e: ActivityEntry, links: boolean) =>
+  links && e.subject_user_id ? `/dashboard/members/${e.subject_user_id}` : null
+const occurrenceIdOf = (e: ActivityEntry) =>
+  e.occurrence_id ?? (e.entity_type === 'session_occurrence' ? e.entity_id : null)
+const sessionIdOf = (e: ActivityEntry) =>
+  e.session_id ?? (e.entity_type === 'session' ? e.entity_id : null)
+
 // Events whose `details` diff is worth opening: edits to a thing's fields. Booking rows carry
 // payment bookkeeping there instead, which the sentence already covers.
 const DIFF_KINDS = new Set(['class_edited', 'class_rescheduled'])
@@ -81,10 +97,10 @@ function classLabel(e: ActivityEntry) {
   return prefix && e.entity_label.startsWith(prefix) ? e.entity_label.slice(prefix.length) : e.entity_label
 }
 
-function classSentence(e: ActivityEntry, currency: string): ReactNode {
+function classSentence(e: ActivityEntry, currency: string, links: boolean): ReactNode {
   const actor = b(e.actor_name ?? 'System')
-  const member = b(e.subject_name ?? 'A member')
-  const guest = <>{b(e.guest_label ?? 'A guest')} ({e.subject_name ?? 'a member'}&apos;s booking)</>
+  const member = linkTo(b(e.subject_name ?? 'A member'), memberHref(e, links))
+  const guest = <>{b(e.guest_label ?? 'A guest')} ({linkTo(e.subject_name ?? 'a member', memberHref(e, links))}&apos;s booking)</>
   const self = e.channel === 'self_service'
   const system = e.channel === 'system' || !e.actor_name
   const studioCancel = e.details?.cancellation_reason?.new === 'StudioCancel'
@@ -127,10 +143,15 @@ function classSentence(e: ActivityEntry, currency: string): ReactNode {
 }
 
 // Everything that isn't a class event, by namespaced event (catalogue: spec 08 §8.10b).
-function eventSentence(e: ActivityEntry, currency: string): ReactNode {
+function eventSentence(e: ActivityEntry, currency: string, links: boolean): ReactNode {
   const actor = b(e.actor_name ?? (e.actor_type === 'stripe' ? 'Stripe' : 'System'))
-  const member = b(e.subject_name ?? 'A member')
+  const member = linkTo(b(e.subject_name ?? 'A member'), memberHref(e, links))
+  // A teacher page's subject is a teacher, who may have no member record to open.
+  const person = b(e.subject_name ?? 'A member')
   const label = e.entity_label ? b(e.entity_label) : null
+  // A class template's name opens the class (not once it's deleted).
+  const sid = sessionIdOf(e)
+  const cls = label && sid ? linkTo(label, `/dashboard/sessions/${sid}`) : label
   const self = e.actor_type === 'member'
   const system = e.actor_type === 'system' || e.actor_type === 'stripe' || !e.actor_name
   const status = e.details?.status?.new
@@ -256,25 +277,26 @@ function eventSentence(e: ActivityEntry, currency: string): ReactNode {
         : <>{actor} changed {member}&apos;s price on {label ?? 'their membership'}{change}{from}</>
     }
 
-    case 'session.created': return <>{actor} created {label ?? 'a class'}</>
-    case 'session.updated': return <>{actor} edited {label ?? 'a class'}</>
+    case 'session.created': return <>{actor} created {cls ?? 'a class'}</>
+    case 'session.updated': return <>{actor} edited {cls ?? 'a class'}</>
     case 'session.deleted': return <>{actor} deleted {label ?? 'a class'}</>
-    case 'session.occurrences_generated': return <>{label ?? 'A class'}: new dates added to the timetable</>
+    case 'session.occurrences_generated': return <>{cls ?? 'A class'}: new dates added to the timetable</>
     case 'session.pricing_updated': {
       // The row is on session_pricing_access, labelled "{session} pricing".
-      const cls = e.entity_label?.replace(/ pricing$/, '')
-      return <>{actor} changed which passes {cls ? b(cls) : 'a class'} accepts</>
+      const name = e.entity_label?.replace(/ pricing$/, '')
+      const named = name ? linkTo(b(name), e.session_id ? `/dashboard/sessions/${e.session_id}` : null) : null
+      return <>{actor} changed which passes {named ?? 'a class'} accepts</>
     }
 
     // Teacher pages: the label (and subject) is the teacher.
-    case 'teacher_page.created': return <>{actor} created {member}&apos;s teacher page</>
+    case 'teacher_page.created': return <>{actor} created {person}&apos;s teacher page</>
     case 'teacher_page.updated': {
       const published = e.details?.is_page_published?.new
-      if (published === true) return <>{actor} published {member}&apos;s teacher page</>
-      if (published === false) return <>{actor} unpublished {member}&apos;s teacher page</>
-      return <>{actor} edited {member}&apos;s teacher page</>
+      if (published === true) return <>{actor} published {person}&apos;s teacher page</>
+      if (published === false) return <>{actor} unpublished {person}&apos;s teacher page</>
+      return <>{actor} edited {person}&apos;s teacher page</>
     }
-    case 'teacher_page.slug_changed': return <>{actor} changed the web address of {member}&apos;s teacher page</>
+    case 'teacher_page.slug_changed': return <>{actor} changed the web address of {person}&apos;s teacher page</>
 
     // Studio-wide.
     case 'studio.created': return <>{actor} created the studio{label ? <> {label}</> : null}</>
@@ -293,16 +315,20 @@ function eventSentence(e: ActivityEntry, currency: string): ReactNode {
   return <>{actor} {verb.replace(/_/g, ' ')} {what}</>
 }
 
-export function sentence(e: ActivityEntry, currency: string, context: 'class' | 'entity'): ReactNode {
-  if (!e.kind) return eventSentence(e, currency)
-  const s = classSentence(e, currency)
+export function sentence(e: ActivityEntry, currency: string, context: 'class' | 'entity', links = true): ReactNode {
+  if (!e.kind) return eventSentence(e, currency, links)
+  const s = classSentence(e, currency, links)
   const where = context === 'entity' ? classLabel(e) : null
-  return where ? <>{s} · <span style={{ color: color.ink2 }}>{where}</span></> : s
+  if (!where) return s
+  const occ = occurrenceIdOf(e)
+  return <>{s} · <span style={{ color: color.ink2 }}>{linkTo(where, occ ? `/dashboard/occurrences/${occ}` : null)}</span></>
 }
 
 // The list itself: one row per event, newest first, with Details for reasons and field diffs.
-export function ActivityItems({ entries, currency, timeZone, context }: {
+export function ActivityItems({ entries, currency, timeZone, context, links = true }: {
   entries: ActivityEntry[]; currency: string; timeZone: string | null; context: 'class' | 'entity'
+  // Off for viewers who can't open member records (canViewMembers).
+  links?: boolean
 }) {
   const [expandedId, setExpandedId] = useState('')
   const today = dayKey(new Date().toISOString(), timeZone)
@@ -324,7 +350,7 @@ export function ActivityItems({ entries, currency, timeZone, context }: {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
               <span style={{ flex: '0 0 auto', minWidth: 72, fontSize: 14, color: color.muted, ...tabularNums }}>{when}</span>
               <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                <div style={{ fontSize: 15, lineHeight: 1.45 }}>{sentence(e, currency, context)}</div>
+                <div style={{ fontSize: 15, lineHeight: 1.45 }}>{sentence(e, currency, context, links)}</div>
                 {(role || how || from) && (
                   <div style={{ fontSize: 13, color: color.muted, marginTop: 2 }}>
                     {[role, how && `via ${how}`, from && `via ${from}`].filter(Boolean).join(' · ')}
