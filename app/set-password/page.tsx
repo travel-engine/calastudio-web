@@ -5,6 +5,7 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
 import { MIN_PASSWORD_LENGTH, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import Link from 'next/link'
+import PasswordInput from '@/app/components/PasswordInput'
 import { useRouter } from 'next/navigation'
 import { studioSlugFromHost, studioUrl } from '@/lib/seo'
 
@@ -355,8 +356,7 @@ export default function SetPasswordPage() {
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
                 Password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -378,11 +378,11 @@ export default function SetPasswordPage() {
               <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
                 Confirm password
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 placeholder="Re-enter your password"
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
+                autoComplete="new-password"
                 required
                 style={{
                   width: '100%',
@@ -394,6 +394,12 @@ export default function SetPasswordPage() {
                 }}
               />
             </div>
+
+            {confirm.length >= password.length && confirm.length > 0 && password !== confirm && (
+              <p style={{ fontSize: '13px', color: '#8b1a1a', margin: 0 }}>
+                The two passwords are different — tap the eye to check what you typed.
+              </p>
+            )}
 
             <button
               type="submit"

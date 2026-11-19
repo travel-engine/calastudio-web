@@ -14,6 +14,7 @@ import styles from './photofirst.module.css'
 import InstallAppPrompt from './InstallAppPrompt'
 import CalendarLinks from './CalendarLinks'
 import { studioPath } from '@/lib/seo'
+import PasswordInput from '@/app/components/PasswordInput'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -750,7 +751,7 @@ export default function BookingDrawer() {
                 </div>
                 <div>
                   <label htmlFor="bk-password" className={styles.fieldLabel}>Password</label>
-                  <input id="bk-password" type="password" value={password} onChange={e => setPassword(e.target.value)} className={styles.inputRect}
+                  <PasswordInput id="bk-password" value={password} onChange={e => setPassword(e.target.value)} className={styles.inputRect}
                     autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
                     aria-describedby={authMode === 'signup' ? 'bk-password-hint' : undefined} />
                   {authMode === 'signup' && (

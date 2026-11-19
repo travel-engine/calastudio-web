@@ -8,6 +8,7 @@ import { isStaff } from '@/lib/roles'
 import { studioUrl } from '@/lib/seo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import PasswordInput from '@/app/components/PasswordInput'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -112,8 +113,7 @@ export default function LoginPage() {
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: '#1a1a1a', marginBottom: '6px' }}>
               Password
             </label>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Your password"
               value={password}
               onChange={e => setPassword(e.target.value)}

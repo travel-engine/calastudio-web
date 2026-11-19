@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { MIN_PASSWORD_LENGTH, PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
+import PasswordInput from '@/app/components/PasswordInput'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -98,8 +99,7 @@ export default function RegisterPage() {
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: '#1a1a1a' }}>
               Password
             </label>
-            <input
-              type="password"
+            <PasswordInput
               placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
               value={password}
               onChange={e => setPassword(e.target.value)}
