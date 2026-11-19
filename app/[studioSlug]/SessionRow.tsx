@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import type { BookableOccurrence } from '@/lib/store/bookingFlow'
-import { formatDayLabel, formatTime } from '@/lib/dates'
+import { formatFriendlyDay, formatTime } from '@/lib/dates'
 import RowBookButton from './RowBookButton'
 import HideWhenFinished from './HideWhenFinished'
 import styles from './photofirst.module.css'
@@ -23,17 +23,20 @@ function spots(occ: BookableOccurrence): { text: string; cls: string } | null {
   const n = occ.spots_remaining
   if (n <= 0) return { text: 'Full', cls: styles.rowSpotsFull }
   if (n <= 3) return { text: `Only ${n} left`, cls: styles.rowSpotsLow }
-  return { text: `${n} spots left`, cls: '' }
+  // Plenty of room: say nothing, so the classes that are nearly full stand out.
+  return null
 }
 
 // One class/workshop row — handoff §"Session row". `showLocation` adds the location line (schedule
-// screen only). The meta line is `{day}, {time} · {duration} · {In-person|Online}`.
+// screen only). The meta line is `{day}, {time} · {duration}`, plus `· Online` for online classes
+// (in-person is the norm, so it isn't labelled). Under a day heading, `showDay={false}` drops the day.
 export default function SessionRow({
-  occ, studioSlug, showLocation = false, brandColor, stripeAccountId, paymentsEnabled, timeZone,
+  occ, studioSlug, showLocation = false, showDay = true, brandColor, stripeAccountId, paymentsEnabled, timeZone,
 }: {
   occ: BookableOccurrence
   studioSlug: string
   showLocation?: boolean
+  showDay?: boolean
   brandColor?: string
   stripeAccountId: string | null
   paymentsEnabled: boolean
@@ -42,8 +45,11 @@ export default function SessionRow({
 }) {
   const thumb = occ.photo_url ?? occ.instructor_photo_url
   const duration = durationLabel(occ.starts_at, occ.ends_at)
-  const mode = occ.delivery_mode === 'online' ? 'Online' : 'In-person'
-  const meta = [`${formatDayLabel(occ.starts_at, timeZone)}, ${formatTime(occ.starts_at, timeZone)}`, duration, mode].filter(Boolean).join(' · ')
+  const mode = occ.delivery_mode === 'online' ? 'Online' : null
+  const when = showDay
+    ? `${formatFriendlyDay(occ.starts_at, timeZone)}, ${formatTime(occ.starts_at, timeZone)}`
+    : formatTime(occ.starts_at, timeZone)
+  const meta = [when, duration, mode].filter(Boolean).join(' · ')
   const s = spots(occ)
 
   return (
