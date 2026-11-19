@@ -69,14 +69,20 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
   if (sessionType) query.set('sessionType', sessionType)
   const qs = query.toString()
 
-  const [orgRes, occurrencesRes] = await Promise.all([
+  // The unfiltered listing tells FilterChips which modes/types the studio actually runs; it's only
+  // a separate request when a mode/type filter is on.
+  const [orgRes, occurrencesRes, allRes] = await Promise.all([
     fetch(`${base}/api/public/${studioSlug}`, { next: { revalidate: 60 } }),
     fetch(`${base}/api/public/${studioSlug}/occurrences${qs ? `?${qs}` : ''}`, { next: { revalidate: 60 } }),
+    qs ? fetch(`${base}/api/public/${studioSlug}/occurrences`, { next: { revalidate: 60 } }) : null,
   ])
   if (orgRes.status === 404) notFound()
   if (!orgRes.ok || !occurrencesRes.ok) throw new Error('Failed to load studio')
   const org: PublicOrgInfo = await orgRes.json()
   const occurrences: BookableOccurrence[] = await occurrencesRes.json()
+  const allOccurrences: BookableOccurrence[] = allRes?.ok ? await allRes.json() : occurrences
+  const modes = Array.from(new Set(allOccurrences.map(o => o.delivery_mode)))
+  const types = Array.from(new Set(allOccurrences.map(o => o.session_type)))
   const content = getStudioContent(studioSlug, org.page_content)
   const brandColor = org.brand_color || undefined
   const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
@@ -134,6 +140,8 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
           sessionType={sp.type ?? 'all'}
           location={sp.location ?? 'all'}
           locations={locations}
+          modes={modes}
+          types={types}
         />
 
         {visible.length === 0 ? (
