@@ -6,7 +6,6 @@ import FilterChips from '../FilterChips'
 import SessionRow from '../SessionRow'
 import BookingDrawer from '../BookingDrawer'
 import MemberScheduleLoader from '../MemberScheduleLoader'
-import FixedBookingBar from '../FixedBookingBar'
 import StudioFooter from '../StudioFooter'
 import { getStudioContent, type PageContentDto } from '../studioContent'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
@@ -106,9 +105,6 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
   }
 
   const live = visible.filter(o => !o.is_cancelled)
-  const now = Date.now()
-  // The booking bar offers the next class that can still be booked online — never a closed one.
-  const next = live.find(o => new Date(o.starts_at).getTime() > now && o.is_bookable !== false) ?? null
 
   const origin = studioOrigin(studioSlug)
   const ldCtx = { studioName: org.name, studioUrl: `${origin}/`, pageUrl: `${origin}/schedule` }
@@ -122,7 +118,7 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
   }
 
   return (
-    <div className={styles.root}>
+    <div className={`${styles.root} ${styles.rootNoFixedBar}`}>
       <JsonLd data={breadcrumbLd([
         { name: org.name, url: `${origin}/` },
         { name: 'Schedule', url: `${origin}/schedule` },
@@ -162,7 +158,6 @@ export default async function StudioSchedulePage({ params, searchParams }: Props
       </main>
 
       <StudioFooter name={org.name} email={content.contactEmail} poweredBy={themed} socials={{ instagram: content.instagramUrl, facebook: content.facebookUrl, tiktok: content.tiktokUrl, youtube: content.youtubeUrl }} />
-      {!themed && <FixedBookingBar next={next} {...bookProps} />}
 
       <BookingDrawer />
       <MemberScheduleLoader studioSlug={studioSlug} orgId={org.id} queryString={qs} />
