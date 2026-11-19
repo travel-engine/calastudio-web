@@ -45,6 +45,12 @@ export const canResendTeacherInvite = (roles: string[]) => has(roles, [ADMIN])
 // Pass templates (PassTemplateEndpoints.cs)
 export const canViewPassTemplates = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
 export const canManagePassTemplates = (roles: string[]) => has(roles, [ADMIN])
+// Memberships (spec 05 §5.2): same split as pass templates; Senior teachers can look, only Admin edits.
+export const canViewMembershipTemplates = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
+export const canManageMembershipTemplates = (roles: string[]) => has(roles, [ADMIN])
+// Members' memberships (MemberMembershipEndpoints.cs): list, comp, cancel with refund. Price changes are Admin only.
+export const canManageMemberMemberships = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
+export const canChangeMemberMembershipPrice = (roles: string[]) => has(roles, [ADMIN])
 
 // Member passes + ledger (MemberPassEndpoints.cs) — view and manage are the same gate today
 export const canManageMemberPasses = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])

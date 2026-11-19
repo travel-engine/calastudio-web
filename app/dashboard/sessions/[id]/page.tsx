@@ -7,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '../../../components/Sidebar'
-import { canManageSessions, canCreateOccurrence, canManageOccurrences, canViewAuditLog } from '@/lib/roles'
+import { canManageSessions, canCreateOccurrence, canManageOccurrences, canViewAuditLog, canViewMembershipTemplates } from '@/lib/roles'
 import { displayName, teacherName as teacherDisplayName } from '@/lib/names'
 import { formatClock, formatShortDate, formatWhen } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
@@ -139,11 +139,18 @@ export default function EditSessionPage() {
     instructorId: '',
     photoUrl: '',
     approvedPassTemplateIds: [] as string[],
+    approvedMembershipTemplateIds: [] as string[],
     allowDropIn: false,
   })
   const [teachers, setTeachers] = useState<{ id: string; name: string }[]>([])
   const [passTemplates, setPassTemplates] = useState<{ id: string; name: string }[]>([])
-  const [pricingAccessRows, setPricingAccessRows] = useState<{ pricing_type: string; pass_template: { id: string; name: string } | null }[]>([])
+  const [membershipTemplates, setMembershipTemplates] = useState<{ id: string; name: string }[]>([])
+  const [pricingAccessRows, setPricingAccessRows] = useState<{
+    pricing_type: string
+    pass_template: { id: string; name: string } | null
+    membership_template_id?: string | null
+    membership_template?: { id: string; name: string } | null
+  }[]>([])
 
   const update = (key: string, value: string | boolean | string[]) =>
     setForm(prev => ({ ...prev, [key]: value }))
@@ -156,6 +163,13 @@ export default function EditSessionPage() {
       ? form.approvedPassTemplateIds.filter(x => x !== id)
       : [...form.approvedPassTemplateIds, id]
     update('approvedPassTemplateIds', ids)
+  }
+
+  const toggleMembershipTemplate = (id: string) => {
+    const ids = form.approvedMembershipTemplateIds.includes(id)
+      ? form.approvedMembershipTemplateIds.filter(x => x !== id)
+      : [...form.approvedMembershipTemplateIds, id]
+    update('approvedMembershipTemplateIds', ids)
   }
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -207,12 +221,14 @@ export default function EditSessionPage() {
       const api = `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}`
       const auth = { headers: { Authorization: `Bearer ${t}` } }
       // One round of requests instead of five in a row: everything only needs the org id.
-      const [res, teachersRes, passTemplatesRes, pricingAccessRes, occRes] = await Promise.all([
+      const [res, teachersRes, passTemplatesRes, pricingAccessRes, occRes, membershipRes] = await Promise.all([
         fetch(`${api}/sessions/${sessionId}`, auth),
         canManageSessions(myRoles) ? fetch(`${api}/teachers`, auth) : Promise.resolve(null),
         canManageSessions(myRoles) ? fetch(`${api}/pass-templates`, auth) : Promise.resolve(null),
         fetch(`${api}/sessions/${sessionId}/pricing-access`, auth),
         fetch(`${api}/sessions/${sessionId}/occurrences`, auth),
+        // Hidden plans included, so a class's existing approvals keep their names.
+        canViewMembershipTemplates(myRoles) ? fetch(`${api}/membership-templates?include_inactive=true`, auth).catch(() => null) : Promise.resolve(null),
       ])
       if (!res.ok) { router.push('/dashboard/sessions'); return }
       const s = await res.json()
@@ -246,6 +262,7 @@ export default function EditSessionPage() {
         instructorId: s.instructor_id ?? '',
         photoUrl: s.photo_url ?? '',
         approvedPassTemplateIds: [],
+        approvedMembershipTemplateIds: [],
         allowDropIn: false,
       })
 
@@ -257,6 +274,10 @@ export default function EditSessionPage() {
         const data = await passTemplatesRes.json()
         setPassTemplates(data.map((x: any) => ({ id: x.id, name: x.name })))
       }
+      if (membershipRes?.ok) {
+        const data = await membershipRes.json()
+        setMembershipTemplates(data.map((x: any) => ({ id: x.id, name: x.is_active ? x.name : `${x.name} (hidden)` })))
+      }
       if (pricingAccessRes.ok) {
         const rows = await pricingAccessRes.json()
         setPricingAccessRows(rows)
@@ -265,6 +286,9 @@ export default function EditSessionPage() {
           approvedPassTemplateIds: rows
             .filter((r: any) => r.pricing_type === 'pass_template')
             .map((r: any) => r.pass_template_id),
+          approvedMembershipTemplateIds: rows
+            .filter((r: any) => r.pricing_type === 'membership_template')
+            .map((r: any) => r.membership_template_id),
           allowDropIn: rows.some((r: any) => r.pricing_type === 'drop_in'),
         }))
       }
@@ -419,6 +443,7 @@ export default function EditSessionPage() {
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: JSON.stringify({
                 pass_template_ids: form.approvedPassTemplateIds,
+                membership_template_ids: form.approvedMembershipTemplateIds,
                 allow_drop_in: form.allowDropIn,
               })
             }
@@ -876,7 +901,7 @@ export default function EditSessionPage() {
 
           {form.bookingAccessMode === 'restricted' && (
             canManageSessions(roles) ? (
-              <Field label="Passes that can be used" hint="Bookings you add as admin skip this list.">
+              <Field label="Passes and memberships that can be used" hint="Bookings you add as admin skip this list.">
                 <div style={{ border: `1px solid ${color.border}`, borderRadius: '8px', padding: '0 14px' }}>
                   {passTemplates.length === 0 ? (
                     <p style={{ fontSize: '13px', color: color.muted, padding: '12px 0' }}>
@@ -896,6 +921,19 @@ export default function EditSessionPage() {
                       {pt.name}
                     </label>
                   ))}
+                  {membershipTemplates.map(m => (
+                    <label key={m.id} style={{
+                      display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0',
+                      borderTop: '1px solid #f4f4f4', fontSize: '13px', cursor: 'pointer'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={form.approvedMembershipTemplateIds.includes(m.id)}
+                        onChange={() => toggleMembershipTemplate(m.id)}
+                      />
+                      {m.name} (membership)
+                    </label>
+                  ))}
                   <label style={{
                     display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0',
                     borderTop: '1px solid #f4f4f4', fontSize: '13px', cursor: 'pointer'
@@ -908,7 +946,7 @@ export default function EditSessionPage() {
                     Also allow drop-in payment
                   </label>
                 </div>
-                {form.approvedPassTemplateIds.length === 0 && !form.allowDropIn && (
+                {form.approvedPassTemplateIds.length === 0 && form.approvedMembershipTemplateIds.length === 0 && !form.allowDropIn && (
                   <p style={{ fontSize: '12px', color: color.dangerInk, marginTop: '8px' }}>
                     Select at least one option — otherwise nobody can self-book this session.
                   </p>
@@ -919,6 +957,8 @@ export default function EditSessionPage() {
                 <p style={{ fontSize: '13px', color: color.muted }}>
                   {pricingAccessRows.length === 0 ? 'No approved options configured yet.' : [
                     ...pricingAccessRows.filter(r => r.pass_template).map(r => r.pass_template!.name),
+                    ...pricingAccessRows.filter(r => r.pricing_type === 'membership_template').map(r =>
+                      `${r.membership_template?.name ?? membershipTemplates.find(m => m.id === r.membership_template_id)?.name ?? 'A membership'} (membership)`),
                     ...(pricingAccessRows.some(r => r.pricing_type === 'drop_in') ? ['Drop-in payment'] : []),
                   ].join(', ')}
                 </p>

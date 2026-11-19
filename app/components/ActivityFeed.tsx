@@ -1,11 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import Link from 'next/link'
 import { formatClock, formatShortDate, dayKey } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
+import { dateOnlyLabel } from '@/lib/memberships'
 import { color, radius, tabularNums } from '@/lib/ui/tokens'
 import { Button, cardStyle } from '@/app/components/admin'
 import { ChangesDetail } from '@/app/components/EntityActivity'
+import ui from '@/app/components/admin/admin.module.css'
 
 // The activity log as plain sentences: who did what to whom, and how. One item shape serves the
 // class feed (GET …/occurrences/{id}/activity, see ClassActivity) and the entity feed
@@ -32,6 +35,9 @@ export interface ActivityEntry {
   entity_type: string | null
   entity_id: string | null
   entity_label: string | null
+  // The class a row is about (booking, waitlist, payment-for-a-booking rows); newer API only.
+  occurrence_id?: string | null
+  session_id?: string | null
   details: Record<string, { old: unknown; new: unknown }> | null
   metadata: Record<string, unknown> | null
   reason: string | null
@@ -61,10 +67,21 @@ const PASS_STATUS: Record<string, string> = {
 
 const b = (s: ReactNode) => <strong style={{ fontWeight: 600 }}>{s}</strong>
 
+// Names in a sentence open their record: the member, the class (occurrence) or the class template.
+// `links` is off where the viewer can't open member records.
+const linkTo = (node: ReactNode, href: string | null) =>
+  href ? <Link href={href} className={`${ui.inlineLink} ${ui.focusable}`}>{node}</Link> : node
+const memberHref = (e: ActivityEntry, links: boolean) =>
+  links && e.subject_user_id ? `/dashboard/members/${e.subject_user_id}` : null
+const occurrenceIdOf = (e: ActivityEntry) =>
+  e.occurrence_id ?? (e.entity_type === 'session_occurrence' ? e.entity_id : null)
+const sessionIdOf = (e: ActivityEntry) =>
+  e.session_id ?? (e.entity_type === 'session' ? e.entity_id : null)
+
 // Events whose `details` diff is worth opening: edits to a thing's fields. Booking rows carry
 // payment bookkeeping there instead, which the sentence already covers.
 const DIFF_KINDS = new Set(['class_edited', 'class_rescheduled'])
-const DIFF_NAMESPACES = new Set(['member', 'pass', 'pass_template', 'session', 'settings', 'billing', 'teacher_page'])
+const DIFF_NAMESPACES = new Set(['member', 'pass', 'pass_template', 'session', 'settings', 'billing', 'teacher_page', 'membership_template', 'membership'])
 function showsDiff(e: ActivityEntry) {
   if (!e.details || Object.keys(e.details).length === 0) return false
   if (e.kind) return DIFF_KINDS.has(e.kind)
@@ -80,10 +97,10 @@ function classLabel(e: ActivityEntry) {
   return prefix && e.entity_label.startsWith(prefix) ? e.entity_label.slice(prefix.length) : e.entity_label
 }
 
-function classSentence(e: ActivityEntry, currency: string): ReactNode {
+function classSentence(e: ActivityEntry, currency: string, links: boolean): ReactNode {
   const actor = b(e.actor_name ?? 'System')
-  const member = b(e.subject_name ?? 'A member')
-  const guest = <>{b(e.guest_label ?? 'A guest')} ({e.subject_name ?? 'a member'}&apos;s booking)</>
+  const member = linkTo(b(e.subject_name ?? 'A member'), memberHref(e, links))
+  const guest = <>{b(e.guest_label ?? 'A guest')} ({linkTo(e.subject_name ?? 'a member', memberHref(e, links))}&apos;s booking)</>
   const self = e.channel === 'self_service'
   const system = e.channel === 'system' || !e.actor_name
   const studioCancel = e.details?.cancellation_reason?.new === 'StudioCancel'
@@ -126,10 +143,15 @@ function classSentence(e: ActivityEntry, currency: string): ReactNode {
 }
 
 // Everything that isn't a class event, by namespaced event (catalogue: spec 08 §8.10b).
-function eventSentence(e: ActivityEntry): ReactNode {
+function eventSentence(e: ActivityEntry, currency: string, links: boolean): ReactNode {
   const actor = b(e.actor_name ?? (e.actor_type === 'stripe' ? 'Stripe' : 'System'))
-  const member = b(e.subject_name ?? 'A member')
+  const member = linkTo(b(e.subject_name ?? 'A member'), memberHref(e, links))
+  // A teacher page's subject is a teacher, who may have no member record to open.
+  const person = b(e.subject_name ?? 'A member')
   const label = e.entity_label ? b(e.entity_label) : null
+  // A class template's name opens the class (not once it's deleted).
+  const sid = sessionIdOf(e)
+  const cls = label && sid ? linkTo(label, `/dashboard/sessions/${sid}`) : label
   const self = e.actor_type === 'member'
   const system = e.actor_type === 'system' || e.actor_type === 'stripe' || !e.actor_name
   const status = e.details?.status?.new
@@ -177,25 +199,104 @@ function eventSentence(e: ActivityEntry): ReactNode {
     case 'pass_template.created': return <>{actor} created the pass {label}</>
     case 'pass_template.updated': return <>{actor} edited the pass {label}</>
     case 'pass_template.deleted': return <>{actor} deleted the pass {label}</>
-    case 'session.created': return <>{actor} created {label ?? 'a class'}</>
-    case 'session.updated': return <>{actor} edited {label ?? 'a class'}</>
+    // Membership plans: the label is the plan's name.
+    case 'membership_template.created': return <>{actor} created the membership {label}</>
+    case 'membership_template.updated': return <>{actor} edited the membership {label}</>
+    case 'membership_template.price_changed': {
+      const before = e.details?.price?.old
+      const after = e.details?.price?.new
+      const cur = currency
+      const change = typeof before === 'number' && typeof after === 'number'
+        ? <> from {formatMoney(before, cur)} to {formatMoney(after, cur)}</> : null
+      const who = e.metadata?.apply_to === 'existing' ? ' (existing members too)' : e.metadata?.apply_to === 'new_only' ? ' (new members only)' : ''
+      return <>{actor} changed the price of {label ?? 'a membership'}{change}{who}</>
+    }
+    case 'membership_template.deactivated': return <>{actor} hid the membership {label}</>
+    case 'membership_template.reactivated': return <>{actor} put the membership {label} back on sale</>
+    // A member's membership: the label is the plan's name, the subject is the member.
+    case 'membership.purchased': return <>{member} joined {label ?? 'a membership'}</>
+    case 'membership.comped': {
+      const periods = e.metadata?.periods
+      const n = typeof periods === 'number' && periods > 1 ? ` for ${periods} periods` : ''
+      return <>{actor} gave {member} {label ?? 'a membership'} free{n}</>
+    }
+    case 'membership.started': return <>{member}&apos;s {label ?? 'membership'} started</>
+    case 'membership.renewed': {
+      const amount = typeof e.metadata?.amount === 'number' ? <> ({formatMoney(e.metadata.amount, currency)})</> : null
+      return <>{member}&apos;s {label ?? 'membership'} {e.metadata?.held ? 'continued on hold' : 'renewed'}{amount}</>
+    }
+    case 'membership.hold_scheduled': {
+      const periods = typeof e.metadata?.periods === 'number' ? e.metadata.periods : null
+      const range = typeof e.metadata?.start_date === 'string' && typeof e.metadata?.end_date === 'string'
+        ? <> from {dateOnlyLabel(e.metadata.start_date)} to {dateOnlyLabel(e.metadata.end_date)}</> : null
+      const fee = typeof e.metadata?.fee === 'number' && e.metadata.fee > 0 ? <>, {formatMoney(e.metadata.fee, currency)} per period</> : null
+      const waived = e.metadata?.limits_waived ? ' (limit waived)' : ''
+      const cancelled = typeof e.metadata?.cancelled_bookings === 'number' && e.metadata.cancelled_bookings > 0
+        ? `; ${e.metadata.cancelled_bookings} booking${e.metadata.cancelled_bookings === 1 ? '' : 's'} cancelled` : ''
+      const what = <>{label ?? 'membership'} on hold{periods ? ` for ${periods} period${periods === 1 ? '' : 's'}` : ''}{range}{fee}{waived}{cancelled}</>
+      return self ? <>{member} put their {what}</> : <>{actor} put {member}&apos;s {what}</>
+    }
+    case 'membership.hold_ended_early': return self ? <>{member} ended their hold early</> : <>{actor} ended {member}&apos;s hold early</>
+    case 'membership.hold_cancelled': return self ? <>{member} removed their planned hold</> : <>{actor} removed {member}&apos;s planned hold</>
+    case 'membership.recovered': {
+      const amount = typeof e.metadata?.amount === 'number' ? <> {formatMoney(e.metadata.amount, currency)}</> : null
+      return <>{member} paid the overdue{amount} on {label ?? 'their membership'}</>
+    }
+    case 'membership.payment_failed': {
+      const attempt = e.metadata?.attempt
+      return <>Renewal payment failed on {member}&apos;s {label ?? 'membership'}{typeof attempt === 'number' && attempt > 1 ? <> (attempt {attempt})</> : null}</>
+    }
+    case 'membership.cancel_scheduled': {
+      const n = e.metadata?.notice_periods
+      const amt = e.metadata?.notice_amount
+      const notice = typeof n === 'number' && n > 0
+        ? <> with {n} period{n === 1 ? '' : 's'}&apos; notice{typeof amt === 'number' && amt > 0 ? <> ({formatMoney(amt, currency)} charged)</> : null}</> : null
+      return self || e.metadata?.reason === 'member'
+        ? <>{member} cancelled {label ?? 'their membership'}{notice ?? ' from the end of the period'}</>
+        : <>{actor} set {member}&apos;s {label ?? 'membership'} to end{notice ?? ' at the end of the period'}</>
+    }
+    case 'membership.cancel_undone': return <>{member} undid cancelling {label ?? 'their membership'}</>
+    case 'membership.cancelled': {
+      const reason = e.metadata?.reason
+      const refund = typeof e.metadata?.refund_amount === 'number' && e.metadata.refund_amount > 0
+        ? <>, refunded {formatMoney(e.metadata.refund_amount, currency)}</> : null
+      if (e.metadata?.scheduled) return <>{member}&apos;s {label ?? 'membership'} ended as scheduled</>
+      if (reason === 'payment_failed') return <>{member}&apos;s {label ?? 'membership'} was cancelled after the last payment retry failed</>
+      if (reason === 'member') return <>{member} cancelled {label ?? 'their membership'}{refund}</>
+      return <>{actor} cancelled {member}&apos;s {label ?? 'membership'}{refund}</>
+    }
+    case 'membership.expired': return <>{member}&apos;s {label ?? 'membership'} ended</>
+    case 'membership.price_changed': {
+      const before = e.metadata?.old
+      const after = e.metadata?.new
+      const change = typeof before === 'number' && typeof after === 'number'
+        ? <> from {formatMoney(before, currency)} to {formatMoney(after, currency)}</> : null
+      const from = typeof e.metadata?.effective_from === 'string' ? <>, from {dateOnlyLabel(e.metadata.effective_from)}</> : null
+      return e.metadata?.source === 'template'
+        ? <>{member}&apos;s price on {label ?? 'their membership'} changed{change}{from} (plan price change)</>
+        : <>{actor} changed {member}&apos;s price on {label ?? 'their membership'}{change}{from}</>
+    }
+
+    case 'session.created': return <>{actor} created {cls ?? 'a class'}</>
+    case 'session.updated': return <>{actor} edited {cls ?? 'a class'}</>
     case 'session.deleted': return <>{actor} deleted {label ?? 'a class'}</>
-    case 'session.occurrences_generated': return <>{label ?? 'A class'}: new dates added to the timetable</>
+    case 'session.occurrences_generated': return <>{cls ?? 'A class'}: new dates added to the timetable</>
     case 'session.pricing_updated': {
       // The row is on session_pricing_access, labelled "{session} pricing".
-      const cls = e.entity_label?.replace(/ pricing$/, '')
-      return <>{actor} changed which passes {cls ? b(cls) : 'a class'} accepts</>
+      const name = e.entity_label?.replace(/ pricing$/, '')
+      const named = name ? linkTo(b(name), e.session_id ? `/dashboard/sessions/${e.session_id}` : null) : null
+      return <>{actor} changed which passes {named ?? 'a class'} accepts</>
     }
 
     // Teacher pages: the label (and subject) is the teacher.
-    case 'teacher_page.created': return <>{actor} created {member}&apos;s teacher page</>
+    case 'teacher_page.created': return <>{actor} created {person}&apos;s teacher page</>
     case 'teacher_page.updated': {
       const published = e.details?.is_page_published?.new
-      if (published === true) return <>{actor} published {member}&apos;s teacher page</>
-      if (published === false) return <>{actor} unpublished {member}&apos;s teacher page</>
-      return <>{actor} edited {member}&apos;s teacher page</>
+      if (published === true) return <>{actor} published {person}&apos;s teacher page</>
+      if (published === false) return <>{actor} unpublished {person}&apos;s teacher page</>
+      return <>{actor} edited {person}&apos;s teacher page</>
     }
-    case 'teacher_page.slug_changed': return <>{actor} changed the web address of {member}&apos;s teacher page</>
+    case 'teacher_page.slug_changed': return <>{actor} changed the web address of {person}&apos;s teacher page</>
 
     // Studio-wide.
     case 'studio.created': return <>{actor} created the studio{label ? <> {label}</> : null}</>
@@ -214,16 +315,20 @@ function eventSentence(e: ActivityEntry): ReactNode {
   return <>{actor} {verb.replace(/_/g, ' ')} {what}</>
 }
 
-export function sentence(e: ActivityEntry, currency: string, context: 'class' | 'entity'): ReactNode {
-  if (!e.kind) return eventSentence(e)
-  const s = classSentence(e, currency)
+export function sentence(e: ActivityEntry, currency: string, context: 'class' | 'entity', links = true): ReactNode {
+  if (!e.kind) return eventSentence(e, currency, links)
+  const s = classSentence(e, currency, links)
   const where = context === 'entity' ? classLabel(e) : null
-  return where ? <>{s} · <span style={{ color: color.ink2 }}>{where}</span></> : s
+  if (!where) return s
+  const occ = occurrenceIdOf(e)
+  return <>{s} · <span style={{ color: color.ink2 }}>{linkTo(where, occ ? `/dashboard/occurrences/${occ}` : null)}</span></>
 }
 
 // The list itself: one row per event, newest first, with Details for reasons and field diffs.
-export function ActivityItems({ entries, currency, timeZone, context }: {
+export function ActivityItems({ entries, currency, timeZone, context, links = true }: {
   entries: ActivityEntry[]; currency: string; timeZone: string | null; context: 'class' | 'entity'
+  // Off for viewers who can't open member records (canViewMembers).
+  links?: boolean
 }) {
   const [expandedId, setExpandedId] = useState('')
   const today = dayKey(new Date().toISOString(), timeZone)
@@ -245,7 +350,7 @@ export function ActivityItems({ entries, currency, timeZone, context }: {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
               <span style={{ flex: '0 0 auto', minWidth: 72, fontSize: 14, color: color.muted, ...tabularNums }}>{when}</span>
               <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-                <div style={{ fontSize: 15, lineHeight: 1.45 }}>{sentence(e, currency, context)}</div>
+                <div style={{ fontSize: 15, lineHeight: 1.45 }}>{sentence(e, currency, context, links)}</div>
                 {(role || how || from) && (
                   <div style={{ fontSize: 13, color: color.muted, marginTop: 2 }}>
                     {[role, how && `via ${how}`, from && `via ${from}`].filter(Boolean).join(' · ')}
@@ -279,9 +384,10 @@ const PAGE = 25
 
 // Everything linked to one record (a member, a pass, a payment, …), newest first, 25 at a time.
 // Admin and teacher_super only (canViewEntityActivity).
-export default function ActivityFeed({ orgId, token, entityType, entityId, currency, timeZone = null, refreshKey = 0, noun, embedded = false }: {
+export default function ActivityFeed({ orgId, token, entityType, entityId, currency, timeZone = null, refreshKey = 0, noun, embedded = false, description }: {
   orgId: string; token: string; entityType: string; entityId: string; currency: string
   timeZone?: string | null; refreshKey?: number; noun: string
+  description?: string // the card's subtitle; defaults to the member-page wording
   // Embedded: no card, no Show/Hide; for a panel that's already been opened (a pass's history).
   embedded?: boolean
 }) {
@@ -355,7 +461,7 @@ export default function ActivityFeed({ orgId, token, entityType, entityId, curre
         <div>
           <h2 id={headingId} style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Activity</h2>
           <p style={{ margin: '4px 0 0', fontSize: 14, color: color.muted }}>
-            {status ?? `Bookings, check-ins, passes, payments and changes, and who made them.`}
+            {status ?? description ?? `Bookings, check-ins, passes, payments and changes, and who made them.`}
           </p>
         </div>
         {count > 0 && <Button size="sm" onClick={() => setOpen(o => !o)} aria-expanded={open}>{open ? 'Hide' : 'Show'}</Button>}

@@ -47,3 +47,16 @@
   padding-top: 0 !important;
   margin-top: 0 !important;
 }
+
+/* A name inside a sentence that opens its record (activity feeds): reads as text, underlined on hover */
+.inlineLink {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.12s ease;
+}
+
+.inlineLink:hover {
+  text-decoration-color: currentColor;
+}

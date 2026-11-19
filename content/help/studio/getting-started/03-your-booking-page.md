@@ -8,6 +8,8 @@ order: 3
 
 Every studio gets a public page at `{your-studio}.calastudio.app` — no separate website needed. It lists your upcoming sessions and lets anyone book straight from it, creating an account on the spot if they don't already have one.
 
+Already have a website? You can put the same schedule and booking on it too — see **Getting started → Add booking to your own website**.
+
 ## What's on it
 
 Each upcoming occurrence shows its name, day and time, delivery mode, location (if set), and price. Members can filter the list by **Mode** (in-person/online) and **Type** (class/workshop); a **Location** filter also appears once you have occurrences at more than one location. Clicking a session opens the full booking flow — see **Booking → How to book a session** for what that looks like from the member's side.
@@ -23,6 +25,10 @@ Go to **Settings** and open the **Booking page** tab:
 - **Page content** — the words and photos on your home page: the hero headline and photo, an About section, the passes intro, a photo gallery, and social links. Click **Edit** on any row to open its fields
 
 Each card has its own **Save**. See **Settings → Booking page settings** for the details.
+
+## Get found on Google
+
+Add your schedule as the booking link on your Google Business Profile, so people can book straight from Google Search and Maps — see **Getting started → Add your booking link to Google**.
 
 ## Teacher pages
 

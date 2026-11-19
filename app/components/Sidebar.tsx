@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
-import { CalendarDays, ChartColumn, Check, ChevronsUpDown, Clock, ExternalLink, House, Layers, LogOut, Menu, ShieldCheck, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
+import { CalendarDays, ChartColumn, Check, ChevronsUpDown, Clock, ExternalLink, House, Layers, LogOut, Menu, Repeat, ShieldCheck, SlidersHorizontal, Ticket, UserPlus, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
 import { clearOrgContext, getMyStudios, getOrgContext, switchStudio, PLATFORM_ADMIN, type MyStudio } from '@/lib/orgContext'
 import { STUDIO_SUBDOMAINS, studioOrigin, studioUrl } from '@/lib/seo'
-import { canViewSessions, canViewOccurrences, canViewPassTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
+import { canViewSessions, canViewOccurrences, canViewPassTemplates, canViewMembershipTemplates, canViewTeam, canViewAuditLog, canManageSettings, canViewMembers, canViewReports } from '@/lib/roles'
 import { color } from '@/lib/ui/tokens'
 import { buttonStyle } from '@/app/components/admin/Button'
 import ui from '@/app/components/admin/admin.module.css'
@@ -46,6 +46,7 @@ const navItems: NavItem[] = [
   { href: '/dashboard/sessions', icon: Layers, label: 'Sessions', key: 'sessions', section: 'studio', canView: canViewSessions },
   { href: '/dashboard/members', icon: Users, label: 'Members', key: 'members', section: 'studio', canView: canViewMembers },
   { href: '/dashboard/passes', icon: Ticket, label: 'Passes', key: 'passes', section: 'revenue', canView: canViewPassTemplates },
+  { href: '/dashboard/memberships', icon: Repeat, label: 'Memberships', key: 'memberships', section: 'revenue', canView: canViewMembershipTemplates },
   { href: '/dashboard/reports', icon: ChartColumn, label: 'Reports', key: 'reports', section: 'revenue', canView: canViewReports },
   { href: '/dashboard/team', icon: UserPlus, label: 'Team', key: 'team', section: 'settings', canView: canViewTeam },
   { href: '/dashboard/audit-log', icon: Clock, label: 'Activity log', key: 'audit-log', section: 'settings', canView: canViewAuditLog },

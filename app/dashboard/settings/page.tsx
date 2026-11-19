@@ -11,6 +11,7 @@ import { canManageSettings } from '@/lib/roles'
 import { scanForMojibake } from '@/lib/mojibake'
 import ThemePicker from '@/app/components/ThemePicker'
 import BillingTab from './BillingTab'
+import WidgetTab from './WidgetTab'
 import type { ThemeKey } from '@/lib/studioTheme'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, Chip, Modal, alertStyle, PageHeader, Toggle, buttonStyle, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
@@ -86,6 +87,11 @@ type FormState = {
   timezone: string; locale: string; country: string
   cancellationHours: string; bookingWindowDays: string; minAdvanceBookingHours: string
   lateCancelCreditsForfeited: boolean; liabilityWaiverRequired: boolean
+  // Days before a pass expires to email the member, up to 3 boxes ('' = unused). null = the API
+  // doesn't have the setting yet, so it's left out of the PATCH rather than switched off.
+  passExpiryDays: string[] | null
+  // Emails to the studio's own address when a member does something (spec 07 §7.3, studio-facing).
+  notifyMemberRegistered: boolean; notifyPassPurchased: boolean; notifyBookingCreated: boolean; notifyBookingCancelled: boolean
 }
 type Key = keyof FormState
 
@@ -102,6 +108,8 @@ const EMPTY_FORM: FormState = {
   timezone: '', locale: '', country: '',
   cancellationHours: '', bookingWindowDays: '', minAdvanceBookingHours: '',
   lateCancelCreditsForfeited: true, liabilityWaiverRequired: true,
+  passExpiryDays: null,
+  notifyMemberRegistered: true, notifyPassPurchased: true, notifyBookingCreated: true, notifyBookingCancelled: true,
 }
 
 // Which fields each card saves. Every save still sends the whole organisation (see saveSection).
@@ -109,6 +117,8 @@ const SECTION_KEYS = {
   profile: ['name', 'description', 'email', 'phone', 'addressLine1', 'addressLine2', 'addressCity', 'addressState', 'addressPostcode'],
   region: ['timezone', 'locale'],
   policy: ['cancellationHours', 'bookingWindowDays', 'minAdvanceBookingHours', 'lateCancelCreditsForfeited'],
+  reminders: ['passExpiryDays'],
+  notifications: ['notifyMemberRegistered', 'notifyPassPurchased', 'notifyBookingCreated', 'notifyBookingCancelled'],
   waiver: ['liabilityWaiverRequired'],
   tax: ['taxEnabled', 'taxLabel', 'taxRegistrationNumber'],
   branding: ['logoUrl', 'brandColor'],
@@ -166,16 +176,36 @@ function orgBody(f: FormState) {
     min_advance_booking_hours: f.minAdvanceBookingHours !== '' ? parseInt(f.minAdvanceBookingHours, 10) : null,
     late_cancel_credits_forfeited: f.lateCancelCreditsForfeited,
     liability_waiver_required: f.liabilityWaiverRequired,
+    notify_studio_on_member_registered: f.notifyMemberRegistered,
+    notify_studio_on_pass_purchased: f.notifyPassPurchased,
+    notify_studio_on_booking_created: f.notifyBookingCreated,
+    notify_studio_on_booking_cancelled: f.notifyBookingCancelled,
+    ...(f.passExpiryDays ? { pass_expiry_reminder_days: expiryDays(f.passExpiryDays) } : {}),
   }
 }
+
+// "15", "", "7" → [15, 7]; the API keeps them largest first and rejects repeats or anything outside 1–60.
+const expiryDays = (boxes: string[]) =>
+  boxes.map(s => s.trim()).filter(Boolean).map(s => parseInt(s, 10)).sort((a, b) => b - a)
 
 const STUDIO_SECTIONS: { id: string; label: string }[] = [
   { id: 'profile', label: 'Studio profile' },
   { id: 'region', label: 'Region & time zone' },
   { id: 'policy', label: 'Booking policy' },
+  { id: 'reminders', label: 'Pass reminders' },
+  { id: 'notifications', label: 'Emails to you' },
   { id: 'waiver', label: 'Liability waiver' },
   { id: 'payments', label: 'Payments' },
   { id: 'tax', label: 'Tax (GST)' },
+]
+
+// Studio-facing email switches (spec 07 §7.3). Only member-initiated actions send these — nothing
+// a studio does itself. A membership ended by failed payments is always emailed (no switch).
+const NOTIFY_TOGGLES: { key: 'notifyMemberRegistered' | 'notifyPassPurchased' | 'notifyBookingCreated' | 'notifyBookingCancelled'; label: string; hint: string }[] = [
+  { key: 'notifyMemberRegistered', label: 'A new member signs up', hint: 'When someone creates an account on your booking page. Not when you add a member yourself.' },
+  { key: 'notifyPassPurchased', label: 'A pass or membership is bought', hint: 'When a member buys a pass or a membership online.' },
+  { key: 'notifyBookingCreated', label: 'A member books a class', hint: 'When a member books themselves — with a pass, by card or for free. Not for bookings you make.' },
+  { key: 'notifyBookingCancelled', label: 'A booking or membership is cancelled', hint: 'When a member cancels a booking or their membership. You’ll always hear when a membership ends because its payments failed.' },
 ]
 
 // Messages for the API's Connect failure codes (StripeConnectEndpoints callback). Unknown or
@@ -211,7 +241,8 @@ function SettingsPageContent() {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [tab, setTab] = useState<'studio' | 'page' | 'billing'>('studio')
+  const [tab, setTab] = useState<'studio' | 'page' | 'widget' | 'billing'>('studio')
+  const [slug, setSlug] = useState('')
   const [error, setError] = useState('') // upload problems; section saves report on their own card
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
@@ -257,7 +288,7 @@ function SettingsPageContent() {
   const [zone, setZone] = useState('')
   useEffect(() => { setZone(browserZone()) }, [])
 
-  const update = (key: Key, value: string | boolean) => setForm(prev => ({ ...prev, [key]: value }))
+  const update = (key: Key, value: string | boolean | string[]) => setForm(prev => ({ ...prev, [key]: value }))
   const isDirty = (id: SectionId) => (SECTION_KEYS[id] as Key[]).some(k => JSON.stringify(form[k]) !== JSON.stringify(savedForm[k]))
 
   // Flag any free-text field that looks like it has an encoding problem — usually text pasted from
@@ -297,6 +328,7 @@ function SettingsPageContent() {
       setToken(t)
       const org = ctx.org
       setOrgId(org.id)
+      setSlug(org.slug ?? '')
       setRoles(ctx.roles)
 
       if (!canManageSettings(ctx.roles)) {
@@ -364,6 +396,13 @@ function SettingsPageContent() {
         minAdvanceBookingHours: org.min_advance_booking_hours != null ? String(org.min_advance_booking_hours) : '',
         lateCancelCreditsForfeited: org.late_cancel_credits_forfeited ?? true,
         liabilityWaiverRequired: org.liability_waiver_required ?? true,
+        notifyMemberRegistered: org.notify_studio_on_member_registered ?? true,
+        notifyPassPurchased: org.notify_studio_on_pass_purchased ?? true,
+        notifyBookingCreated: org.notify_studio_on_booking_created ?? true,
+        notifyBookingCancelled: org.notify_studio_on_booking_cancelled ?? true,
+        passExpiryDays: Array.isArray(org.pass_expiry_reminder_days)
+          ? [0, 1, 2].map(i => (org.pass_expiry_reminder_days[i] != null ? String(org.pass_expiry_reminder_days[i]) : ''))
+          : null,
       }
       setForm(loaded)
       setSavedForm(loaded)
@@ -551,6 +590,11 @@ function SettingsPageContent() {
     const next: FormState = { ...savedForm, ...fromScreen, ...override }
 
     if (id === 'profile' && !next.name.trim()) { setState({ ok: false, msg: 'Studio name is required.' }); return }
+    if (id === 'reminders' && next.passExpiryDays) {
+      const days = expiryDays(next.passExpiryDays)
+      if (days.some(d => !Number.isInteger(d) || d < 1 || d > 60)) { setState({ ok: false, msg: 'Each reminder must be between 1 and 60 days.' }); return }
+      if (new Set(days).size !== days.length) { setState({ ok: false, msg: 'Use a different number of days for each reminder.' }); return }
+    }
     if (id === 'region' && next.timezone && TIMEZONES.length > 0 && !TIMEZONES.includes(next.timezone)) {
       setState({ ok: false, msg: `"${next.timezone}" isn't a time zone. Pick one from the list, e.g. Australia/Brisbane.` })
       return
@@ -672,7 +716,7 @@ function SettingsPageContent() {
 
   const zones = zone && TIMEZONES.includes(zone) ? [zone, ...TIMEZONES.filter(z => z !== zone)] : TIMEZONES
   const currentRateId = taxRates.find(r => !r.effective_until)?.id
-  const tabs = [['studio', 'Studio'], ['page', 'Booking page'], ['billing', 'Plan & billing']] as const
+  const tabs = [['studio', 'Studio'], ['page', 'Booking page'], ['widget', 'Website widget'], ['billing', 'Plan & billing']] as const
 
   // Booking page content as rows — each opens its group of fields.
   const contentRows: { id: string; label: string; summary: string; fields: React.ReactNode }[] = [
@@ -805,7 +849,7 @@ function SettingsPageContent() {
       <div className={styles.main}>
         {forbidden ? <Forbidden /> : (
           <div style={{ maxWidth: space.pageMaxWidth, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
-            <PageHeader eyebrow="Settings" title={tab === 'studio' ? 'Studio settings' : tab === 'page' ? 'Booking page' : 'Plan & billing'} />
+            <PageHeader eyebrow="Settings" title={tab === 'studio' ? 'Studio settings' : tab === 'page' ? 'Booking page' : tab === 'widget' ? 'Website widget' : 'Plan & billing'} />
 
             {/* A live-data problem worth fixing first: everything time-related uses this zone. */}
             {!savedForm.timezone && (
@@ -848,6 +892,8 @@ function SettingsPageContent() {
 
             {tab === 'billing' ? (
               <BillingTab orgId={orgId} token={token} currency={currency} />
+            ) : tab === 'widget' ? (
+              <WidgetTab slug={slug} brandColor={savedForm.brandColor} />
             ) : tab === 'studio' ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
                 {/* Section index */}
@@ -925,6 +971,43 @@ function SettingsPageContent() {
                         label="Late cancellations forfeit the pass credit" />
                     </>
                   ), 'policy')}
+
+                  {form.passExpiryDays && sectionCard('reminders', 'Pass expiry reminders', 'Emails members whose passes are about to expire with classes still on them, so they can use them up. Single-class passes are left out.', (
+                    <>
+                      <div role="group" aria-labelledby="f-expiry-label" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <span id="f-expiry-label" style={{ fontSize: 14, fontWeight: 600 }}>Days before expiry</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                          {[0, 1, 2].map(i => (
+                            <Input key={i} type="number" min="1" max="60" placeholder="—" aria-label={`Reminder ${i + 1}, days before expiry`}
+                              value={form.passExpiryDays![i]}
+                              onChange={e => update('passExpiryDays', form.passExpiryDays!.map((v, j) => (j === i ? e.target.value : v)))}
+                              style={{ width: 96 }} />
+                          ))}
+                        </div>
+                        <span style={{ fontSize: 13, color: color.muted, lineHeight: 1.4 }}>
+                          {expiryDays(form.passExpiryDays).length === 0
+                            ? 'No reminders are sent. Add a number of days to turn them on.'
+                            : `Sent at 9am, ${expiryDays(form.passExpiryDays).join(' and ')} days before a pass expires. Members with several passes get one email listing them all. Leave all boxes empty to turn reminders off.`}
+                        </span>
+                      </div>
+                    </>
+                  ), 'reminders')}
+
+                  {sectionCard('notifications', 'Emails to you', null, (
+                    <>
+                      <p style={{ margin: '-8px 0 0', fontSize: 14, color: color.muted, lineHeight: 1.45 }}>
+                        {savedForm.email
+                          ? <>We email <strong style={{ color: color.ink2 }}>{savedForm.email}</strong> when a member does one of these things. Turn off any you don’t need — they’re all on your dashboard’s activity feed too.</>
+                          : <>These go to your studio’s contact email, which isn’t set — add one under <a href="#profile" style={{ color: color.primaryInk }}>Studio profile</a> or none will be sent.</>}
+                      </p>
+                      {NOTIFY_TOGGLES.map(t => (
+                        <div key={t.key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <Toggle checked={form[t.key]} onChange={v => update(t.key, v)} label={t.label} />
+                          <span style={{ fontSize: 13, color: color.muted, lineHeight: 1.4, paddingLeft: 54 }}>{t.hint}</span>
+                        </div>
+                      ))}
+                    </>
+                  ), 'notifications')}
 
                   {sectionCard('waiver', 'Liability waiver', "Your studio's own waiver. The platform Terms & Conditions are CalaStudio's and the same for every studio.", (
                     <>

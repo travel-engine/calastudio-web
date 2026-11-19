@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import styles from '../photofirst.module.css'
 import PricingList, { type PassTemplate } from '../PricingList'
+import type { MembershipTemplate } from '@/lib/memberships'
 import StudioFooter from '../StudioFooter'
 import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 import { getStudioContent, type PageContentDto } from '../studioContent'
@@ -47,9 +48,11 @@ export default async function PricingPage({ params }: Props) {
   const { studioSlug } = await params
   const base = process.env.NEXT_PUBLIC_API_URL
 
-  const [orgRes, tplRes] = await Promise.all([
+  const [orgRes, tplRes, memRes] = await Promise.all([
     fetch(`${base}/api/public/${studioSlug}`, { next: { revalidate: 60 } }),
     fetch(`${base}/api/public/${studioSlug}/pass-templates`, { next: { revalidate: 60 } }),
+    // Optional: an API without memberships just means no memberships section.
+    fetch(`${base}/api/public/${studioSlug}/membership-templates`, { next: { revalidate: 60 } }).catch(() => null),
   ])
   if (orgRes.status === 404) notFound()
   if (!orgRes.ok || !tplRes.ok) throw new Error('Failed to load pricing')
@@ -57,6 +60,7 @@ export default async function PricingPage({ params }: Props) {
   const org: PublicOrgInfo & { theme?: string | null } = await orgRes.json()
   const themed = (await studioThemeForRequest(org.theme)).layout === 'themed'
   const templates: PassTemplate[] = await tplRes.json()
+  const memberships: MembershipTemplate[] = memRes?.ok ? await memRes.json().catch(() => []) : []
   const content = getStudioContent(studioSlug, org.page_content)
 
   const origin = studioOrigin(studioSlug)
@@ -75,12 +79,17 @@ export default async function PricingPage({ params }: Props) {
       <main className={styles.container}>
         <header className={styles.pageHeader}>
           <h1 className={styles.h1}>Pricing</h1>
-          <p className={styles.lead}>Class passes at {org.name}. Buy one now, or use it next time you book.</p>
+          <p className={styles.lead}>
+            {memberships.length > 0
+              ? `Memberships and class passes at ${org.name}. Join or buy now, then book your classes.`
+              : `Class passes at ${org.name}. Buy one now, or use it next time you book.`}
+          </p>
         </header>
 
         <PricingList
           studioSlug={studioSlug}
           templates={templates}
+          memberships={memberships}
           orgId={org.id}
           currency={org.currency}
           brandColor={org.brand_color || '#085041'}

@@ -35,6 +35,21 @@ Studio-wide defaults that every session uses unless it sets its own:
 
 See **Sessions → Cancellation policy** for how these combine with a session's own settings.
 
+## Emails to you
+
+CalaStudio emails your studio's **contact email** (set under **Studio profile**) when a member does something. Each email has its own switch, and all of them start switched on:
+
+- **A new member signs up:** someone creates an account on your booking page
+- **A pass or membership is bought:** a member buys one online
+- **A member books a class:** with a pass, by card or for free
+- **A booking or membership is cancelled:** a member cancels a booking or their membership
+
+These are only sent for things members do themselves. When you add a member, make a booking or cancel a class, you won't get an email. You'll always get an email when a membership ends because its payments failed, even with the switch off. If you have no contact email, none of these are sent.
+
+Getting too many? Turn off new sign-ups and purchases first. Both also appear in the activity feed on your dashboard. Cancellations are also safe to turn off: when a spot opens up, the next person on the waitlist is offered it automatically.
+
+Click **Save** on the card after changing a switch.
+
 ## Liability waiver
 
 Your studio's own waiver, separate from CalaStudio's platform terms.

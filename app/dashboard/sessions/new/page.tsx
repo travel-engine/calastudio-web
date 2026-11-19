@@ -69,10 +69,12 @@ function NewSessionPageContent() {
     instructorId: '',
     photoUrl: '',
     approvedPassTemplateIds: [] as string[],
+    approvedMembershipTemplateIds: [] as string[],
     allowDropIn: false,
   })
   const [teachers, setTeachers] = useState<{ id: string; name: string }[]>([])
   const [passTemplates, setPassTemplates] = useState<{ id: string; name: string }[]>([])
+  const [membershipTemplates, setMembershipTemplates] = useState<{ id: string; name: string }[]>([])
   const searchParams = useSearchParams()
   const copyId = searchParams.get('copy')
 
@@ -105,6 +107,15 @@ function NewSessionPageContent() {
       if (passTemplatesRes.ok) {
         const data = await passTemplatesRes.json()
         setPassTemplates(data.map((t: any) => ({ id: t.id, name: t.name })))
+      }
+
+      // Membership plans on sale (an API without memberships just leaves the list empty).
+      const membershipRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}/membership-templates`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => null)
+      if (membershipRes?.ok) {
+        const data = await membershipRes.json()
+        setMembershipTemplates(data.map((t: any) => ({ id: t.id, name: t.name })))
       }
 
       setCheckingAccess(false)
@@ -174,6 +185,9 @@ function NewSessionPageContent() {
             approvedPassTemplateIds: rows
               .filter((r: any) => r.pricing_type === 'pass_template')
               .map((r: any) => r.pass_template_id),
+            approvedMembershipTemplateIds: rows
+              .filter((r: any) => r.pricing_type === 'membership_template')
+              .map((r: any) => r.membership_template_id),
             allowDropIn: rows.some((r: any) => r.pricing_type === 'drop_in'),
           }))
         }
@@ -191,6 +205,13 @@ function NewSessionPageContent() {
       ? form.approvedPassTemplateIds.filter(x => x !== id)
       : [...form.approvedPassTemplateIds, id]
     update('approvedPassTemplateIds', ids)
+  }
+
+  const toggleMembershipTemplate = (id: string) => {
+    const ids = form.approvedMembershipTemplateIds.includes(id)
+      ? form.approvedMembershipTemplateIds.filter(x => x !== id)
+      : [...form.approvedMembershipTemplateIds, id]
+    update('approvedMembershipTemplateIds', ids)
   }
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -315,6 +336,7 @@ function NewSessionPageContent() {
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
               body: JSON.stringify({
                 pass_template_ids: form.approvedPassTemplateIds,
+                membership_template_ids: form.approvedMembershipTemplateIds,
                 allow_drop_in: form.allowDropIn,
               })
             }
@@ -513,7 +535,7 @@ function NewSessionPageContent() {
             </div>
 
             {form.bookingAccessMode === 'restricted' && (
-              <Field label="Approved pricing options" hint="Only these passes (and optionally drop-in payment) can be used to book this session. Bookings you add yourself skip this list.">
+              <Field label="Approved pricing options" hint="Only these passes and memberships (and optionally drop-in payment) can be used to book this session. Bookings you add yourself skip this list.">
                 <div>
                   <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.control, padding: '4px 14px' }}>
                     {passTemplates.length === 0 ? (
@@ -523,11 +545,16 @@ function NewSessionPageContent() {
                         <CheckRow checked={form.approvedPassTemplateIds.includes(pt.id)} onChange={() => togglePassTemplate(pt.id)}>{pt.name}</CheckRow>
                       </div>
                     ))}
+                    {membershipTemplates.map(m => (
+                      <div key={m.id} style={{ borderTop: `1px solid ${color.divider}` }}>
+                        <CheckRow checked={form.approvedMembershipTemplateIds.includes(m.id)} onChange={() => toggleMembershipTemplate(m.id)}>{m.name} (membership)</CheckRow>
+                      </div>
+                    ))}
                     <div style={{ borderTop: `1px solid ${color.divider}` }}>
                       <CheckRow checked={form.allowDropIn} onChange={v => update('allowDropIn', v)}>Allow drop-in payment</CheckRow>
                     </div>
                   </div>
-                  {form.approvedPassTemplateIds.length === 0 && !form.allowDropIn && (
+                  {form.approvedPassTemplateIds.length === 0 && form.approvedMembershipTemplateIds.length === 0 && !form.allowDropIn && (
                     <p role="alert" style={{ margin: '8px 0 0', fontSize: 13, color: color.dangerInk }}>
                       Select at least one option — otherwise nobody can self-book this session.
                     </p>
