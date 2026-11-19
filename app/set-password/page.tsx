@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { EmailOtpType } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
-import { MIN_PASSWORD_LENGTH, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
+import { MIN_PASSWORD_LENGTH, PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import Link from 'next/link'
 import PasswordInput from '@/app/components/PasswordInput'
 import { useRouter } from 'next/navigation'
@@ -372,6 +372,7 @@ export default function SetPasswordPage() {
                   outline: 'none'
                 }}
               />
+              <p id="password-hint" style={{ margin: '6px 0 0', fontSize: '13px', color: '#666' }}>{PASSWORD_HINT}</p>
             </div>
 
             <div>
