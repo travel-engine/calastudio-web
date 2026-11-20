@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   // Lets the dev server serve HMR/JS assets to requests coming from this machine's LAN IP —
@@ -38,4 +39,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry: uploads source maps at build time so error reports show our real code, not minified
+// bundles. Needs SENTRY_AUTH_TOKEN, SENTRY_ORG and SENTRY_PROJECT in Vercel; without them the build
+// still succeeds, just without readable stack traces. The runtime side is in instrumentation*.ts.
+export default withSentryConfig(nextConfig, {
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+});
