@@ -36,6 +36,9 @@ export interface PassTemplateOption {
   expiry_type: 'fixed_date' | 'rolling_days' | 'rolling_months'
   expiry_rolling_value: number | null
   expiry_fixed_date: string | null
+  // Purchase limits (API #92), for labels only: options the member can't buy aren't sent.
+  limit_per_member?: number | null
+  new_members_only?: boolean
 }
 
 export interface BookingOptions {

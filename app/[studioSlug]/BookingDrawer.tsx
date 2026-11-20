@@ -622,7 +622,11 @@ export default function BookingDrawer() {
   // member has no usable pass, and when their pass is short of credits for this booking.
   const renderPassOffers = () => {
     return bookingOptions?.purchasable_pass_templates?.map((pt: PassTemplateOption) => {
-      const detail = [passCreditText(pt), passExpiryText(pt)].filter(Boolean).join(' · ')
+      const detail = [
+        passCreditText(pt), passExpiryText(pt),
+        pt.new_members_only ? 'New members only' : null,
+        pt.limit_per_member ? `Limit ${pt.limit_per_member} per member` : null,
+      ].filter(Boolean).join(' · ')
       return (
       <div key={pt.id} className={styles.optionCardPf} style={{ cursor: 'default', marginBottom: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
