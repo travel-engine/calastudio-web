@@ -178,4 +178,14 @@
     border-bottom: 1px solid var(--line);
     font-size: 16px;
   }
+
+  /* The drop-down sits on the page background, not the photo: undo the light-on-photo colours,
+     which left the menu's links white on white on the home page. */
+  .barOverPhoto .link {
+    color: var(--text-meta);
+  }
+
+  .barOverPhoto .linkActive {
+    color: var(--ink);
+  }
 }
