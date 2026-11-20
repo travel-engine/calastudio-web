@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Bricolage_Grotesque, Manrope } from 'next/font/google'
+import { homeBody as body, homeDisplay as display } from '@/lib/fonts'
 import styles from './home.module.css'
 import { SITE_URL } from '@/lib/seo'
 import { JsonLd } from '@/lib/jsonLd'
@@ -16,8 +16,6 @@ import { PRICING } from '@/app/components/marketing/pricing'
 
 // Public homepage, built from handoff/index.html. Fonts are scoped to this page so the dashboard
 // and studio sites keep theirs.
-const display = Bricolage_Grotesque({ subsets: ['latin'], weight: ['500', '700'], display: 'swap', variable: '--font-home-display' })
-const body = Manrope({ subsets: ['latin'], weight: ['400', '500', '600', '700'], display: 'swap', variable: '--font-home-body' })
 
 const title = 'CalaStudio — booking software for teachers who teach in more than one place'
 const description =

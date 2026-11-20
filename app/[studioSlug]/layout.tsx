@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { Manrope } from 'next/font/google'
+import { manrope } from '@/lib/fonts'
 import StudioNav from './StudioNav'
 import ThemeSwitcher from './ThemeSwitcher'
 import { InstallCapture } from './InstallAppPrompt'
@@ -13,7 +13,6 @@ import { studioThemeForRequest } from '@/lib/resolveStudioTheme'
 // Photo First uses Manrope (handoff §Global). Self-hosted via next/font; the variable is set on
 // the studio-tree wrapper below and consumed through --font-body in theme.ts. Scoped here rather
 // than in the root layout so the dashboard keeps its system font.
-const manrope = Manrope({ subsets: ['latin'], weight: ['300', '400', '500', '700'], variable: '--font-manrope' })
 
 interface Props {
   children: React.ReactNode
