@@ -47,6 +47,8 @@ export default function NewPassTemplatePage() {
     taxRateOverride: '',
     validFrom: '',
     validUntil: '',
+    limitPerMember: '',
+    newMembersOnly: false,
   })
 
   const update = (key: string, value: string | boolean | string[]) =>
@@ -126,6 +128,8 @@ export default function NewPassTemplatePage() {
           tax_rate_override: form.taxRateOverride ? parseFloat(form.taxRateOverride) : null,
           valid_from: form.validFrom || null,
           valid_until: form.validUntil || null,
+          limit_per_member: form.limitPerMember ? parseInt(form.limitPerMember) : null,
+          new_members_only: form.newMembersOnly,
         })
       })
 
@@ -362,6 +366,21 @@ export default function NewPassTemplatePage() {
             </Field>
             <Field label="Valid until">
               <Input type="date" value={form.validUntil} onChange={e => update('validUntil', e.target.value)} />
+            </Field>
+          </div>
+
+          <SectionHeader title="Who can buy it" description="For offers such as Black Friday deals or a new-student intro pass. Staff can still give this pass to anyone." />
+
+          <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <Field label="Limit per member" hint="How many times one member can buy it. Leave blank for no limit.">
+              <Input type="number" min={1} step={1} placeholder="No limit" value={form.limitPerMember} onChange={e => update('limitPerMember', e.target.value)} />
+            </Field>
+            <Field label="New members only" hint="Only people who haven't booked or bought here before.">
+              <ToggleGroup
+                value={String(form.newMembersOnly) as 'true' | 'false'}
+                onChange={v => update('newMembersOnly', v === 'true')}
+                options={[{ value: 'false', label: 'Anyone' }, { value: 'true', label: 'New members only' }]}
+              />
             </Field>
           </div>
 

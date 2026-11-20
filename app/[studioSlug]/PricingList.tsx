@@ -23,6 +23,23 @@ export interface PassTemplate {
   expiry_fixed_date: string | null
   session_type_restriction: string[] | null
   delivery_mode_restriction: string[] | null
+  // Purchase limits (API #92): shown as labels; the API enforces them.
+  limit_per_member?: number | null
+  new_members_only?: boolean
+}
+
+type Eligibility = { eligible: boolean | null; ineligible_reason: 'limit_reached' | 'not_new_member' | null }
+
+const INELIGIBLE: Record<string, string> = {
+  limit_reached: 'You’ve already used this offer',
+  not_new_member: 'For new members only',
+}
+
+function limitLabels(t: PassTemplate): string[] {
+  return [
+    t.new_members_only ? 'New members only' : null,
+    t.limit_per_member ? `Limit ${t.limit_per_member} per member` : null,
+  ].filter((x): x is string => !!x)
 }
 
 // Pinned locale: this component is SSR'd then hydrated, so an undefined (runtime-default) locale
@@ -82,6 +99,8 @@ export default function PricingList({
   const [buying, setBuying] = useState<PassTemplate | null>(null)
   const [justBought, setJustBought] = useState<string | null>(null)
   const [joining, setJoining] = useState<MembershipTemplate | null>(null)
+  // For a signed-in member: which limited offers they can't buy (the page itself is cached for all).
+  const [eligibility, setEligibility] = useState<Record<string, Eligibility>>({})
 
   useEffect(() => {
     const supabase = createClient()
@@ -89,6 +108,20 @@ export default function PricingList({
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setToken(session?.access_token ?? null))
     return () => subscription.unsubscribe()
   }, [])
+
+  const hasLimits = templates.some(t => t.limit_per_member || t.new_members_only)
+  useEffect(() => {
+    if (!token || !hasLimits) { setEligibility({}); return }
+    let cancelled = false
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/public/${studioSlug}/pass-templates`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => (r.ok ? r.json() : []))
+      .then((rows: (PassTemplate & Eligibility)[]) => {
+        if (cancelled) return
+        setEligibility(Object.fromEntries(rows.map(r => [r.id, { eligible: r.eligible ?? null, ineligible_reason: r.ineligible_reason ?? null }])))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [token, hasLimits, studioSlug, justBought])
 
   if (templates.length === 0 && memberships.length === 0) {
     return <div className={styles.emptyState}>This studio doesn&apos;t have any passes for sale right now.</div>
@@ -154,6 +187,9 @@ export default function PricingList({
             <div key={t.id} className={styles.passListCard}>
               <div className={styles.passListName}>{t.name}</div>
               <div className={styles.passListPrice}>{money(t.price, t.currency || currency)}</div>
+              {limitLabels(t).length > 0 && (
+                <div className={styles.passListMuted} style={{ marginTop: '4px', fontWeight: 600 }}>{limitLabels(t).join(' · ')}</div>
+              )}
               <CardDetails>
                 <div className={styles.passListDetail}>
                   {unlimited ? 'Unlimited classes' : `${t.credit_count} class${t.credit_count === 1 ? '' : 'es'}`}
@@ -164,7 +200,11 @@ export default function PricingList({
               </CardDetails>
 
               <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
-                {action(t.id, 'Buy this pass', () => setBuying(t), 'Added')}
+                {justBought !== t.id && eligibility[t.id]?.eligible === false ? (
+                  <div style={{ fontSize: '15px', color: 'var(--text-meta)', fontWeight: 600 }}>
+                    {INELIGIBLE[eligibility[t.id].ineligible_reason ?? ''] ?? 'Not available to you'}
+                  </div>
+                ) : action(t.id, 'Buy this pass', () => setBuying(t), 'Added')}
               </div>
             </div>
           )
