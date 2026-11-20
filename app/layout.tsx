@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { SITE_URL } from '@/lib/seo'
 import MojibakeCanary from '@/app/components/MojibakeCanary'
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import './globals.css'
 
 const description =
@@ -47,6 +49,10 @@ export default function RootLayout({
       <body>
         {process.env.NODE_ENV !== 'production' && <MojibakeCanary />}
         {children}
+        {/* Vercel Web Analytics (page views, no cookies) and Speed Insights (real-visitor load
+            times). Both only collect once switched on in the Vercel project. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )

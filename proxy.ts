@@ -68,5 +68,7 @@ function apexOrigin(request: NextRequest): string {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // _vercel: Web Analytics / Speed Insights endpoints (/_vercel/insights, /_vercel/speed-insights),
+  // which must never be rewritten to a studio page or redirected to a "_vercel" subdomain.
+  matcher: ['/((?!_next/static|_next/image|_vercel|favicon.ico).*)'],
 }

@@ -36,6 +36,7 @@ export default function PrivacyPage() {
         <li><strong>Payments:</strong> amounts, dates and status. Card details are entered into Stripe&rsquo;s secure form and never reach our servers.</li>
         <li><strong>Agreements:</strong> when you accepted these Terms and a studio&rsquo;s Liability Waiver, and which version.</li>
         <li><strong>Technical information:</strong> sign-in times, device and browser details and logs, used to run and secure the service.</li>
+        <li><strong>Usage and errors:</strong> which pages are visited, how quickly they load, and details of errors when something breaks (the page, browser and device). This is collected without cookies and without your name, email or account details.</li>
       </UL>
 
       <H2>How we use it</H2>
@@ -51,14 +52,14 @@ export default function PrivacyPage() {
       <H2>Who we share it with</H2>
       <UL>
         <li>the studio(s) you book with or work at;</li>
-        <li>service providers that host and run CalaStudio for us, under contract: Supabase (database and sign-in), DigitalOcean (application servers), Vercel (website hosting), Stripe (payments), and Resend (email);</li>
+        <li>service providers that host and run CalaStudio for us, under contract: Supabase (database and sign-in), DigitalOcean (application servers), Vercel (website hosting and page-visit analytics), Sentry (error monitoring), Stripe (payments), and Resend (email);</li>
         <li>authorities, where the law requires.</li>
       </UL>
 
       <H2>Where it&rsquo;s stored</H2>
       <P>
         Our database and application servers are in <strong>Singapore</strong>. Some providers, such as Vercel,
-        Stripe and Resend, may also process information in other countries, including the United States. We
+        Sentry, Stripe and Resend, may also process information in other countries, including the United States. We
         choose providers with strong security and contractual privacy protections.
       </P>
 
