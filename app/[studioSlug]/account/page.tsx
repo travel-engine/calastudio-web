@@ -14,6 +14,7 @@ import MyMemberships from './MyMemberships'
 import InstallAppPrompt from '../InstallAppPrompt'
 import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
+import SocialSignIn, { nameFromProviderMetadata } from '@/app/components/SocialSignIn'
 
 interface OrgInfo {
   id: string
@@ -352,6 +353,12 @@ function MemberAccountContent() {
   // Initial auth check — resume an existing session (including one just verified via /auth/callback)
   useEffect(() => {
     const init = async () => {
+      // Back from a Google / Apple sign-in that didn't complete (cancelled, or the provider refused).
+      const qs = new URLSearchParams(window.location.search)
+      if (qs.get('error') === 'auth') {
+        setPortalError("That sign-in didn't complete. Please try again, or sign in with your email.")
+        window.history.replaceState(null, '', window.location.pathname)
+      }
       try {
         const supabase = createClient()
         const { data: { session } } = await supabase.auth.getSession()
@@ -361,8 +368,10 @@ function MemberAccountContent() {
           clearRememberChoice()
         } else if (session) {
           setAccessToken(session.access_token)
-          const meta = session.user.user_metadata as { full_name?: string; phone?: string } | undefined
-          await resolveMembership(session.access_token, { fullName: meta?.full_name, phone: meta?.phone })
+          // Email sign-up stores full_name; Google / Apple give it under their own keys.
+          const meta = session.user.user_metadata as Record<string, unknown> | undefined
+          const phone = typeof meta?.phone === 'string' ? meta.phone : undefined
+          await resolveMembership(session.access_token, { fullName: nameFromProviderMetadata(meta), phone })
         }
       } finally {
         setChecking(false)
@@ -853,6 +862,10 @@ function MemberAccountContent() {
               {portalError}
             </div>
           )}
+
+          <div style={{ marginBottom: '14px' }}>
+            <SocialSignIn variant="studio" onBeforeRedirect={() => setRememberChoice(rememberMe)} />
+          </div>
 
           <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {authMode === 'signup' && (

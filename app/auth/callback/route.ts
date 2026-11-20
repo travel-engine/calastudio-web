@@ -8,6 +8,24 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 //                                   so it only works in the same browser)
 //   ?token_hash=…&type=signup|…    (OTP — verifier-free, works cross-browser; what the current
 //                                   Supabase email templates send)
+// Before anything else, let the API fold any existing CalaStudio record with this email onto the
+// signed-in user (POST /api/account/link, idempotent). Needed for Google / Apple sign-in: a member
+// imported with their welcome email held has no auth user yet, so the provider sign-in creates a new
+// one and their memberships, passes and history must be adopted onto it. Non-fatal: the register
+// call on the studio site merges by email too.
+async function linkAccount(accessToken: string | undefined) {
+  if (!accessToken) return
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/account/link`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(8000),
+    })
+  } catch {
+    // Carry on; the person is signed in either way.
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
@@ -49,11 +67,17 @@ export async function GET(request: NextRequest) {
   )
 
   if (tokenHash && type) {
-    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
-    if (!error) return NextResponse.redirect(new URL(next, origin))
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+    if (!error) {
+      await linkAccount(data.session?.access_token)
+      return NextResponse.redirect(new URL(next, origin))
+    }
   } else if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) return NextResponse.redirect(new URL(next, origin))
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) {
+      await linkAccount(data.session?.access_token)
+      return NextResponse.redirect(new URL(next, origin))
+    }
   }
 
   return NextResponse.redirect(failUrl)

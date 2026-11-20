@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { MIN_PASSWORD_LENGTH, PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import PasswordInput from '@/app/components/PasswordInput'
+import SocialSignIn from '@/app/components/SocialSignIn'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -71,6 +72,12 @@ export default function RegisterPage() {
           <p style={{ color: '#666', marginTop: '8px', fontSize: '14px' }}>
             Get your studio live in under 30 minutes
           </p>
+        </div>
+
+        {/* Google / Apple: straight into the onboarding wizard, which takes the studio's details
+            and the Terms acceptance. */}
+        <div style={{ marginBottom: '16px' }}>
+          <SocialSignIn next="/onboarding" />
         </div>
 
         {/* Form */}
