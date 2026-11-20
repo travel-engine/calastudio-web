@@ -138,13 +138,14 @@ export function formatFriendlyDay(input: DateInput, timeZone?: string | null): s
   return `${weekday} ${formatDayMonth(d, timeZone)}`
 }
 
-/** Schedule day heading: "Today - Fri 20-Nov-2026", "Tomorrow - Sat 21-Nov-2026", else "Sunday 22 Nov". */
+/** Schedule day heading: "Today - Friday 20 Nov", "Tomorrow - Saturday 21 Nov", else "Sunday 22 Nov". */
 export function formatDayHeading(input: DateInput, timeZone?: string | null): string {
   const d = toDate(input)
   if (!d) return ''
   const label = formatDayLabel(d, timeZone)
-  if (label === 'Today' || label === 'Tomorrow') return `${label} - ${formatDateWithWeekday(d, timeZone)}`
-  return formatFriendlyDay(d, timeZone)
+  const zone = safeZone(timeZone)
+  const date = `${d.toLocaleDateString(ADMIN_LOCALE, { weekday: 'long', timeZone: zone })} ${formatDayMonth(d, timeZone)}`
+  return label === 'Today' || label === 'Tomorrow' ? `${label} - ${date}` : date
 }
 
 /** "11 Sep", with the year only when it isn't this year: "11 Sep 2025" */
