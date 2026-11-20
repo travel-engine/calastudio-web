@@ -15,6 +15,7 @@ import InstallAppPrompt from './InstallAppPrompt'
 import CalendarLinks from './CalendarLinks'
 import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
+import SocialSignIn, { nameFromProviderMetadata } from '@/app/components/SocialSignIn'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -87,14 +88,38 @@ const STEP_LABELS: Record<string, string> = {
   error: '',
 }
 
+const RESUME_KEY = 'cs-resume-booking'
+
 export default function BookingDrawer() {
   const {
-    studioSlug, occurrence, step, bookedMode, accessToken, orgId, stripeAccountId, paymentsEnabled, timeZone,
+    studioSlug, occurrence, step, bookedMode, accessToken, orgId, stripeAccountId, paymentsEnabled, timeZone, brandColor,
     bookingOptions, confirmedBooking, errorMessage, joiningWaitlist, joinedWaitlistEntry,
     close, setStep, setAuth, setBookingOptions, setConfirmedBooking, setError,
-    goToWaitlist, setJoinedWaitlist,
+    goToWaitlist, setJoinedWaitlist, openOccurrence,
   } = useBookingFlow()
   const accountHref = studioSlug ? studioPath(studioSlug, '/account') : '/'
+
+  // Google / Apple sign-in leaves the page. Remember which class was being booked so the panel
+  // reopens on it when the provider sends the member back (same tab, so sessionStorage survives).
+  const stashBookingForReturn = () => {
+    if (!studioSlug || !occurrence) return
+    try {
+      sessionStorage.setItem(RESUME_KEY, JSON.stringify({
+        at: Date.now(), studioSlug, occurrence,
+        opts: { brandColor, stripeAccountId, paymentsEnabled, timeZone },
+      }))
+    } catch { /* storage unavailable: the member just picks the class again */ }
+  }
+  useEffect(() => {
+    let saved: string | null = null
+    try { saved = sessionStorage.getItem(RESUME_KEY); sessionStorage.removeItem(RESUME_KEY) } catch { return }
+    if (!saved) return
+    try {
+      const r = JSON.parse(saved)
+      if (Date.now() - r.at < 30 * 60 * 1000 && r.occurrence && r.studioSlug) openOccurrence(r.studioSlug, r.occurrence, r.opts)
+    } catch { /* ignore a malformed entry */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
@@ -189,12 +214,13 @@ export default function BookingDrawer() {
     }
   }
 
-  const resolveAuth = async (token: string) => {
+  // `nameHint`: the name Google / Apple gave, for a member who signed in that way (no name typed).
+  const resolveAuth = async (token: string, nameHint = '') => {
     if (!occurrence || !studioSlug) return
     const registerRes = await fetch(`${apiUrl}/api/public/${studioSlug}/members/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...splitName(fullName), phone: null, accept_terms: agreeTerms, accept_waiver: agreeWaiver })
+      body: JSON.stringify({ ...splitName(fullName.trim() || nameHint), phone: null, accept_terms: agreeTerms, accept_waiver: agreeWaiver })
     })
     if (!registerRes.ok) {
       const data = await registerRes.json().catch(() => null)
@@ -285,7 +311,7 @@ export default function BookingDrawer() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return
       if (session) {
-        await resolveAuth(session.access_token)
+        await resolveAuth(session.access_token, nameFromProviderMetadata(session.user.user_metadata))
       }
       if (!cancelled) setCheckingAuth(false)
     })
@@ -737,6 +763,10 @@ export default function BookingDrawer() {
                   ? 'Sign in with your email to book. New here? Create an account — your class selection is saved.'
                   : 'Create your account to book. Your class selection is saved.'}
               </p>
+
+              <div style={{ marginBottom: '16px' }}>
+                <SocialSignIn variant="studio" onBeforeRedirect={stashBookingForReturn} />
+              </div>
 
               <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {authMode === 'signup' && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { setRememberChoice } from '@/lib/authRemember'
 import { getOrgContext, PLATFORM_ADMIN } from '@/lib/orgContext'
@@ -9,6 +9,7 @@ import { studioUrl } from '@/lib/seo'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import PasswordInput from '@/app/components/PasswordInput'
+import SocialSignIn from '@/app/components/SocialSignIn'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -17,6 +18,39 @@ export default function LoginPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  // Staff → dashboard; member-only → the studio's member site; no studio yet → onboarding.
+  const routeOnward = async () => {
+    try {
+      const ctx = await getOrgContext({ fresh: true })
+      if (ctx.status !== 'ok') { router.push('/onboarding'); return }
+      if (isStaff(ctx.roles)) { router.push('/dashboard'); return }
+      if (ctx.roles.includes(PLATFORM_ADMIN)) { router.push('/admin'); return }
+      window.location.href = studioUrl(ctx.org.slug, '/account')
+    } catch {
+      setMessage("Signed in, but couldn't reach the server. Please try again.")
+      setLoading(false)
+    }
+  }
+
+  // Back from Google / Apple: /auth/callback has set the session and sent us to /login?continue=1
+  // (or ?error=auth when the provider sign-in didn't complete).
+  useEffect(() => {
+    const qs = new URLSearchParams(window.location.search)
+    if (qs.get('error')) {
+      setMessage("That sign-in didn't complete. Please try again, or sign in with your email.")
+      window.history.replaceState(null, '', '/login')
+      return
+    }
+    if (!qs.get('continue')) return
+    window.history.replaceState(null, '', '/login')
+    setLoading(true)
+    createClient().auth.getSession().then(({ data: { session } }) => {
+      if (session) routeOnward()
+      else setLoading(false)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,18 +69,7 @@ export default function LoginPage() {
     }
 
     setRememberChoice(rememberMe)
-
-    try {
-      // Staff → dashboard; member-only → the studio's member site; no studio yet → onboarding.
-      const ctx = await getOrgContext({ fresh: true })
-      if (ctx.status !== 'ok') { router.push('/onboarding'); return }
-      if (isStaff(ctx.roles)) { router.push('/dashboard'); return }
-      if (ctx.roles.includes(PLATFORM_ADMIN)) { router.push('/admin'); return }
-      window.location.href = studioUrl(ctx.org.slug, '/account')
-    } catch {
-      setMessage("Signed in, but couldn't reach the server. Please try again.")
-      setLoading(false)
-    }
+    await routeOnward()
   }
 
   return (
@@ -85,6 +108,10 @@ export default function LoginPage() {
           <p style={{ color: '#666', marginTop: '8px', fontSize: '14px' }}>
             Sign in to your studio
           </p>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <SocialSignIn next="/login?continue=1" onBeforeRedirect={() => setRememberChoice(rememberMe)} />
         </div>
 
         {/* Form */}
