@@ -3,8 +3,7 @@ import Link from 'next/link'
 import { LegalPage, H2, P, UL } from '@/app/components/LegalPage'
 
 // Privacy Policy for the CalaStudio platform (Privacy Act 1988 (Cth), Australian Privacy Principles).
-// Draft prepared for review; the [bracketed] details must be filled in before it goes live. Keep
-// the list of service providers in sync with where the platform actually runs.
+// Keep the list of service providers in sync with where the platform actually runs.
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -13,9 +12,9 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy Policy" effective="[effective date]">
+    <LegalPage title="Privacy Policy" effective="20 November 2026">
       <P>
-        This policy explains how <strong>[Travel Engine legal entity name]</strong> (ABN 42 668 448 011), which operates
+        This policy explains how <strong>Travel Generator Pty Ltd trading as Travel Engine</strong> (ABN 42 668 448 011), which operates
         CalaStudio, handles personal information. We follow the Australian Privacy Principles in the Privacy Act
         1988 (Cth).
       </P>
@@ -85,7 +84,7 @@ export default function PrivacyPage() {
 
       <H2>Questions and complaints</H2>
       <P>
-        Contact us at <strong>[privacy contact email]</strong>. We&rsquo;ll respond within 30 days. If
+        Contact us at <a style={{ color: '#085041' }} href="mailto:privacy@calastudio.app"><strong>privacy@calastudio.app</strong></a>. We&rsquo;ll respond within 30 days. If
         you&rsquo;re not satisfied with our response, you can complain to the Office of the Australian Information
         Commissioner at oaic.gov.au.
       </P>

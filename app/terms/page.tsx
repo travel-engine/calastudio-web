@@ -6,7 +6,6 @@ import { LegalPage, H2, P, UL } from '@/app/components/LegalPage'
 // document for studio owners, staff and members, accepted once per person. VERSION must match
 // PlatformTerms.CurrentVersion in CalaStudio.Api: changing the wording means bumping both, which
 // re-prompts everyone at their next sign-in.
-// Draft prepared for review; the [bracketed] details must be filled in before it goes live.
 
 const VERSION = 'v2'
 
@@ -17,10 +16,10 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms & Conditions" version={VERSION} effective="[effective date]">
+    <LegalPage title="Terms & Conditions" version={VERSION} effective="20 November 2026">
       <P>
         These terms apply when you use CalaStudio, whether you run a studio on it, work at one, or book classes
-        with one. CalaStudio is operated by <strong>[Travel Engine legal entity name]</strong> (ABN 42 668 448 011)
+        with one. CalaStudio is operated by <strong>Travel Generator Pty Ltd trading as Travel Engine</strong> (ABN 42 668 448 011)
         (&ldquo;CalaStudio&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;). By creating an account or ticking
         &ldquo;I accept the Terms &amp; Conditions&rdquo;, you agree to them.
       </P>
@@ -115,12 +114,12 @@ export default function TermsPage() {
 
       <H2>11. General</H2>
       <P>
-        These terms are governed by the laws of [Queensland], Australia. If part of them can&rsquo;t be enforced,
+        These terms are governed by the laws of Victoria, Australia. If part of them can&rsquo;t be enforced,
         the rest still applies.
       </P>
 
       <H2>12. Contact</H2>
-      <P>Questions about these terms: <strong>[contact email]</strong>.</P>
+      <P>Questions about these terms: <a style={{ color: '#085041' }} href="mailto:support@calastudio.app"><strong>support@calastudio.app</strong></a>.</P>
     </LegalPage>
   )
 }
