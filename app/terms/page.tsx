@@ -4,8 +4,9 @@ import { LegalPage, H2, P, UL } from '@/app/components/LegalPage'
 
 // Platform Terms & Conditions (spec 03-member-management.md §3.10, 01-onboarding.md §1.2). One
 // document for studio owners, staff and members, accepted once per person. VERSION must match
-// PlatformTerms.CurrentVersion in CalaStudio.Api: changing the wording means bumping both, which
-// re-prompts everyone at their next sign-in.
+// PlatformTerms.CurrentVersion in CalaStudio.Api: changing the wording means bumping both. Anyone
+// signed in on an older version then sees the "We've updated our Terms" prompt
+// (app/components/TermsUpdatePrompt.tsx) in the dashboard or on a studio site until they accept.
 
 const VERSION = 'v2'
 
