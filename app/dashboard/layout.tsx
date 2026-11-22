@@ -1,6 +1,7 @@
 import { adminBody as body, adminDisplay as display } from '@/lib/fonts'
 import SessionPolicyGuard from '@/app/components/SessionPolicyGuard'
 import DashboardAccessGuard from '@/app/components/DashboardAccessGuard'
+import TermsUpdatePrompt from '@/app/components/TermsUpdatePrompt'
 import { InstallCapture } from '@/app/[studioSlug]/InstallAppPrompt'
 import { color, font } from '@/lib/ui/tokens'
 
@@ -25,6 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <meta name="theme-color" content={color.bg} />
       <InstallCapture />
       <SessionPolicyGuard />
+      <TermsUpdatePrompt />
       <DashboardAccessGuard>{children}</DashboardAccessGuard>
     </div>
   )
