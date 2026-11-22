@@ -13,6 +13,7 @@ import { Button, CapacityBar, Card, Chip, PageHeader, StatTile } from '@/app/com
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 import GoogleLinkTip from './GoogleLinkTip'
+import InstallDashboardTip from './InstallDashboardTip'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -304,6 +305,7 @@ export default function DashboardPage() {
               )}
 
               {studio?.slug && canManageSettings(roles) && <GoogleLinkTip orgId={studio.id} slug={studio.slug} />}
+              <InstallDashboardTip />
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
                 <Card style={{ flex: '999 1 520px', minWidth: 0, overflow: 'hidden' }} aria-labelledby="next-up-heading">
