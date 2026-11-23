@@ -6,6 +6,7 @@ import { displayName } from '@/lib/names'
 import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, Chip, Field, Modal, alertStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
+import WelcomeEmailForm from './WelcomeEmailForm'
 
 // Bulk member import for studios moving from another system (spec 03 §3.6, API #85).
 // One row per member. Besides the member columns, any column headed with the exact name of one of
@@ -74,9 +75,10 @@ function passSummary(p: PassCell) {
   return `${p.pass_name ?? p.column}: ${balance}${p.expires_at ? `, until ${p.expires_at.slice(0, 10)}` : ''}`
 }
 
-export default function ImportMembersModal({ orgId, token, onClose, onImported }: {
+export default function ImportMembersModal({ orgId, token, studioName, onClose, onImported }: {
   orgId: string
   token: string
+  studioName?: string
   onClose: () => void
   // After a successful import, so the list (and the pending-welcome banner) can refresh.
   onImported: () => void
@@ -86,7 +88,7 @@ export default function ImportMembersModal({ orgId, token, onClose, onImported }
   const [fileName, setFileName] = useState('')
   const [preview, setPreview] = useState<ImportResult | null>(null)
   const [committed, setCommitted] = useState(false)
-  const [busy, setBusy] = useState<'' | 'template' | 'preview' | 'commit' | 'welcome'>('')
+  const [busy, setBusy] = useState<'' | 'template' | 'preview' | 'commit'>('')
   const [error, setError] = useState('')
   const [welcomeQueued, setWelcomeQueued] = useState<number | null>(null)
 
@@ -162,20 +164,6 @@ export default function ImportMembersModal({ orgId, token, onClose, onImported }
       onImported()
     } catch (err) {
       setError((err as Error).message || 'The import failed. Nothing was saved.')
-    } finally {
-      setBusy('')
-    }
-  }
-
-  const sendWelcomes = async () => {
-    setBusy('welcome')
-    setError('')
-    try {
-      const res = await api('/members/send-pending-welcomes', { method: 'POST' })
-      if (!res.ok) { setError("Couldn't send the welcome emails. Please try again."); return }
-      const data = await res.json()
-      setWelcomeQueued(data.queued ?? 0)
-      onImported()
     } finally {
       setBusy('')
     }
@@ -324,12 +312,11 @@ export default function ImportMembersModal({ orgId, token, onClose, onImported }
 
           {committed && preview.imported_count > 0 && (
             welcomeQueued === null ? (
-              <div style={{ ...alertStyle('warn'), display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, justifyContent: 'space-between' }}>
-                <span>Welcome emails haven&apos;t been sent yet. Send them when you&apos;re ready, now or later from the Members page.</span>
-                <Button variant="primary" onClick={sendWelcomes} disabled={busy === 'welcome'}>
-                  {busy === 'welcome' ? 'Sending…' : 'Send welcome emails'}
-                </Button>
-              </div>
+              <section aria-labelledby="welcome-step" style={{ border: `1px solid ${color.border}`, borderRadius: radius.card, padding: '18px 20px' }}>
+                <h3 id="welcome-step" style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 600, color: color.ink }}>Send welcome emails</h3>
+                <p style={{ margin: '0 0 12px', fontSize: 14, color: color.muted }}>Nothing has gone out yet. Send them now, or later from the Members page.</p>
+                <WelcomeEmailForm api={api} studioName={studioName} onSent={q => { setWelcomeQueued(q); onImported() }} />
+              </section>
             ) : (
               <div role="status" style={alertStyle('ok')}>
                 {welcomeQueued === 0
