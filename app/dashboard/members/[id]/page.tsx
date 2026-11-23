@@ -8,11 +8,12 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
-import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, canMemberNotes, staffRoleLabel } from '@/lib/roles'
+import { canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, canMemberNotes, staffRoleLabel } from '@/lib/roles'
 import { can } from '@/lib/permissions'
 import MemberMembershipsCard from './MemberMembershipsCard'
 import MemberNotesLog from './MemberNotesLog'
 import UnpaidPassActions from './UnpaidPassActions'
+import EditMemberDetailsModal from './EditMemberDetailsModal'
 import ActivityFeed from '@/app/components/ActivityFeed'
 import ManagePassModal from '@/app/components/ManagePassModal'
 import { displayName } from '@/lib/names'
@@ -49,6 +50,9 @@ interface MemberDetail {
   welcome_pending?: boolean
   health_notes: string | null
   notes: string | null
+  // False when the person also belongs to another studio: name and contact details are shared then,
+  // so only the member can change them (Edit details shows them read-only).
+  shared_details_editable?: boolean
 }
 
 interface PassTemplate {
@@ -205,6 +209,7 @@ export default function MemberDetailPage() {
   const [activityKey, setActivityKey] = useState(0)
 
   const [member, setMember] = useState<MemberDetail | null>(null)
+  const [editingDetails, setEditingDetails] = useState(false)
   const [passes, setPasses] = useState<MemberPass[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [upcoming, setUpcoming] = useState<UpcomingBooking[]>([])
@@ -279,7 +284,7 @@ export default function MemberDetailPage() {
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
       setPermissions(ctx.permissions)
-      if (!canViewMembers(myRoles)) { setForbidden(true); setLoading(false); return }
+      if (!can(ctx.permissions, 'member.view')) { setForbidden(true); setLoading(false); return }
 
       const base = `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}`
       const h = { Authorization: `Bearer ${t}` }
@@ -438,6 +443,7 @@ export default function MemberDetailPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {can(permissions, 'member.edit_details') && <Button onClick={() => setEditingDetails(true)}>Edit details</Button>}
                     {canResendMemberWelcome(roles) && notSignedIn && (
                       <Button onClick={handleResendWelcome} disabled={resendingWelcome}>{resendingWelcome ? 'Sending…' : activity?.kind === 'held' ? 'Send welcome email' : 'Resend invite'}</Button>
                     )}
@@ -781,6 +787,12 @@ export default function MemberDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {editingDetails && member && (
+        <EditMemberDetailsModal api={authedFetch} memberId={memberId} member={member}
+          onClose={() => setEditingDetails(false)}
+          onSaved={updated => { setMember(updated); setEditingDetails(false); setToast('Details saved.') }} />
       )}
 
       {managingPassId && (
