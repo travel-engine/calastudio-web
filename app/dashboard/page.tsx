@@ -14,6 +14,7 @@ import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 import GoogleLinkTip from './GoogleLinkTip'
 import InstallDashboardTip from './InstallDashboardTip'
+import { formatMoneyShort } from '@/lib/money'
 
 const API = process.env.NEXT_PUBLIC_API_URL
 
@@ -46,9 +47,40 @@ interface HomeDashboard {
   upcoming: UpcomingOccurrence[]
   activity: ActivityItemData[]
   birthdays: Birthday[]
+  // Net revenue (taken minus refunds), this Mon–Sun so far and the whole of last week. Admin only,
+  // like the rest of this payload. Optional until every API environment sends it.
+  revenue?: { this_week: number; last_week: number; currency: string }
 }
 
 const rosterHref = (occurrenceId: string) => `/dashboard/occurrences/${occurrenceId}`
+
+// Revenue this week (net), with the change against the whole of last week: green and ▲ when ahead,
+// red and ▼ when behind. Early in the week it usually reads behind, since last week is complete.
+function RevenueTile({ revenue }: { revenue: NonNullable<HomeDashboard['revenue']> }) {
+  const { this_week: now, last_week: last, currency } = revenue
+  const pct = last > 0 ? Math.round(((now - last) / last) * 100) : null
+  const up = pct !== null && pct > 0
+  const down = pct !== null && pct < 0
+  const trend = pct === null ? null : (
+    <span
+      aria-label={`${up ? 'up' : down ? 'down' : 'level'} ${Math.abs(pct)}% on last week`}
+      style={{
+        fontSize: 14, fontWeight: 600, ...tabularNums, padding: '2px 8px', borderRadius: 999,
+        color: up ? '#14532D' : down ? color.dangerInk : color.neutralInk,
+        background: up ? '#DCF0E2' : down ? color.dangerBg : color.neutralChip,
+      }}
+    >
+      {up ? '▲' : down ? '▼' : '='} {Math.abs(pct)}%
+    </span>
+  )
+  return (
+    <StatTile
+      label="Revenue this week" href="/dashboard/reports?tab=revenue&range=wk"
+      value={formatMoneyShort(now, currency)} trend={trend}
+      sub={last > 0 ? `vs ${formatMoneyShort(last, currency)} all last week` : 'No revenue last week to compare'}
+    />
+  )
+}
 
 function greeting(now: Date) {
   const h = now.getHours()
@@ -232,38 +264,38 @@ export default function DashboardPage() {
           ) : (
             <>
               {home && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-                  {week && week.capacity > 0 && week.booked > 0 ? (
+                <div className={styles.homeTiles}>
+                  {week && week.capacity > 0 ? (
                     <StatTile
                       label="Booked this week" href="/dashboard/schedule"
-                      value={week.booked} suffix={`/ ${week.capacity} spots`}
-                      bar={week.booked / week.capacity}
-                      sub={`${Math.round((week.booked / week.capacity) * 100)}% of this week's spots`}
+                      value={week.booked} suffix={`/ ${week.capacity}`}
+                      bar={week.booked > 0 ? week.booked / week.capacity : undefined}
+                      sub={week.booked > 0
+                        ? `${Math.round((week.booked / week.capacity) * 100)}% of this week's spots`
+                        : 'No bookings yet. Share your booking page to start filling classes.'}
                     />
                   ) : (
                     <StatTile label="Booked this week" href="/dashboard/schedule">
-                      <span style={{ fontSize: 15, lineHeight: 1.4, color: color.ink2 }}>
-                        {week && week.capacity > 0
-                          ? 'No bookings yet. Share your booking page to start filling classes.'
-                          : 'No classes scheduled this week.'}
-                      </span>
+                      <span style={{ fontSize: 15, lineHeight: 1.4, color: color.ink2 }}>No classes this week.</span>
                     </StatTile>
                   )}
+                  {home.revenue && <RevenueTile revenue={home.revenue} />}
                   <StatTile label="New members this week" href="/dashboard/members" value={home.new_members_this_week} />
                   <StatTile label="Next session" href={next ? rosterHref(next.occurrence_id) : '/dashboard/schedule'}
+                    className={styles.homeTileWide} keepSubOnPhone
                     sub={next ? [next.session_name, next.location_name].filter(Boolean).join(' · ') : undefined}>
-                    <span style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.2, ...tabularNums }}>
+                    <span style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.2, ...tabularNums }}>
                       {next ? formatWhen(next.starts_at, timeZone) : 'Nothing scheduled'}
                     </span>
                   </StatTile>
-                  <StatTile label="Birthdays · next 30 days" href="/dashboard/members"
+                  <StatTile label="Birthdays · 30 days" href="/dashboard/members"
                     sub={home.birthdays.length === 0
                       ? 'Birthdays show here once members add a date of birth.'
                       : home.birthdays.length > 1 ? `and ${home.birthdays.length - 1} more` : undefined}>
                     {home.birthdays.length === 0 ? (
-                      <span style={{ fontSize: 20, fontWeight: 600 }}>None coming up</span>
+                      <span style={{ fontSize: 18, fontWeight: 600 }}>None coming up</span>
                     ) : (
-                      <span style={{ fontSize: 20, fontWeight: 600, lineHeight: 1.25 }}>
+                      <span style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.25, overflowWrap: 'anywhere' }}>
                         {home.birthdays[0].name}
                         <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: color.ink2 }}>
                           {home.birthdays[0].days_until === 0 ? 'Today' : home.birthdays[0].days_until === 1 ? 'Tomorrow' : formatDayMonth(home.birthdays[0].date)}
