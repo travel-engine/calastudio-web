@@ -60,3 +60,28 @@
 .inlineLink:hover {
   text-decoration-color: currentColor;
 }
+
+/* StatTile on phones (inside .homeTiles): tighter padding, smaller number, no helper line or bar. */
+@media (max-width: 640px) {
+  .statTile {
+    padding: 14px 14px !important;
+    gap: 6px !important;
+  }
+  .tileValue {
+    font-size: 26px !important;
+  }
+  .tileSuffix {
+    font-size: 14px !important;
+  }
+  .tileSub,
+  .tileBar {
+    display: none !important;
+  }
+}
+
+/* A tile that keeps its helper line on phones (e.g. the full-width "Next session"). */
+@media (max-width: 640px) {
+  .tileKeepSub .tileSub {
+    display: block !important;
+  }
+}
