@@ -16,7 +16,7 @@ import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
 import SocialSignIn from '@/app/components/SocialSignIn'
 import UnpaidPassPay from './UnpaidPassPay'
-import BookingGuests, { type GuestCancelOption } from './BookingGuests'
+import BookingGuests, { type GuestCancelOption, type GuestPassOffer, type GuestPassOption } from './BookingGuests'
 
 interface OrgInfo {
   id: string
@@ -55,6 +55,9 @@ interface Booking {
   max_more_guests?: number | null
   add_guests_not_allowed_code?: string | null
   add_guests_not_allowed_reason?: string | null
+  add_guests_needs_pass?: boolean | null
+  guest_pass_options?: GuestPassOption[] | null
+  guest_pass_offers?: GuestPassOffer[] | null
   credits_per_guest?: number | null
   guest_cancel_options?: GuestCancelOption[] | null
   cancellation_reason: string | null
@@ -776,7 +779,7 @@ function MemberAccountContent() {
           )}
         </div>
         {upcoming && b.status === 'confirmed' && (
-          <BookingGuests booking={b} memberName={displayName(profile)} api={authedFetch} brand={brand}
+          <BookingGuests booking={b} memberName={displayName(profile)} api={authedFetch} studioSlug={studioSlug} brand={brand}
             onUpdated={async updated => {
               // Show the change at once, then reload so the guest options (spots, credits) are current.
               setBookings(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))

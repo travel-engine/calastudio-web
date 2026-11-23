@@ -114,6 +114,8 @@ interface Booking {
   max_more_guests?: number | null
   credits_per_guest?: number | null
   add_guests_not_allowed_reason?: string | null
+  // True when guests could be added but none of the member's passes can pay (staff issue one first).
+  add_guests_needs_pass?: boolean | null
   payment_id?: string | null
   amount_paid?: number | null
   currency?: string
@@ -1412,7 +1414,7 @@ export default function OccurrenceDetailPage() {
                                     Cancel
                                   </button>
                                 )}
-                                {b.status === 'confirmed' && b.can_add_guests && (b.max_more_guests ?? 0) > 0 && can(permissions, 'booking.add_guests') && addGuests?.bookingId !== b.id && (
+                                {b.status === 'confirmed' && b.can_add_guests && !b.add_guests_needs_pass && (b.max_more_guests ?? 0) > 0 && can(permissions, 'booking.add_guests') && addGuests?.bookingId !== b.id && (
                                   <Button size="sm" onClick={() => setAddGuests({ bookingId: b.id, count: 1 })} disabled={manageBusy}>
                                     Add guest<span className={styles.srOnly}> for {memberName(b)}</span>
                                   </Button>
@@ -1446,7 +1448,7 @@ export default function OccurrenceDetailPage() {
                                     <Button size="sm" onClick={() => setAddGuests(null)} disabled={manageBusy}>Cancel</Button>
                                     {(b.credits_per_guest ?? 0) > 0 && (
                                       <span style={{ fontSize: 13, color: color.muted }}>
-                                        {`Uses ${addGuests.count * (b.credits_per_guest ?? 0)} credit${addGuests.count * (b.credits_per_guest ?? 0) === 1 ? '' : 's'} from their pass. They'll get an email.`}
+                                        {`Uses ${addGuests.count * (b.credits_per_guest ?? 0)} credit${addGuests.count * (b.credits_per_guest ?? 0) === 1 ? '' : 's'} from one of their passes. They'll get an email.`}
                                       </span>
                                     )}
                                   </div>
