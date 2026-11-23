@@ -56,10 +56,14 @@ What the roster shows also depends on role — see **Team → Teacher roles** fo
 2. Search for the member by name or email. Not a member yet? Click **+ Add a new member** to create them on the spot
 3. Under **Payment**, choose:
    - **A pass** — pick from the member's passes that are valid for this class; a credit is debited immediately
+   - **A membership** — if their membership covers this class
+   - **Paid to the studio** — they've paid you directly. Choose how: **Cash**, **Bank transfer**, **Credit card (in person)**, **Debit card (in person)** or **Gift card**. Leave the price blank to charge the current price (the early bird price while it's on, otherwise the full price). Admins and Super teachers can enter a different price, which needs a reason, for example "Early bird honoured after the deadline"
    - **Comp (no charge)** — no payment, no credit used. Add a short reason (e.g. "makeup class") — it's recorded with the booking
 4. Click **Confirm booking**
 
-If the class is **Free**, no payment step is shown at all. If the session is **Restricted** to certain passes, you'll see a note — bookings you add here skip that list, so you can still put anyone on the roster. Card payment isn't offered for bookings you add yourself; members pay by card when they book from your booking page.
+A **Paid to the studio** booking shows on the roster as, for example, "Paid to the studio · Cash · A$120.00 · Early bird", or **Special price** with the reason. It counts in **Reports → Revenue**, and isn't refunded automatically if the booking is cancelled: sort that out with the member directly.
+
+If the class is **Free**, no payment step is shown at all. If the session is **Restricted** to certain passes, you'll see a note — bookings you add here skip that list, so you can still put anyone on the roster. Card payment by the member isn't offered for bookings you add yourself; members pay by card when they book from your booking page.
 
 ## Adding a student without payment (Teacher, Basic teacher)
 
