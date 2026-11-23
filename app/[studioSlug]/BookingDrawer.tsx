@@ -15,6 +15,7 @@ import InstallAppPrompt from './InstallAppPrompt'
 import CalendarLinks from './CalendarLinks'
 import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
+import EarlyBirdPrice from './EarlyBirdPrice'
 import SocialSignIn from '@/app/components/SocialSignIn'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -1046,7 +1047,7 @@ export default function BookingDrawer() {
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                             <div>
                               <div className={styles.optionTitle}>Pay drop-in</div>
-                              <span className={styles.optionNote}>{formatMoney(bookingOptions.base_price ?? 0, bookingOptions.currency)}</span>
+                              <span className={styles.optionNote}><EarlyBirdPrice price={bookingOptions.base_price ?? 0} currency={bookingOptions.currency} info={bookingOptions} timeZone={timeZone} /></span>
                             </div>
                             {!dropInSecret && (
                               <button onClick={startDropInPayment} disabled={dropInBusy} className={styles.smallBtn}>

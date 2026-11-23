@@ -12,6 +12,7 @@ export type Permission =
   | 'pass.send_payment_reminder'
   | 'member.view'
   | 'member.edit_details'
+  | 'booking.override_price'
 
 export function can(permissions: readonly string[] | null | undefined, permission: Permission): boolean {
   return !!permissions?.includes(permission)

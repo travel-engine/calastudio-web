@@ -13,6 +13,7 @@ import { formatClock, formatShortDate, formatWhen } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { studioUrl } from '@/lib/seo'
 import DurationPicker, { durationProblem, formatDuration } from '@/app/components/DurationPicker'
+import EarlyBirdFields, { EMPTY_EARLY_BIRD, earlyBirdFromSession, earlyBirdPayload, earlyBirdProblem, type EarlyBirdForm } from '../EarlyBirdFields'
 import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, CapacityBar, Card, Chip, Segmented, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
@@ -88,6 +89,7 @@ export default function EditSessionPage() {
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [timeZone, setTimeZone] = useState<string | null>(null)
+  const [earlyBird, setEarlyBird] = useState<EarlyBirdForm>(EMPTY_EARLY_BIRD)
   const [orgSlug, setOrgSlug] = useState('')
   const [showAllUpcoming, setShowAllUpcoming] = useState(false)
   const [showPast, setShowPast] = useState(false)
@@ -265,6 +267,7 @@ export default function EditSessionPage() {
         approvedMembershipTemplateIds: [],
         allowDropIn: false,
       })
+      setEarlyBird(earlyBirdFromSession(s, org.timezone ?? null))
 
       if (teachersRes?.ok) {
         const data = await teachersRes.json()
@@ -413,6 +416,7 @@ export default function EditSessionPage() {
       guest_bookings_enabled: form.guestBookingsEnabled,
       guest_max_per_booking: parseInt(form.guestMaxPerBooking),
       instructor_id: form.instructorId || null,
+      ...earlyBirdPayload(earlyBird, form.isRecurring, 'edit'),
       confirm,
     }
   }
@@ -492,6 +496,8 @@ export default function EditSessionPage() {
     const badDuration = durationProblem(form.durationMinutes)
     if (badDuration) { setError(badDuration); return }
     if (!form.firstOccurrenceDate) { setError('First occurrence date is required'); return }
+    const badEarlyBird = earlyBirdProblem(earlyBird, form.isRecurring)
+    if (badEarlyBird) { setError(badEarlyBird); return }
     submitSessionPatch(false)
   }
 
@@ -868,6 +874,9 @@ export default function EditSessionPage() {
               />
             </Field>
           </div>
+
+          <EarlyBirdFields value={earlyBird} onChange={setEarlyBird} recurring={form.isRecurring}
+            currency={form.currency} fullPrice={form.price} timeZone={timeZone} />
 
           <Field label="Tax rate (%)" hint="Leave blank for the studio's current rate. Enter 0 to make this class tax-exempt.">
             <Input

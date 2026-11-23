@@ -400,7 +400,7 @@ export default function MemberDetailPage() {
   const pricingOptionFor = (b: UpcomingBooking) =>
     b.member_pass?.pass_template?.name
     ?? (b.payment_type === 'membership' ? b.membership_name ?? 'Membership' : null)
-    ?? (b.payment_type === 'card' ? 'Drop-in' : b.payment_type === 'free' || b.payment_type === 'admin_waived' ? 'Free' : null)
+    ?? (b.payment_type === 'card' ? 'Drop-in' : b.payment_type === 'manual' ? 'Paid to the studio' : b.payment_type === 'free' || b.payment_type === 'admin_waived' ? 'Free' : null)
   const name = (member && displayName(member)) || 'Member'
   const activity = member ? memberActivity(member.auth_provisioned_at, member.last_seen_at, member.welcome_pending) : null
   const notSignedIn = activity != null && activity.kind !== 'seen'

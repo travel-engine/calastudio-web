@@ -23,6 +23,11 @@ export interface BookableOccurrence {
   cancellation_reason?: string | null
   /** False once online booking has closed for this class (close-before window, past). Optional until the API sends it. */
   is_bookable?: boolean
+  // Early bird (one-off sessions; API #108). `price` is already the price that applies now.
+  full_price?: number | null
+  early_bird_active?: boolean
+  early_bird_ends_at?: string | null
+  early_bird_spots_left?: number | null
 }
 
 export interface PassTemplateOption {
@@ -55,6 +60,11 @@ export interface BookingOptions {
   drop_in_allowed: boolean
   base_price: number | null
   currency: string
+  // Early bird (one-off sessions; API #108). `price` is already the price that applies now.
+  full_price?: number | null
+  early_bird_active?: boolean
+  early_bird_ends_at?: string | null
+  early_bird_spots_left?: number | null
   is_authenticated: boolean
   is_active_member: boolean
   usable_pass_id: string | null
