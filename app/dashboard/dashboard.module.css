@@ -177,9 +177,17 @@
 }
 
 /* Members list: the column labels only make sense when the columns sit side by side */
+/* On phones the headings are hidden, so a sort dropdown sits next to the search instead */
+.membersSortPhone {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .membersHead {
     display: none !important;
+  }
+  .membersSortPhone {
+    display: block;
   }
 }
 
