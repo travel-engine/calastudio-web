@@ -13,7 +13,7 @@ import AddMemberModal from '@/app/components/AddMemberModal'
 import ImportMembersModal from './ImportMembersModal'
 import WelcomeEmailForm from './WelcomeEmailForm'
 import Link from 'next/link'
-import { Plus, Search, Upload, Users } from 'lucide-react'
+import { ArrowDown, ArrowUp, Plus, Search, Upload, Users } from 'lucide-react'
 import { color, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, Card, Chip, EmptyState, Modal, PageHeader, alertStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
@@ -31,6 +31,40 @@ interface Member {
   welcome_pending?: boolean
 }
 
+// Sorting is display only, over the list already loaded. Name and email A→Z first; "Last active"
+// newest first, with members who haven't signed in yet after everyone who has. The choice is kept
+// for the browser tab so coming back from a member keeps the order.
+type SortKey = 'name' | 'email' | 'active'
+type SortState = { key: SortKey; dir: 'asc' | 'desc' }
+const SORT_STORE = 'cs-members-sort'
+const DEFAULT_DIR: Record<SortKey, 'asc' | 'desc'> = { name: 'asc', email: 'asc', active: 'desc' }
+const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true })
+
+function sortMembers(list: Member[], { key, dir }: SortState): Member[] {
+  const sign = dir === 'asc' ? 1 : -1
+  return [...list].sort((a, b) => {
+    if (key === 'active') {
+      // Never-seen members always sit at the bottom, whichever way it's sorted.
+      if (!a.last_seen_at || !b.last_seen_at) {
+        if (a.last_seen_at || b.last_seen_at) return a.last_seen_at ? -1 : 1
+        return collator.compare(displayName(a), displayName(b))
+      }
+      return sign * (Date.parse(a.last_seen_at) - Date.parse(b.last_seen_at))
+    }
+    const r = key === 'email' ? collator.compare(a.email, b.email) : collator.compare(displayName(a), displayName(b))
+    return sign * (r || collator.compare(a.email, b.email))
+  })
+}
+
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: 'name:asc', label: 'Name A–Z' },
+  { value: 'name:desc', label: 'Name Z–A' },
+  { value: 'active:desc', label: 'Recently active' },
+  { value: 'active:asc', label: 'Least recently active' },
+  { value: 'email:asc', label: 'Email A–Z' },
+  { value: 'email:desc', label: 'Email Z–A' },
+]
+
 export default function MembersPage() {
   const router = useRouter()
 
@@ -44,6 +78,21 @@ export default function MembersPage() {
 
   const [members, setMembers] = useState<Member[]>([])
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortState>({ key: 'name', dir: 'asc' })
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(SORT_STORE) ?? 'null')
+      if (saved && ['name', 'email', 'active'].includes(saved.key) && ['asc', 'desc'].includes(saved.dir)) setSort(saved)
+    } catch { /* ignore */ }
+  }, [])
+
+  const applySort = (next: SortState) => {
+    setSort(next)
+    try { sessionStorage.setItem(SORT_STORE, JSON.stringify(next)) } catch { /* ignore */ }
+  }
+  const toggleSort = (key: SortKey) =>
+    applySort(sort.key === key ? { key, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: DEFAULT_DIR[key] })
 
   const [showAddMember, setShowAddMember] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
@@ -110,11 +159,11 @@ export default function MembersPage() {
     await Promise.all([loadPendingWelcomes(), reloadMembers()])
   }
 
-  const filtered = members.filter(m =>
+  const filtered = sortMembers(members.filter(m =>
     !search.trim() ||
     displayName(m).toLowerCase().includes(search.toLowerCase()) ||
     m.email.toLowerCase().includes(search.toLowerCase())
-  )
+  ), sort)
 
   if (loading) {
     return (
@@ -133,6 +182,22 @@ export default function MembersPage() {
       {canAddMember(roles) && <Button variant="primary" onClick={() => setShowAddMember(true)} icon={<Plus size={18} strokeWidth={2} aria-hidden />}>Add member</Button>}
     </>
   )
+  const sortHead = (k: SortKey, label: string, style: React.CSSProperties) => {
+    const active = sort.key === k
+    const Icon = sort.dir === 'asc' ? ArrowUp : ArrowDown
+    return (
+      <span role="columnheader" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} style={style}>
+        <button type="button" onClick={() => toggleSort(k)} className={ui.focusable}
+          style={{
+            all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
+            color: active ? color.ink : undefined, borderRadius: 4,
+          }}>
+          {label}
+          {active && <Icon size={14} strokeWidth={2.2} aria-hidden />}
+        </button>
+      </span>
+    )
+  }
   const initials = (m: Member) => `${m.first_name?.[0] ?? ''}${m.last_name?.[0] ?? ''}`.toUpperCase() || '?'
 
   return (
@@ -166,23 +231,32 @@ export default function MembersPage() {
               </Card>
             ) : (
               <>
-                <label style={{ position: 'relative', maxWidth: 380 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                <label style={{ position: 'relative', flex: '1 1 260px', maxWidth: 380 }}>
                   <span className={styles.srOnly}>Search members by name or email</span>
                   <Search size={18} strokeWidth={2} color={color.muted} aria-hidden style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
                   <input type="search" placeholder="Search by name or email" value={search} onChange={e => setSearch(e.target.value)}
                     style={{ ...controlStyle, paddingLeft: 38 }} />
                 </label>
+                <label className={styles.membersSortPhone}>
+                  <span className={styles.srOnly}>Sort members</span>
+                  <select value={`${sort.key}:${sort.dir}`} onChange={e => { const [key, dir] = e.target.value.split(':'); applySort({ key: key as SortKey, dir: dir as 'asc' | 'desc' }) }}
+                    style={{ ...controlStyle, width: 'auto' }}>
+                    {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </label>
+                </div>
 
                 {filtered.length === 0 ? (
                   <Card><EmptyState message={<>No members match &ldquo;{search}&rdquo;.</>} /></Card>
                 ) : (
                   <Card style={{ overflow: 'hidden' }} aria-label="Members">
-                    <div className={styles.membersHead} aria-hidden style={{
+                    <div className={styles.membersHead} role="row" style={{
                       display: 'flex', gap: 16, padding: '12px 20px', borderBottom: `1px solid ${color.border}`, ...smallCapsStyle,
                     }}>
-                      <span style={{ flex: '1 1 240px' }}>Name</span>
-                      <span style={{ flex: '1 1 240px' }}>Email</span>
-                      <span style={{ width: 140, flex: 'none', textAlign: 'right' }}>Last active</span>
+                      {sortHead('name', 'Name', { flex: '1 1 240px' })}
+                      {sortHead('email', 'Email', { flex: '1 1 240px' })}
+                      {sortHead('active', 'Last active', { width: 140, flex: 'none', display: 'flex', justifyContent: 'flex-end' })}
                     </div>
                     {filtered.map((m, i) => {
                       const activity = memberActivity(m.auth_provisioned_at, m.last_seen_at, m.welcome_pending)
