@@ -11,10 +11,11 @@ import { formatRelativeShort } from '@/lib/dates'
 import { memberActivity, memberActivityLabel } from '@/lib/members'
 import AddMemberModal from '@/app/components/AddMemberModal'
 import ImportMembersModal from './ImportMembersModal'
+import WelcomeEmailForm from './WelcomeEmailForm'
 import Link from 'next/link'
 import { Plus, Search, Upload, Users } from 'lucide-react'
 import { color, space, tabularNums } from '@/lib/ui/tokens'
-import { Button, Card, Chip, EmptyState, PageHeader, alertStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
+import { Button, Card, Chip, EmptyState, Modal, PageHeader, alertStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -35,6 +36,8 @@ export default function MembersPage() {
 
   const [loading, setLoading] = useState(true)
   const [orgId, setOrgId] = useState('')
+  const [studioName, setStudioName] = useState('')
+  const [showWelcomeForm, setShowWelcomeForm] = useState(false)
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
   const [forbidden, setForbidden] = useState(false)
@@ -46,7 +49,6 @@ export default function MembersPage() {
   const [showImportModal, setShowImportModal] = useState(false)
   // Imported members whose welcome email is held until the studio presses send (API #85).
   const [pendingWelcomes, setPendingWelcomes] = useState(0)
-  const [welcomeBusy, setWelcomeBusy] = useState(false)
   const [welcomeNote, setWelcomeNote] = useState('')
 
   const authedFetch = useCallback((path: string, init?: RequestInit) =>
@@ -70,6 +72,7 @@ export default function MembersPage() {
       setToken(t)
       const org = ctx.org
       setOrgId(org.id)
+      setStudioName(typeof org.name === 'string' ? org.name : '')
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
 
@@ -99,20 +102,12 @@ export default function MembersPage() {
     if (orgId && token && canImportMembers(roles)) loadPendingWelcomes()
   }, [orgId, token, roles, loadPendingWelcomes])
 
-  const sendPendingWelcomes = async () => {
-    setWelcomeBusy(true)
-    setWelcomeNote('')
-    try {
-      const res = await authedFetch('/members/send-pending-welcomes', { method: 'POST' })
-      if (!res.ok) { setWelcomeNote("Couldn't send the welcome emails. Please try again."); return }
-      const queued: number = (await res.json()).queued ?? 0
-      setWelcomeNote(queued === 0
-        ? 'No welcome emails were waiting to go out.'
-        : `${queued} welcome email${queued === 1 ? '' : 's'} will go out over the next few minutes.`)
-      await Promise.all([loadPendingWelcomes(), reloadMembers()])
-    } finally {
-      setWelcomeBusy(false)
-    }
+  const welcomesSent = async (queued: number) => {
+    setShowWelcomeForm(false)
+    setWelcomeNote(queued === 0
+      ? 'No welcome emails were waiting to go out.'
+      : `${queued} welcome email${queued === 1 ? '' : 's'} will go out over the next few minutes.`)
+    await Promise.all([loadPendingWelcomes(), reloadMembers()])
   }
 
   const filtered = members.filter(m =>
@@ -154,8 +149,8 @@ export default function MembersPage() {
                 <span>
                   {pendingWelcomes} imported member{pendingWelcomes === 1 ? " hasn't" : "s haven't"} been sent their welcome email yet.
                 </span>
-                <Button variant="primary" size="sm" onClick={sendPendingWelcomes} disabled={welcomeBusy}>
-                  {welcomeBusy ? 'Sending…' : 'Send welcome emails'}
+                <Button variant="primary" size="sm" onClick={() => { setWelcomeNote(''); setShowWelcomeForm(true) }}>
+                  Send welcome emails
                 </Button>
               </div>
             )}
@@ -231,10 +226,17 @@ export default function MembersPage() {
         />
       )}
 
+      {showWelcomeForm && (
+        <Modal title="Send welcome emails" onClose={() => setShowWelcomeForm(false)} width={560}>
+          <WelcomeEmailForm api={authedFetch} pendingCount={pendingWelcomes} studioName={studioName}
+            onSent={welcomesSent} onCancel={() => setShowWelcomeForm(false)} />
+        </Modal>
+      )}
       {showImportModal && (
         <ImportMembersModal
           orgId={orgId}
           token={token}
+          studioName={studioName}
           onClose={() => setShowImportModal(false)}
           onImported={() => { reloadMembers(); loadPendingWelcomes() }}
         />
