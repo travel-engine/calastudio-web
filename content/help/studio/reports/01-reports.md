@@ -10,7 +10,7 @@ order: 1
 
 ## Choosing a date range
 
-Pick **Last 7 days**, **Last 30 days**, **This month** or **Last month**, or click **Custom range** and choose start and end dates. The range you're looking at is shown above the **Reports** title, and every tab uses it.
+Pick **This week** (Monday to Sunday), **Last 7 days**, **Last 30 days**, **This month** or **Last month**, or click **Custom range** and choose start and end dates. The range you're looking at is shown above the **Reports** title, and every tab uses it.
 
 ## Overview
 
@@ -32,11 +32,15 @@ Below that:
 
 If there are no bookings in the range, the charts are replaced by a short message with **Try last 30 days** and **Copy booking page link**.
 
+## On the dashboard
+
+The dashboard home shows a **Revenue this week** tile (Monday to Sunday so far), with a green or red percentage comparing it to the whole of last week. Click it to open the Revenue tab for this week. It counts card payments and payments you've recorded, such as cash or bank transfers.
+
 ## The other tabs
 
 | Tab | What's in it |
 |---|---|
-| **Revenue** | Total revenue, drop-in, pass sales, refunds and net, plus every transaction in the range with its member, product, method and status |
+| **Revenue** | Total revenue, drop-in, pass sales, membership sales, refunds and net, plus every transaction in the range with its member, product, method and status. When any classes or workshops were sold at an early bird or special price, a **Booking prices** section shows early bird, full-price and special-price totals |
 | **Attendance** | Classes, bookings, attended, no-shows, average fill and show-up rate, the fill chart, and class performance |
 | **Passes** | Active passes, passes sold, credits not yet used, passes expiring in the next 7 days, a table of pass types, and passes expiring in the next 30 days |
 | **Members** | Active and new members, growth by month, members by type, members to win back, top members by attendance and spend, and anyone on an old or unsigned waiver |

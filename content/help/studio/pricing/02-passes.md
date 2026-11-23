@@ -34,13 +34,17 @@ It's active immediately and appears as a card on the **Pass types** tab, showing
 
 ## Issue a pass to a member
 
-Use this to comp a pass, backfill a purchase made outside the platform, or set someone up manually.
+Use this to comp a pass, record a purchase made outside the platform, or set someone up manually.
 
-1. Go to **Passes** → **Issued to members**
-2. Click **+ Issue a pass**
-3. Search for the member by name or email
-4. Choose the pass type and an optional **Effective from** date (leave blank to start today)
-5. Click **Issue pass**
+The easiest way is from the member's own page: open them from **Members** and click **Add pricing option**. Choose the pass, then under **Payment** choose:
+
+- **Not paid yet (member pays later):** they can book straight away and pay later, by card from a payment link or in person. See **Unpaid passes and payment links**
+- **No payment (comp / promo):** a free pass
+- **Cash**, **Bank transfer**, **Credit card**, **Debit card** or **Gift card:** they've already paid, and it's recorded in their orders
+
+Admins and Super teachers can also set a different **Price** with a reason, for example a seniors offer.
+
+You can also issue a pass from **Passes** → **Issued to members** → **+ Issue a pass**: search for the member, choose the pass type and an optional **Effective from** date, and click **Issue pass**.
 
 Only **Admin** and **Super teacher** roles can issue passes.
 
@@ -59,7 +63,7 @@ Every credit movement is logged and can't be edited or deleted, so the history a
 
 Moving a member across with a part-used pass from your old booking system:
 
-1. On the member's page, click **Add pricing option** and add the matching pass type. Leave **Payment** on **No payment recorded**, so it isn't counted as revenue (they paid your old system)
+1. On the member's page, click **Add pricing option** and add the matching pass type. Set **Payment** to **No payment (comp / promo)**, so it isn't counted as revenue (they paid your old system). For a whole list of members, the CSV import can carry pass balances over for you: see **Members → Adding members**
 2. Click **Manage** on the new pass
 3. Under **Set credits**, type how many classes they have left in **Credits left**, with a reason like "Carried over from old system", and click **Save credits**
 4. Under **Dates**, set **Starts** to when they bought it and **Expires** to the date the old pass expires, add a reason, and click **Save dates**
