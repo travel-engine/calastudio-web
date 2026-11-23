@@ -42,6 +42,8 @@ interface OccurrenceDetail {
   ends_at: string
   status: 'scheduled' | 'cancelled' | 'completed'
   capacity: number | null
+  // This class's own price, when it differs from the session's (null = the session's price).
+  price?: number | null
   instructor_id: string | null
   instructor_name: string | null // the effective teacher: this class's own, else the session's; null = nobody
   no_instructor?: boolean // explicitly "No teacher" for this class, regardless of the session's teacher
@@ -1146,7 +1148,8 @@ export default function OccurrenceDetailPage() {
                           const s = occurrence?.session
                           const cur = s?.currency ?? orgCurrency
                           const ebOn = s?.early_bird_price != null && s.early_bird_ends_at && new Date(s.early_bird_ends_at).getTime() > Date.now()
-                          const usual = s?.price != null ? formatMoney(s.price, cur) : null
+                          const full = occurrence?.price ?? s?.price
+                          const usual = full != null ? formatMoney(full, cur) : null
                           const hint = ebOn && s?.early_bird_price != null
                             ? `Leave blank for the current price: ${formatMoney(s.early_bird_price, cur)} early bird until ${formatShortDate(s.early_bird_ends_at!, timeZone)} (while early bird spots last), then ${usual ?? 'the full price'}.`
                             : `Leave blank for the usual price${usual ? ` (${usual})` : ''}.`
