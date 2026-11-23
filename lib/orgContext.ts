@@ -19,11 +19,13 @@ const API = process.env.NEXT_PUBLIC_API_URL
 export type MyOrg = { id: string; slug: string; currency?: string; timezone?: string | null } & Record<string, any>
 
 export type OrgContext =
-  | { status: 'ok'; token: string; org: MyOrg; roles: string[]; firstName: string | null }
+  | { status: 'ok'; token: string; org: MyOrg; roles: string[]; permissions: string[]; firstName: string | null }
   | { status: 'signed-out' } // → /login
   | { status: 'no-org' }     // → /onboarding
 
-type Loaded = { org: MyOrg; roles: string[]; firstName: string | null }
+// permissions: the caller's named permissions at this studio (GET /me/permissions), e.g.
+// "pass.issue". Newer screens gate on these via lib/permissions' can(); older ones still use roles.
+type Loaded = { org: MyOrg; roles: string[]; permissions: string[]; firstName: string | null }
 
 /** Pseudo-role for CalaStudio's own platform admins — see fetchOrgAndRoles. */
 export const PLATFORM_ADMIN = 'platform_admin'
@@ -84,18 +86,22 @@ async function fetchOrgAndRoles(token: string, userId: string): Promise<Loaded |
   }
   if (!orgRes.ok) return null
   const org: MyOrg = await orgRes.json()
+  const permissions = fetch(`${API}/api/organisations/${org.id}/me/permissions`, { headers })
+    .then(r => (r.ok ? r.json() : null))
+    .then(d => (Array.isArray(d?.permissions) ? (d.permissions as string[]) : []))
+    .catch(() => [] as string[])
   // Use roles, the platform-admin flag and the first name off the org response when the API
   // includes all three; otherwise one more call (/my-role carries them, the first name feeding the
   // dashboard greeting). A CalaStudio platform admin (Travel Engine staff) is not a studio role: it
   // rides in `roles` as PLATFORM_ADMIN so the sidebar can gate its link; lib/roles' studio checks
   // never match it.
   if (Array.isArray(org.roles) && 'is_platform_admin' in org && org.first_name) {
-    return { org, roles: withPlatformAdmin(org.roles, org.is_platform_admin), firstName: org.first_name }
+    return { org, roles: withPlatformAdmin(org.roles, org.is_platform_admin), permissions: await permissions, firstName: org.first_name }
   }
   const roleRes = await fetch(`${API}/api/organisations/${org.id}/my-role`, { headers })
   const me = roleRes.ok ? await roleRes.json() : null
   const roles: string[] = Array.isArray(org.roles) ? org.roles : (me?.roles ?? [])
-  return { org, roles: withPlatformAdmin(roles, me?.is_platform_admin), firstName: me?.first_name ?? org.first_name ?? null }
+  return { org, roles: withPlatformAdmin(roles, me?.is_platform_admin), permissions: await permissions, firstName: me?.first_name ?? org.first_name ?? null }
 }
 
 /**
@@ -109,7 +115,7 @@ export async function getOrgContext(opts: { fresh?: boolean } = {}): Promise<Org
   const userId = session.user.id
 
   if (!opts.fresh && cached?.userId === userId) {
-    return { status: 'ok', token, org: cached.org, roles: cached.roles, firstName: cached.firstName }
+    return { status: 'ok', token, org: cached.org, roles: cached.roles, permissions: cached.permissions, firstName: cached.firstName }
   }
 
   if (!inflight || inflight.userId !== userId || opts.fresh) {
@@ -120,7 +126,7 @@ export async function getOrgContext(opts: { fresh?: boolean } = {}): Promise<Org
   const result = await inflight.promise
   if (!result) return { status: 'no-org' }
   cached = { userId, ...result }
-  return { status: 'ok', token, org: result.org, roles: result.roles, firstName: result.firstName }
+  return { status: 'ok', token, org: result.org, roles: result.roles, permissions: result.permissions, firstName: result.firstName }
 }
 
 /** Drop the cached org/roles — after saving Settings, and on sign-out. */

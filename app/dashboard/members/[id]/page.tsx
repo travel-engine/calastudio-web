@@ -8,7 +8,8 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
-import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, canMemberNotes, canOverridePassPrice, staffRoleLabel } from '@/lib/roles'
+import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, canMemberNotes, staffRoleLabel } from '@/lib/roles'
+import { can } from '@/lib/permissions'
 import MemberMembershipsCard from './MemberMembershipsCard'
 import MemberNotesLog from './MemberNotesLog'
 import UnpaidPassActions from './UnpaidPassActions'
@@ -197,6 +198,7 @@ export default function MemberDetailPage() {
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
+  const [permissions, setPermissions] = useState<string[]>([])
   const [timeZone, setTimeZone] = useState<string | null>(null)
   const [currency, setCurrency] = useState('')
   // Bumped after a change on this page so the Activity feeds re-pull.
@@ -276,6 +278,7 @@ export default function MemberDetailPage() {
       setCurrency(org.currency ?? '')
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
+      setPermissions(ctx.permissions)
       if (!canViewMembers(myRoles)) { setForbidden(true); setLoading(false); return }
 
       const base = `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}`
@@ -360,7 +363,13 @@ export default function MemberDetailPage() {
         await reloadPasses()
       } else {
         const data = await res.json().catch(() => null)
-        setIssueError(data?.error ?? 'Could not issue this pass.')
+        setIssueError(
+          data?.code === 'price_reason_required' ? 'Add a reason for the different price.'
+            : data?.code === 'invalid_price' ? 'Enter a valid price (no more than 2 decimal places) and a reason under 500 characters.'
+              : data?.code === 'nothing_to_pay' ? 'The price is $0, so there is nothing to pay. Choose "No payment" instead.'
+                : data?.code === 'stripe_unavailable' ? "Your studio isn't connected to Stripe, so a payment link can't be emailed. Untick it and mark the pass paid later."
+                  : data?.code === 'forbidden' ? "You don't have permission to do this."
+                    : data?.error ?? 'Could not issue this pass.')
       }
     } catch {
       setIssueError('Could not reach the server. Please try again.')
@@ -440,7 +449,7 @@ export default function MemberDetailPage() {
                   {/* Left: passes, orders, activity */}
                   <div style={{ flex: '999 1 520px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
                     <Card style={{ overflow: 'hidden' }} aria-labelledby="passes-heading">
-                      <SectionHead id="passes-heading" title="Passes" action={canManageMemberPasses(roles) && (
+                      <SectionHead id="passes-heading" title="Passes" action={can(permissions, 'pass.issue') && (
                         <Button size="sm" onClick={openIssue}>Add pricing option</Button>
                       )} />
                       {activePasses.length === 0 ? (
@@ -492,7 +501,8 @@ export default function MemberDetailPage() {
                               <UnpaidPassActions api={authedFetch} passId={p.id} passName={p.pass_template?.name ?? 'Pass'}
                                 amount={p.price ?? 0} currency={currency} reason={p.price_reason ?? null}
                                 reminderSentAt={p.payment_reminder_sent_at ?? null} timeZone={timeZone}
-                                canManage={canManageMemberPasses(roles)}
+                                canMarkPaid={can(permissions, 'pass.mark_paid')}
+                                canRemind={can(permissions, 'pass.send_payment_reminder')}
                                 onChanged={msg => { setToast(msg); reloadPasses() }} />
                             )}
                             {open && (
@@ -731,7 +741,7 @@ export default function MemberDetailPage() {
                 })()}
               </div>
 
-              {issueForm.paymentMethod !== '' && canOverridePassPrice(roles) && (() => {
+              {issueForm.paymentMethod !== '' && can(permissions, 'pass.override_price') && (() => {
                 const t = templates.find(x => x.id === issueForm.passTemplateId)
                 const differs = t !== undefined && issueForm.price.trim() !== '' && Number(issueForm.price) !== t.price
                 return (

@@ -7,8 +7,8 @@ import StripePaymentForm from '../../../StripePaymentForm'
 import { formatMoney } from '@/lib/money'
 import { studioPath } from '@/lib/seo'
 
-// GET  /api/organisations/{orgId}/pass-payments/{passId}?t=…               (no auth) → status + amount
-// POST /api/organisations/{orgId}/pass-payments/{passId}/payment-intent?t=… (no auth) → client_secret
+// GET  /api/public/{slug}/pass-payments/{passId}?t=…               (no auth) → status + amount
+// POST /api/public/{slug}/pass-payments/{passId}/payment-intent?t=… (no auth) → client_secret
 // The webhook marks the pass paid; this page polls the status afterwards to confirm.
 
 interface PassPaymentInfo {
@@ -22,15 +22,14 @@ interface PassPaymentInfo {
 
 type Phase = 'loading' | 'expired' | 'unpaid' | 'starting' | 'pay' | 'confirming' | 'paid' | 'pending' | 'unavailable' | 'error'
 
-export default function PayPassClient({ orgId, studioSlug, studioName, passId, token, stripeAccountId }: {
-  orgId: string
+export default function PayPassClient({ studioSlug, studioName, passId, token, stripeAccountId }: {
   studioSlug: string
   studioName: string
   passId: string
   token: string
   stripeAccountId: string | null
 }) {
-  const base = `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${orgId}/pass-payments/${passId}`
+  const base = `${process.env.NEXT_PUBLIC_API_URL}/api/public/${encodeURIComponent(studioSlug)}/pass-payments/${passId}`
   const q = `?t=${encodeURIComponent(token)}`
   const [info, setInfo] = useState<PassPaymentInfo | null>(null)
   const [phase, setPhase] = useState<Phase>('loading')

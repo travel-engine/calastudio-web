@@ -20,7 +20,7 @@ const MARK_PAID_METHODS = [
   { value: 'gift', label: 'Gift card' },
 ]
 
-export default function UnpaidPassActions({ api, passId, passName, amount, currency, reason, reminderSentAt, timeZone, canManage, onChanged }: {
+export default function UnpaidPassActions({ api, passId, passName, amount, currency, reason, reminderSentAt, timeZone, canMarkPaid, canRemind, onChanged }: {
   api: (path: string, init?: RequestInit) => Promise<Response>
   passId: string
   passName: string
@@ -29,7 +29,8 @@ export default function UnpaidPassActions({ api, passId, passName, amount, curre
   reason: string | null
   reminderSentAt: string | null
   timeZone?: string | null
-  canManage: boolean
+  canMarkPaid: boolean
+  canRemind: boolean
   onChanged: (message: string) => void
 }) {
   const [marking, setMarking] = useState(false)
@@ -45,7 +46,12 @@ export default function UnpaidPassActions({ api, passId, passName, amount, curre
     code === 'already_paid' ? 'This pass has already been paid.'
       : code === 'payment_in_progress' ? 'The member is paying online right now. Check again in a few minutes.'
         : code === 'stripe_unavailable' ? "Your studio isn't connected to Stripe, so a card payment link can't be sent. Mark it paid instead."
-          : fallback
+          : code === 'not_unpaid' ? "This pass isn't waiting for payment."
+            : code === 'unavailable' ? 'This pass was refunded, so it can no longer be paid.'
+              : code === 'send_failed' ? "The reminder email couldn't be sent. Please try again in a few minutes."
+                : code === 'payment_method_required' ? 'Choose how it was paid.'
+                  : code === 'forbidden' ? "You don't have permission to do this."
+                    : fallback
 
   const markPaid = async () => {
     if (!method) { setError('Choose how it was paid.'); return }
@@ -93,16 +99,18 @@ export default function UnpaidPassActions({ api, passId, passName, amount, curre
         {sentAt && <span style={{ fontSize: 13, color: color.muted }}>Reminder sent {formatShortDate(sentAt, timeZone)}</span>}
       </div>
 
-      {canManage && !marking && (
+      {(canMarkPaid || canRemind) && !marking && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <Button size="sm" onClick={() => { setMarking(true); setError('') }} disabled={!!busy}>Mark as paid</Button>
-          <Button size="sm" onClick={remind} disabled={!!busy}>
-            {busy === 'remind' ? 'Sending…' : sentAt ? 'Send reminder again' : 'Send payment reminder'}
-          </Button>
+          {canMarkPaid && <Button size="sm" onClick={() => { setMarking(true); setError('') }} disabled={!!busy}>Mark as paid</Button>}
+          {canRemind && (
+            <Button size="sm" onClick={remind} disabled={!!busy}>
+              {busy === 'remind' ? 'Sending…' : sentAt ? 'Send reminder again' : 'Send payment reminder'}
+            </Button>
+          )}
         </div>
       )}
 
-      {canManage && marking && (
+      {canMarkPaid && marking && (
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
           <select aria-label="How was it paid?" value={method} onChange={e => setMethod(e.target.value)} style={{ ...controlStyle, width: 'auto', minWidth: 200 }}>
             <option value="">How was it paid?</option>

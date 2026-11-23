@@ -29,7 +29,7 @@ export default async function PayPassPage({ params, searchParams }: Props) {
   return (
     <div className={styles.root}>
       <main className={styles.container} style={{ display: 'flex', justifyContent: 'center', paddingTop: 32, paddingBottom: 48 }}>
-        <PayPassClient orgId={org.id} studioSlug={studioSlug} studioName={org.name} passId={passId}
+        <PayPassClient studioSlug={studioSlug} studioName={org.name} passId={passId}
           token={t ?? ''} stripeAccountId={org.stripe_account_id} />
       </main>
     </div>
