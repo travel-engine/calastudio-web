@@ -39,6 +39,8 @@ export const canManageOccurrences = (roles: string[]) => has(roles, [ADMIN, TEAC
 // Team (TeacherEndpoints.cs)
 export const canViewTeam = (roles: string[]) => has(roles, [ADMIN])
 export const canManageTeam = (roles: string[]) => has(roles, [ADMIN])
+// Dated admin notes on a member (add only; spec 03 §3.2: admin notes are admin-only, never shown to the member).
+export const canMemberNotes = (roles: string[]) => has(roles, [ADMIN])
 // POST /organisations/{orgId}/teachers/{userId}/resend-invite (TeacherEndpoints.cs) — admin only.
 export const canResendTeacherInvite = (roles: string[]) => has(roles, [ADMIN])
 
