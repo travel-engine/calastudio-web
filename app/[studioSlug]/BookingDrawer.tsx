@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase'
 import { PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import { useBookingFlow, type BookingOptions, type PassTemplateOption } from '@/lib/store/bookingFlow'
-import { displayName, splitName } from '@/lib/names'
+import { displayName, isNameRequiredError, namesFromMetadata } from '@/lib/names'
 import StripePaymentForm from './StripePaymentForm'
 import MembershipPurchaseModal from './MembershipPurchaseModal'
 import { priceLabel, type MembershipOffer } from '@/lib/memberships'
@@ -15,7 +15,7 @@ import InstallAppPrompt from './InstallAppPrompt'
 import CalendarLinks from './CalendarLinks'
 import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
-import SocialSignIn, { nameFromProviderMetadata } from '@/app/components/SocialSignIn'
+import SocialSignIn from '@/app/components/SocialSignIn'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -125,7 +125,10 @@ export default function BookingDrawer() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [fullName, setFullName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  // Signed in, but a new account still needs a first and last name: the token to retry with.
+  const [nameToken, setNameToken] = useState<string | null>(null)
   const [authBusy, setAuthBusy] = useState(false)
   const [authMessage, setAuthMessage] = useState('')
 
@@ -215,12 +218,12 @@ export default function BookingDrawer() {
   }
 
   // `nameHint`: the name Google / Apple gave, for a member who signed in that way (no name typed).
-  const resolveAuth = async (token: string, nameHint = '') => {
+  const resolveAuth = async (token: string, nameHint: { first_name: string; last_name: string } = { first_name: '', last_name: '' }) => {
     if (!occurrence || !studioSlug) return
     const registerRes = await fetch(`${apiUrl}/api/public/${studioSlug}/members/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ...splitName(fullName.trim() || nameHint), phone: null, accept_terms: agreeTerms, accept_waiver: agreeWaiver })
+      body: JSON.stringify({ first_name: firstName.trim() || nameHint.first_name, last_name: lastName.trim() || nameHint.last_name, phone: null, accept_terms: agreeTerms, accept_waiver: agreeWaiver })
     })
     if (!registerRes.ok) {
       const data = await registerRes.json().catch(() => null)
@@ -235,9 +238,16 @@ export default function BookingDrawer() {
         setStep('agreements')
         return
       }
+      if (isNameRequiredError(message)) {
+        setFirstName(f => f || nameHint.first_name)
+        setLastName(l => l || nameHint.last_name)
+        setNameToken(token)
+        return
+      }
       setError(message || "Couldn't sign you in to this studio. Please try again.")
       return
     }
+    setNameToken(null)
     const member = await registerRes.json()
 
     // Stripe config comes from the public org endpoint at open time (in the store) — the admin
@@ -311,7 +321,7 @@ export default function BookingDrawer() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (cancelled) return
       if (session) {
-        await resolveAuth(session.access_token, nameFromProviderMetadata(session.user.user_metadata))
+        await resolveAuth(session.access_token, namesFromMetadata(session.user.user_metadata))
       }
       if (!cancelled) setCheckingAuth(false)
     })
@@ -370,7 +380,7 @@ export default function BookingDrawer() {
   }
 
   const handleSignUp = async () => {
-    if (!fullName.trim()) { setAuthMessage('Your name is required.'); return }
+    if (!firstName.trim() || !lastName.trim()) { setAuthMessage('Please enter your first and last name.'); return }
     const problem = passwordProblem(password)
     if (problem) { setAuthMessage(problem); return }
     setAuthBusy(true)
@@ -379,7 +389,7 @@ export default function BookingDrawer() {
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: {
-        data: { full_name: fullName, phone: null },
+        data: { full_name: `${firstName.trim()} ${lastName.trim()}`, first_name: firstName.trim(), last_name: lastName.trim(), phone: null },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${accountHref}`,
       },
     })
@@ -760,6 +770,28 @@ export default function BookingDrawer() {
         {step === 'auth' && (
           checkingAuth ? (
             <div className={styles.drawerStatus}>Checking…</div>
+          ) : nameToken ? (
+            <form style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} onSubmit={async e => {
+              e.preventDefault()
+              if (!firstName.trim() || !lastName.trim()) { setAuthMessage('Please enter your first and last name.'); return }
+              setAuthMessage('')
+              setAuthBusy(true)
+              try { await resolveAuth(nameToken) } finally { setAuthBusy(false) }
+            }}>
+              <p className={styles.drawerText} style={{ margin: 0 }}>Please add your name to finish signing up.</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label htmlFor="bk-first" className={styles.fieldLabel}>First name</label>
+                  <input id="bk-first" type="text" autoComplete="given-name" value={firstName} onChange={e => setFirstName(e.target.value)} className={styles.inputRect} />
+                </div>
+                <div>
+                  <label htmlFor="bk-last" className={styles.fieldLabel}>Last name</label>
+                  <input id="bk-last" type="text" autoComplete="family-name" value={lastName} onChange={e => setLastName(e.target.value)} className={styles.inputRect} />
+                </div>
+              </div>
+              <button type="submit" disabled={authBusy} className={styles.blockBtn}>{authBusy ? 'Please wait…' : 'Continue'}</button>
+              {authMessage && <div className={styles.noticeError} style={{ marginBottom: 0 }}>{authMessage}</div>}
+            </form>
           ) : (
             <div>
               <p className={styles.drawerText}>
@@ -774,9 +806,15 @@ export default function BookingDrawer() {
 
               <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {authMode === 'signup' && (
-                  <div>
-                    <label htmlFor="bk-name" className={styles.fieldLabel}>Full name</label>
-                    <input id="bk-name" type="text" value={fullName} onChange={e => setFullName(e.target.value)} className={styles.inputRect} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label htmlFor="bk-first" className={styles.fieldLabel}>First name</label>
+                      <input id="bk-first" type="text" autoComplete="given-name" value={firstName} onChange={e => setFirstName(e.target.value)} className={styles.inputRect} />
+                    </div>
+                    <div>
+                      <label htmlFor="bk-last" className={styles.fieldLabel}>Last name</label>
+                      <input id="bk-last" type="text" autoComplete="family-name" value={lastName} onChange={e => setLastName(e.target.value)} className={styles.inputRect} />
+                    </div>
                   </div>
                 )}
                 <div>

@@ -43,3 +43,18 @@ export function splitName(full: string): { first_name: string; last_name: string
 export function teacherName(t: (PersonName & { profile?: { display_name?: string | null } | null }) | null | undefined): string {
   return t?.profile?.display_name?.trim() || displayName(t)
 }
+
+/**
+ * First and last name from a Supabase user's metadata: our own sign-up stores first_name/last_name
+ * (older accounts only full_name); Google gives given_name/family_name and name.
+ */
+export function namesFromMetadata(meta: Record<string, unknown> | null | undefined): { first_name: string; last_name: string } {
+  if (!meta) return { first_name: '', last_name: '' }
+  const str = (k: string) => (typeof meta[k] === 'string' ? (meta[k] as string).trim() : '')
+  if (str('first_name') || str('last_name')) return { first_name: str('first_name'), last_name: str('last_name') }
+  if (str('given_name') || str('family_name')) return { first_name: str('given_name'), last_name: str('family_name') }
+  return splitName(str('full_name') || str('name'))
+}
+
+/** The register endpoint's 400 when a new person has no first or last name (API, 23 Nov 2026). */
+export const isNameRequiredError = (message: string) => /first and last name/i.test(message)
