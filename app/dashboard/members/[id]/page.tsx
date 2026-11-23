@@ -8,9 +8,10 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
-import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, canMemberNotes, staffRoleLabel } from '@/lib/roles'
+import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, canMemberNotes, canOverridePassPrice, staffRoleLabel } from '@/lib/roles'
 import MemberMembershipsCard from './MemberMembershipsCard'
 import MemberNotesLog from './MemberNotesLog'
+import UnpaidPassActions from './UnpaidPassActions'
 import ActivityFeed from '@/app/components/ActivityFeed'
 import ManagePassModal from '@/app/components/ManagePassModal'
 import { displayName } from '@/lib/names'
@@ -18,7 +19,7 @@ import { formatClock, formatDayMonth, formatRelativeShort, formatShortDate } fro
 import { formatMoney } from '@/lib/money'
 import { memberActivity, memberActivityLabel } from '@/lib/members'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
-import { Breadcrumb, Button, Card, Chip, EmptyState, Field, buttonStyle, cardStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import { Breadcrumb, Button, Card, CheckRow, Chip, EmptyState, Field, buttonStyle, cardStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -59,8 +60,10 @@ interface PassTemplate {
   is_active: boolean
 }
 
+// 'unpaid' = added now, member pays later (Mark as paid / payment reminder); '' = comp, no payment.
 const paymentMethodOptions: { value: string; label: string }[] = [
-  { value: '', label: 'No payment recorded (comp / promo)' },
+  { value: 'unpaid', label: 'Not paid yet (member pays later)' },
+  { value: '', label: 'No payment (comp / promo)' },
   { value: 'cash', label: 'Cash' },
   { value: 'bank_transfer', label: 'Bank transfer' },
   { value: 'credit_card', label: 'Credit card' },
@@ -77,7 +80,15 @@ interface MemberPass {
   status: 'active' | 'low' | 'frozen' | 'expired' | 'exhausted'
   notes: string | null
   pass_template: { name: string } | null
+  // Pay-later passes (API: the price agreed for this pass, why it differs from the list price, and
+  // whether it's been paid). 'none' = comp or no payment recorded.
+  price?: number | null
+  price_reason?: string | null
+  payment_status?: 'paid' | 'unpaid' | 'none'
+  payment_reminder_sent_at?: string | null
 }
+
+const EMPTY_ISSUE = { passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: 'unpaid', price: '', priceReason: '', sendReminder: false }
 
 interface Order {
   id: string
@@ -207,7 +218,7 @@ export default function MemberDetailPage() {
 
   const [showIssue, setShowIssue] = useState(false)
   const [templates, setTemplates] = useState<PassTemplate[]>([])
-  const [issueForm, setIssueForm] = useState({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
+  const [issueForm, setIssueForm] = useState(EMPTY_ISSUE)
   const [issuing, setIssuing] = useState(false)
   const [issueError, setIssueError] = useState('')
 
@@ -306,7 +317,7 @@ export default function MemberDetailPage() {
   }
 
   const openIssue = async () => {
-    setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
+    setIssueForm(EMPTY_ISSUE)
     setIssueError('')
     setShowIssue(true)
     const res = await authedFetch('/pass-templates')
@@ -315,6 +326,13 @@ export default function MemberDetailPage() {
 
   const handleIssue = async () => {
     if (!issueForm.passTemplateId) { setIssueError('Choose a pass'); return }
+    const tpl = templates.find(t => t.id === issueForm.passTemplateId)
+    const method = issueForm.paymentMethod
+    const isComp = method === ''
+    const priceNum = issueForm.price.trim() === '' ? null : Number(issueForm.price)
+    const overridden = !isComp && priceNum !== null && tpl !== undefined && priceNum !== tpl.price
+    if (overridden && (Number.isNaN(priceNum) || (priceNum as number) < 0)) { setIssueError('Enter a valid price.'); return }
+    if (overridden && !issueForm.priceReason.trim()) { setIssueError('Add a reason for the different price.'); return }
     setIssuing(true)
     setIssueError('')
     try {
@@ -327,12 +345,18 @@ export default function MemberDetailPage() {
           effective_from: issueForm.effectiveFrom || null,
           auto_renew_enabled: false,
           notes: issueForm.notes || null,
-          payment_method: issueForm.paymentMethod || null,
+          payment_method: method && method !== 'unpaid' ? method : null,
+          unpaid: method === 'unpaid',
+          ...(overridden ? { price: priceNum, price_reason: issueForm.priceReason.trim() } : {}),
+          ...(method === 'unpaid' && issueForm.sendReminder ? { send_payment_reminder: true } : {}),
         }),
       })
       if (res.ok) {
         setShowIssue(false)
-        setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
+        if (method === 'unpaid') setToast(issueForm.sendReminder
+          ? 'Pass added as unpaid. A payment link has been emailed.'
+          : 'Pass added as unpaid. Mark it paid or send a payment reminder from the pass.')
+        setIssueForm(EMPTY_ISSUE)
         await reloadPasses()
       } else {
         const data = await res.json().catch(() => null)
@@ -464,6 +488,13 @@ export default function MemberDetailPage() {
                                 </button>
                               )}
                             </div>
+                            {p.payment_status === 'unpaid' && (
+                              <UnpaidPassActions api={authedFetch} passId={p.id} passName={p.pass_template?.name ?? 'Pass'}
+                                amount={p.price ?? 0} currency={currency} reason={p.price_reason ?? null}
+                                reminderSentAt={p.payment_reminder_sent_at ?? null} timeZone={timeZone}
+                                canManage={canManageMemberPasses(roles)}
+                                onChanged={msg => { setToast(msg); reloadPasses() }} />
+                            )}
                             {open && (
                               <div style={{ padding: '0 20px 14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {!isCredit ? null : !entries ? (
@@ -687,15 +718,44 @@ export default function MemberDetailPage() {
                 <select id="issue-payment" value={issueForm.paymentMethod} onChange={e => setIssueForm(f => ({ ...f, paymentMethod: e.target.value }))} style={controlStyle}>
                   {paymentMethodOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-                {issueForm.paymentMethod && (() => {
+                {(() => {
                   const t = templates.find(x => x.id === issueForm.passTemplateId)
-                  return (
-                    <p style={{ margin: '6px 0 0', fontSize: 13, color: color.muted }}>
-                      {t ? `Records a ${formatMoney(t.price, t.currency)} payment in this member's order history.` : "Records a payment for the pass price in this member's order history."}
-                    </p>
-                  )
+                  const m = issueForm.paymentMethod
+                  const typed = issueForm.price.trim() !== '' && !Number.isNaN(Number(issueForm.price)) ? Number(issueForm.price) : null
+                  const shown = t ? formatMoney(typed ?? t.price, t.currency) : 'the pass price'
+                  const text = m === 'unpaid'
+                    ? `They can book with it straight away. It shows as unpaid (${shown}) until you mark it paid or they pay by card from a payment reminder.`
+                    : m === '' ? 'No payment is recorded.'
+                      : `Records a ${shown} payment in this member's order history.`
+                  return <p style={{ margin: '6px 0 0', fontSize: 13, color: color.muted }}>{text}</p>
                 })()}
               </div>
+
+              {issueForm.paymentMethod !== '' && canOverridePassPrice(roles) && (() => {
+                const t = templates.find(x => x.id === issueForm.passTemplateId)
+                const differs = t !== undefined && issueForm.price.trim() !== '' && Number(issueForm.price) !== t.price
+                return (
+                  <>
+                    <Field label={`Price${t ? ` (usually ${formatMoney(t.price, t.currency)})` : ''}`} htmlFor="issue-price"
+                      hint="Change it for a one-off deal, e.g. a seniors offer. Leave blank for the usual price.">
+                      <input id="issue-price" type="number" inputMode="decimal" min="0" step="0.01" placeholder={t ? String(t.price) : ''}
+                        value={issueForm.price} onChange={e => setIssueForm(f => ({ ...f, price: e.target.value }))} style={controlStyle} />
+                    </Field>
+                    {differs && (
+                      <Field label="Reason for the different price" htmlFor="issue-price-reason">
+                        <input id="issue-price-reason" type="text" placeholder="e.g. Seniors offer, age 72" value={issueForm.priceReason}
+                          onChange={e => setIssueForm(f => ({ ...f, priceReason: e.target.value }))} style={controlStyle} />
+                      </Field>
+                    )}
+                  </>
+                )
+              })()}
+
+              {issueForm.paymentMethod === 'unpaid' && (
+                <CheckRow checked={issueForm.sendReminder} onChange={v => setIssueForm(f => ({ ...f, sendReminder: v }))}>
+                  Email them a payment link now (they can pay by card)
+                </CheckRow>
+              )}
 
               <Field label="Notes (optional)" htmlFor="issue-notes">
                 <input id="issue-notes" type="text" placeholder="e.g. comp for referral, family member" value={issueForm.notes}

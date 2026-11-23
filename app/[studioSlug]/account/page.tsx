@@ -15,6 +15,7 @@ import InstallAppPrompt from '../InstallAppPrompt'
 import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
 import SocialSignIn, { nameFromProviderMetadata } from '@/app/components/SocialSignIn'
+import UnpaidPassPay from './UnpaidPassPay'
 
 interface OrgInfo {
   id: string
@@ -75,6 +76,9 @@ interface Pass {
   status: 'active' | 'low' | 'frozen' | 'expired' | 'exhausted'
   auto_renew_enabled: boolean
   pass_template: { name: string; price: number; currency: string } | null
+  // Added by the studio as pay-later: bookable now, payable by card from here.
+  price?: number | null
+  payment_status?: 'paid' | 'unpaid' | 'none'
 }
 
 interface Payment {
@@ -1188,6 +1192,18 @@ function MemberAccountContent() {
                         </div>
                         <StatusBadge status={p.status} />
                       </button>
+
+                      {p.payment_status === 'unpaid' && (
+                        <UnpaidPassPay api={authedFetch} studioSlug={studioSlug} passId={p.id}
+                          amount={p.price ?? p.pass_template?.price ?? 0} currency={p.pass_template?.currency ?? 'AUD'}
+                          onPaid={async () => {
+                            const r = await authedFetch('/members/me/passes').catch(() => null)
+                            if (!r?.ok) return false
+                            const list: Pass[] = await r.json()
+                            setPasses(list)
+                            return list.find(x => x.id === p.id)?.payment_status !== 'unpaid'
+                          }} />
+                      )}
 
                       {open && (
                         <div style={{ borderTop: '1px solid var(--line)' }}>

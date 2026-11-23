@@ -56,6 +56,8 @@ export const canChangeMemberMembershipPrice = (roles: string[]) => has(roles, [A
 
 // Member passes + ledger (MemberPassEndpoints.cs) — view and manage are the same gate today
 export const canManageMemberPasses = (roles: string[]) => has(roles, [ADMIN, TEACHER_SUPER])
+// A price different from the pass type's when adding a pass to a member: admin only (user, 23 Nov 2026).
+export const canOverridePassPrice = (roles: string[]) => has(roles, [ADMIN])
 
 // Bookings (BookingEndpoints.cs). Roster GET now also includes teacher_general/teacher_basic,
 // ownership-scoped to occurrences they instruct (RequireSessionOwnershipFilter) — same "server
