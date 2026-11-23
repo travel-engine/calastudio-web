@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useParams, useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
-import { splitName } from '@/lib/names'
+import { isNameRequiredError, namesFromMetadata } from '@/lib/names'
 import { formatDayMonth, formatShortDate, formatTimeRange, formatWhen } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import styles from './account.module.css'
@@ -14,7 +14,7 @@ import MyMemberships from './MyMemberships'
 import InstallAppPrompt from '../InstallAppPrompt'
 import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
-import SocialSignIn, { nameFromProviderMetadata } from '@/app/components/SocialSignIn'
+import SocialSignIn from '@/app/components/SocialSignIn'
 import UnpaidPassPay from './UnpaidPassPay'
 
 interface OrgInfo {
@@ -240,7 +240,12 @@ function MemberAccountContent() {
   // Auth form state
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [fullName, setFullName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  // A new account with no first or last name (the API requires both): ask for it, then retry.
+  const [needsName, setNeedsName] = useState(false)
+  const [nameError, setNameError] = useState('')
+  const [nameBusy, setNameBusy] = useState(false)
   const [phone, setPhone] = useState('')
   const [rememberMe, setRememberMe] = useState(true)
   const [authBusy, setAuthBusy] = useState(false)
@@ -298,7 +303,7 @@ function MemberAccountContent() {
   const [agreeWaiver, setAgreeWaiver] = useState(false)
   const [agreementsBusy, setAgreementsBusy] = useState(false)
   const [agreementsError, setAgreementsError] = useState('')
-  const [pendingAuth, setPendingAuth] = useState<{ token: string; meta: { fullName?: string; phone?: string } } | null>(null)
+  const [pendingAuth, setPendingAuth] = useState<{ token: string; meta: { first_name?: string; last_name?: string; phone?: string } } | null>(null)
 
   const authedFetch = useCallback((path: string, init?: RequestInit) =>
     fetch(`${apiUrl}/api/organisations/${orgId}${path}`, {
@@ -306,13 +311,13 @@ function MemberAccountContent() {
       headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${accessToken}` }
     }), [apiUrl, orgId, accessToken])
 
-  const resolveMembership = useCallback(async (token: string, meta: { fullName?: string; phone?: string }) => {
+  const resolveMembership = useCallback(async (token: string, meta: { first_name?: string; last_name?: string; phone?: string }) => {
     try {
       const res = await fetch(`${apiUrl}/api/public/${studioSlug}/members/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          ...splitName(meta.fullName ?? ''), phone: meta.phone || null,
+          first_name: meta.first_name ?? '', last_name: meta.last_name ?? '', phone: meta.phone || null,
           accept_terms: agreeTerms, accept_waiver: agreeWaiver,
         })
       })
@@ -333,10 +338,18 @@ function MemberAccountContent() {
           setNeedsAgreements(true)
           return
         }
+        if (isNameRequiredError(message)) {
+          setPendingAuth({ token, meta })
+          setFirstName(f => f || meta.first_name || '')
+          setLastName(l => l || meta.last_name || '')
+          setNeedsName(true)
+          return
+        }
         setPortalError("Couldn't sign you in to this studio. Please try again.")
         return
       }
       const member = await res.json()
+      setNeedsName(false)
       setNeedsAgreements(false)
       setOrgId(member.organisation_id)
     } catch {
@@ -375,7 +388,7 @@ function MemberAccountContent() {
           // Email sign-up stores full_name; Google / Apple give it under their own keys.
           const meta = session.user.user_metadata as Record<string, unknown> | undefined
           const phone = typeof meta?.phone === 'string' ? meta.phone : undefined
-          await resolveMembership(session.access_token, { fullName: nameFromProviderMetadata(meta), phone })
+          await resolveMembership(session.access_token, { ...namesFromMetadata(meta), phone })
         }
       } finally {
         setChecking(false)
@@ -448,13 +461,14 @@ function MemberAccountContent() {
     if (error) { setAuthMessage(error.message); setAuthBusy(false); return }
     setRememberChoice(rememberMe)
     setAccessToken(data.session.access_token)
-    const meta = data.session.user.user_metadata as { full_name?: string; phone?: string } | undefined
-    await resolveMembership(data.session.access_token, { fullName: meta?.full_name, phone: meta?.phone })
+    const meta = data.session.user.user_metadata as Record<string, unknown> | undefined
+    await resolveMembership(data.session.access_token, { ...namesFromMetadata(meta), phone: typeof meta?.phone === 'string' ? meta.phone : undefined })
     setAuthBusy(false)
   }
 
   const handleSignUp = async () => {
-    if (!fullName.trim()) { setAuthMessage('Your name is required.'); return }
+    const first = firstName.trim(), last = lastName.trim()
+    if (!first || !last) { setAuthMessage('Please enter your first and last name.'); return }
     const problem = passwordProblem(password)
     if (problem) { setAuthMessage(problem); return }
     setAuthBusy(true)
@@ -463,14 +477,14 @@ function MemberAccountContent() {
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: {
-        data: { full_name: fullName, phone: phone || null },
+        data: { full_name: `${first} ${last}`, first_name: first, last_name: last, phone: phone || null },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${studioPath(studioSlug, '/account')}`,
       },
     })
     if (error) { setAuthMessage(authErrorMessage(error)); setAuthBusy(false); return }
     if (data.session) {
       setAccessToken(data.session.access_token)
-      await resolveMembership(data.session.access_token, { fullName, phone })
+      await resolveMembership(data.session.access_token, { first_name: first, last_name: last, phone })
     } else {
       setAuthMessage('Check your email for a verification link to finish signing up!')
     }
@@ -788,6 +802,41 @@ function MemberAccountContent() {
     )
   }
 
+  // ── Signed in, but a new account still needs a first and last name (e.g. Google gave only one) ──
+  if (needsName && pendingAuth) {
+    const submitName = async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!firstName.trim() || !lastName.trim()) { setNameError('Please enter your first and last name.'); return }
+      setNameError('')
+      setNameBusy(true)
+      try {
+        await resolveMembership(pendingAuth.token, { ...pendingAuth.meta, first_name: firstName.trim(), last_name: lastName.trim() })
+      } finally {
+        setNameBusy(false)
+      }
+    }
+    return (
+      <div className={pf.root} style={{ minHeight: 'calc(100vh - 57px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '24px' }}>
+        <form onSubmit={submitName} style={{ background: 'var(--surface)', borderRadius: '16px', padding: '40px', width: '100%', maxWidth: '420px', border: '1px solid var(--line-strong)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0 }}>Add your name</h1>
+          <p style={{ color: 'var(--text-meta)', fontSize: '14px', margin: 0 }}>The studio needs your first and last name to finish signing you up.</p>
+          <div>
+            <label htmlFor="nm-first" style={labelStyle}>First name</label>
+            <input id="nm-first" type="text" autoComplete="given-name" value={firstName} onChange={e => setFirstName(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label htmlFor="nm-last" style={labelStyle}>Last name</label>
+            <input id="nm-last" type="text" autoComplete="family-name" value={lastName} onChange={e => setLastName(e.target.value)} style={inputStyle} />
+          </div>
+          {(nameError || portalError) && <div role="alert" style={{ color: 'var(--danger, #B42318)', fontSize: '14px' }}>{nameError || portalError}</div>}
+          <button type="submit" disabled={nameBusy} style={{ width: '100%', padding: '12px', backgroundColor: nameBusy ? 'rgba(245,244,241,0.3)' : brand, color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 600, cursor: nameBusy ? 'not-allowed' : 'pointer' }}>
+            {nameBusy ? 'Please wait…' : 'Continue'}
+          </button>
+        </form>
+      </div>
+    )
+  }
+
   // ── Signed in, but this studio needs Terms/Waiver acceptance before registration completes ──
   if (needsAgreements) {
     const canContinue = agreeTerms && (!waiverInfo?.required || agreeWaiver)
@@ -873,9 +922,15 @@ function MemberAccountContent() {
 
           <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {authMode === 'signup' && (
-              <div>
-                <label style={labelStyle}>Full name</label>
-                <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} style={inputStyle} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label htmlFor="su-first" style={labelStyle}>First name</label>
+                  <input id="su-first" type="text" autoComplete="given-name" value={firstName} onChange={e => setFirstName(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label htmlFor="su-last" style={labelStyle}>Last name</label>
+                  <input id="su-last" type="text" autoComplete="family-name" value={lastName} onChange={e => setLastName(e.target.value)} style={inputStyle} />
+                </div>
               </div>
             )}
             <div>
