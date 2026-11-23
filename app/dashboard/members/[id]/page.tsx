@@ -8,8 +8,9 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
-import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, staffRoleLabel } from '@/lib/roles'
+import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, canMemberNotes, staffRoleLabel } from '@/lib/roles'
 import MemberMembershipsCard from './MemberMembershipsCard'
+import MemberNotesLog from './MemberNotesLog'
 import ActivityFeed from '@/app/components/ActivityFeed'
 import ManagePassModal from '@/app/components/ManagePassModal'
 import { displayName } from '@/lib/names'
@@ -619,22 +620,20 @@ export default function MemberDetailPage() {
                         <h2 id="notes-heading" style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Notes</h2>
                         <Chip>Staff only</Chip>
                       </div>
-                      {member.health_notes || member.notes ? (
-                        <>
-                          {member.health_notes && (
-                            <div>
-                              <div style={{ ...smallCapsStyle, marginBottom: 4 }}>Health</div>
-                              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{member.health_notes}</p>
-                            </div>
-                          )}
-                          {member.notes && (
-                            <div>
-                              <div style={{ ...smallCapsStyle, marginBottom: 4 }}>General</div>
-                              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{member.notes}</p>
-                            </div>
-                          )}
-                        </>
-                      ) : (
+                      {canMemberNotes(roles) && <MemberNotesLog api={authedFetch} memberId={memberId} timeZone={timeZone} />}
+                      {member.health_notes && (
+                        <div>
+                          <div style={{ ...smallCapsStyle, marginBottom: 4 }}>Health</div>
+                          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{member.health_notes}</p>
+                        </div>
+                      )}
+                      {member.notes && (
+                        <div>
+                          <div style={{ ...smallCapsStyle, marginBottom: 4 }}>General</div>
+                          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{member.notes}</p>
+                        </div>
+                      )}
+                      {!canMemberNotes(roles) && !member.health_notes && !member.notes && (
                         <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: color.muted }}>No notes yet. Health and admin notes are never shown to the member.</p>
                       )}
                     </section>
