@@ -3,6 +3,7 @@ import type { BookableOccurrence } from '@/lib/store/bookingFlow'
 import { formatFriendlyDay, formatTime } from '@/lib/dates'
 import RowBookButton from './RowBookButton'
 import HideWhenFinished from './HideWhenFinished'
+import EarlyBirdPrice from './EarlyBirdPrice'
 import styles from './photofirst.module.css'
 
 function durationLabel(startIso: string, endIso: string) {
@@ -70,7 +71,7 @@ export default function SessionRow({
       <div className={styles.rowRight}>
         <div className={styles.rowRightText}>
           {s && <div className={`${styles.rowSpots} ${s.cls}`}>{s.text}</div>}
-          {occ.price != null && <div className={styles.rowPrice}>{formatMoney(occ.price, occ.currency)}</div>}
+          {occ.price != null && <div className={styles.rowPrice}><EarlyBirdPrice price={occ.price} currency={occ.currency} info={occ} timeZone={timeZone} /></div>}
         </div>
         <RowBookButton
           studioSlug={studioSlug}

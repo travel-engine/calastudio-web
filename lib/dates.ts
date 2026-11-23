@@ -209,3 +209,26 @@ export function nextWeekdayAt(byDay: string, time: string, timeZone?: string | n
   }
   return new Date(now.getTime() + 7 * 864e5)
 }
+
+/** A wall-clock date ("2026-12-01") and time ("23:59") in the studio's `timeZone`, as a UTC instant. */
+export function zonedWallToUtc(date: string, time: string, timeZone?: string | null): Date {
+  const [y, m, d] = date.split('-').map(Number)
+  const [hh, mm] = (time || '00:00').split(':').map(Number)
+  const zone = safeZone(timeZone)
+  const wall = Date.UTC(y, (m || 1) - 1, d || 1, hh || 0, mm || 0)
+  // Two passes so a DST change between the guess and the answer still lands on the wall time.
+  let t = wall - zoneOffsetMs(wall, zone)
+  t = wall - zoneOffsetMs(t, zone)
+  return new Date(t)
+}
+
+/** A UTC instant as the studio's wall-clock { date: "yyyy-mm-dd", time: "HH:mm" }, for date/time inputs. */
+export function utcToZonedWall(input: DateInput, timeZone?: string | null): { date: string; time: string } {
+  const t = new Date(input).getTime()
+  const local = new Date(t + zoneOffsetMs(t, safeZone(timeZone)))
+  const p = (n: number) => String(n).padStart(2, '0')
+  return {
+    date: `${local.getUTCFullYear()}-${p(local.getUTCMonth() + 1)}-${p(local.getUTCDate())}`,
+    time: `${p(local.getUTCHours())}:${p(local.getUTCMinutes())}`,
+  }
+}

@@ -21,6 +21,8 @@ interface RevenueReport {
   summary: {
     total_revenue: number; drop_in: number; pass_sales: number; membership_sales?: number
     refunds: number; net: number; currency: string
+    // Class and workshop bookings by price charged (API #108); older bookings count as full.
+    booking_price_tiers?: { tier: 'early_bird' | 'full' | 'override'; count: number; revenue: number }[]
   }
   transactions: Txn[]
 }
@@ -65,6 +67,17 @@ export default function RevenueTab({ ctx, range }: { ctx: OrgCtx; range: Range }
         <StatTile label="Refunds" value={money(s.refunds, cur)} />
         <StatTile label="Net" value={money(s.net, cur)} />
       </div>
+
+      {s.booking_price_tiers?.some(t => t.tier === 'early_bird' || t.tier === 'override') && (
+        <Panel title="Booking prices" subtitle="Classes and workshops paid for in this range">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            {s.booking_price_tiers.map(t => (
+              <StatTile key={t.tier} label={t.tier === 'early_bird' ? 'Early bird' : t.tier === 'override' ? 'Special price' : 'Full price'}
+                value={money(t.revenue, cur)} sub={`${t.count} booking${t.count === 1 ? '' : 's'}`} />
+            ))}
+          </div>
+        </Panel>
+      )}
 
       <Panel title="Transactions" subtitle={`${data.transactions.length} in this range`} flush>
         <Table cols={cols} rows={data.transactions} keyOf={r => r.payment_id} empty="No transactions in this range." minWidth={760} />
