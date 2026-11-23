@@ -253,7 +253,7 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
       {mode === 'buy' && (
         <div style={panel}>
           <span style={{ fontSize: 14, color: 'var(--ink)' }}>
-            Your passes don&rsquo;t have a credit left for a guest. Buy a pass to bring them:
+            None of your passes can cover another guest on this booking. Buy a pass to bring them:
           </span>
           {offers.map(o => {
             const open = buying?.offer.pass_template_id === o.pass_template_id
