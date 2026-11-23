@@ -13,6 +13,7 @@ import { color, radius, space } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, CheckRow, PageHeader, alertStyle, buttonStyle, cardStyle, FormField as Field, TextInput as Input,
   SelectInput as Select, TextArea as Textarea, FormSection as SectionHeader, ChoiceGroup as ToggleGroup } from '@/app/components/admin'
 import DurationPicker, { durationProblem } from '@/app/components/DurationPicker'
+import EarlyBirdFields, { EMPTY_EARLY_BIRD, earlyBirdPayload, earlyBirdProblem, type EarlyBirdForm } from '../EarlyBirdFields'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -37,6 +38,9 @@ function NewSessionPageContent() {
   const [error, setError] = useState('')
   const [checkingAccess, setCheckingAccess] = useState(true)
   const [roles, setRoles] = useState<string[]>([])
+  const [timeZone, setTimeZone] = useState<string | null>(null)
+  // A copy keeps the early bird price and limit; the end date is chosen again for the new date.
+  const [earlyBird, setEarlyBird] = useState<EarlyBirdForm>(EMPTY_EARLY_BIRD)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
   const [form, setForm] = useState({
@@ -88,6 +92,7 @@ function NewSessionPageContent() {
       const org = ctx.org
       const roles: string[] = ctx.roles
       setRoles(roles)
+      setTimeZone(org.timezone ?? null)
       // A new session is priced in the studio's currency (a copy keeps the source session's).
       if (!copyId) setForm(prev => ({ ...prev, currency: org.currency ?? prev.currency }))
 
@@ -172,6 +177,7 @@ function NewSessionPageContent() {
         instructorId: s.instructor_id ?? '',
         photoUrl: s.photo_url ?? '',
       }))
+      if (s.early_bird_price != null && !s.is_recurring) setEarlyBird({ ...EMPTY_EARLY_BIRD, enabled: true, price: String(s.early_bird_price), spotLimit: s.early_bird_spot_limit != null ? String(s.early_bird_spot_limit) : '' })
 
       if (s.booking_access_mode === 'restricted') {
         const paRes = await fetch(
@@ -266,6 +272,8 @@ function NewSessionPageContent() {
       setError(badDuration)
       return
     }
+    const badEarlyBird = earlyBirdProblem(earlyBird, form.isRecurring)
+    if (badEarlyBird) { setError(badEarlyBird); return }
 
     const firstOccurrenceStartsAt = new Date(`${form.firstOccurrenceDate}T${form.firstOccurrenceTime}`)
 
@@ -320,6 +328,7 @@ function NewSessionPageContent() {
           guest_bookings_enabled: form.guestBookingsEnabled,
           guest_max_per_booking: parseInt(form.guestMaxPerBooking),
           instructor_id: form.instructorId || null,
+          ...earlyBirdPayload(earlyBird, form.isRecurring, 'create'),
         })
       })
 
@@ -514,6 +523,9 @@ function NewSessionPageContent() {
                 <Input type="number" min="0" step="0.1" placeholder="No override" value={form.taxRateOverride} onChange={e => update('taxRateOverride', e.target.value)} />
               </Field>
             </div>
+
+            <EarlyBirdFields value={earlyBird} onChange={setEarlyBird} recurring={form.isRecurring}
+              currency={form.currency} fullPrice={form.price} timeZone={timeZone} />
 
             <SectionHeader title="Who can book" />
 

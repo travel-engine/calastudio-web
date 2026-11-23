@@ -7,6 +7,7 @@ import { Check, Download, Plus, Sparkles, UserPlus, X } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
+import { can } from '@/lib/permissions'
 import { canViewBookings, canManageBookings, canManageOccurrences, canMarkAttended, canAddStudent, canAddMember, canViewMembers } from '@/lib/roles'
 import { displayName, teacherName } from '@/lib/names'
 import AddMemberModal from '@/app/components/AddMemberModal'
@@ -28,6 +29,11 @@ interface SessionDetail {
   capacity: number | null
   booking_access_mode: 'open' | 'free' | 'restricted'
   instructor_id: string | null
+  price?: number | null
+  currency?: string | null
+  // Early bird (one-off sessions): shown as a hint only; the API works out the price that applies.
+  early_bird_price?: number | null
+  early_bird_ends_at?: string | null
 }
 
 interface OccurrenceDetail {
@@ -36,6 +42,8 @@ interface OccurrenceDetail {
   ends_at: string
   status: 'scheduled' | 'cancelled' | 'completed'
   capacity: number | null
+  // This class's own price, when it differs from the session's (null = the session's price).
+  price?: number | null
   instructor_id: string | null
   instructor_name: string | null // the effective teacher: this class's own, else the session's; null = nobody
   no_instructor?: boolean // explicitly "No teacher" for this class, regardless of the session's teacher
@@ -94,8 +102,12 @@ interface Booking {
   user_id: string
   booked_mode: 'in_person' | 'online'
   status: 'confirmed' | 'attended' | 'cancelled' | 'late_cancel' | 'no_show' | 'waitlisted'
-  payment_type?: 'card' | 'pass' | 'membership' | 'admin_waived' | 'free'
+  payment_type?: 'card' | 'pass' | 'membership' | 'admin_waived' | 'free' | 'manual'
   membership_name?: string | null
+  // Which price was charged (API #108): early bird, full, or a staff override with a reason.
+  price_tier?: 'early_bird' | 'full' | 'override' | null
+  price_override_reason?: string | null
+  payment_method?: string | null
   payment_id?: string | null
   amount_paid?: number | null
   currency?: string
@@ -250,7 +262,19 @@ const paymentTypeLabels: Record<string, string> = {
   membership: 'Membership',
   admin_waived: 'Comped',
   free: 'Free',
+  manual: 'Paid to the studio',
 }
+
+// "Paid to the studio": how staff recorded the payment.
+const MANUAL_METHODS = [
+  { value: 'cash', label: 'Cash' },
+  { value: 'bank_transfer', label: 'Bank transfer' },
+  { value: 'credit_card', label: 'Credit card (in person)' },
+  { value: 'debit_card', label: 'Debit card (in person)' },
+  { value: 'gift', label: 'Gift card' },
+]
+const methodLabel = (m?: string | null) => MANUAL_METHODS.find(x => x.value === m)?.label
+const tierLabel: Record<string, string> = { early_bird: 'Early bird', override: 'Special price' }
 
 // The API's limit on the staff-cancel message to the member (POST …/bookings/{id}/cancel).
 const CANCEL_MESSAGE_MAX = 500
@@ -280,6 +304,7 @@ export default function OccurrenceDetailPage() {
   const [orgCurrency, setOrgCurrency] = useState('AUD')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
+  const [permissions, setPermissions] = useState<string[]>([])
   const [forbidden, setForbidden] = useState(false)
   const [timeZone, setTimeZone] = useState<string | null>(null)
 
@@ -324,7 +349,7 @@ export default function OccurrenceDetailPage() {
   // Approved pass-template ids for a restricted session (null = not restricted, or not loaded yet).
   const [approvedPassTemplateIds, setApprovedPassTemplateIds] = useState<string[] | null>(null)
   // `choice` is '' (nothing picked), a member-pass id (pay with that pass), 'm:' + a membership id, or 'comp' (admin-waived).
-  const [addForm, setAddForm] = useState({ userId: '', choice: '', compNote: '' })
+  const [addForm, setAddForm] = useState({ userId: '', choice: '', compNote: '', method: '', price: '', priceReason: '' })
   const [addingBooking, setAddingBooking] = useState(false)
   const [addBookingError, setAddBookingError] = useState('')
 
@@ -416,6 +441,7 @@ export default function OccurrenceDetailPage() {
       setTimeZone(org.timezone ?? null)
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
+      setPermissions(ctx.permissions)
 
       if (!canViewBookings(myRoles)) {
         setForbidden(true)
@@ -628,7 +654,7 @@ export default function OccurrenceDetailPage() {
 
   const openAddBooking = async () => {
     setAddBookingError('')
-    setAddForm({ userId: '', choice: '', compNote: '' })
+    setAddForm({ userId: '', choice: '', compNote: '', method: '', price: '', priceReason: '' })
     setMemberPasses([])
     setMemberMemberships([])
     setMemberSearch('')
@@ -640,7 +666,7 @@ export default function OccurrenceDetailPage() {
   }
 
   const selectMember = async (memberId: string) => {
-    setAddForm(p => ({ ...p, userId: memberId, choice: '', compNote: '' }))
+    setAddForm(p => ({ ...p, userId: memberId, choice: '', compNote: '', method: '', price: '', priceReason: '' }))
     if (!canManageBookings(roles)) return
 
     setPassesLoading(true)
@@ -677,13 +703,18 @@ export default function OccurrenceDetailPage() {
         setAddBookingError('Add a reason for the comp')
         return
       }
+      if (addForm.choice === 'manual') {
+        if (!addForm.method) { setAddBookingError('Choose how it was paid.'); return }
+        if (addForm.price.trim() && (Number.isNaN(Number(addForm.price)) || Number(addForm.price) < 0)) { setAddBookingError('Enter a valid price.'); return }
+        if (addForm.price.trim() && !addForm.priceReason.trim()) { setAddBookingError('Add a reason for the different price.'); return }
+      }
     }
 
     setAddingBooking(true)
     setAddBookingError('')
 
     try {
-      const paymentType = isFree ? 'free' : addForm.choice === 'comp' ? 'admin_waived' : addForm.choice.startsWith('m:') ? 'membership' : 'pass'
+      const paymentType = isFree ? 'free' : addForm.choice === 'comp' ? 'admin_waived' : addForm.choice === 'manual' ? 'manual' : addForm.choice.startsWith('m:') ? 'membership' : 'pass'
       const memberPassId = paymentType === 'pass' ? addForm.choice : null
       const memberMembershipId = paymentType === 'membership' ? addForm.choice.slice(2) : null
 
@@ -705,6 +736,10 @@ export default function OccurrenceDetailPage() {
               member_pass_id: memberPassId,
               member_membership_id: memberMembershipId,
               reason: paymentType === 'admin_waived' ? addForm.compNote.trim() : null,
+              ...(paymentType === 'manual' ? {
+                payment_method: addForm.method,
+                ...(addForm.price.trim() ? { price: Number(addForm.price), price_reason: addForm.priceReason.trim() } : {}),
+              } : {}),
             })
           })
 
@@ -713,7 +748,7 @@ export default function OccurrenceDetailPage() {
         await refreshRoster(orgId, token)
       } else {
         const data = await res.json().catch(() => null)
-        setAddBookingError(data?.error ?? 'Could not create this booking.')
+        setAddBookingError(data?.code === 'forbidden' ? "You don't have permission to change the price." : data?.error ?? 'Could not create this booking.')
       }
     } catch {
       setAddBookingError('Could not create this booking.')
@@ -865,9 +900,14 @@ export default function OccurrenceDetailPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, color: color.ink2 }}>
       <span>
         {b.payment_type ? (paymentTypeLabels[b.payment_type] ?? b.payment_type) : '—'}
-        {b.payment_type === 'card' && b.amount_paid != null ? ` · ${formatMoney(b.amount_paid, b.currency ?? 'AUD')}` : ''}
+        {b.payment_type === 'manual' && methodLabel(b.payment_method) ? ` · ${methodLabel(b.payment_method)}` : ''}
+        {(b.payment_type === 'card' || b.payment_type === 'manual') && b.amount_paid != null ? ` · ${formatMoney(b.amount_paid, b.currency ?? 'AUD')}` : ''}
         {b.payment_type === 'membership' && b.membership_name ? ` · ${b.membership_name}` : ''}
+        {b.price_tier && tierLabel[b.price_tier] ? ` · ${tierLabel[b.price_tier]}` : ''}
       </span>
+      {b.price_tier === 'override' && b.price_override_reason && (
+        <span style={{ fontSize: 13, color: color.muted }}>{b.price_override_reason}</span>
+      )}
       {b.payment_type === 'admin_waived' && b.comp_reason && (
         <span style={{ fontSize: 13, color: color.muted }}>{b.comp_reason}{b.comp_added_by_name ? ` · ${b.comp_added_by_name}` : ''}</span>
       )}
@@ -1101,9 +1141,46 @@ export default function OccurrenceDetailPage() {
                         ))}
                         {usablePasses.length === 0 && memberMemberships.length === 0 && (
                           <p style={{ fontSize: 14, color: color.muted, margin: '2px 0' }}>
-                            {memberPasses.length > 0 ? 'No pass is valid for this class. Comp it below.' : 'This member has no usable passes. Comp it below.'}
+                            {memberPasses.length > 0 ? 'No pass is valid for this class. Record a payment or comp it below.' : 'This member has no usable passes. Record a payment or comp it below.'}
                           </p>
                         )}
+                        {!isFreeSession && (() => {
+                          const s = occurrence?.session
+                          const cur = s?.currency ?? orgCurrency
+                          const ebOn = s?.early_bird_price != null && s.early_bird_ends_at && new Date(s.early_bird_ends_at).getTime() > Date.now()
+                          const full = occurrence?.price ?? s?.price
+                          const usual = full != null ? formatMoney(full, cur) : null
+                          const hint = ebOn && s?.early_bird_price != null
+                            ? `Leave blank for the current price: ${formatMoney(s.early_bird_price, cur)} early bird until ${formatShortDate(s.early_bird_ends_at!, timeZone)} (while early bird spots last), then ${usual ?? 'the full price'}.`
+                            : `Leave blank for the usual price${usual ? ` (${usual})` : ''}.`
+                          return (
+                            <>
+                              <label style={paymentChoiceRow(addForm.choice === 'manual')}>
+                                <input type="radio" name="add-payment" checked={addForm.choice === 'manual'} onChange={() => setAddForm(f => ({ ...f, choice: 'manual' }))} />
+                                <span style={{ fontSize: 15 }}>Paid to the studio <span style={{ color: color.muted }}>· cash, bank transfer, card in person</span></span>
+                              </label>
+                              {addForm.choice === 'manual' && (
+                                <div style={{ marginLeft: 26, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                  <select aria-label="How was it paid?" value={addForm.method} onChange={e => setAddForm(f => ({ ...f, method: e.target.value }))} style={inputStyle}>
+                                    <option value="">How was it paid?</option>
+                                    {MANUAL_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                                  </select>
+                                  {can(permissions, 'booking.override_price') && (
+                                    <>
+                                      <input type="number" min="0" step="0.01" inputMode="decimal" aria-label={`Price (${cur})`} placeholder={`Price (${cur}), optional`}
+                                        value={addForm.price} onChange={e => setAddForm(f => ({ ...f, price: e.target.value }))} style={inputStyle} />
+                                      <span style={{ fontSize: 13, color: color.muted }}>{hint}</span>
+                                      {addForm.price.trim() && (
+                                        <input type="text" aria-label="Reason for the different price" placeholder="Reason, e.g. early bird honoured after the deadline"
+                                          value={addForm.priceReason} onChange={e => setAddForm(f => ({ ...f, priceReason: e.target.value }))} style={inputStyle} />
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )
+                        })()}
                         <label style={paymentChoiceRow(addForm.choice === 'comp')}>
                           <input type="radio" name="add-payment" checked={addForm.choice === 'comp'} onChange={() => setAddForm(f => ({ ...f, choice: 'comp' }))} />
                           <span style={{ fontSize: 15 }}>Comp (no charge)</span>
