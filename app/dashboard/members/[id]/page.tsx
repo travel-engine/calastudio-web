@@ -8,9 +8,12 @@ import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
 import Toast from '@/app/components/Toast'
-import { canViewMembers, canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, canMemberNotes, staffRoleLabel } from '@/lib/roles'
+import { canManageMemberPasses, canResendMemberWelcome, canManageBookings, canViewEntityActivity, canManageMemberMemberships, canMemberNotes, staffRoleLabel } from '@/lib/roles'
+import { can } from '@/lib/permissions'
 import MemberMembershipsCard from './MemberMembershipsCard'
 import MemberNotesLog from './MemberNotesLog'
+import UnpaidPassActions from './UnpaidPassActions'
+import EditMemberDetailsModal from './EditMemberDetailsModal'
 import ActivityFeed from '@/app/components/ActivityFeed'
 import ManagePassModal from '@/app/components/ManagePassModal'
 import { displayName } from '@/lib/names'
@@ -18,7 +21,7 @@ import { formatClock, formatDayMonth, formatRelativeShort, formatShortDate } fro
 import { formatMoney } from '@/lib/money'
 import { memberActivity, memberActivityLabel } from '@/lib/members'
 import { color, font, radius, space, tabularNums } from '@/lib/ui/tokens'
-import { Breadcrumb, Button, Card, Chip, EmptyState, Field, buttonStyle, cardStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
+import { Breadcrumb, Button, Card, CheckRow, Chip, EmptyState, Field, buttonStyle, cardStyle, controlStyle, smallCapsStyle, type ChipTone } from '@/app/components/admin'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -47,6 +50,9 @@ interface MemberDetail {
   welcome_pending?: boolean
   health_notes: string | null
   notes: string | null
+  // False when the person also belongs to another studio: name and contact details are shared then,
+  // so only the member can change them (Edit details shows them read-only).
+  shared_details_editable?: boolean
 }
 
 interface PassTemplate {
@@ -59,8 +65,10 @@ interface PassTemplate {
   is_active: boolean
 }
 
+// 'unpaid' = added now, member pays later (Mark as paid / payment reminder); '' = comp, no payment.
 const paymentMethodOptions: { value: string; label: string }[] = [
-  { value: '', label: 'No payment recorded (comp / promo)' },
+  { value: 'unpaid', label: 'Not paid yet (member pays later)' },
+  { value: '', label: 'No payment (comp / promo)' },
   { value: 'cash', label: 'Cash' },
   { value: 'bank_transfer', label: 'Bank transfer' },
   { value: 'credit_card', label: 'Credit card' },
@@ -77,7 +85,15 @@ interface MemberPass {
   status: 'active' | 'low' | 'frozen' | 'expired' | 'exhausted'
   notes: string | null
   pass_template: { name: string } | null
+  // Pay-later passes (API: the price agreed for this pass, why it differs from the list price, and
+  // whether it's been paid). 'none' = comp or no payment recorded.
+  price?: number | null
+  price_reason?: string | null
+  payment_status?: 'paid' | 'unpaid' | 'none'
+  payment_reminder_sent_at?: string | null
 }
+
+const EMPTY_ISSUE = { passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: 'unpaid', price: '', priceReason: '', sendReminder: false }
 
 interface Order {
   id: string
@@ -186,12 +202,14 @@ export default function MemberDetailPage() {
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
   const [roles, setRoles] = useState<string[]>([])
+  const [permissions, setPermissions] = useState<string[]>([])
   const [timeZone, setTimeZone] = useState<string | null>(null)
   const [currency, setCurrency] = useState('')
   // Bumped after a change on this page so the Activity feeds re-pull.
   const [activityKey, setActivityKey] = useState(0)
 
   const [member, setMember] = useState<MemberDetail | null>(null)
+  const [editingDetails, setEditingDetails] = useState(false)
   const [passes, setPasses] = useState<MemberPass[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [upcoming, setUpcoming] = useState<UpcomingBooking[]>([])
@@ -207,7 +225,7 @@ export default function MemberDetailPage() {
 
   const [showIssue, setShowIssue] = useState(false)
   const [templates, setTemplates] = useState<PassTemplate[]>([])
-  const [issueForm, setIssueForm] = useState({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
+  const [issueForm, setIssueForm] = useState(EMPTY_ISSUE)
   const [issuing, setIssuing] = useState(false)
   const [issueError, setIssueError] = useState('')
 
@@ -217,9 +235,11 @@ export default function MemberDetailPage() {
       headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${token}` },
     }), [orgId, token])
 
+  // Passes and orders together: adding a paid pass or marking one paid also creates an order.
   const reloadPasses = useCallback(async () => {
-    const p = await authedFetch(`/members/${memberId}/passes`)
+    const [p, o] = await Promise.all([authedFetch(`/members/${memberId}/passes`), authedFetch(`/members/${memberId}/payments`)])
     if (p.ok) setPasses(await p.json())
+    if (o.ok) setOrders(await o.json())
     setPassLedgers({})
     setActivityKey(k => k + 1)
   }, [authedFetch, memberId])
@@ -265,7 +285,8 @@ export default function MemberDetailPage() {
       setCurrency(org.currency ?? '')
       const myRoles: string[] = ctx.roles
       setRoles(myRoles)
-      if (!canViewMembers(myRoles)) { setForbidden(true); setLoading(false); return }
+      setPermissions(ctx.permissions)
+      if (!can(ctx.permissions, 'member.view')) { setForbidden(true); setLoading(false); return }
 
       const base = `${process.env.NEXT_PUBLIC_API_URL}/api/organisations/${org.id}`
       const h = { Authorization: `Bearer ${t}` }
@@ -306,7 +327,7 @@ export default function MemberDetailPage() {
   }
 
   const openIssue = async () => {
-    setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
+    setIssueForm(EMPTY_ISSUE)
     setIssueError('')
     setShowIssue(true)
     const res = await authedFetch('/pass-templates')
@@ -315,6 +336,13 @@ export default function MemberDetailPage() {
 
   const handleIssue = async () => {
     if (!issueForm.passTemplateId) { setIssueError('Choose a pass'); return }
+    const tpl = templates.find(t => t.id === issueForm.passTemplateId)
+    const method = issueForm.paymentMethod
+    const isComp = method === ''
+    const priceNum = issueForm.price.trim() === '' ? null : Number(issueForm.price)
+    const overridden = !isComp && priceNum !== null && tpl !== undefined && priceNum !== tpl.price
+    if (overridden && (Number.isNaN(priceNum) || (priceNum as number) < 0)) { setIssueError('Enter a valid price.'); return }
+    if (overridden && !issueForm.priceReason.trim()) { setIssueError('Add a reason for the different price.'); return }
     setIssuing(true)
     setIssueError('')
     try {
@@ -327,16 +355,28 @@ export default function MemberDetailPage() {
           effective_from: issueForm.effectiveFrom || null,
           auto_renew_enabled: false,
           notes: issueForm.notes || null,
-          payment_method: issueForm.paymentMethod || null,
+          payment_method: method && method !== 'unpaid' ? method : null,
+          unpaid: method === 'unpaid',
+          ...(overridden ? { price: priceNum, price_reason: issueForm.priceReason.trim() } : {}),
+          ...(method === 'unpaid' && issueForm.sendReminder ? { send_payment_reminder: true } : {}),
         }),
       })
       if (res.ok) {
         setShowIssue(false)
-        setIssueForm({ passTemplateId: '', effectiveFrom: '', notes: '', paymentMethod: '' })
+        if (method === 'unpaid') setToast(issueForm.sendReminder
+          ? 'Pass added as unpaid. A payment link has been emailed.'
+          : 'Pass added as unpaid. Mark it paid or send a payment reminder from the pass.')
+        setIssueForm(EMPTY_ISSUE)
         await reloadPasses()
       } else {
         const data = await res.json().catch(() => null)
-        setIssueError(data?.error ?? 'Could not issue this pass.')
+        setIssueError(
+          data?.code === 'price_reason_required' ? 'Add a reason for the different price.'
+            : data?.code === 'invalid_price' ? 'Enter a valid price (no more than 2 decimal places) and a reason under 500 characters.'
+              : data?.code === 'nothing_to_pay' ? 'The price is $0, so there is nothing to pay. Choose "No payment" instead.'
+                : data?.code === 'stripe_unavailable' ? "Your studio isn't connected to Stripe, so a payment link can't be emailed. Untick it and mark the pass paid later."
+                  : data?.code === 'forbidden' ? "You don't have permission to do this."
+                    : data?.error ?? 'Could not issue this pass.')
       }
     } catch {
       setIssueError('Could not reach the server. Please try again.')
@@ -405,6 +445,7 @@ export default function MemberDetailPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {can(permissions, 'member.edit_details') && <Button onClick={() => setEditingDetails(true)}>Edit details</Button>}
                     {canResendMemberWelcome(roles) && notSignedIn && (
                       <Button onClick={handleResendWelcome} disabled={resendingWelcome}>{resendingWelcome ? 'Sending…' : activity?.kind === 'held' ? 'Send welcome email' : 'Resend invite'}</Button>
                     )}
@@ -416,7 +457,7 @@ export default function MemberDetailPage() {
                   {/* Left: passes, orders, activity */}
                   <div style={{ flex: '999 1 520px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: space.cardGap }}>
                     <Card style={{ overflow: 'hidden' }} aria-labelledby="passes-heading">
-                      <SectionHead id="passes-heading" title="Passes" action={canManageMemberPasses(roles) && (
+                      <SectionHead id="passes-heading" title="Passes" action={can(permissions, 'pass.issue') && (
                         <Button size="sm" onClick={openIssue}>Add pricing option</Button>
                       )} />
                       {activePasses.length === 0 ? (
@@ -464,6 +505,14 @@ export default function MemberDetailPage() {
                                 </button>
                               )}
                             </div>
+                            {p.payment_status === 'unpaid' && (
+                              <UnpaidPassActions api={authedFetch} passId={p.id} passName={p.pass_template?.name ?? 'Pass'}
+                                amount={p.price ?? 0} currency={currency} reason={p.price_reason ?? null}
+                                reminderSentAt={p.payment_reminder_sent_at ?? null} timeZone={timeZone}
+                                canMarkPaid={can(permissions, 'pass.mark_paid')}
+                                canRemind={can(permissions, 'pass.send_payment_reminder')}
+                                onChanged={msg => { setToast(msg); reloadPasses() }} />
+                            )}
                             {open && (
                               <div style={{ padding: '0 20px 14px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {!isCredit ? null : !entries ? (
@@ -687,15 +736,44 @@ export default function MemberDetailPage() {
                 <select id="issue-payment" value={issueForm.paymentMethod} onChange={e => setIssueForm(f => ({ ...f, paymentMethod: e.target.value }))} style={controlStyle}>
                   {paymentMethodOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-                {issueForm.paymentMethod && (() => {
+                {(() => {
                   const t = templates.find(x => x.id === issueForm.passTemplateId)
-                  return (
-                    <p style={{ margin: '6px 0 0', fontSize: 13, color: color.muted }}>
-                      {t ? `Records a ${formatMoney(t.price, t.currency)} payment in this member's order history.` : "Records a payment for the pass price in this member's order history."}
-                    </p>
-                  )
+                  const m = issueForm.paymentMethod
+                  const typed = issueForm.price.trim() !== '' && !Number.isNaN(Number(issueForm.price)) ? Number(issueForm.price) : null
+                  const shown = t ? formatMoney(typed ?? t.price, t.currency) : 'the pass price'
+                  const text = m === 'unpaid'
+                    ? `They can book with it straight away. It shows as unpaid (${shown}) until you mark it paid or they pay by card from a payment reminder.`
+                    : m === '' ? 'No payment is recorded.'
+                      : `Records a ${shown} payment in this member's order history.`
+                  return <p style={{ margin: '6px 0 0', fontSize: 13, color: color.muted }}>{text}</p>
                 })()}
               </div>
+
+              {issueForm.paymentMethod !== '' && can(permissions, 'pass.override_price') && (() => {
+                const t = templates.find(x => x.id === issueForm.passTemplateId)
+                const differs = t !== undefined && issueForm.price.trim() !== '' && Number(issueForm.price) !== t.price
+                return (
+                  <>
+                    <Field label={`Price${t ? ` (usually ${formatMoney(t.price, t.currency)})` : ''}`} htmlFor="issue-price"
+                      hint="Change it for a one-off deal, e.g. a seniors offer. Leave blank for the usual price.">
+                      <input id="issue-price" type="number" inputMode="decimal" min="0" step="0.01" placeholder={t ? String(t.price) : ''}
+                        value={issueForm.price} onChange={e => setIssueForm(f => ({ ...f, price: e.target.value }))} style={controlStyle} />
+                    </Field>
+                    {differs && (
+                      <Field label="Reason for the different price" htmlFor="issue-price-reason">
+                        <input id="issue-price-reason" type="text" placeholder="e.g. Seniors offer, age 72" value={issueForm.priceReason}
+                          onChange={e => setIssueForm(f => ({ ...f, priceReason: e.target.value }))} style={controlStyle} />
+                      </Field>
+                    )}
+                  </>
+                )
+              })()}
+
+              {issueForm.paymentMethod === 'unpaid' && (
+                <CheckRow checked={issueForm.sendReminder} onChange={v => setIssueForm(f => ({ ...f, sendReminder: v }))}>
+                  Email them a payment link now (they can pay by card)
+                </CheckRow>
+              )}
 
               <Field label="Notes (optional)" htmlFor="issue-notes">
                 <input id="issue-notes" type="text" placeholder="e.g. comp for referral, family member" value={issueForm.notes}
@@ -711,6 +789,12 @@ export default function MemberDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {editingDetails && member && (
+        <EditMemberDetailsModal api={authedFetch} memberId={memberId} member={member}
+          onClose={() => setEditingDetails(false)}
+          onSaved={updated => { setMember(updated); setEditingDetails(false); setToast('Details saved.') }} />
       )}
 
       {managingPassId && (
