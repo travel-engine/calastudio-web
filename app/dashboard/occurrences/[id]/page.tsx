@@ -1141,7 +1141,7 @@ export default function OccurrenceDetailPage() {
                         ))}
                         {usablePasses.length === 0 && memberMemberships.length === 0 && (
                           <p style={{ fontSize: 14, color: color.muted, margin: '2px 0' }}>
-                            {memberPasses.length > 0 ? 'No pass is valid for this class. Comp it below.' : 'This member has no usable passes. Comp it below.'}
+                            {memberPasses.length > 0 ? 'No pass is valid for this class. Record a payment or comp it below.' : 'This member has no usable passes. Record a payment or comp it below.'}
                           </p>
                         )}
                         {!isFreeSession && (() => {
