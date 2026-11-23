@@ -46,6 +46,20 @@ A session's **instructor** is set by an admin from the session form — this is 
 | **Basic teacher** | Yes (name only) | No | No | No |
 | **Front desk** | No | No | No | No |
 
+## Prices, payments and member details
+
+| Action | Admin | Super teacher | Teacher, Basic teacher, Front desk |
+|---|---|---|---|
+| Open a member's page | Yes | Yes | No |
+| Edit a member's details | Yes | Yes | No |
+| Add a pass to a member | Yes | Yes | No |
+| Change a pass's price (with a reason) | Yes | Yes | No |
+| Mark a pass paid, send a payment reminder | Yes | Yes | No |
+| Book someone in at a different price (with a reason) | Yes | Yes | No |
+| Add and read member notes | Yes | No | No |
+
+CalaStudio checks each of these before the action happens, not just by hiding buttons.
+
 ## Choosing a role when inviting
 
 Pick the narrowest role that lets someone do their job. A casual instructor covering the occasional class only needs **Basic teacher**; someone running their own program day-to-day needs **Teacher**; someone you'd trust to run the schedule and take payments in your absence needs **Super teacher**. Reach for **Admin** rarely — it's the only role that can change session templates, studio settings, or see the activity log.
