@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Download } from 'lucide-react'
 import Sidebar from '@/app/components/Sidebar'
 import Forbidden from '@/app/components/Forbidden'
@@ -28,8 +28,17 @@ const ALL_TABS: { key: TabKey; label: string }[] = [
 
 export default function ReportsPage() {
   const { ctx, loading } = useOrgCtx()
-  const [range, setRange] = useState<Range>(() => RANGE_PRESETS[2].make()) // This month
+  const [range, setRange] = useState<Range>(() => RANGE_PRESETS.find(p => p.key === 'mtd')!.make()) // This month
   const [tab, setTab] = useState<TabKey>('overview')
+
+  // Deep links, e.g. the dashboard's revenue tile: ?tab=revenue&range=wk.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const t = q.get('tab')
+    if (t && ALL_TABS.some(x => x.key === t)) setTab(t as TabKey)
+    const preset = RANGE_PRESETS.find(p => p.key === q.get('range'))
+    if (preset) setRange(preset.make())
+  }, [])
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState('')
 

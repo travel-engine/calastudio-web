@@ -154,7 +154,7 @@ export default function OverviewTab({ ctx, range, onRange, onShowMembers }: {
               Once members start booking, you&apos;ll see bookings by day, which classes fill best and how passes are being used.</>}
             action={
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
-                <Button variant="primary" onClick={() => onRange(RANGE_PRESETS[1].make())}>Try last 30 days</Button>
+                <Button variant="primary" onClick={() => onRange(RANGE_PRESETS.find(p => p.key === '30d')!.make())}>Try last 30 days</Button>
                 {ctx.slug && <Button onClick={copyLink}>{copied === 'yes' ? 'Link copied' : 'Copy booking page link'}</Button>}
                 {copied === 'failed' && ctx.slug && (
                   <p role="status" style={{ flexBasis: '100%', margin: 0, fontSize: 14, color: color.ink2 }}>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { format, startOfMonth, endOfMonth, subMonths, subDays, parseISO } from 'date-fns'
+import { format, startOfMonth, endOfMonth, startOfWeek, subMonths, subDays, parseISO } from 'date-fns'
 import { ResponsiveContainer } from 'recharts'
 import { getOrgContext } from '@/lib/orgContext'
 import { formatMoney } from '@/lib/money'
@@ -34,6 +34,8 @@ export type Range = { from: string; to: string }
 const iso = (d: Date) => format(d, 'yyyy-MM-dd')
 
 export const RANGE_PRESETS: { key: string; label: string; make: () => Range }[] = [
+  // Monday to today, matching the dashboard's "this week" tiles.
+  { key: 'wk', label: 'This week', make: () => ({ from: iso(startOfWeek(new Date(), { weekStartsOn: 1 })), to: iso(new Date()) }) },
   { key: '7d', label: 'Last 7 days', make: () => ({ from: iso(subDays(new Date(), 6)), to: iso(new Date()) }) },
   { key: '30d', label: 'Last 30 days', make: () => ({ from: iso(subDays(new Date(), 29)), to: iso(new Date()) }) },
   { key: 'mtd', label: 'This month', make: () => ({ from: iso(startOfMonth(new Date())), to: iso(new Date()) }) },

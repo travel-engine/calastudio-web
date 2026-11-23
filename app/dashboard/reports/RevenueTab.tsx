@@ -19,7 +19,7 @@ interface Txn {
 }
 interface RevenueReport {
   summary: {
-    total_revenue: number; drop_in: number; pass_sales: number
+    total_revenue: number; drop_in: number; pass_sales: number; membership_sales?: number
     refunds: number; net: number; currency: string
   }
   transactions: Txn[]
@@ -61,6 +61,7 @@ export default function RevenueTab({ ctx, range }: { ctx: OrgCtx; range: Range }
         <StatTile label="Total revenue" value={money(s.total_revenue, cur)} />
         <StatTile label="Drop-in" value={money(s.drop_in, cur)} />
         <StatTile label="Pass sales" value={money(s.pass_sales, cur)} />
+        {s.membership_sales !== undefined && <StatTile label="Memberships" value={money(s.membership_sales, cur)} />}
         <StatTile label="Refunds" value={money(s.refunds, cur)} />
         <StatTile label="Net" value={money(s.net, cur)} />
       </div>
