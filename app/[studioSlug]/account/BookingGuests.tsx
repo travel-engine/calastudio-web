@@ -44,7 +44,7 @@ const ERRORS: Record<string, string> = {
   guest_details_required: 'The studio needs more details about your guests. Please contact the studio to add them.',
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+const plural = (n: number, word: string) => `${n} ${n === 1 ? word : word.endsWith('s') ? `${word}es` : `${word}s`}`
 
 type Mode = 'idle' | 'add' | 'buy' | 'issuing'
 
