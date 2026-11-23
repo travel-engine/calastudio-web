@@ -235,9 +235,11 @@ export default function MemberDetailPage() {
       headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${token}` },
     }), [orgId, token])
 
+  // Passes and orders together: adding a paid pass or marking one paid also creates an order.
   const reloadPasses = useCallback(async () => {
-    const p = await authedFetch(`/members/${memberId}/passes`)
+    const [p, o] = await Promise.all([authedFetch(`/members/${memberId}/passes`), authedFetch(`/members/${memberId}/payments`)])
     if (p.ok) setPasses(await p.json())
+    if (o.ok) setOrders(await o.json())
     setPassLedgers({})
     setActivityKey(k => k + 1)
   }, [authedFetch, memberId])
