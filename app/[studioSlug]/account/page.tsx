@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useParams, useSearchParams, usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
-import { isNameRequiredError, namesFromMetadata } from '@/lib/names'
+import { displayName, isNameRequiredError, namesFromMetadata } from '@/lib/names'
 import { formatDayMonth, formatShortDate, formatTimeRange, formatWhen } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import styles from './account.module.css'
@@ -16,6 +16,7 @@ import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
 import SocialSignIn from '@/app/components/SocialSignIn'
 import UnpaidPassPay from './UnpaidPassPay'
+import BookingGuests, { type GuestCancelOption } from './BookingGuests'
 
 interface OrgInfo {
   id: string
@@ -48,6 +49,12 @@ interface Booking {
   booked_mode: 'in_person' | 'online'
   booked_at: string
   guest_count: number
+  // Guests after booking (API #112): JSON list of guests, and what this member may change now.
+  guests?: string | null
+  can_add_guests?: boolean | null
+  max_more_guests?: number | null
+  credits_per_guest?: number | null
+  guest_cancel_options?: GuestCancelOption[] | null
   cancellation_reason: string | null
   calendar_ics_url?: string | null
   calendar_google_url?: string | null
@@ -766,6 +773,15 @@ function MemberAccountContent() {
             </button>
           )}
         </div>
+        {upcoming && b.status === 'confirmed' && (
+          <BookingGuests booking={b} memberName={displayName(profile)} api={authedFetch} brand={brand}
+            onUpdated={async updated => {
+              // Show the change at once, then reload so the guest options (spots, credits) are current.
+              setBookings(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))
+              const r = await authedFetch('/members/me/bookings').catch(() => null)
+              if (r?.ok) setBookings(await r.json())
+            }} />
+        )}
         {upcoming && <CalendarLinks compact icsUrl={b.calendar_ics_url} googleUrl={b.calendar_google_url} />}
       </div>
     )

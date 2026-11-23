@@ -108,6 +108,12 @@ interface Booking {
   price_tier?: 'early_bird' | 'full' | 'override' | null
   price_override_reason?: string | null
   payment_method?: string | null
+  // Adding guests to this booking from the roster (API #112), computed for staff; only sent to
+  // staff with booking.add_guests.
+  can_add_guests?: boolean | null
+  max_more_guests?: number | null
+  credits_per_guest?: number | null
+  add_guests_not_allowed_reason?: string | null
   payment_id?: string | null
   amount_paid?: number | null
   currency?: string
@@ -519,6 +525,36 @@ export default function OccurrenceDetailPage() {
     } else {
       const data = await res.json().catch(() => null)
       setCancelError(data?.error ?? 'Could not cancel this booking.')
+    }
+    setManageBusy(false)
+  }
+
+  const [addGuests, setAddGuests] = useState<{ bookingId: string; count: number } | null>(null)
+  const handleAddGuests = async (b: Booking, count: number) => {
+    setManageBusy(true)
+    setManageError('')
+    const start = parseGuests(b).length
+    const name = memberName(b) || 'Member'
+    const res = await authedFetch(`/bookings/${b.id}/guests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        count,
+        guests: Array.from({ length: count }, (_, k) => ({ first_name: `${name} - Guest ${start + k + 1}`, last_name: null, email: null })),
+      }),
+    })
+    if (res.ok) { setAddGuests(null); await refreshRoster(orgId, token) }
+    else {
+      const data = await res.json().catch(() => null)
+      const byCode: Record<string, string> = {
+        no_spots: "There aren't enough spots left in this class.",
+        not_enough_credits: "The member's pass doesn't have enough credits for that many guests.",
+        pass_not_usable: "The pass this booking used can't be used right now (frozen or expired).",
+        guests_not_allowed: "Guests aren't allowed on this booking.",
+        booking_closed: 'This class has ended.',
+        guest_details_required: 'Your guest settings ask for guest details, which can only be added when booking from the booking page for now.',
+        forbidden: "You don't have permission to add guests.",
+      }
+      setManageError(byCode[data?.code] ?? data?.error ?? "Couldn't add the guest.")
     }
     setManageBusy(false)
   }
@@ -1369,12 +1405,19 @@ export default function OccurrenceDetailPage() {
                               {/* No Refund here: the roster is for attendance. Refunds live on the payment's own
                                   page, and on the Cancelled tab once a booking is cancelled. */}
                               <td style={td}>
+                                <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6 }}>
                                 {b.status === 'confirmed' && canManageBookings(roles) && (
                                   <button type="button" onClick={() => handleCancelBooking(b)} disabled={manageBusy}
                                     aria-label={`Cancel booking for ${memberName(b)}`} className={`${ui.button} ${ui.focusable}`} style={smallDanger}>
                                     Cancel
                                   </button>
                                 )}
+                                {b.status === 'confirmed' && b.can_add_guests && (b.max_more_guests ?? 0) > 0 && can(permissions, 'booking.add_guests') && addGuests?.bookingId !== b.id && (
+                                  <Button size="sm" onClick={() => setAddGuests({ bookingId: b.id, count: 1 })} disabled={manageBusy}>
+                                    Add guest<span className={styles.srOnly}> for {memberName(b)}</span>
+                                  </Button>
+                                )}
+                                </span>
                               </td>
                               <td style={{ ...td, textAlign: 'right' }}>
                                 {(b.status === 'no_show' || (b.status === 'confirmed' && classEnded)) && <span style={{ marginRight: 8 }}><Chip>No-show</Chip></span>}
@@ -1389,6 +1432,27 @@ export default function OccurrenceDetailPage() {
                                 )}
                               </td>
                             </tr>
+                            {addGuests?.bookingId === b.id && (
+                              <tr>
+                                <td colSpan={4} style={{ ...td, borderTop: 'none', paddingTop: 0 }}>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingLeft: 48 }}>
+                                    <select aria-label={`Number of guests to add for ${memberName(b)}`} value={addGuests.count}
+                                      onChange={e => setAddGuests({ bookingId: b.id, count: Number(e.target.value) })} style={{ ...controlStyle, width: 'auto' }}>
+                                      {Array.from({ length: b.max_more_guests ?? 0 }, (_, k) => k + 1).map(n => <option key={n} value={n}>{n} guest{n > 1 ? 's' : ''}</option>)}
+                                    </select>
+                                    <Button size="sm" variant="primary" onClick={() => handleAddGuests(b, addGuests.count)} disabled={manageBusy}>
+                                      {manageBusy ? 'Adding…' : 'Add'}
+                                    </Button>
+                                    <Button size="sm" onClick={() => setAddGuests(null)} disabled={manageBusy}>Cancel</Button>
+                                    {(b.credits_per_guest ?? 0) > 0 && (
+                                      <span style={{ fontSize: 13, color: color.muted }}>
+                                        Uses {addGuests.count * (b.credits_per_guest ?? 0)} credit{addGuests.count * (b.credits_per_guest ?? 0) === 1 ? '' : 's'} from their pass. They&apos;ll get an email.
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
                             {guests.map((g, gi) => {
                               const n = gi + 1
                               const guestLabel = `Guest ${n}`

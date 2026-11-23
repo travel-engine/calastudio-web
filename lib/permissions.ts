@@ -13,6 +13,7 @@ export type Permission =
   | 'member.view'
   | 'member.edit_details'
   | 'booking.override_price'
+  | 'booking.add_guests'
 
 export function can(permissions: readonly string[] | null | undefined, permission: Permission): boolean {
   return !!permissions?.includes(permission)
