@@ -1446,7 +1446,7 @@ export default function OccurrenceDetailPage() {
                                     <Button size="sm" onClick={() => setAddGuests(null)} disabled={manageBusy}>Cancel</Button>
                                     {(b.credits_per_guest ?? 0) > 0 && (
                                       <span style={{ fontSize: 13, color: color.muted }}>
-                                        Uses {addGuests.count * (b.credits_per_guest ?? 0)} credit{addGuests.count * (b.credits_per_guest ?? 0) === 1 ? '' : 's'} from their pass. They&apos;ll get an email.
+                                        {`Uses ${addGuests.count * (b.credits_per_guest ?? 0)} credit${addGuests.count * (b.credits_per_guest ?? 0) === 1 ? '' : 's'} from their pass. They'll get an email.`}
                                       </span>
                                     )}
                                   </div>

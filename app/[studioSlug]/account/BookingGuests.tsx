@@ -150,7 +150,7 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
           <button type="button" style={btn} disabled={busy} onClick={() => setAdding(false)}>Cancel</button>
           {perGuest > 0 && (
             <span style={{ flexBasis: '100%', fontSize: 13, color: 'var(--text-meta)' }}>
-              Uses {count * perGuest} credit{count * perGuest === 1 ? '' : 's'} from the pass you booked with.
+              {`Uses ${count * perGuest} credit${count * perGuest === 1 ? '' : 's'} from the pass you booked with.`}
             </span>
           )}
         </div>
