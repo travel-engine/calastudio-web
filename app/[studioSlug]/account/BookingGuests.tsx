@@ -14,6 +14,8 @@ export interface GuestBooking {
   guests?: string | null // JSON: [{ first_name, last_name, email, status, credits_used }]
   can_add_guests?: boolean | null
   max_more_guests?: number | null
+  add_guests_not_allowed_code?: string | null
+  add_guests_not_allowed_reason?: string | null
   credits_per_guest?: number | null
   guest_cancel_options?: GuestCancelOption[] | null
 }
@@ -52,7 +54,11 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
   const [notice, setNotice] = useState('')
 
   const active = guests.map((g, i) => ({ g, i })).filter(x => x.g.status !== 'cancelled')
-  if (active.length === 0 && maxMore === 0) return null
+  // Say why "Add a guest" is missing only when the member could fix it or would expect it (no
+  // credits left, class full); not for classes or passes that simply don't take guests.
+  const whyNot = !booking.can_add_guests && (booking.add_guests_not_allowed_code === 'not_enough_credits' || booking.add_guests_not_allowed_code === 'no_spots')
+    ? booking.add_guests_not_allowed_reason : null
+  if (active.length === 0 && maxMore === 0 && !whyNot) return null
 
   const label = (i: number) => `Guest ${i + 1}`
   const perGuest = booking.credits_per_guest ?? 0
@@ -156,6 +162,7 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
         </div>
       )}
 
+      {whyNot && !notice && <div style={{ fontSize: 14, color: 'var(--text-meta)' }}>{whyNot}</div>}
       {error && <div role="alert" style={{ fontSize: 14, color: 'var(--danger)' }}>{error}</div>}
       {notice && <div role="status" style={{ fontSize: 14, color: 'var(--text-meta)' }}>{notice}</div>}
     </div>

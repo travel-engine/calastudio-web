@@ -53,6 +53,8 @@ interface Booking {
   guests?: string | null
   can_add_guests?: boolean | null
   max_more_guests?: number | null
+  add_guests_not_allowed_code?: string | null
+  add_guests_not_allowed_reason?: string | null
   credits_per_guest?: number | null
   guest_cancel_options?: GuestCancelOption[] | null
   cancellation_reason: string | null
