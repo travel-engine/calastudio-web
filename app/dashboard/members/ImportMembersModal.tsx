@@ -75,6 +75,19 @@ function passSummary(p: PassCell) {
   return `${p.pass_name ?? p.column}: ${balance}${p.expires_at ? `, until ${p.expires_at.slice(0, 10)}` : ''}`
 }
 
+// Excel on Windows saves "CSV (Comma delimited)" in Windows-1252, not UTF-8, so reading every file
+// as UTF-8 turned accented names ("Lomé", "Zoë", "José") into "Lom" plus a replacement character.
+// Read as UTF-8 when the bytes are valid UTF-8 ("CSV UTF-8", with or without its byte-order mark),
+// otherwise as Windows-1252.
+const BOM = new RegExp(`^${String.fromCharCode(0xfeff)}`)
+function decodeCsv(buf: ArrayBuffer): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buf).replace(BOM, '')
+  } catch {
+    return new TextDecoder('windows-1252').decode(buf)
+  }
+}
+
 export default function ImportMembersModal({ orgId, token, studioName, onClose, onImported }: {
   orgId: string
   token: string
@@ -124,7 +137,7 @@ export default function ImportMembersModal({ orgId, token, studioName, onClose, 
     e.target.value = '' // so choosing the same (corrected) file again still fires
     if (!file) return
     setFileName(file.name)
-    setCsvText(await file.text())
+    setCsvText(decodeCsv(await file.arrayBuffer()))
     setPreview(null)
     setError('')
   }
