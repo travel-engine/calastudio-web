@@ -7,7 +7,7 @@ import Sidebar from '@/app/components/Sidebar'
 import { canManagePassTemplates } from '@/lib/roles'
 import { Breadcrumb, Button, Modal, PageHeader, cardStyle, alertStyle, OptionButton, FormField as Field, TextInput as Input, SelectInput as Select, TextArea as Textarea, FormSection as SectionHeader, ChoiceGroup as ToggleGroup } from '@/app/components/admin'
 import { color, space } from '@/lib/ui/tokens'
-import PassGuestFields, { EMPTY_PASS_GUESTS, passGuestsFrom, passGuestsPayload, type PassGuestForm } from '../PassGuestFields'
+import PassGuestFields, { EMPTY_PASS_GUESTS, passGuestsCleared, passGuestsFrom, passGuestsPayload, type PassGuestForm } from '../PassGuestFields'
 import { useStudioGuestDefaults } from '../../sessions/GuestOverride'
 import styles from '@/app/dashboard/dashboard.module.css'
 
@@ -156,6 +156,8 @@ export default function EditPassTemplatePage() {
             credit_return_on_cancel: form.creditReturnOnCancel,
             multi_pass_priority: form.multiPassPriority,
             ...passGuestsPayload(form.guests, { withCost: true }),
+            // null means "unchanged" on this PATCH, so settings put back on "Same as the class" go in clear.
+            ...(passGuestsCleared(form.guests, { withCost: true }).length ? { clear: passGuestsCleared(form.guests, { withCost: true }) } : {}),
             auto_renew_enabled: form.autoRenewEnabled,
             auto_renew_pass_template_id: form.autoRenewEnabled && form.autoRenewPassTemplateId ? form.autoRenewPassTemplateId : null,
             price: parseFloat(form.price),
