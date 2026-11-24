@@ -320,6 +320,8 @@ export default function OccurrenceDetailPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [waitlist, setWaitlist] = useState<WaitlistRosterEntry[]>([])
   const [bookingsLoading, setBookingsLoading] = useState(true)
+  // The roster couldn't be loaded: say so, rather than showing an empty class.
+  const [rosterError, setRosterError] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [tab, setTab] = useState<Tab>('booked')
 
@@ -430,6 +432,7 @@ export default function OccurrenceDetailPage() {
     ])
     if (bookingsRes.ok) setBookings(await bookingsRes.json())
     if (waitlistRes.ok) setWaitlist(await waitlistRes.json())
+    setRosterError(!bookingsRes.ok || !waitlistRes.ok)
     setBookingsLoading(false)
     // Every roster change (check-in, cancel, guest…) is also an activity event: re-pull the feed.
     setActivityKey(k => k + 1)
@@ -1327,6 +1330,11 @@ export default function OccurrenceDetailPage() {
 
             {bookingsLoading ? (
               <p style={{ margin: 0, padding: 20, fontSize: 15, color: color.muted }}>Loading…</p>
+            ) : rosterError ? (
+              <EmptyState
+                message="Couldn't load the bookings for this class. Try again, and contact support if it keeps happening."
+                action={<Button onClick={() => { if (orgId && token) refreshRoster(orgId, token) }}>Try again</Button>}
+              />
             ) : tab === 'waitlist' ? (
               waitlist.length === 0 ? (
                 <EmptyState message="No one is on the waitlist." />
