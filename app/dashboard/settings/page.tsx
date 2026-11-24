@@ -87,6 +87,8 @@ type FormState = {
   timezone: string; locale: string; country: string
   cancellationHours: string; bookingWindowDays: string; minAdvanceBookingHours: string
   lateCancelCreditsForfeited: boolean; liabilityWaiverRequired: boolean
+  // Studio-wide guest defaults. Classes can override them, and passes/memberships override the class.
+  guestsEnabled: boolean; guestMaxPerBooking: string; guestCreditsCost: string
   // Days before a pass expires to email the member, up to 3 boxes ('' = unused). null = the API
   // doesn't have the setting yet, so it's left out of the PATCH rather than switched off.
   passExpiryDays: string[] | null
@@ -108,6 +110,7 @@ const EMPTY_FORM: FormState = {
   timezone: '', locale: '', country: '',
   cancellationHours: '', bookingWindowDays: '', minAdvanceBookingHours: '',
   lateCancelCreditsForfeited: true, liabilityWaiverRequired: true,
+  guestsEnabled: false, guestMaxPerBooking: '1', guestCreditsCost: '1',
   passExpiryDays: null,
   notifyMemberRegistered: true, notifyPassPurchased: true, notifyBookingCreated: true, notifyBookingCancelled: true,
 }
@@ -117,6 +120,7 @@ const SECTION_KEYS = {
   profile: ['name', 'description', 'email', 'phone', 'addressLine1', 'addressLine2', 'addressCity', 'addressState', 'addressPostcode'],
   region: ['timezone', 'locale'],
   policy: ['cancellationHours', 'bookingWindowDays', 'minAdvanceBookingHours', 'lateCancelCreditsForfeited'],
+  guests: ['guestsEnabled', 'guestMaxPerBooking', 'guestCreditsCost'],
   reminders: ['passExpiryDays'],
   notifications: ['notifyMemberRegistered', 'notifyPassPurchased', 'notifyBookingCreated', 'notifyBookingCancelled'],
   waiver: ['liabilityWaiverRequired'],
@@ -176,6 +180,9 @@ function orgBody(f: FormState) {
     min_advance_booking_hours: f.minAdvanceBookingHours !== '' ? parseInt(f.minAdvanceBookingHours, 10) : null,
     late_cancel_credits_forfeited: f.lateCancelCreditsForfeited,
     liability_waiver_required: f.liabilityWaiverRequired,
+    guest_bookings_enabled: f.guestsEnabled,
+    guest_max_per_booking: Math.max(1, parseInt(f.guestMaxPerBooking, 10) || 1),
+    guest_credits_cost: Math.max(0, parseInt(f.guestCreditsCost, 10) || 0),
     notify_studio_on_member_registered: f.notifyMemberRegistered,
     notify_studio_on_pass_purchased: f.notifyPassPurchased,
     notify_studio_on_booking_created: f.notifyBookingCreated,
@@ -192,6 +199,7 @@ const STUDIO_SECTIONS: { id: string; label: string }[] = [
   { id: 'profile', label: 'Studio profile' },
   { id: 'region', label: 'Region & time zone' },
   { id: 'policy', label: 'Booking policy' },
+  { id: 'guests', label: 'Guests' },
   { id: 'reminders', label: 'Pass reminders' },
   { id: 'notifications', label: 'Emails to you' },
   { id: 'waiver', label: 'Liability waiver' },
@@ -400,6 +408,9 @@ function SettingsPageContent() {
         notifyPassPurchased: org.notify_studio_on_pass_purchased ?? true,
         notifyBookingCreated: org.notify_studio_on_booking_created ?? true,
         notifyBookingCancelled: org.notify_studio_on_booking_cancelled ?? true,
+        guestsEnabled: !!org.guest_bookings_enabled,
+        guestMaxPerBooking: String(org.guest_max_per_booking ?? 1),
+        guestCreditsCost: String(org.guest_credits_cost ?? 1),
         passExpiryDays: Array.isArray(org.pass_expiry_reminder_days)
           ? [0, 1, 2].map(i => (org.pass_expiry_reminder_days[i] != null ? String(org.pass_expiry_reminder_days[i]) : ''))
           : null,
@@ -971,6 +982,23 @@ function SettingsPageContent() {
                         label="Late cancellations forfeit the pass credit" />
                     </>
                   ), 'policy')}
+
+                  {sectionCard('guests', 'Guests', 'Whether members can bring guests, and how many. This is the default for every class. A class can change it, and a pass or membership can change it again for the people using it.', (
+                    <>
+                      <Toggle checked={form.guestsEnabled} onChange={v => update('guestsEnabled', v)}
+                        label="Members can bring guests" />
+                      {form.guestsEnabled && (
+                        <div className={styles.formGrid} style={grid2}>
+                          <Field label="Guests per booking" htmlFor="f-guest-max" hint="The most guests one member can bring to a class.">
+                            <Input id="f-guest-max" type="number" min="1" value={form.guestMaxPerBooking} onChange={e => update('guestMaxPerBooking', e.target.value)} />
+                          </Field>
+                          <Field label="Credits per guest" htmlFor="f-guest-cost" hint="Taken from the member's pass for each guest. 0 means guests come free.">
+                            <Input id="f-guest-cost" type="number" min="0" value={form.guestCreditsCost} onChange={e => update('guestCreditsCost', e.target.value)} />
+                          </Field>
+                        </div>
+                      )}
+                    </>
+                  ), 'guests')}
 
                   {form.passExpiryDays && sectionCard('reminders', 'Pass expiry reminders', 'Emails members whose passes are about to expire with classes still on them, so they can use them up. Single-class passes are left out.', (
                     <>

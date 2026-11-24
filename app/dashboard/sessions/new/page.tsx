@@ -13,6 +13,7 @@ import { color, radius, space } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, CheckRow, PageHeader, alertStyle, buttonStyle, cardStyle, FormField as Field, TextInput as Input,
   SelectInput as Select, TextArea as Textarea, FormSection as SectionHeader, ChoiceGroup as ToggleGroup } from '@/app/components/admin'
 import DurationPicker, { durationProblem } from '@/app/components/DurationPicker'
+import { GuestOverrideOptions, guestOverrideFrom, guestOverridePayload, type GuestOverride, type StudioGuestDefaults } from '../GuestOverride'
 import EarlyBirdFields, { EMPTY_EARLY_BIRD, earlyBirdPayload, earlyBirdProblem, type EarlyBirdForm } from '../EarlyBirdFields'
 import ui from '@/app/components/admin/admin.module.css'
 import styles from '@/app/dashboard/dashboard.module.css'
@@ -36,6 +37,7 @@ function NewSessionPageContent() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [guestDefaults, setGuestDefaults] = useState<StudioGuestDefaults | null>(null)
   const [checkingAccess, setCheckingAccess] = useState(true)
   const [roles, setRoles] = useState<string[]>([])
   const [timeZone, setTimeZone] = useState<string | null>(null)
@@ -68,8 +70,7 @@ function NewSessionPageContent() {
     bookingWindowDays: '',
     minAdvanceBookingHours: '',
     taxRateOverride: '',
-    guestBookingsEnabled: true,
-    guestMaxPerBooking: '1',
+    guests: '' as GuestOverride,
     instructorId: '',
     photoUrl: '',
     approvedPassTemplateIds: [] as string[],
@@ -93,6 +94,7 @@ function NewSessionPageContent() {
       const roles: string[] = ctx.roles
       setRoles(roles)
       setTimeZone(org.timezone ?? null)
+      setGuestDefaults({ enabled: !!org.guest_bookings_enabled, max: org.guest_max_per_booking ?? 1 })
       // A new session is priced in the studio's currency (a copy keeps the source session's).
       if (!copyId) setForm(prev => ({ ...prev, currency: org.currency ?? prev.currency }))
 
@@ -172,8 +174,7 @@ function NewSessionPageContent() {
         bookingWindowDays: s.booking_window_days?.toString() ?? '',
         minAdvanceBookingHours: s.min_advance_booking_hours?.toString() ?? '',
         taxRateOverride: s.tax_rate_override?.toString() ?? '',
-        guestBookingsEnabled: s.guest_bookings_enabled ?? true,
-        guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
+        guests: guestOverrideFrom(s),
         instructorId: s.instructor_id ?? '',
         photoUrl: s.photo_url ?? '',
       }))
@@ -325,8 +326,7 @@ function NewSessionPageContent() {
           booking_window_days: form.bookingWindowDays ? parseInt(form.bookingWindowDays) : null,
           min_advance_booking_hours: form.minAdvanceBookingHours ? parseInt(form.minAdvanceBookingHours) : null,
           tax_rate_override: form.taxRateOverride ? parseFloat(form.taxRateOverride) : null,
-          guest_bookings_enabled: form.guestBookingsEnabled,
-          guest_max_per_booking: parseInt(form.guestMaxPerBooking),
+          ...guestOverridePayload(form.guests),
           instructor_id: form.instructorId || null,
           ...earlyBirdPayload(earlyBird, form.isRecurring, 'create'),
         })
@@ -581,12 +581,9 @@ function NewSessionPageContent() {
               <Field label="Cancellation window (hours)" hint="Members can cancel free of charge up to this many hours before the class.">
                 <Input type="number" min="0" placeholder="Studio default" value={form.cancellationHours} onChange={e => update('cancellationHours', e.target.value)} />
               </Field>
-              <Field label="Max guests per booking">
-                <Select value={form.guestMaxPerBooking} onChange={e => update('guestMaxPerBooking', e.target.value)}>
-                  <option value="0">No guests</option>
-                  <option value="1">1 guest</option>
-                  <option value="2">2 guests</option>
-                  <option value="3">3 guests</option>
+              <Field label="Guests per booking" hint="Leave on the studio default unless this class needs its own.">
+                <Select value={form.guests} onChange={e => update('guests', e.target.value as GuestOverride)}>
+                  <GuestOverrideOptions defaults={guestDefaults} current={form.guests} />
                 </Select>
               </Field>
             </div>

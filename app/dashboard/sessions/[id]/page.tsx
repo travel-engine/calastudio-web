@@ -13,6 +13,7 @@ import { formatClock, formatShortDate, formatWhen } from '@/lib/dates'
 import { formatMoney } from '@/lib/money'
 import { studioUrl } from '@/lib/seo'
 import DurationPicker, { durationProblem, formatDuration } from '@/app/components/DurationPicker'
+import { GuestOverrideOptions, guestOverrideFrom, guestOverridePayload, useStudioGuestDefaults, type GuestOverride } from '../GuestOverride'
 import EarlyBirdFields, { EMPTY_EARLY_BIRD, earlyBirdFromSession, earlyBirdPayload, earlyBirdProblem, type EarlyBirdForm } from '../EarlyBirdFields'
 import { color, radius, space, tabularNums } from '@/lib/ui/tokens'
 import { Breadcrumb, Button, CapacityBar, Card, Chip, Segmented, cardStyle, controlStyle, smallCapsStyle } from '@/app/components/admin'
@@ -87,6 +88,7 @@ export default function EditSessionPage() {
   const [error, setError] = useState('')
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
+  const guestDefaults = useStudioGuestDefaults(orgId, token)
   const [roles, setRoles] = useState<string[]>([])
   const [timeZone, setTimeZone] = useState<string | null>(null)
   const [earlyBird, setEarlyBird] = useState<EarlyBirdForm>(EMPTY_EARLY_BIRD)
@@ -136,8 +138,7 @@ export default function EditSessionPage() {
     bookingWindowDays: '',
     minAdvanceBookingHours: '',
     taxRateOverride: '',
-    guestBookingsEnabled: true,
-    guestMaxPerBooking: '1',
+    guests: '' as GuestOverride,
     instructorId: '',
     photoUrl: '',
     approvedPassTemplateIds: [] as string[],
@@ -259,8 +260,7 @@ export default function EditSessionPage() {
         bookingWindowDays: s.booking_window_days?.toString() ?? '',
         minAdvanceBookingHours: s.min_advance_booking_hours?.toString() ?? '',
         taxRateOverride: s.tax_rate_override?.toString() ?? '',
-        guestBookingsEnabled: s.guest_bookings_enabled ?? true,
-        guestMaxPerBooking: s.guest_max_per_booking?.toString() ?? '1',
+        guests: guestOverrideFrom(s),
         instructorId: s.instructor_id ?? '',
         photoUrl: s.photo_url ?? '',
         approvedPassTemplateIds: [],
@@ -413,8 +413,7 @@ export default function EditSessionPage() {
       booking_window_days: form.bookingWindowDays ? parseInt(form.bookingWindowDays) : null,
       min_advance_booking_hours: form.minAdvanceBookingHours ? parseInt(form.minAdvanceBookingHours) : null,
       tax_rate_override: form.taxRateOverride ? parseFloat(form.taxRateOverride) : null,
-      guest_bookings_enabled: form.guestBookingsEnabled,
-      guest_max_per_booking: parseInt(form.guestMaxPerBooking),
+      ...guestOverridePayload(form.guests),
       instructor_id: form.instructorId || null,
       ...earlyBirdPayload(earlyBird, form.isRecurring, 'edit'),
       confirm,
@@ -989,12 +988,9 @@ export default function EditSessionPage() {
                 onChange={e => update('cancellationHours', e.target.value)}
               />
             </Field>
-            <Field label="Guests per booking">
-              <Select value={form.guestMaxPerBooking} onChange={e => update('guestMaxPerBooking', e.target.value)}>
-                <option value="0">No guests</option>
-                <option value="1">1 guest</option>
-                <option value="2">2 guests</option>
-                <option value="3">3 guests</option>
+            <Field label="Guests per booking" hint="Leave on the studio default unless this class needs its own.">
+              <Select value={form.guests} onChange={e => update('guests', e.target.value as GuestOverride)}>
+                <GuestOverrideOptions defaults={guestDefaults} current={form.guests} />
               </Select>
             </Field>
           </div>
