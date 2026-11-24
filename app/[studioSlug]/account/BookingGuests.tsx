@@ -179,6 +179,7 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
   const select: React.CSSProperties = { minHeight: 44, padding: '0 10px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 15, maxWidth: '100%' }
   const panel: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', background: 'var(--surface-2, rgba(0,0,0,0.04))', borderRadius: 10 }
   const meta: React.CSSProperties = { fontSize: 13, color: 'var(--text-meta)' }
+  const panelTitle: React.CSSProperties = { fontSize: 15, fontWeight: 600, color: 'var(--ink)' }
 
   return (
     <div style={{ flexBasis: '100%', borderTop: '1px solid var(--line)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -221,6 +222,9 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
       {/* A pass that can pay: choose how many, and which pass if there's more than one. */}
       {mode === 'add' && (
         <div style={panel}>
+          <strong style={panelTitle}>
+            {count > 1 ? `Add guests ${guests.length + 1}–${guests.length + count}` : `Add guest ${guests.length + 1}`}
+          </strong>
           {passOptions.length > 1 && (
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14, color: 'var(--ink)' }}>
               Pay with
@@ -252,8 +256,9 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
       {/* No pass can pay: buy one here, then the guest is added with it. */}
       {mode === 'buy' && (
         <div style={panel}>
+          <strong style={panelTitle}>{`Add guest ${guests.length + 1}`}</strong>
           <span style={{ fontSize: 14, color: 'var(--ink)' }}>
-            None of your passes can cover another guest on this booking. Buy a pass to bring them:
+            {`None of your passes can pay for guest ${guests.length + 1}. Buy a pass to bring them:`}
           </span>
           {offers.map(o => {
             const open = buying?.offer.pass_template_id === o.pass_template_id
