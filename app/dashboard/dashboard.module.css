@@ -216,3 +216,24 @@
     order: -1;
   }
 }
+
+/* Settings section index: a sticky column beside the form on wide screens. On narrower screens it
+   sits above the form as a single scrollable row, and doesn't stick, so it never covers the fields. */
+.settingsNav {
+  flex: 1 1 200px;
+  max-width: 260px;
+  position: sticky;
+  top: 24px;
+}
+
+@media (max-width: 900px) {
+  .settingsNav {
+    flex: 1 1 100%;
+    max-width: none;
+    position: static;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

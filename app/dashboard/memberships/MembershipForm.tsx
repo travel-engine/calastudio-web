@@ -55,7 +55,7 @@ function fromTemplate(t: MembershipTemplate | null): FormState {
     sessionTypes: t?.session_type_restriction ?? [],
     graceDays: t ? String(t.grace_days) : '3',
     guests: t?.guest_bookings_enabled ?? false,
-    guestMax: t?.guest_max_per_booking != null ? String(t.guest_max_per_booking) : '1',
+    guestMax: t?.guest_max_per_booking != null ? String(t.guest_max_per_booking) : '', // '' = same as the class
     holdAllowed: t?.hold_allowed ?? false,
     holdMax: t?.hold_max_periods_per_year != null ? String(t.hold_max_periods_per_year) : '4',
     holdFee: t?.hold_fee != null ? String(t.hold_fee) : '0',
@@ -298,8 +298,12 @@ export default function MembershipForm({ orgId, token, currency, template }: {
         />
       </Field>
       {form.guests && (
-        <Field label="Max guests per booking">
-          <Input type="number" min="1" value={form.guestMax} onChange={e => update('guestMax', e.target.value)} />
+        <Field label="Guests per booking" hint="Same as the class uses each class's own setting, or your studio default from Settings.">
+          <Select value={form.guestMax} onChange={e => update('guestMax', e.target.value)}>
+            <option value="">Same as the class</option>
+            {[1, 2, 3, 4, 5].concat(form.guestMax && ![1, 2, 3, 4, 5].includes(Number(form.guestMax)) ? [Number(form.guestMax)] : [])
+              .map(k => <option key={k} value={String(k)}>{k} guest{k === 1 ? '' : 's'}</option>)}
+          </Select>
         </Field>
       )}
 

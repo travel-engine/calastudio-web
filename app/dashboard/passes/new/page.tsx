@@ -7,6 +7,8 @@ import Sidebar from '@/app/components/Sidebar'
 import { canManagePassTemplates } from '@/lib/roles'
 import { Breadcrumb, Button, PageHeader, cardStyle, alertStyle, OptionButton, FormField as Field, TextInput as Input, SelectInput as Select, TextArea as Textarea, FormSection as SectionHeader, ChoiceGroup as ToggleGroup } from '@/app/components/admin'
 import { color, space } from '@/lib/ui/tokens'
+import PassGuestFields, { EMPTY_PASS_GUESTS, passGuestsFrom, passGuestsPayload, type PassGuestForm } from '../PassGuestFields'
+import { useStudioGuestDefaults } from '../../sessions/GuestOverride'
 import styles from '@/app/dashboard/dashboard.module.css'
 
 interface PassTemplateOption {
@@ -21,6 +23,7 @@ export default function NewPassTemplatePage() {
   const [error, setError] = useState('')
   const [orgId, setOrgId] = useState('')
   const [token, setToken] = useState('')
+  const guestDefaults = useStudioGuestDefaults(orgId, token)
   const [templates, setTemplates] = useState<PassTemplateOption[]>([])
 
   const [form, setForm] = useState({
@@ -37,9 +40,7 @@ export default function NewPassTemplatePage() {
     maxFreezeDays: '30',
     creditReturnOnCancel: true,
     multiPassPriority: 'soonest_expiry' as 'soonest_expiry' | 'oldest_purchased' | 'member_choice',
-    guestBookingsEnabled: '' as '' | 'true' | 'false',
-    guestMaxPerBooking: '1',
-    guestCreditsCost: '1',
+    guests: EMPTY_PASS_GUESTS as PassGuestForm,
     autoRenewEnabled: false,
     autoRenewPassTemplateId: '',
     price: '',
@@ -118,9 +119,7 @@ export default function NewPassTemplatePage() {
           max_freeze_days: form.allowFreeze && form.maxFreezeDays ? parseInt(form.maxFreezeDays) : null,
           credit_return_on_cancel: form.creditReturnOnCancel,
           multi_pass_priority: form.multiPassPriority,
-          guest_bookings_enabled: form.guestBookingsEnabled === '' ? null : form.guestBookingsEnabled === 'true',
-          guest_max_per_booking: form.guestBookingsEnabled === 'true' && form.guestMaxPerBooking ? parseInt(form.guestMaxPerBooking) : null,
-          guest_credits_cost: form.guestBookingsEnabled === 'true' && form.guestCreditsCost ? parseInt(form.guestCreditsCost) : null,
+          ...passGuestsPayload(form.guests, { withCost: true }),
           auto_renew_enabled: form.autoRenewEnabled,
           auto_renew_pass_template_id: form.autoRenewEnabled && form.autoRenewPassTemplateId ? form.autoRenewPassTemplateId : null,
           price: parseFloat(form.price),
@@ -301,34 +300,7 @@ export default function NewPassTemplatePage() {
 
           <SectionHeader title="Guest bookings" />
 
-          <Field label="Guest bookings" hint="Leave as studio default to inherit the org-wide setting">
-            <Select value={form.guestBookingsEnabled} onChange={e => update('guestBookingsEnabled', e.target.value)}>
-              <option value="">Use studio default</option>
-              <option value="true">Enabled</option>
-              <option value="false">Disabled</option>
-            </Select>
-          </Field>
-
-          {form.guestBookingsEnabled === 'true' && (
-            <div className={styles.formGrid} style={{ gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <Field label="Max guests per booking">
-                <Input
-                  type="number"
-                  min="1"
-                  value={form.guestMaxPerBooking}
-                  onChange={e => update('guestMaxPerBooking', e.target.value)}
-                />
-              </Field>
-              <Field label="Credits per guest">
-                <Input
-                  type="number"
-                  min="0"
-                  value={form.guestCreditsCost}
-                  onChange={e => update('guestCreditsCost', e.target.value)}
-                />
-              </Field>
-            </div>
-          )}
+          <PassGuestFields value={form.guests} onChange={g => setForm(prev => ({ ...prev, guests: g }))} defaults={guestDefaults} withCost />
 
           {/* Auto-renew is hidden until the API acts on it: today the flags are stored but nothing renews or
               charges. The form still round-trips the saved values. */}
