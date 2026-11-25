@@ -908,10 +908,10 @@ function SettingsPageContent() {
             ) : tab === 'studio' ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: space.cardGap, alignItems: 'flex-start' }}>
                 {/* Section index */}
-                <nav aria-label="Settings sections" style={{ ...cardStyle, flex: '1 1 200px', maxWidth: 260, padding: 10, position: 'sticky', top: 24 }}>
+                <nav aria-label="Settings sections" className={styles.settingsNav} style={{ ...cardStyle, padding: 10 }}>
                   {STUDIO_SECTIONS.map(sct => (
                     <a key={sct.id} href={`#${sct.id}`} className={`${ui.rowLink} ${ui.focusable}`}
-                      style={{ display: 'flex', alignItems: 'center', minHeight: 40, padding: '0 12px', borderRadius: radius.control, fontSize: 15, fontWeight: 500, color: color.ink2, textDecoration: 'none', ['--hover-bg' as string]: color.bg }}>
+                      style={{ display: 'flex', alignItems: 'center', flexShrink: 0, whiteSpace: 'nowrap', minHeight: 40, padding: '0 12px', borderRadius: radius.control, fontSize: 15, fontWeight: 500, color: color.ink2, textDecoration: 'none', ['--hover-bg' as string]: color.bg }}>
                       {sct.label}
                     </a>
                   ))}
