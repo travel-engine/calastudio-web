@@ -29,7 +29,7 @@ It's active immediately and appears as a card on the **Pass types** tab, showing
 | **Allow freeze** | Lets a member pause the pass's expiry clock, up to a max number of days. |
 | **Credit return on cancel** | Reserved for a future per-pass override. Today, whether a cancellation returns its credit is decided studio-wide by your cancellation policy, not per pass template — see **Sessions → Cancellation policy**. |
 | **Multi-pass priority** | When a member holds more than one usable pass, which one gets debited first — soonest to expire, oldest purchased, or let the member choose. |
-| **Guest bookings** | Whether this pass can bring guests, how many, and the credit cost per guest. Leave as "studio default" to inherit your org-wide setting. |
+| **Guest bookings** | Whether members paying with this pass can bring guests, how many, and the credits per guest. Leave on **Same as the class** to follow each class, which follows your studio default in **Settings → Guests**. See **Members → Guest bookings**. |
 | **Sale window** | Restrict when the pass can be purchased — useful for limited-time offers. |
 
 ## Issue a pass to a member

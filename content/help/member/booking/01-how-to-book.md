@@ -19,7 +19,7 @@ Browse your studio's booking page to find a session you'd like to attend. You ca
 2. Click **Book**
 3. If you're not signed in, you'll be asked to create an account (with your first and last name, email and a password) or sign in. You can also continue with Google
 4. If it's your first time, you may need to accept the studio's terms and liability waiver before continuing
-5. If the studio allows guests on this session, choose how many you're bringing
+5. If the studio allows guests on this session, choose how many you're bringing. You can also add guests later: see **Bringing guests**
 6. Choose how you'd like to pay — with an existing pass, by buying a new pass, or as a one-off drop-in by card
 7. Click **Confirm booking**
 

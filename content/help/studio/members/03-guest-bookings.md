@@ -1,42 +1,73 @@
 ---
 title: Guest bookings
-description: Letting members bring guests, and how guests are charged
+description: Letting members bring guests, how many, and how guests are paid for
 order: 3
 ---
 
 # Guest bookings
 
-A member can bring one or more guests along when they book a session, if the session allows it. Guests don't need their own CalaStudio account — there's no name or email collected for them at all. Each guest is automatically labelled using the booking member's own name, like **"Jordan Lee - Guest 1"**, so they're identifiable on your roster without any extra data entry.
+Members can bring guests to a class, if you allow it. Guests don't need an account, and no name or email is collected. Each guest is labelled with the member's name, like **"Jordan Lee - Guest 1"**, so you can spot them on the roster.
 
-## Turning it on for a session
+Each guest takes a spot. A class with room for 12 and a member bringing 2 guests uses 3 spots.
 
-1. Open the session and find **Max guests per booking** under **Settings**
-2. Choose **No guests**, or a number from 1–3
+## Where guests are set: studio, then class, then pass
 
-Leave it at **No guests** (the default) for classes that shouldn't allow them at all. There's no studio-wide default for this in Settings yet — it's set per session (or per occurrence, via that occurrence's **Edit** button, if you need to override just one date).
+Guest settings can be set at three levels. Each level uses the one above it unless you change it there, and the most specific setting wins.
 
-## The pass side of the equation
+1. **Studio (Settings → Guests):** your default for every class
+2. **Class:** a class can have its own setting, for example more guests for a big workshop, or none for a small private class
+3. **Pass or membership:** can change it again for members paying with that pass or membership
 
-If a member is paying with a pass, that pass template's own guest settings also have to allow it — both the session **and** the pass need to say yes, and the *more* restrictive of the two wins. Open a pass template and look for:
+Most studios only need the studio setting, and change a class or pass now and then.
 
-- **Guest bookings** — Yes/No, or "Studio default" to inherit the org-wide setting (there's no dashboard screen for the org-wide default itself yet, so in practice this behaves like "No" unless set explicitly)
-- **Max guests per booking** — capped further by whatever the session itself allows
-- **Credits per guest** — defaults to 1, independent of what the member's own credit cost is
+### 1. Your studio default
 
-A pass with guest bookings turned off means that member can't bring guests on it, even into a session that otherwise allows them.
+Go to **Settings → Guests**:
 
-## How a member books with guests
+- **Members can bring guests:** on or off
+- **Guests per booking:** the most guests one member can bring to a class
+- **Credits per guest:** taken from the member's pass for each guest. 0 means guests come free
 
-If the session and their pass both allow it, the booking flow shows a **Bringing guests?** selector before confirming. The member picks how many they're bringing (capped at whatever spots are actually left, not just the configured max), and each guest counts as an extra spot against capacity — a session with room for 12 and a member bringing 2 guests uses 3 of those spots.
+### 2. A class
 
-Guests can only be brought along on a pass-paid booking — there's no separate guest payment step for a card or free booking.
+Open the session from **Sessions** and find **Guests per booking** under **Booking rules**:
 
-## Checking in guests
+- **Studio default (…):** follows Settings. It shows what that is right now, for example "Studio default (1 guest)"
+- **No guests:** guests aren't allowed in this class
+- **1 guest** to **5 guests:** this class allows that many, whatever the studio default says
 
-Each guest is checked in separately from the member. On the class roster, every guest listed under the member's row has their own **Check in** button. Tap it when they arrive; it turns into the time they were checked in, which you can tap to undo. The member's own **Check in** covers only the member, so a member who comes without their guest is recorded correctly, and so is a guest who comes without the member.
+### 3. A pass or membership
 
-Anyone not checked in once the class is over counts as a **no-show**, member or guest. If someone did come and nobody tapped, you can still check them in afterwards. Guests on classes before 23 October 2026 weren't checked in separately, so they're left out of attendance and no-show figures.
+Open the pass from **Passes**, and under **Guest bookings**:
 
-## Cancelling a guest
+- **Guests:** **Same as the class**, **Allowed** or **Not allowed**
+- **Guests per booking:** **Same as the class**, or a number
+- **Credits per guest:** **Studio default**, or a number
 
-A member can't cancel just one guest themselves — cancelling their own booking cancels any guests on it too. From the occurrence's roster, though, Admin and Super teacher can cancel an individual guest without touching the member's own confirmed spot: find the guest listed under the member's row and click **Cancel** next to their name. Any credit used for that guest is returned in full — unlike cancelling the member's own spot, this doesn't check the cancellation window.
+Leave these on **Same as the class** unless this pass should be different. For example, set a 10-class pack to **2 guests** to let its holders bring 2 guests to any class, or set a single pass to **Not allowed**.
+
+On a membership, choose whether **Members can bring guests on this membership** (yes or no), and **Guests per booking** (**Same as the class**, or a number). If the membership has a session limit, each guest uses one session from it.
+
+### An example
+
+Your studio default is 1 guest. Tuesday's class is set to 2 guests. A member with a 10-class pack left on **Same as the class** can bring 2 guests on Tuesday, and 1 to every other class. If you set that pack to **1 guest**, its holders can bring only 1, even on Tuesday.
+
+## How members add guests
+
+- **When booking:** they choose how many guests they're bringing before confirming. The choice is limited to the spots actually left
+- **Later:** from **My account → My bookings**, they tap **+ Add a guest** on an upcoming booking
+
+Guests are paid from the member's passes. They can pay with any of their passes that allows guests, choosing which if they have more than one. If none of their passes can pay for another guest, they can buy one right there, and the guest is added once the payment goes through.
+
+Members can also **Remove** a guest themselves. The credit goes back to the pass if they remove the guest before your cancellation window, just like cancelling their own booking. Cancelling their own booking cancels their guests too.
+
+## On the class roster
+
+Each guest has their own line under the member, with their own **Check in**. Tap it when they arrive. The member's own **Check in** covers only the member, so someone who comes without their guest is recorded correctly, and so is a guest who comes without the member.
+
+Anyone not checked in once the class is over counts as a **no-show**, member or guest. Guests on classes before 23 October 2026 weren't checked in separately, so they're left out of attendance and no-show figures.
+
+Admins and Super teachers can also:
+
+- **Add guest:** add a guest to a member's booking, paid from one of their passes
+- **Cancel** a single guest, without touching the member's own booking. Any credit used for that guest goes back in full
