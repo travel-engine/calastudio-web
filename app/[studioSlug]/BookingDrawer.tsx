@@ -299,6 +299,19 @@ export default function BookingDrawer() {
     }
   }
 
+  // Opened with known auth (skipping the sign-in step): fetch the member's name in the background
+  // for guest labels; nothing waits on it.
+  useEffect(() => {
+    if (!accessToken || !orgId || memberName) return
+    let cancelled = false
+    fetch(`${apiUrl}/api/organisations/${orgId}/members/me`, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(p => { if (!cancelled && p) setMemberName(displayName(p)) })
+      .catch(() => {})
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, orgId])
+
   // Escape closes the sheet, like the pass purchase sheet.
   useEffect(() => {
     if (!occurrence) return

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useBookingFlow, type BookableOccurrence } from '@/lib/store/bookingFlow'
-import { useMemberSchedule } from '@/lib/store/memberSchedule'
+import { useMemberSchedule, useKnownMemberAuth } from '@/lib/store/memberSchedule'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -20,6 +20,7 @@ export default function BookButton({ studioSlug, occurrence, disabled, label, br
   const orgId = useMemberSchedule(s => s.orgId)
   const accessToken = useMemberSchedule(s => s.accessToken)
   const removeBooking = useMemberSchedule(s => s.removeBooking)
+  const auth = useKnownMemberAuth()
 
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState('')
@@ -85,7 +86,7 @@ export default function BookButton({ studioSlug, occurrence, disabled, label, br
 
   return (
     <button
-      onClick={() => openOccurrence(studioSlug, occurrence, { brandColor, stripeAccountId, paymentsEnabled })}
+      onClick={() => openOccurrence(studioSlug, occurrence, { brandColor, stripeAccountId, paymentsEnabled, auth })}
       disabled={disabled}
       style={{
         padding: '8px 18px', backgroundColor: disabled ? '#f4f4f4' : accent,
