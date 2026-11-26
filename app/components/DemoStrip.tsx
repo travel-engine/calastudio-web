@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Repeat } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import { fetchDemoInfo, formatResetTime } from '@/lib/demo'
@@ -25,6 +25,25 @@ function pickerUrl(): string {
 export default function DemoStrip({ variant }: { variant: 'studio' | 'dashboard' }) {
   const [resetAt, setResetAt] = useState<string | null>(null)
   const [show, setShow] = useState(variant === 'studio')
+  const barRef = useRef<HTMLDivElement>(null)
+  const [barHeight, setBarHeight] = useState(0)
+
+  // On the dashboard the bar is pinned to the top, and the fixed sidebar / mobile top bar sit below
+  // it via --demo-strip-h (sidebar.module.css). Its height changes when the text wraps on a phone.
+  useEffect(() => {
+    if (variant !== 'dashboard' || !show || !barRef.current) return
+    const el = barRef.current
+    const root = document.documentElement
+    const apply = () => {
+      const h = el.offsetHeight
+      setBarHeight(h)
+      root.style.setProperty('--demo-strip-h', `${h}px`)
+    }
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(el)
+    return () => { ro.disconnect(); root.style.removeProperty('--demo-strip-h') }
+  }, [variant, show])
 
   useEffect(() => {
     let cancelled = false
@@ -52,11 +71,16 @@ export default function DemoStrip({ variant }: { variant: 'studio' | 'dashboard'
 
   if (!show) return null
 
+  const pinned = variant === 'dashboard'
   return (
-    <div role="note" style={{
+    <>
+    {/* Keeps the page content below the pinned bar. */}
+    {pinned && <div aria-hidden style={{ height: barHeight }} />}
+    <div ref={barRef} role="note" style={{
+      ...(pinned ? { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 70 } : { position: 'relative', zIndex: 60 }),
       background: '#17201C', color: '#F3F4F1', fontSize: 13, lineHeight: 1.4,
       padding: '7px 16px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '4px 14px',
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', position: 'relative', zIndex: 60,
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
     }}>
       <span>
         <strong style={{ fontWeight: 700 }}>Shared demo.</strong>{' '}
@@ -66,5 +90,6 @@ export default function DemoStrip({ variant }: { variant: 'studio' | 'dashboard'
         <Repeat size={14} aria-hidden /> Switch view
       </a>
     </div>
+    </>
   )
 }

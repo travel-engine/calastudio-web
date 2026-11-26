@@ -10,9 +10,10 @@
   flex-direction: column;
   gap: 2px;
   position: fixed;
-  top: 0;
+  /* --demo-strip-h: the demo studio's strip above the dashboard (DemoStrip); 0 everywhere else. */
+  top: var(--demo-strip-h, 0px);
   left: 0;
-  height: 100vh;
+  height: calc(100vh - var(--demo-strip-h, 0px));
   overflow-y: auto;
   z-index: 50;
   transition: transform 0.2s ease;
@@ -244,7 +245,7 @@
     align-items: center;
     gap: 12px;
     position: fixed;
-    top: 0;
+    top: var(--demo-strip-h, 0px);
     left: 0;
     right: 0;
     height: 56px;
