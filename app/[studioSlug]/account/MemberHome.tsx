@@ -235,12 +235,28 @@ export default function MemberHome({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      {/* Greeting */}
-      <div>
-        <div style={eyebrow}>{today}</div>
-        <h1 style={{ margin: '2px 0 0', fontSize: '26px', fontWeight: 700, color: 'var(--ink)' }}>
-          {hello ?? 'Hello'}{home.greeting_name ? `, ${home.greeting_name}` : ''}
-        </h1>
+      {/* Greeting, with classes attended as a small counter on the right (hidden until the first class) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '12px' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={eyebrow}>{today}</div>
+          <h1 style={{ margin: '2px 0 0', fontSize: '26px', fontWeight: 700, color: 'var(--ink)' }}>
+            {hello ?? 'Hello'}{home.greeting_name ? `, ${home.greeting_name}` : ''}
+          </h1>
+        </div>
+        {home.stats.attended_total > 0 && (
+          <div
+            aria-label={`${home.stats.attended_total} classes attended, ${home.stats.attended_this_month} this month`}
+            style={{ textAlign: 'right', flexShrink: 0, lineHeight: 1.15 }}
+          >
+            <div aria-hidden style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: '5px' }}>
+              <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{home.stats.attended_total}</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-meta)' }}>{home.stats.attended_total === 1 ? 'class' : 'classes'}</span>
+            </div>
+            {home.stats.attended_this_month > 0 && (
+              <div aria-hidden style={{ fontSize: '13px', fontWeight: 600, color: brand }}>{home.stats.attended_this_month} this month</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Needs your attention (only when there's something to do) */}
@@ -277,17 +293,6 @@ export default function MemberHome({
           {nextClassActions && <div style={{ marginTop: '10px' }}>{nextClassActions(next.booking_id)}</div>}
         </div>
       )}
-
-      {/* Classes attended */}
-      <div style={{ ...card, padding: '16px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-        <div>
-          <div style={eyebrow}>Classes attended</div>
-          <div style={{ fontSize: '26px', fontWeight: 700, color: 'var(--ink)', marginTop: '2px' }}>
-            {home.stats.attended_total} <span style={{ fontSize: '15px', fontWeight: 500, color: 'var(--text-meta)' }}>all time</span>
-          </div>
-        </div>
-        <div style={{ color: brand, fontWeight: 600, fontSize: '14px' }}>{home.stats.attended_this_month} this month</div>
-      </div>
 
       {/* Passes and memberships */}
       {holdings.length > 0 && (
