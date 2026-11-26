@@ -89,9 +89,15 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
   const onAccountPage = pathname === at('/account')
   const initial = (email?.[0] ?? '?').toUpperCase()
 
+  // Signed in, "Home" is the member's own Home (the account dashboard); signed out, the studio's
+  // home page. ?tab=home so it also switches back to Home from another account tab.
+  const homeLink = ready && email
+    ? { href: at('/account?tab=home'), label: 'Home', active: onAccountPage }
+    : { href: home, label: 'Home', active: onHome }
+
   const navLinks = [
     // The themed layout leads with the studio name as "home" and drops the explicit Home link.
-    ...(themed ? [] : [{ href: home, label: 'Home', active: onHome }]),
+    ...(themed ? [] : [homeLink]),
     { href: at('/schedule'), label: 'Schedule', active: pathname === at('/schedule') },
     { href: at('/teachers'), label: 'Teachers', active: pathname.startsWith(at('/teachers')) },
     { href: at('/pricing'), label: 'Pricing', active: pathname === at('/pricing') },
