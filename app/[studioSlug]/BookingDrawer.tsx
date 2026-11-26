@@ -18,6 +18,8 @@ import PasswordInput from '@/app/components/PasswordInput'
 import EarlyBirdPrice from './EarlyBirdPrice'
 import SocialSignIn from '@/app/components/SocialSignIn'
 import { BOOKING_RESUME_KEY } from '@/lib/bookingResume'
+import { clearDeadSession, SESSION_EXPIRED_MESSAGE } from '@/lib/deadSession'
+import { useMemberSchedule } from '@/lib/store/memberSchedule'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -219,6 +221,18 @@ export default function BookingDrawer() {
     }
   }
 
+  // The API answered 401: Supabase has ended this sign-in (e.g. signed out on another device).
+  // Clear the stale copy and go back to the sign-in form with a note, instead of an error that
+  // "try again" can never fix.
+  const handleDeadSession = async () => {
+    await clearDeadSession()
+    setAuth({ accessToken: '', orgId: '' })
+    // So the schedule's Book buttons stop passing the dead sign-in along.
+    useMemberSchedule.setState({ registered: false, accessToken: null, byOccurrence: {} })
+    setAuthMessage(SESSION_EXPIRED_MESSAGE)
+    setStep('auth')
+  }
+
   // `nameHint`: the name Google / Apple gave, for a member who signed in that way (no name typed).
   const resolveAuth = async (token: string, nameHint: { first_name: string; last_name: string } = { first_name: '', last_name: '' }) => {
     if (!occurrence || !studioSlug) return
@@ -227,6 +241,7 @@ export default function BookingDrawer() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ first_name: firstName.trim() || nameHint.first_name, last_name: lastName.trim() || nameHint.last_name, phone: null, accept_terms: agreeTerms, accept_waiver: agreeWaiver })
     })
+    if (registerRes.status === 401) { await handleDeadSession(); return }
     if (!registerRes.ok) {
       const data = await registerRes.json().catch(() => null)
       const message: string = data?.error ?? ''
@@ -366,6 +381,8 @@ export default function BookingDrawer() {
         : Promise.resolve(null),
     ]).then(async ([optionsRes, bookingsRes]) => {
       if (cancelled) return
+      // Opened with known auth (no register step) and the sign-in turned out to be dead.
+      if (optionsRes.status === 401 || bookingsRes?.status === 401) { await handleDeadSession(); return }
       if (!optionsRes.ok) { setError("Couldn't load pricing options for this class."); return }
 
       if (bookingsRes?.ok) {

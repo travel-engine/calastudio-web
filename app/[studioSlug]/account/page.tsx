@@ -7,6 +7,7 @@ import { PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/password
 import { displayName, isNameRequiredError, namesFromMetadata } from '@/lib/names'
 import { formatDayMonth, formatShortDate, formatTimeRange, formatWhen } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
+import { clearDeadSession, SESSION_EXPIRED_MESSAGE } from '@/lib/deadSession'
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
 import CalendarLinks from '../CalendarLinks'
@@ -320,11 +321,24 @@ function MemberAccountContent() {
   const [agreementsError, setAgreementsError] = useState('')
   const [pendingAuth, setPendingAuth] = useState<{ token: string; meta: { first_name?: string; last_name?: string; phone?: string } } | null>(null)
 
-  const authedFetch = useCallback((path: string, init?: RequestInit) =>
-    fetch(`${apiUrl}/api/organisations/${orgId}${path}`, {
+  // A 401 means Supabase no longer knows this sign-in (ended elsewhere): clear it and show the
+  // sign-in form with a note, rather than an account page where nothing loads.
+  const endDeadSession = useCallback(async () => {
+    await clearDeadSession()
+    setAccessToken('')
+    setOrgId('')
+    setPortalLoaded(false)
+    setAuthMessage(SESSION_EXPIRED_MESSAGE)
+  }, [])
+
+  const authedFetch = useCallback(async (path: string, init?: RequestInit) => {
+    const res = await fetch(`${apiUrl}/api/organisations/${orgId}${path}`, {
       ...init,
       headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${accessToken}` }
-    }), [apiUrl, orgId, accessToken])
+    })
+    if (res.status === 401) void endDeadSession()
+    return res
+  }, [apiUrl, orgId, accessToken, endDeadSession])
 
   const resolveMembership = useCallback(async (token: string, meta: { first_name?: string; last_name?: string; phone?: string }) => {
     try {
@@ -337,6 +351,7 @@ function MemberAccountContent() {
         })
       })
       if (res.status === 404) { setStudioNotFound(true); return }
+      if (res.status === 401) { await endDeadSession(); return }
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         const message: string = data?.error ?? ''
@@ -370,7 +385,7 @@ function MemberAccountContent() {
     } catch {
       setPortalError("Couldn't reach the server. Please check your connection and try again.")
     }
-  }, [apiUrl, studioSlug, agreeTerms, agreeWaiver])
+  }, [apiUrl, studioSlug, agreeTerms, agreeWaiver, endDeadSession])
 
   const handleAcceptAgreements = async () => {
     if (!pendingAuth) return
