@@ -57,20 +57,25 @@ export default function RevenueTab({ ctx, range }: { ctx: OrgCtx; range: Range }
     { label: 'Amount', width: '110px', align: 'right', render: r => money(r.amount, cur) },
   ]
 
+  const summaryTiles = [
+    { label: 'Total revenue', value: money(s.total_revenue, cur) },
+    { label: 'Drop-in', value: money(s.drop_in, cur) },
+    { label: 'Pass sales', value: money(s.pass_sales, cur) },
+    ...(s.membership_sales !== undefined ? [{ label: 'Memberships', value: money(s.membership_sales, cur) }] : []),
+    { label: 'Refunds', value: money(s.refunds, cur) },
+    { label: 'Net', value: money(s.net, cur) },
+  ]
+  const summaryFit = Math.max(...summaryTiles.map(t => t.value.length))
+
   return (
     <div className={styles.stack}>
       <div style={tilesGrid}>
-        <StatTile label="Total revenue" value={money(s.total_revenue, cur)} />
-        <StatTile label="Drop-in" value={money(s.drop_in, cur)} />
-        <StatTile label="Pass sales" value={money(s.pass_sales, cur)} />
-        {s.membership_sales !== undefined && <StatTile label="Memberships" value={money(s.membership_sales, cur)} />}
-        <StatTile label="Refunds" value={money(s.refunds, cur)} />
-        <StatTile label="Net" value={money(s.net, cur)} />
+        {summaryTiles.map(t => <StatTile key={t.label} label={t.label} value={t.value} fitChars={summaryFit} />)}
       </div>
 
       {s.booking_price_tiers?.some(t => t.tier === 'early_bird' || t.tier === 'override') && (
         <Panel title="Booking prices" subtitle="Classes and workshops paid for in this range">
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ ...tilesGrid, gap: 12 }}>
             {s.booking_price_tiers.map(t => (
               <StatTile key={t.tier} label={t.tier === 'early_bird' ? 'Early bird' : t.tier === 'override' ? 'Special price' : 'Full price'}
                 value={money(t.revenue, cur)} sub={`${t.count} booking${t.count === 1 ? '' : 's'}`} />

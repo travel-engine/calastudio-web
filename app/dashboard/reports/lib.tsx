@@ -162,11 +162,20 @@ export function Panel({ title, subtitle, right, flush = false, children }: {
 }
 
 /** KPI tile: small-caps label, big number, one muted line under it. */
-export function StatTile({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
+export function StatTile({ label, value, sub, fitChars }: {
+  label: string; value: string; sub?: React.ReactNode
+  /** Size the number as if it had this many characters, so a row of tiles shares one size (pass the row's longest value). */
+  fitChars?: number
+}) {
   return (
-    <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 6, padding: '18px 20px', minWidth: 0 }}>
+    <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 6, padding: '18px 20px', minWidth: 0, containerType: 'inline-size' }}>
       <span style={smallCapsStyle}>{label}</span>
-      <span style={{ fontSize: 30, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.15, ...tabularNums }}>{value}</span>
+      {/* Long amounts ("A$16,607.00") in narrow tiles shrink to fit the card instead of spilling past it.
+          ~0.62em per character at this weight; short values stay at 30px. */}
+      <span style={{
+        fontSize: `min(30px, calc(100cqi / ${(Math.max(fitChars ?? value.length, value.length, 1) * 0.62).toFixed(2)}))`,
+        fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.15, whiteSpace: 'nowrap', ...tabularNums,
+      }}>{value}</span>
       {sub && <span style={{ fontSize: 13, lineHeight: 1.4, color: color.muted, ...tabularNums }}>{sub}</span>}
     </div>
   )
