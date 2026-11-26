@@ -28,7 +28,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ studioS
     name: org.name,
     short_name: org.name.length <= 15 ? org.name : org.name.split(/\s+/).slice(0, 2).join(' '),
     description: org.description ?? `Book classes at ${org.name}`,
-    start_url: studioPath(studioSlug, '/schedule'),
+    // The member's Home (sign-in form when signed out). AppLaunchHome covers apps installed
+    // with the old start_url (/schedule), which iOS keeps.
+    start_url: studioPath(studioSlug, '/account?tab=home'),
     scope: studioPath(studioSlug, '/'),
     display: 'standalone',
     background_color: bg,
