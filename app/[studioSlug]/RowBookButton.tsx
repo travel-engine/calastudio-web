@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useBookingFlow, type BookableOccurrence } from '@/lib/store/bookingFlow'
-import { useMemberSchedule } from '@/lib/store/memberSchedule'
+import { useMemberSchedule, useKnownMemberAuth } from '@/lib/store/memberSchedule'
 import styles from './photofirst.module.css'
 
 // The Book / Waitlist control in a Photo First session row. Opens the shared booking drawer for
@@ -25,6 +25,7 @@ export default function RowBookButton({
   const openOccurrence = useBookingFlow(s => s.openOccurrence)
   const booked = useMemberSchedule(s => s.byOccurrence[occurrence.occurrence_id])
   const loaded = useMemberSchedule(s => s.loaded)
+  const auth = useKnownMemberAuth()
   const [gaveUp, setGaveUp] = useState(false)
   useEffect(() => {
     if (loaded) return
@@ -59,7 +60,7 @@ export default function RowBookButton({
       className={`${styles.rowBtn} ${full && !occurrence.is_cancelled ? styles.rowBtnWaitlist : ''}`}
       disabled={occurrence.is_cancelled || closed}
       title={closed ? 'Online booking has closed for this class' : undefined}
-      onClick={() => openOccurrence(studioSlug, occurrence, { brandColor, stripeAccountId, paymentsEnabled, timeZone })}
+      onClick={() => openOccurrence(studioSlug, occurrence, { brandColor, stripeAccountId, paymentsEnabled, timeZone, auth })}
     >
       {label}
     </button>

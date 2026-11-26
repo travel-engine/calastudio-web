@@ -1186,6 +1186,7 @@ function MemberAccountContent() {
               <MemberHome
                 api={authedFetch}
                 apiUrl={apiUrl}
+                orgId={orgId}
                 accessToken={accessToken}
                 studioSlug={studioSlug}
                 brand={brand}

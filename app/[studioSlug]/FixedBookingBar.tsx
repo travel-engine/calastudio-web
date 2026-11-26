@@ -1,6 +1,7 @@
 'use client'
 
 import { useBookingFlow, type BookableOccurrence } from '@/lib/store/bookingFlow'
+import { useKnownMemberAuth } from '@/lib/store/memberSchedule'
 import { dayKey, formatTime, safeZone } from '@/lib/dates'
 import styles from './photofirst.module.css'
 
@@ -41,6 +42,7 @@ export default function FixedBookingBar({
   timeZone?: string | null
 }) {
   const openOccurrence = useBookingFlow(s => s.openOccurrence)
+  const auth = useKnownMemberAuth()
   if (!next) return null
 
   const price = next.price != null ? formatMoney(next.price, next.currency) : null
@@ -56,7 +58,7 @@ export default function FixedBookingBar({
       <button
         type="button"
         className={styles.fixedBarBtn}
-        onClick={() => openOccurrence(studioSlug, next, { brandColor, stripeAccountId, paymentsEnabled, timeZone })}
+        onClick={() => openOccurrence(studioSlug, next, { brandColor, stripeAccountId, paymentsEnabled, timeZone, auth })}
       >
         {price ? `Book · ${price}` : 'Book'}
       </button>

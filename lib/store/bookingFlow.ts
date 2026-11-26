@@ -152,7 +152,11 @@ interface BookingFlowState {
   openOccurrence: (
     studioSlug: string,
     occurrence: BookableOccurrence,
-    opts?: { brandColor?: string; stripeAccountId?: string | null; paymentsEnabled?: boolean; timeZone?: string | null },
+    opts?: {
+      brandColor?: string; stripeAccountId?: string | null; paymentsEnabled?: boolean; timeZone?: string | null
+      /** Already signed in and registered with this studio (e.g. opened from the account page): skip the sign-in step. */
+      auth?: { accessToken: string; orgId: string }
+    },
   ) => void
   close: () => void
   setStep: (step: BookingStep) => void
@@ -195,7 +199,11 @@ export const useBookingFlow = create<BookingFlowState>((set) => ({
     stripeAccountId: opts?.stripeAccountId ?? null,
     paymentsEnabled: opts?.paymentsEnabled ?? false,
     timeZone: opts?.timeZone ?? null,
-    step: 'auth',
+    // With known auth the drawer goes straight to the options (or waitlist) step: no
+    // register / profile round trips before it can show anything.
+    step: opts?.auth ? (isOccurrenceFull(occurrence) ? 'waitlist' : 'options') : 'auth',
+    accessToken: opts?.auth?.accessToken ?? '',
+    orgId: opts?.auth?.orgId ?? '',
     bookedMode: occurrence.delivery_mode,
     joiningWaitlist: isOccurrenceFull(occurrence),
   }),

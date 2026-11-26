@@ -153,10 +153,11 @@ function Bar({ value, total, color }: { value: number; total: number; color: str
 
 // ── Component ───────────────────────────────────────────────────────────────────────────────
 export default function MemberHome({
-  api, apiUrl, accessToken, studioSlug, brand, timeZone, onOpenTab, nextClassActions, refreshKey,
+  api, apiUrl, orgId, accessToken, studioSlug, brand, timeZone, onOpenTab, nextClassActions, refreshKey,
 }: {
   api: (path: string, init?: RequestInit) => Promise<Response>
   apiUrl: string | undefined
+  orgId: string
   accessToken: string
   studioSlug: string
   brand: string
@@ -327,7 +328,7 @@ export default function MemberHome({
       )}
 
       {/* Book a class: the next classes on the schedule, booked right here */}
-      <BookAClass apiUrl={apiUrl} studioSlug={studioSlug} accessToken={accessToken} brand={brand} timeZone={tz} onBooked={load} />
+      <BookAClass apiUrl={apiUrl} studioSlug={studioSlug} orgId={orgId} accessToken={accessToken} brand={brand} timeZone={tz} onBooked={load} />
 
       {/* Recent activity */}
       {home.activity.length > 0 && (

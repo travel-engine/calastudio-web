@@ -32,10 +32,15 @@ export default function MemberScheduleLoader({
         if (!session) { markLoaded(); return }
         const token = session.access_token
 
-        const res = await fetch(
-          `${apiUrl}/api/public/${studioSlug}/occurrences${queryString ? `?${queryString}` : ''}`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        )
+        // In parallel: is the viewer already a member here? Then Book can open the drawer
+        // straight on the options, skipping its register round trips.
+        const [res, meRes] = await Promise.all([
+          fetch(
+            `${apiUrl}/api/public/${studioSlug}/occurrences${queryString ? `?${queryString}` : ''}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          ),
+          fetch(`${apiUrl}/api/organisations/${orgId}/members/me`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        ])
         if (!res.ok) { markLoaded(); return }
 
         const occurrences = await res.json()
@@ -50,7 +55,7 @@ export default function MemberScheduleLoader({
           }
         }
 
-        if (!cancelled) setContext({ orgId, accessToken: token, byOccurrence })
+        if (!cancelled) setContext({ orgId, accessToken: token, byOccurrence, registered: !!meRes?.ok })
       } catch {
         if (!cancelled) markLoaded()
       }

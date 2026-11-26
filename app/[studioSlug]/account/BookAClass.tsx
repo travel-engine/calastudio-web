@@ -19,10 +19,11 @@ const ONLINE = 'online'
 type Listed = BookableOccurrence & { viewer_booking?: { id: string; status: string } | null }
 
 export default function BookAClass({
-  apiUrl, studioSlug, accessToken, brand, timeZone, onBooked,
+  apiUrl, studioSlug, orgId, accessToken, brand, timeZone, onBooked,
 }: {
   apiUrl: string | undefined
   studioSlug: string
+  orgId: string
   accessToken: string
   brand: string
   timeZone: string | null
@@ -102,7 +103,8 @@ export default function BookAClass({
     try { localStorage.setItem(storageKey, value) } catch { /* storage off */ }
   }
 
-  const book = (o: Listed) => openOccurrence(studioSlug, o, { brandColor: brand, ...payments, timeZone })
+  // The member is signed in and registered here, so the drawer skips its sign-in step.
+  const book = (o: Listed) => openOccurrence(studioSlug, o, { brandColor: brand, ...payments, timeZone, auth: { accessToken, orgId } })
 
   const btn: React.CSSProperties = {
     border: 'none', borderRadius: '8px', padding: '9px 14px', minHeight: '40px', cursor: 'pointer', fontFamily: 'inherit',
