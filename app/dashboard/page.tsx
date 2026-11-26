@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CalendarCheck, CreditCard, Plus, TriangleAlert, Dot } from 'lucide-react'
+import { CalendarCheck, CreditCard, TriangleAlert, Dot } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import Sidebar from '@/app/components/Sidebar'
-import { canManageSessions, canManageBookings, canManageOccurrences, canManageSettings, canViewOccurrences, canViewAllReports } from '@/lib/roles'
+import { canManageOccurrences, canManageSettings, canViewOccurrences, canViewAllReports } from '@/lib/roles'
 import { formatClock, formatDayLabel, formatDayMonth, formatShortDate, formatWhen } from '@/lib/dates'
 import { color, space, tabularNums } from '@/lib/ui/tokens'
 import { Button, CapacityBar, Card, Chip, PageHeader, StatTile } from '@/app/components/admin'
@@ -251,12 +251,6 @@ export default function DashboardPage() {
           <PageHeader
             eyebrow={today}
             title={now ? `${greeting(now)}${firstName ? `, ${firstName}` : ''}` : 'Dashboard'}
-            actions={<>
-              {canManageBookings(roles) && <Button href="/dashboard/schedule">Add booking</Button>}
-              {canManageSessions(roles) && (
-                <Button href="/dashboard/sessions/new" variant="primary" icon={<Plus size={18} strokeWidth={2} aria-hidden />}>New session</Button>
-              )}
-            </>}
           />
 
           {loading ? (
