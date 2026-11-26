@@ -22,6 +22,16 @@ const PERSONA_ICON: Record<PersonaKey, typeof UserRound> = {
   member: UserRound,
 }
 
+// The API sends role keys; show them the way the dashboard's Team page would.
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Studio owner',
+  teacher_super: 'Super teacher',
+  teacher_general: 'Teacher',
+  teacher_basic: 'Basic teacher',
+  front_desk: 'Front desk',
+  member: 'Member',
+}
+
 type Phase = 'loading' | 'unavailable' | 'ready'
 
 export default function DemoPage() {
@@ -160,7 +170,7 @@ function PersonaPicker({ visitor, info, onExpired }: { visitor: DemoVisitor; inf
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontWeight: 600, fontSize: 16 }}>{p.name}</span>
-                <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: color.primary, margin: '2px 0 6px' }}>{p.role}</span>
+                <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: color.primary, margin: '2px 0 6px' }}>{ROLE_LABEL[p.role] ?? p.role}</span>
                 <span style={{ display: 'block', fontSize: 14, color: color.ink2, lineHeight: 1.45 }}>{p.description}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 14, fontWeight: 600, color: color.primary }}>
                   {busy === p.key ? 'Opening…' : <>Open as {p.name.split(' ')[0]} <ArrowRight size={15} aria-hidden /></>}
