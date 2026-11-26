@@ -7,6 +7,7 @@ import { InstallCapture } from './InstallAppPrompt'
 import AppLaunchHome from './AppLaunchHome'
 import RefreshWhenStale from './RefreshWhenStale'
 import TermsUpdatePrompt from '@/app/components/TermsUpdatePrompt'
+import DemoStrip from '@/app/components/DemoStrip'
 import { appIconPath, appManifestPath } from '@/lib/appIcon'
 import { studioOrigin, metaDescription } from '@/lib/seo'
 import { themeVars, fontHref } from '@/lib/studioTheme'
@@ -28,6 +29,8 @@ interface PublicOrgInfo {
   banner_url: string | null
   brand_color: string | null
   theme?: string | null
+  /** The shared demo studio (spec 19): shows the demo strip and keeps it out of search engines. */
+  is_demo?: boolean
 }
 
 async function getOrg(studioSlug: string): Promise<PublicOrgInfo | null> {
@@ -69,6 +72,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: ogImage ? [ogImage] : undefined,
     },
     icons: org.logo_url ? { icon: org.logo_url } : undefined,
+    ...(org.is_demo ? { robots: { index: false, follow: false } } : {}),
   }
 }
 
@@ -116,6 +120,7 @@ export default async function StudioLayout({ children, params }: Props) {
       <RefreshWhenStale />
       <TermsUpdatePrompt variant="studio" />
       {process.env.NODE_ENV === 'development' && <ThemeSwitcher current={theme.key} />}
+      {org.is_demo && <DemoStrip variant="studio" />}
       <StudioNav
         studioSlug={studioSlug}
         name={org.name}
