@@ -8,6 +8,7 @@ import { displayName, isNameRequiredError, namesFromMetadata } from '@/lib/names
 import { formatDayMonth, formatShortDate, formatTimeRange, formatWhen } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import { clearDeadSession, SESSION_EXPIRED_MESSAGE } from '@/lib/deadSession'
+import { DEMO_SIGN_UP_CLOSED_MESSAGE, isDemoSignUpClosed } from '@/lib/demo'
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
 import CalendarLinks from '../CalendarLinks'
@@ -354,6 +355,12 @@ function MemberAccountContent() {
       if (res.status === 401) { await endDeadSession(); return }
       if (!res.ok) {
         const data = await res.json().catch(() => null)
+        if (isDemoSignUpClosed(res.status, data)) {
+          // Not a member here and can't become one: sign the browser out so the form shows again.
+          await endDeadSession()
+          setAuthMessage(DEMO_SIGN_UP_CLOSED_MESSAGE)
+          return
+        }
         const message: string = data?.error ?? ''
         if (message.includes('Terms & Conditions') || message.includes('Liability Waiver')) {
           setWaiverLoading(true)
