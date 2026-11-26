@@ -4,6 +4,7 @@ import { manrope } from '@/lib/fonts'
 import StudioNav from './StudioNav'
 import ThemeSwitcher from './ThemeSwitcher'
 import { InstallCapture } from './InstallAppPrompt'
+import AppLaunchHome from './AppLaunchHome'
 import RefreshWhenStale from './RefreshWhenStale'
 import TermsUpdatePrompt from '@/app/components/TermsUpdatePrompt'
 import { appIconPath, appManifestPath } from '@/lib/appIcon'
@@ -111,6 +112,7 @@ export default async function StudioLayout({ children, params }: Props) {
         </>
       )}
       <InstallCapture />
+      <AppLaunchHome studioSlug={studioSlug} />
       <RefreshWhenStale />
       <TermsUpdatePrompt variant="studio" />
       {process.env.NODE_ENV === 'development' && <ThemeSwitcher current={theme.key} />}
