@@ -184,8 +184,10 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
                   }}>
                     {email}
                   </div>
+                  {/* Names its tab: from another account tab (e.g. Privacy), a bare /account doesn't
+                      change the URL's tab, so the page would stay where it is. */}
                   <Link
-                    href={at('/account')}
+                    href={at('/account?tab=home')}
                     role="menuitem"
                     onClick={() => setMenuOpen(false)}
                     style={{ display: 'block', padding: '12px 10px', borderRadius: '8px', fontSize: '15px', color: 'var(--ink)', textDecoration: 'none' }}
