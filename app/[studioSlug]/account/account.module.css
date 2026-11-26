@@ -33,10 +33,11 @@
   text-align: left;
 }
 
+/* --nav-active: the studio's brand colour, set on the nav by the page. */
 .navItemActive {
-  color: var(--accent-ink);
-  background: var(--accent);
-  border-color: var(--accent);
+  color: #fff;
+  background: var(--nav-active, var(--accent));
+  border-color: var(--nav-active, var(--accent));
   font-weight: 600;
 }
 
@@ -68,7 +69,7 @@
   }
 
   .navItemActive {
-    color: var(--ink);
+    color: var(--nav-active, var(--ink));
     background: var(--inset);
   }
 }

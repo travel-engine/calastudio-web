@@ -17,6 +17,7 @@ import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
 import EarlyBirdPrice from './EarlyBirdPrice'
 import SocialSignIn from '@/app/components/SocialSignIn'
+import { BOOKING_RESUME_KEY } from '@/lib/bookingResume'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
@@ -89,7 +90,7 @@ const STEP_LABELS: Record<string, string> = {
   error: '',
 }
 
-const RESUME_KEY = 'cs-resume-booking'
+const RESUME_KEY = BOOKING_RESUME_KEY
 
 export default function BookingDrawer() {
   const {

@@ -16,6 +16,7 @@ import { studioPath } from '@/lib/seo'
 import PasswordInput from '@/app/components/PasswordInput'
 import SocialSignIn from '@/app/components/SocialSignIn'
 import UnpaidPassPay from './UnpaidPassPay'
+import MemberHome from './MemberHome'
 import BookingGuests, { type GuestCancelOption, type GuestPassOffer, type GuestPassOption } from './BookingGuests'
 
 interface OrgInfo {
@@ -234,7 +235,7 @@ export default function MemberAccountPage() {
   return <Suspense fallback={null}><MemberAccountContent /></Suspense>
 }
 
-const TAB_KEYS = ['upcoming', 'past', 'passes', 'payments', 'policies', 'profile'] as const
+const TAB_KEYS = ['home', 'upcoming', 'past', 'passes', 'payments', 'policies', 'profile'] as const
 type AccountTab = typeof TAB_KEYS[number]
 
 function MemberAccountContent() {
@@ -269,7 +270,7 @@ function MemberAccountContent() {
   const [studioNotFound, setStudioNotFound] = useState(false)
   const [portalError, setPortalError] = useState('')
 
-  const [tab, setTab] = useState<AccountTab>('upcoming')
+  const [tab, setTab] = useState<AccountTab>('home')
   const urlTab = searchParams.get('tab')
   useEffect(() => {
     if (urlTab && (TAB_KEYS as readonly string[]).includes(urlTab)) setTab(urlTab as AccountTab)
@@ -289,6 +290,8 @@ function MemberAccountContent() {
   const [ledger, setLedger] = useState<LedgerEntry[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [dataLoading, setDataLoading] = useState(false)
+  // True once the first portal load has finished (Home waits for it, so it fetches once).
+  const [portalLoaded, setPortalLoaded] = useState(false)
   const [downloadingReceiptId, setDownloadingReceiptId] = useState('')
   const [receiptError, setReceiptError] = useState('')
   const [leavingWaitlistId, setLeavingWaitlistId] = useState('')
@@ -459,6 +462,7 @@ function MemberAccountContent() {
         setPortalError("Couldn't load your account data. Please refresh and try again.")
       } finally {
         setDataLoading(false)
+        setPortalLoaded(true)
       }
     }
     loadAll()
@@ -664,12 +668,6 @@ function MemberAccountContent() {
       new Date(a.session_occurrence?.starts_at ?? 0).getTime() -
       new Date(b.session_occurrence?.starts_at ?? 0).getTime())
 
-  const nextStartsAt = upcomingBookings[0]?.session_occurrence?.starts_at
-  const daysToNext = nextStartsAt ? Math.ceil((new Date(nextStartsAt).getTime() - now) / 86_400_000) : null
-  const nextClassLabel = daysToNext == null ? null
-    : daysToNext <= 0 ? 'Today'
-    : daysToNext === 1 ? 'Tomorrow'
-    : `In ${daysToNext} days`
 
   const renderWaitlistRow = (w: WaitlistEntry) => {
     const holdExpired = w.status === 'promoted' && (!w.token_expires_at || new Date(w.token_expires_at) <= new Date())
@@ -788,6 +786,32 @@ function MemberAccountContent() {
             }} />
         )}
         {upcoming && <CalendarLinks compact icsUrl={b.calendar_ics_url} googleUrl={b.calendar_google_url} />}
+      </div>
+    )
+  }
+
+  // Home's Next class card: join (online, when open), add a guest (opens Upcoming, where guests are
+  // managed) and add to calendar, from the booking this page already has.
+  const renderNextClassActions = (bookingId: string) => {
+    const b = bookings.find(x => x.id === bookingId)
+    if (!b) return null
+    const join = b.booked_mode === 'online' && b.session_occurrence ? onlineJoin(b.session_occurrence) : null
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        {join?.kind === 'link' && (
+          <a href={join.url} target="_blank" rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', minHeight: '40px', padding: '0 16px', backgroundColor: brand, color: 'white', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}>
+            Join
+          </a>
+        )}
+        {join?.kind === 'note' && <span style={{ fontSize: '13px', color: 'var(--text-label)' }}>{join.text}</span>}
+        {b.can_add_guests && (
+          <button type="button" onClick={() => chooseTab('upcoming')}
+            style={{ minHeight: '40px', padding: '0 14px', background: 'transparent', border: `1px solid ${brand}`, color: brand, borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Add a guest
+          </button>
+        )}
+        <CalendarLinks compact icsUrl={b.calendar_ics_url} googleUrl={b.calendar_google_url} />
       </div>
     )
   }
@@ -1041,35 +1065,19 @@ function MemberAccountContent() {
   return (
     <div className={pf.root} style={{ minHeight: 'calc(100vh - 57px)', background: 'var(--bg)' }}>
       <div className={styles.layout}>
-        <nav className={styles.nav}>
-          {(['upcoming', 'past', 'passes', 'payments'] as const).map(t => (
+        <nav className={styles.nav} style={{ ['--nav-active' as string]: brand }}>
+          {(['home', 'upcoming', 'past', 'passes', 'payments'] as const).map(t => (
             <button
               key={t}
               onClick={() => chooseTab(t)}
               className={`${styles.navItem} ${tab === t ? styles.navItemActive : ''}`}
             >
-              {t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? (membershipCount ? 'Memberships & passes' : 'My passes') : t === 'payments' ? 'Order history' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
+              {t === 'home' ? 'Home' : t === 'upcoming' ? 'Upcoming' : t === 'past' ? 'Past bookings' : t === 'passes' ? (membershipCount ? 'Memberships & passes' : 'My passes') : t === 'payments' ? 'Order history' : t === 'policies' ? 'Privacy & policies' : 'Profile'}
             </button>
           ))}
         </nav>
 
         <div className={styles.body}>
-        {profile && (
-          // One row of equal columns, so the stats never wrap onto a second line on a phone.
-          <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(0, max-content)', marginBottom: '22px' }}>
-            {[
-              { label: 'Member since', value: formatDayMonth(profile.join_date) },
-              { label: 'Bookings', value: String(bookings.length) },
-              ...(nextClassLabel ? [{ label: 'Next class', value: nextClassLabel }] : []),
-            ].map((s, i) => (
-              <div key={s.label} style={{ paddingRight: 'clamp(14px, 4vw, 28px)', ...(i === 0 ? {} : { borderLeft: '1px solid var(--line-chip)', paddingLeft: 'clamp(14px, 4vw, 28px)' }) }}>
-                <div style={{ fontSize: '13px', color: 'var(--text-label)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
-                <div style={{ fontSize: '16px', fontWeight: 700, marginTop: '2px' }}>{s.value}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Offer the home-screen app to signed-in members (hidden once installed or dismissed). */}
         <div style={{ marginBottom: '18px' }}>
           <InstallAppPrompt studioSlug={studioSlug} studioName={org?.name} />
@@ -1170,6 +1178,21 @@ function MemberAccountContent() {
                   </p>
                 </div>
               </div>
+            )}
+
+            {/* Mounted once the first portal load is done, so the summary isn't fetched before
+                it and then again after it. */}
+            {tab === 'home' && portalLoaded && (
+              <MemberHome
+                api={authedFetch}
+                apiUrl={apiUrl}
+                accessToken={accessToken}
+                studioSlug={studioSlug}
+                brand={brand}
+                timeZone={org?.timezone ?? null}
+                onOpenTab={chooseTab}
+                nextClassActions={renderNextClassActions}
+              />
             )}
 
             {tab === 'upcoming' && (
