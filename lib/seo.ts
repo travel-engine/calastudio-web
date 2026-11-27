@@ -32,7 +32,7 @@ export function studioUrl(slug: string, path = '/'): string {
 }
 
 // Subdomains that are CalaStudio's own, never a studio (embed.{domain} serves the website widget).
-const RESERVED_SUBDOMAINS = new Set(['www', 'embed'])
+const RESERVED_SUBDOMAINS = new Set(['www', 'embed', 'demo'])
 
 /** The studio slug when the browser is on a studio subdomain, else null. Client-only. */
 export function studioSlugFromHost(host: string): string | null {

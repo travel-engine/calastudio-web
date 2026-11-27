@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Repeat } from 'lucide-react'
 import { getOrgContext } from '@/lib/orgContext'
 import { fetchDemoInfo, formatResetTime } from '@/lib/demo'
-import { STUDIO_DOMAIN, STUDIO_SUBDOMAINS } from '@/lib/seo'
+import { STUDIO_SUBDOMAINS, studioSlugFromHost } from '@/lib/seo'
+import { DEMO_URL } from '@/lib/demoUrl'
 
 // The bar across the top of the demo studio (spec 19 §19.4): says it's a shared demo that resets
 // nightly, and links back to the persona picker. Shown on the studio site when the public studio
@@ -15,11 +16,11 @@ import { STUDIO_DOMAIN, STUDIO_SUBDOMAINS } from '@/lib/seo'
 
 const RELOAD_AFTER_RESET_MS = 5 * 60 * 1000
 
-/** /demo lives on the app's own host; from a studio subdomain that's the studio domain's apex. */
+/** The persona picker: on the app host (demo.calastudio.app, where the visitor signed up) it's
+ *  /demo; from the studio's own subdomain it's the demo address, where their access is saved. */
 function pickerUrl(): string {
   if (!STUDIO_SUBDOMAINS || typeof window === 'undefined') return '/demo'
-  const scheme = STUDIO_DOMAIN.includes(':') ? 'http' : 'https'
-  return window.location.host === STUDIO_DOMAIN ? '/demo' : `${scheme}://${STUDIO_DOMAIN}/demo`
+  return studioSlugFromHost(window.location.host) ? DEMO_URL : '/demo'
 }
 
 export default function DemoStrip({ variant }: { variant: 'studio' | 'dashboard' }) {
