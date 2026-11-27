@@ -36,6 +36,7 @@ export default function PrivacyPage() {
         <li><strong>Payments:</strong> amounts, dates and status. Card details are entered into Stripe&rsquo;s secure form and never reach our servers.</li>
         <li><strong>Agreements:</strong> when you accepted these Terms and a studio&rsquo;s Liability Waiver, and which version.</li>
         <li><strong>Technical information:</strong> sign-in times, device and browser details and logs, used to run and secure the service.</li>
+        <li><strong>Demo sign-ups:</strong> if you try our demo studio, the name, email and studio name you give us, and whether you&rsquo;d like CalaStudio news. We use these to give you demo access and, only if you said yes, to send you occasional news; you can unsubscribe any time. The people in the demo studio are made up.</li>
         <li><strong>Usage and errors:</strong> which pages are visited, how quickly they load, and details of errors when something breaks (the page, browser and device). This is collected without cookies and without your name, email or account details.</li>
       </UL>
 

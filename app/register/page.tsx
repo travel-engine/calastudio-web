@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { DEMO_URL } from '@/lib/demoUrl'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { MIN_PASSWORD_LENGTH, PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import PasswordInput from '@/app/components/PasswordInput'
 import SocialSignIn from '@/app/components/SocialSignIn'
+import BlackFridayBanner from '@/app/components/marketing/BlackFridayBanner'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -73,6 +75,8 @@ export default function RegisterPage() {
             Get your studio live in under 30 minutes
           </p>
         </div>
+
+        <BlackFridayBanner variant="card" />
 
         {/* Google / Apple: straight into the onboarding wizard, which takes the studio's details
             and the Terms acceptance. */}
@@ -161,6 +165,10 @@ export default function RegisterPage() {
             <Link href="/login" style={{ color: '#085041', fontWeight: 500 }}>
               Sign in
             </Link>
+          </p>
+          <p style={{ textAlign: 'center', fontSize: '14px', color: '#666', margin: 0 }}>
+            Rather look around first?{' '}
+            <a href={DEMO_URL} style={{ color: '#085041', fontWeight: 500 }}>Try the demo studio</a>
           </p>
         </div>
       </div>
