@@ -7,6 +7,7 @@ import SiteHeader from '@/app/components/marketing/SiteHeader'
 import Hero from '@/app/components/marketing/Hero'
 import Features from '@/app/components/marketing/Features'
 import PricingTransparency from '@/app/components/marketing/PricingTransparency'
+import BlackFridayBanner from '@/app/components/marketing/BlackFridayBanner'
 import Plans from '@/app/components/marketing/Plans'
 import FounderQuote from '@/app/components/marketing/FounderQuote'
 import Faq, { FAQ } from '@/app/components/marketing/Faq'
@@ -64,6 +65,7 @@ export default function Home() {
   return (
     <div className={`${display.variable} ${body.variable} ${styles.page}`}>
       <JsonLd data={[orgLd, productLd, faqLd]} />
+      <BlackFridayBanner variant="bar" />
       <SiteHeader />
       <main>
         <Hero />

@@ -28,7 +28,14 @@ interface BillingPlan {
   has_payment_method: boolean
   currency?: string | null
   gst_applies?: boolean // studio is in Australia: Monthly/Annual include GST, Pay as you go adds it
+  // An introductory offer this studio signed up under (e.g. Black Friday 2026): no CalaStudio fee
+  // until free_until, then Pay as you go never above offer_rate_cap (fraction).
+  offer_code?: string | null
+  free_until?: string | null
+  offer_rate_cap?: number | null
 }
+
+const OFFER_NAME: Record<string, string> = { BLACKFRIDAY2026: 'Black Friday offer' }
 
 const STATUS: Record<BillingPlan['subscription_status'], { label: string; tone: ChipTone }> = {
   none: { label: 'No subscription', tone: 'neutral' },
@@ -178,6 +185,15 @@ export default function BillingTab({ orgId, token, currency }: { orgId: string; 
           <span style={{ fontSize: 26, fontWeight: 600 }}>{PLAN_NAME[plan.plan]}</span>
           <span style={{ fontSize: 16, color: color.ink2, ...tabularNums }}>{priceOf(plan.plan, plan)}</span>
         </div>
+        {plan.offer_code && plan.free_until && (
+          <div role="status" style={alertStyle('ok')}>
+            <strong>{OFFER_NAME[plan.offer_code] ?? 'Introductory offer'}:</strong>{' '}
+            {new Date(plan.free_until).getTime() > Date.now()
+              ? <>no CalaStudio fees until <strong style={tabularNums}>{formatShortDate(plan.free_until)}</strong></>
+              : <>your free months ended on <span style={tabularNums}>{formatShortDate(plan.free_until)}</span></>}
+            {plan.offer_rate_cap != null && <>. After that, Pay as you go is {Math.round(plan.offer_rate_cap * 1000) / 10}% for as long as you stay.</>}
+          </div>
+        )}
         {subscribed && (
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, fontSize: 15, color: color.ink2 }}>
             <Chip tone={st.tone}>{st.label}</Chip>
