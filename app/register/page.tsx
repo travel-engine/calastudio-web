@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { MIN_PASSWORD_LENGTH, PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
 import PasswordInput from '@/app/components/PasswordInput'
 import SocialSignIn from '@/app/components/SocialSignIn'
+import BlackFridayBanner from '@/app/components/marketing/BlackFridayBanner'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -74,6 +75,8 @@ export default function RegisterPage() {
             Get your studio live in under 30 minutes
           </p>
         </div>
+
+        <BlackFridayBanner variant="card" />
 
         {/* Google / Apple: straight into the onboarding wizard, which takes the studio's details
             and the Terms acceptance. */}
