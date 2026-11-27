@@ -175,7 +175,7 @@ function StudioView({ token }: { token: string }) {
             </select>
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-            <Field label="Percentage (%)" htmlFor="ov-pct" hint="e.g. 2 for 2%">
+            <Field label="Percentage (%)" htmlFor="ov-pct" hint="e.g. 1 for 1%">
               <input id="ov-pct" type="number" min="0" step="0.01" value={form.percent} onChange={set('percent')} style={{ ...controlStyle, ...tabularNums }} />
             </Field>
             <Field label={`Monthly (${cur})`} htmlFor="ov-mo">

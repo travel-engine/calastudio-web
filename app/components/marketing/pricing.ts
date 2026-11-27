@@ -5,7 +5,7 @@
 
 export const PRICING = {
   currency: 'AUD',
-  percentage: 2,
+  percentage: 1,
   monthly: 46,
   annual: 500,
 } as const
@@ -22,3 +22,13 @@ export function paygExample() {
   const fee = Math.round(sale * PRICING.percentage) / 100
   return { sale, stripeFee, fee, gst: Math.round(fee * 10) / 100 }
 }
+
+// Black Friday 2026 (user decision 27 Nov): sign up by 11:59 pm Mon 30 Nov, Brisbane time (UTC+10,
+// no daylight saving) → 6 months free, then Pay as you go locked at this rate for life. The API
+// enforces the window; this only drives the banner (BlackFridayBanner), which hides at endsAt.
+export const BLACK_FRIDAY = {
+  endsAt: '2026-11-30T23:59:59+10:00',
+  endsLabel: 'Monday 30 November',
+  freeMonths: 6,
+  rateAfter: PRICING.percentage,
+} as const
