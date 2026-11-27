@@ -25,6 +25,9 @@ function pickerUrl(): string {
 
 export default function DemoStrip({ variant }: { variant: 'studio' | 'dashboard' }) {
   const [resetAt, setResetAt] = useState<string | null>(null)
+  // Worked out in the browser: the server can't see the host, and hydration keeps a server-rendered href.
+  const [switchHref, setSwitchHref] = useState('/demo')
+  useEffect(() => { setSwitchHref(pickerUrl()) }, [])
   const [show, setShow] = useState(variant === 'studio')
   const barRef = useRef<HTMLDivElement>(null)
   const [barHeight, setBarHeight] = useState(0)
@@ -87,7 +90,7 @@ export default function DemoStrip({ variant }: { variant: 'studio' | 'dashboard'
         <strong style={{ fontWeight: 700 }}>Shared demo.</strong>{' '}
         Anyone can change things here. It resets every night{resetAt ? ` at ${formatResetTime(resetAt)} your time` : ''}.
       </span>
-      <a href={pickerUrl()} style={{ color: '#F3F4F1', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5, textUnderlineOffset: 3 }}>
+      <a href={switchHref} style={{ color: '#F3F4F1', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5, textUnderlineOffset: 3 }}>
         <Repeat size={14} aria-hidden /> Switch view
       </a>
     </div>
