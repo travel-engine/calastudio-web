@@ -153,7 +153,7 @@ function Bar({ value, total, color }: { value: number; total: number; color: str
 
 // ── Component ───────────────────────────────────────────────────────────────────────────────
 export default function MemberHome({
-  api, apiUrl, orgId, accessToken, studioSlug, brand, timeZone, onOpenTab, nextClassActions, refreshKey,
+  api, apiUrl, orgId, accessToken, studioSlug, brand, timeZone, onOpenTab, nextClassActions, refreshKey, notificationsPrompt,
 }: {
   api: (path: string, init?: RequestInit) => Promise<Response>
   apiUrl: string | undefined
@@ -167,6 +167,8 @@ export default function MemberHome({
   nextClassActions?: (bookingId: string) => ReactNode
   /** Change it to reload (after a booking, payment or cancellation elsewhere on the page). */
   refreshKey?: number
+  /** The "turn on notifications" nudge, shown under the attention box. */
+  notificationsPrompt?: ReactNode
 }) {
   const router = useRouter()
   const [home, setHome] = useState<MemberHomeData | null>(null)
@@ -279,6 +281,8 @@ export default function MemberHome({
           ))}
         </section>
       )}
+
+      {notificationsPrompt}
 
       {/* Next class */}
       {next && (

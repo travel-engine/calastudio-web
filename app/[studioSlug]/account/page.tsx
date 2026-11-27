@@ -19,6 +19,8 @@ import PasswordInput from '@/app/components/PasswordInput'
 import SocialSignIn from '@/app/components/SocialSignIn'
 import UnpaidPassPay from './UnpaidPassPay'
 import MemberHome from './MemberHome'
+import { forgetPushDevice } from '@/lib/push'
+import PushSettings from './PushSettings'
 import BookingGuests, { type GuestCancelOption, type GuestPassOffer, type GuestPassOption } from './BookingGuests'
 
 interface OrgInfo {
@@ -418,6 +420,7 @@ function MemberAccountContent() {
         const { data: { session } } = await supabase.auth.getSession()
         if (session && isSessionExpiredByPolicy()) {
           // "Keep me signed in" was off and the session cap has passed — drop back to the gate.
+          await forgetPushDevice(studioSlug, session.access_token)
           await supabase.auth.signOut()
           clearRememberChoice()
         } else if (session) {
@@ -1202,6 +1205,10 @@ function MemberAccountContent() {
               </div>
             )}
 
+            {tab === 'profile' && profile && (
+              <PushSettings variant="card" api={authedFetch} apiUrl={apiUrl} orgId={orgId} studioSlug={studioSlug} brand={brand} />
+            )}
+
             {/* Mounted once the first portal load is done, so the summary isn't fetched before
                 it and then again after it. */}
             {tab === 'home' && portalLoaded && (
@@ -1215,6 +1222,7 @@ function MemberAccountContent() {
                 timeZone={org?.timezone ?? null}
                 onOpenTab={chooseTab}
                 nextClassActions={renderNextClassActions}
+                notificationsPrompt={<PushSettings variant="prompt" api={authedFetch} apiUrl={apiUrl} orgId={orgId} studioSlug={studioSlug} brand={brand} />}
               />
             )}
 
