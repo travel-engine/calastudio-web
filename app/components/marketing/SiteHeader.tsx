@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { DEMO_URL } from '@/lib/demoUrl'
 import styles from '@/app/home.module.css'
 
 export function Logo({ size = 32, rays = '#15241F' }: { size?: number; rays?: string }) {
@@ -21,6 +22,7 @@ export default function SiteHeader() {
         <a className={`${styles.navLink} ${styles.navOptional}`} href="#how">How it works</a>
         <a className={styles.navLink} href="#pricing">Pricing</a>
         <a className={`${styles.navLink} ${styles.navOptional}`} href="#faq">FAQ</a>
+        <a className={styles.navLink} href={DEMO_URL}>Demo</a>
         <Link className={styles.navLink} href="/login">Sign in</Link>
         <Link className={`${styles.btn} ${styles.btnPrimary}`} href="/register">Start free</Link>
       </nav>

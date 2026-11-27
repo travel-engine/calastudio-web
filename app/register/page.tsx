@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { DEMO_URL } from '@/lib/demoUrl'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import { MIN_PASSWORD_LENGTH, PASSWORD_HINT, authErrorMessage, passwordProblem } from '@/lib/passwordPolicy'
@@ -161,6 +162,10 @@ export default function RegisterPage() {
             <Link href="/login" style={{ color: '#085041', fontWeight: 500 }}>
               Sign in
             </Link>
+          </p>
+          <p style={{ textAlign: 'center', fontSize: '14px', color: '#666', margin: 0 }}>
+            Rather look around first?{' '}
+            <a href={DEMO_URL} style={{ color: '#085041', fontWeight: 500 }}>Try the demo studio</a>
           </p>
         </div>
       </div>
