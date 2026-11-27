@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { DEMO_URL } from '@/lib/demoUrl'
 import styles from '@/app/home.module.css'
 
 const CLASSES = [
@@ -45,6 +46,7 @@ export default function Hero() {
         </p>
         <div className={styles.ctas}>
           <Link className={`${styles.btn} ${styles.btnPrimary} ${styles.btnLg}`} href="/register">Start free</Link>
+          <a className={`${styles.btn} ${styles.btnOutline} ${styles.btnLg}`} href={DEMO_URL}>Try the demo</a>
           <a className={styles.linkCta} href="#example">See a teacher&apos;s page →</a>
         </div>
         <p className={styles.fine}>Set up in under 30 minutes · No monthly fee to start · No card needed</p>
