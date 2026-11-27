@@ -94,6 +94,8 @@ type FormState = {
   passExpiryDays: string[] | null
   // Emails to the studio's own address when a member does something (spec 07 §7.3, studio-facing).
   notifyMemberRegistered: boolean; notifyPassPurchased: boolean; notifyBookingCreated: boolean; notifyBookingCancelled: boolean
+  // Push notifications to members' phones (spec 07 §7.10). null = the API doesn't have them yet.
+  memberPushEnabled: boolean | null; pushReminderMinutes: string
 }
 type Key = keyof FormState
 
@@ -113,6 +115,7 @@ const EMPTY_FORM: FormState = {
   guestsEnabled: false, guestMaxPerBooking: '1', guestCreditsCost: '1',
   passExpiryDays: null,
   notifyMemberRegistered: true, notifyPassPurchased: true, notifyBookingCreated: true, notifyBookingCancelled: true,
+  memberPushEnabled: null, pushReminderMinutes: '120',
 }
 
 // Which fields each card saves. Every save still sends the whole organisation (see saveSection).
@@ -122,6 +125,7 @@ const SECTION_KEYS = {
   policy: ['cancellationHours', 'bookingWindowDays', 'minAdvanceBookingHours', 'lateCancelCreditsForfeited'],
   guests: ['guestsEnabled', 'guestMaxPerBooking', 'guestCreditsCost'],
   reminders: ['passExpiryDays'],
+  push: ['memberPushEnabled', 'pushReminderMinutes'],
   notifications: ['notifyMemberRegistered', 'notifyPassPurchased', 'notifyBookingCreated', 'notifyBookingCancelled'],
   waiver: ['liabilityWaiverRequired'],
   tax: ['taxEnabled', 'taxLabel', 'taxRegistrationNumber'],
@@ -188,6 +192,9 @@ function orgBody(f: FormState) {
     notify_studio_on_booking_created: f.notifyBookingCreated,
     notify_studio_on_booking_cancelled: f.notifyBookingCancelled,
     ...(f.passExpiryDays ? { pass_expiry_reminder_days: expiryDays(f.passExpiryDays) } : {}),
+    ...(f.memberPushEnabled !== null
+      ? { member_push_enabled: f.memberPushEnabled, push_reminder_minutes: parseInt(f.pushReminderMinutes, 10) || 120 }
+      : {}),
   }
 }
 
@@ -195,12 +202,25 @@ function orgBody(f: FormState) {
 const expiryDays = (boxes: string[]) =>
   boxes.map(s => s.trim()).filter(Boolean).map(s => parseInt(s, 10)).sort((a, b) => b - a)
 
+// Push class reminder lead times (the API accepts 30–1440 minutes).
+const REMINDER_CHOICES = [
+  { minutes: 30, label: '30 minutes before' },
+  { minutes: 60, label: '1 hour before' },
+  { minutes: 120, label: '2 hours before' },
+  { minutes: 180, label: '3 hours before' },
+  { minutes: 240, label: '4 hours before' },
+  { minutes: 360, label: '6 hours before' },
+  { minutes: 720, label: '12 hours before' },
+  { minutes: 1440, label: '1 day before' },
+]
+
 const STUDIO_SECTIONS: { id: string; label: string }[] = [
   { id: 'profile', label: 'Studio profile' },
   { id: 'region', label: 'Region & time zone' },
   { id: 'policy', label: 'Booking policy' },
   { id: 'guests', label: 'Guests' },
   { id: 'reminders', label: 'Pass reminders' },
+  { id: 'push', label: 'Member notifications' },
   { id: 'notifications', label: 'Emails to you' },
   { id: 'waiver', label: 'Liability waiver' },
   { id: 'payments', label: 'Payments' },
@@ -414,6 +434,8 @@ function SettingsPageContent() {
         passExpiryDays: Array.isArray(org.pass_expiry_reminder_days)
           ? [0, 1, 2].map(i => (org.pass_expiry_reminder_days[i] != null ? String(org.pass_expiry_reminder_days[i]) : ''))
           : null,
+        memberPushEnabled: typeof org.member_push_enabled === 'boolean' ? org.member_push_enabled : null,
+        pushReminderMinutes: String(org.push_reminder_minutes ?? 120),
       }
       setForm(loaded)
       setSavedForm(loaded)
@@ -1020,6 +1042,30 @@ function SettingsPageContent() {
                       </div>
                     </>
                   ), 'reminders')}
+
+                  {form.memberPushEnabled !== null && sectionCard('push', 'Member notifications', 'Notifications on members’ phones, for members who turn them on in the studio app. Emails are still sent as well.', (
+                    <>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Toggle checked={!!form.memberPushEnabled} onChange={v => update('memberPushEnabled', v)}
+                          label="Let members turn on notifications" />
+                        <span style={{ fontSize: 13, color: color.muted, lineHeight: 1.4, paddingLeft: 54 }}>
+                          A waitlist spot opening, class reminders, a class cancelled or changed, and passes or payments that need attention. Members choose which ones they get.
+                        </span>
+                      </div>
+                      {form.memberPushEnabled && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <label htmlFor="f-push-reminder" style={{ fontSize: 14, fontWeight: 600 }}>Class reminder</label>
+                          <select id="f-push-reminder" value={form.pushReminderMinutes} onChange={e => update('pushReminderMinutes', e.target.value)}
+                            style={{ ...controlStyle, width: 'auto', maxWidth: 260 }}>
+                            {(REMINDER_CHOICES.some(c => String(c.minutes) === form.pushReminderMinutes)
+                              ? REMINDER_CHOICES
+                              : [...REMINDER_CHOICES, { minutes: parseInt(form.pushReminderMinutes, 10), label: `${form.pushReminderMinutes} minutes before` }]
+                            ).map(c => <option key={c.minutes} value={String(c.minutes)}>{c.label}</option>)}
+                          </select>
+                        </div>
+                      )}
+                    </>
+                  ), 'push')}
 
                   {sectionCard('notifications', 'Emails to you', null, (
                     <>

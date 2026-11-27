@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
+import { forgetPushDevice } from '@/lib/push'
 import { studioPath } from '@/lib/seo'
 import styles from './studionav.module.css'
 
@@ -80,7 +81,11 @@ export default function StudioNav({ studioSlug, name, logoUrl, brandColor, layou
 
   // Full reload rather than a client transition — clears every page's in-memory auth/session state.
   const handleSignOut = async () => {
-    await createClient().auth.signOut()
+    const supabase = createClient()
+    // Stop this phone getting the member's notifications (needs the token, so before signOut).
+    const { data: { session } } = await supabase.auth.getSession()
+    await forgetPushDevice(studioSlug, session?.access_token)
+    await supabase.auth.signOut()
     clearRememberChoice()
     setMenuOpen(false)
     window.location.href = home
