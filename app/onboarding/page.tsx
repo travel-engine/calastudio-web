@@ -137,6 +137,29 @@ function BackButton({ onClick }: { onClick: () => void }) {
 }
 
 // ── Step 1: Studio Basics ─────────────────────────────────
+// Picking a country presets the fields that usually go with it (all still editable), and decides
+// how dates and numbers are written on receipts and emails (the org's locale; editable later in
+// Settings → Region & time zone).
+const COUNTRY_DEFAULTS: Record<string, { currency?: string; timezone?: string; locale: string }> = {
+  AU: { currency: 'AUD', locale: 'en-AU' },
+  US: { currency: 'USD', locale: 'en-US' },
+  GB: { currency: 'GBP', timezone: 'Europe/London', locale: 'en-GB' },
+  NZ: { currency: 'NZD', timezone: 'Pacific/Auckland', locale: 'en-NZ' },
+  CA: { currency: 'CAD', locale: 'en-CA' },
+  SG: { currency: 'SGD', timezone: 'Asia/Singapore', locale: 'en-SG' },
+  IN: { currency: 'INR', timezone: 'Asia/Kolkata', locale: 'en-IN' },
+}
+
+// "₹", "£", "$"… for the price box. Narrow, so NZD/CAD/AUD all read "$" next to the amount.
+function currencySymbol(currency: string): string {
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
+      .formatToParts(0).find(p => p.type === 'currency')?.value ?? currency
+  } catch {
+    return currency
+  }
+}
+
 function Step1({ data, onChange, onNext, acceptTerms, onAcceptTerms }: {
   data: StudioData
   onChange: (key: string, value: string) => void
@@ -346,7 +369,7 @@ function Step3({ data, onChange, onNext, onBack }: {
             color: '#666',
             fontSize: '14px'
           }}>
-            {data.currency === 'GBP' ? '£' : data.currency === 'USD' ? '$' : '$'}
+            {currencySymbol(data.currency)}
           </span>
           <Input
             type="number"
@@ -663,7 +686,13 @@ export default function OnboardingPage() {
   })
 
   const update = (key: string, value: string) => {
-    setData(prev => ({ ...prev, [key]: value }) as StudioData)
+    setData(prev => {
+      const next = { ...prev, [key]: value } as StudioData
+      const preset = key === 'country' ? COUNTRY_DEFAULTS[value] : undefined
+      if (preset?.currency) next.currency = preset.currency
+      if (preset?.timezone) next.timezone = preset.timezone
+      return next
+    })
   }
 
   // Creates the studio and returns { id, slug } — or null after setting `error`.
@@ -682,7 +711,7 @@ export default function OnboardingPage() {
         timezone: data.timezone,
         currency: data.currency,
         country: data.country,
-        locale: 'en-AU',
+        locale: COUNTRY_DEFAULTS[data.country]?.locale ?? 'en-AU',
         theme: data.theme,
         accept_terms: acceptTerms,
         // The owner's own name; without it the API used the studio name as their first name.
