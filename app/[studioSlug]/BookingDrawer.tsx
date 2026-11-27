@@ -698,8 +698,9 @@ export default function BookingDrawer() {
               clientSecret={purchaseSecret.clientSecret}
               stripeAccountId={stripeAccountId}
               submitLabel="Buy & book"
-              onSuccess={() => pollForIssuedPassThenBook(pt.id)}
+              onSuccess={() => { setPurchaseSecret(null); pollForIssuedPassThenBook(pt.id) }}
               onError={msg => setNote(msg)}
+              onExpired={() => { setPurchaseSecret(null); setNote("That payment is closed. If you've just paid, check Home before paying again — otherwise tap the button to start a new one.") }}
             />
           </div>
         )}
@@ -1100,8 +1101,9 @@ export default function BookingDrawer() {
                                 clientSecret={dropInSecret}
                                 stripeAccountId={stripeAccountId}
                                 submitLabel="Pay & book"
-                                onSuccess={() => pollForConfirmedBooking(Date.now() - 5000)}
+                                onSuccess={() => { setDropInSecret(null); pollForConfirmedBooking(Date.now() - 5000) }}
                                 onError={msg => setNote(msg)}
+                                onExpired={() => { setDropInSecret(null); setNote("That payment is closed. If you've just paid, check Home before paying again — otherwise tap the button to start a new one.") }}
                               />
                             </div>
                           )}
