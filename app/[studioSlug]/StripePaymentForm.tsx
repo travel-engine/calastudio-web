@@ -5,10 +5,18 @@ import { loadStripe, type Appearance } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import styles from './photofirst.module.css'
 
-function InnerForm({ submitLabel, onSuccess, onError }: {
+// The PaymentIntent behind this form can no longer be paid: the API's abandoned-checkout sweep
+// cancels one left unpaid for 45 minutes (e.g. a drawer left open on a phone), or it was already
+// PAID and the form got shown again. So the wording never assumes "not charged". Stripe reports that as payment_intent_unexpected_state ("…in a terminal state…").
+function isClosedIntent(error: { code?: string; message?: string } | undefined) {
+  return error?.code === 'payment_intent_unexpected_state' || /terminal state/i.test(error?.message ?? '')
+}
+
+function InnerForm({ submitLabel, onSuccess, onError, onExpired }: {
   submitLabel: string
   onSuccess: () => void
   onError: (message: string) => void
+  onExpired?: () => void
 }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -25,6 +33,7 @@ function InnerForm({ submitLabel, onSuccess, onError }: {
 
     setSubmitting(false)
 
+    if (error && isClosedIntent(error) && onExpired) { onExpired(); return }
     if (error) { onError(error.message ?? 'Payment failed. Please try again.'); return }
     if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
       onSuccess()
@@ -35,9 +44,13 @@ function InnerForm({ submitLabel, onSuccess, onError }: {
 
   return (
     <div>
-      <PaymentElement onLoadError={e => onError(e.error?.message
-        ? `The card form couldn't load: ${e.error.message}`
-        : "The card form couldn't load. Check your connection and try again.")} />
+      <PaymentElement onLoadError={e => {
+        // Stripe's load errors are written for developers, so members get plain words instead.
+        if (isClosedIntent(e.error) && onExpired) { onExpired(); return }
+        onError(isClosedIntent(e.error)
+          ? "This payment is closed. If you've just paid, check your bookings before paying again."
+          : "The card form couldn't load. Check your connection and try again.")
+      }} />
       <button onClick={handleSubmit} disabled={!stripe || submitting} className={styles.blockBtn} style={{ marginTop: '16px' }}>
         {submitting ? 'Processing…' : submitLabel}
       </button>
@@ -80,12 +93,14 @@ function themeAppearance(el: HTMLElement): Appearance {
 // must be passed to loadStripe — every PaymentIntent here is a direct charge on that account
 // (StripePaymentClient.cs), so confirming it requires Stripe.js to be scoped to the same account.
 // Colours follow the studio's theme (see themeAppearance).
-export default function StripePaymentForm({ clientSecret, stripeAccountId, submitLabel, onSuccess, onError }: {
+export default function StripePaymentForm({ clientSecret, stripeAccountId, submitLabel, onSuccess, onError, onExpired }: {
   clientSecret: string
   stripeAccountId: string
   submitLabel: string
   onSuccess: () => void
   onError: (message: string) => void
+  /** The payment can't be used any more (timed out or finished): drop it so the member can start a fresh one. */
+  onExpired?: () => void
 }) {
   const stripePromise = useMemo(
     () => loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!, { stripeAccount: stripeAccountId }),
@@ -99,7 +114,7 @@ export default function StripePaymentForm({ clientSecret, stripeAccountId, submi
     <div ref={ref}>
       {appearance && (
         <Elements stripe={stripePromise} options={{ clientSecret, appearance }}>
-          <InnerForm submitLabel={submitLabel} onSuccess={onSuccess} onError={onError} />
+          <InnerForm submitLabel={submitLabel} onSuccess={onSuccess} onError={onError} onExpired={onExpired} />
         </Elements>
       )}
     </div>
