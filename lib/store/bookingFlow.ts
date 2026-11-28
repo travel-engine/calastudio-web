@@ -75,6 +75,9 @@ export interface BookingOptions {
   guest_credits_cost: number
   guest_bookings_enabled: boolean
   guest_max_per_booking: number
+  /** Most guests the member's passes cover together (credits drawn across passes), capped by
+   *  guest_max_per_booking but not by spots. Null when no pass applies. */
+  guest_max_with_passes?: number | null
   // Memberships (API #74). The guest fields here come from the membership plan, not the pass.
   usable_membership?: {
     id: string

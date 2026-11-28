@@ -421,7 +421,7 @@ export default function BookingDrawer() {
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: {
-        data: { full_name: `${firstName.trim()} ${lastName.trim()}`, first_name: firstName.trim(), last_name: lastName.trim(), phone: null },
+        data: { full_name: `${firstName.trim()} ${lastName.trim()}`, first_name: firstName.trim(), last_name: lastName.trim(), phone: null, ...(studioSlug ? { signup_studio: studioSlug } : {}) },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${accountHref}`,
       },
     })
@@ -429,7 +429,7 @@ export default function BookingDrawer() {
     if (data.session) {
       await resolveAuth(data.session.access_token)
     } else {
-      setAuthMessage("Check your email for a link to finish signing up, then come back here to book. It comes from CalaStudio, your studio's booking system. If it's not in your inbox within a minute, check your Junk or Spam folder.")
+      setAuthMessage("Check your email for a link to finish signing up, then come back here to book. It comes from your studio. If it's not in your inbox within a minute, check your Junk or Spam folder.")
     }
     setAuthBusy(false)
   }
@@ -441,7 +441,7 @@ export default function BookingDrawer() {
     setAuthMessage('')
     const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/set-password${studioSlug ? `&studio=${encodeURIComponent(studioSlug)}` : ''}`,
     })
     // Same neutral wording regardless of whether the address is registered — don't leak that.
     setAuthMessage(error ? error.message : `Check your email — if an account exists for ${email}, a reset link is on its way. If it's not in your inbox within a minute, check your Junk or Spam folder.`)
@@ -656,9 +656,14 @@ export default function BookingDrawer() {
   const creditsCost = bookingOptions
     ? bookingOptions.member_credits_cost + guestCount * bookingOptions.guest_credits_cost
     : 0
-  const passCreditsShort = !!bookingOptions?.usable_pass_id
-    && bookingOptions.usable_pass_credits_remaining != null
-    && creditsCost > bookingOptions.usable_pass_credits_remaining
+  // Guests can be paid from several of the member's passes (the API draws the rest after the first),
+  // so "short" means more guests than all their passes cover together.
+  const guestsCovered = bookingOptions?.guest_max_with_passes
+  const passCreditsShort = !!bookingOptions?.usable_pass_id && (guestsCovered != null
+    ? guestCount > guestsCovered
+    : bookingOptions.usable_pass_credits_remaining != null && creditsCost > bookingOptions.usable_pass_credits_remaining)
+  const spillsToOtherPasses = !!bookingOptions?.usable_pass_id && !passCreditsShort
+    && bookingOptions.usable_pass_credits_remaining != null && creditsCost > bookingOptions.usable_pass_credits_remaining
 
   // The studio's passes, each with Buy now → Stripe → pass issued → booking made. Shown when the
   // member has no usable pass, and when their pass is short of credits for this booking.
@@ -1027,13 +1032,20 @@ export default function BookingDrawer() {
                     </div>
                   </div>
                   {renderGuestSelector()}
+                  {spillsToOtherPasses && (
+                    <div style={{ fontSize: '14px', color: 'var(--text-meta)', marginTop: '8px' }}>
+                      The rest of the credits come from your other passes.
+                    </div>
+                  )}
                   {passCreditsShort && (() => {
                     const left = bookingOptions.usable_pass_credits_remaining ?? 0
                     const offers = canPay && (bookingOptions.purchasable_pass_templates?.length ?? 0) > 0
                     return (
                       <>
                         <div className={styles.noticeError}>
-                          This booking needs {creditsCost} credits, but your pass has {left} left.{' '}
+                          {guestsCovered != null
+                            ? `Your passes have enough credits for ${guestsCovered === 0 ? 'no guests' : `${guestsCovered} guest${guestsCovered === 1 ? '' : 's'}`} in this class.`
+                            : `This booking needs ${creditsCost} credits, but your pass has ${left} left.`}{' '}
                           {offers ? 'Bring fewer guests, or buy a new pass below.' : 'Bring fewer guests, or contact the studio.'}
                         </div>
                         {offers && <div style={{ marginTop: '12px' }}>{renderPassOffers()}</div>}
