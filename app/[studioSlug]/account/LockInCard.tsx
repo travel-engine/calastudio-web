@@ -17,7 +17,7 @@ type Info = {
   bookable: boolean
   code?: string
   message?: string
-  covered_by: 'pass' | 'membership' | null
+  covered_by: 'free' | 'pass' | 'membership' | null
   pass_name?: string | null
 }
 
@@ -72,7 +72,8 @@ export default function LockInCard({ apiUrl, token, brand, timeZone, onBooked, o
         const paidWith = data.pass_name || data.membership_name
         setPhase({ kind: 'done', ok: true, text: `You're booked for ${info.session_name}, ${when(info.starts_at)}.${paidWith ? ` Used your ${paidWith}.` : ''}` })
         onBooked()
-      } else if (data?.code === 'needs_payment') {
+      } else if (data?.code === 'needs_payment' || data?.code === 'waiver') {
+        // The drawer handles paying and the waiver, then books.
         onOpenDrawer(info.occurrence_id); onClose()
       } else {
         setPhase({ kind: 'done', ok: false, text: data?.message || "Couldn't book that class. Try it from the schedule below." })
