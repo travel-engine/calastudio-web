@@ -968,7 +968,7 @@ function SettingsPageContent() {
                   {sectionCard('policy', 'Booking policy', 'Studio-wide defaults. Individual sessions can override them.', (
                     <>
                       <div className={styles.formGrid} style={grid2}>
-                        <Field label="Cancellation window (hours)" htmlFor="f-cancel" hint="Members can cancel free of charge up to this many hours before a class.">
+                        <Field label="Cancellation window (hours)" htmlFor="f-cancel" hint="Members can cancel free of charge up to this many hours before a class. Each booking gets one reminder, 1 hour before this cutoff. Classes can set their own window.">
                           <Input id="f-cancel" type="number" min="0" value={form.cancellationHours} onChange={e => update('cancellationHours', e.target.value)} />
                         </Field>
                         <Field label="Booking closes (hours before)" htmlFor="f-minadv" hint="Members can't book a class starting sooner than this.">
