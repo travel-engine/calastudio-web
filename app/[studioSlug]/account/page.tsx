@@ -518,7 +518,8 @@ function MemberAccountContent() {
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: {
-        data: { full_name: `${first} ${last}`, first_name: first, last_name: last, phone: phone || null },
+        // signup_studio: the API sends the verification email under this studio's name (07 §7.3).
+        data: { full_name: `${first} ${last}`, first_name: first, last_name: last, phone: phone || null, signup_studio: studioSlug },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${studioPath(studioSlug, '/account')}`,
       },
     })
@@ -527,7 +528,7 @@ function MemberAccountContent() {
       setAccessToken(data.session.access_token)
       await resolveMembership(data.session.access_token, { first_name: first, last_name: last, phone })
     } else {
-      setAuthMessage(`Check your email for a link to finish signing up. It comes from CalaStudio, the booking system ${org?.name ?? 'your studio'} uses. If it's not in your inbox within a minute, check your Junk or Spam folder.`)
+      setAuthMessage(`Check your email for a link to finish signing up. It comes from ${org?.name ?? 'your studio'}. If it's not in your inbox within a minute, check your Junk or Spam folder.`)
     }
     setAuthBusy(false)
   }
@@ -539,7 +540,8 @@ function MemberAccountContent() {
     setAuthMessage('')
     const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
+      // studio=: the API sends the reset email under this studio's name (07 §7.3).
+      redirectTo: `${window.location.origin}/auth/callback?next=/set-password&studio=${encodeURIComponent(studioSlug)}`,
     })
     // Neutral wording either way — don't reveal whether the address is registered.
     setAuthMessage(error ? error.message : `Check your email — if an account exists for ${email}, a reset link is on its way. If it's not in your inbox within a minute, check your Junk or Spam folder.`)

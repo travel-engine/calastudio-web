@@ -428,7 +428,7 @@ export default function BookingDrawer() {
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: {
-        data: { full_name: `${firstName.trim()} ${lastName.trim()}`, first_name: firstName.trim(), last_name: lastName.trim(), phone: null },
+        data: { full_name: `${firstName.trim()} ${lastName.trim()}`, first_name: firstName.trim(), last_name: lastName.trim(), phone: null, ...(studioSlug ? { signup_studio: studioSlug } : {}) },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${accountHref}`,
       },
     })
@@ -436,7 +436,7 @@ export default function BookingDrawer() {
     if (data.session) {
       await resolveAuth(data.session.access_token)
     } else {
-      setAuthMessage("Check your email for a link to finish signing up, then come back here to book. It comes from CalaStudio, your studio's booking system. If it's not in your inbox within a minute, check your Junk or Spam folder.")
+      setAuthMessage("Check your email for a link to finish signing up, then come back here to book. It comes from your studio. If it's not in your inbox within a minute, check your Junk or Spam folder.")
     }
     setAuthBusy(false)
   }
@@ -448,7 +448,7 @@ export default function BookingDrawer() {
     setAuthMessage('')
     const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/set-password${studioSlug ? `&studio=${encodeURIComponent(studioSlug)}` : ''}`,
     })
     // Same neutral wording regardless of whether the address is registered — don't leak that.
     setAuthMessage(error ? error.message : `Check your email — if an account exists for ${email}, a reset link is on its way. If it's not in your inbox within a minute, check your Junk or Spam folder.`)
