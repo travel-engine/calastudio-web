@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
               fontSize: '14px',
               textAlign: 'center'
             }}>
-              If an account exists for {email}, a reset link is on its way. Check your inbox.
+              If an account exists for {email}, a reset link is on its way. Check your inbox, and your Junk or Spam folder if it isn't there within a minute.
             </div>
             <p style={{ textAlign: 'center', fontSize: '14px', color: '#666' }}>
               <Link href="/login" style={{ color: '#085041', fontWeight: 500 }}>
