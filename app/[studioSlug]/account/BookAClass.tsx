@@ -19,7 +19,7 @@ const ONLINE = 'online'
 type Listed = BookableOccurrence & { viewer_booking?: { id: string; status: string } | null }
 
 export default function BookAClass({
-  apiUrl, studioSlug, orgId, accessToken, brand, timeZone, onBooked,
+  apiUrl, studioSlug, orgId, accessToken, brand, timeZone, onBooked, openOccurrenceId,
 }: {
   apiUrl: string | undefined
   studioSlug: string
@@ -29,6 +29,8 @@ export default function BookAClass({
   timeZone: string | null
   /** A booking or waitlist place was just made from here: refresh the rest of Home. */
   onBooked: () => void
+  /** Open the booking drawer for this class as soon as the listing has it (the lock-in prompt). */
+  openOccurrenceId?: string | null
 }) {
   const storageKey = `cs-home-location:${studioSlug}`
   const [list, setList] = useState<Listed[] | null>(null)
@@ -79,6 +81,15 @@ export default function BookAClass({
     setJustBooked(b => ({ ...b, [id]: kind }))
     onBooked()
   }, [flowOccurrence, confirmed, joinedWaitlist, onBooked])
+
+  const opened = useRef<string>('')
+  useEffect(() => {
+    if (!openOccurrenceId || !list || opened.current === openOccurrenceId) return
+    const o = list.find(x => x.occurrence_id === openOccurrenceId)
+    if (!o) return
+    opened.current = openOccurrenceId
+    openOccurrence(studioSlug, o, { brandColor: brand, ...payments, timeZone, auth: { accessToken, orgId } })
+  }, [openOccurrenceId, list, openOccurrence, studioSlug, brand, payments, timeZone, accessToken, orgId])
 
   const upcoming = useMemo(() => {
     const now = Date.now()

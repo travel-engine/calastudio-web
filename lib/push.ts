@@ -9,9 +9,11 @@ export type PushPreferences = {
   reminders: boolean
   class_changes: boolean
   account: boolean
+  /** The after-class "lock in the next one?" prompt (07 §7.10.10). */
+  booking_suggestions: boolean
 }
 
-export type PushPrefKey = 'waitlist' | 'reminders' | 'class_changes' | 'account'
+export type PushPrefKey = 'waitlist' | 'reminders' | 'class_changes' | 'account' | 'booking_suggestions'
 
 export function isIos(): boolean {
   if (typeof navigator === 'undefined') return false
