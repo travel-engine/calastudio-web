@@ -8,6 +8,7 @@ import { displayName, isNameRequiredError, namesFromMetadata } from '@/lib/names
 import { formatDayMonth, formatShortDate, formatTimeRange, formatWhen } from '@/lib/dates'
 import { setRememberChoice, clearRememberChoice, isSessionExpiredByPolicy } from '@/lib/authRemember'
 import { clearDeadSession, SESSION_EXPIRED_MESSAGE } from '@/lib/deadSession'
+import { DEMO_SIGN_UP_CLOSED_MESSAGE, isDemoSignUpClosed } from '@/lib/demo'
 import styles from './account.module.css'
 import pf from '../photofirst.module.css'
 import CalendarLinks from '../CalendarLinks'
@@ -18,6 +19,8 @@ import PasswordInput from '@/app/components/PasswordInput'
 import SocialSignIn from '@/app/components/SocialSignIn'
 import UnpaidPassPay from './UnpaidPassPay'
 import MemberHome from './MemberHome'
+import { forgetPushDevice } from '@/lib/push'
+import PushSettings from './PushSettings'
 import BookingGuests, { type GuestCancelOption, type GuestPassOffer, type GuestPassOption } from './BookingGuests'
 
 interface OrgInfo {
@@ -354,6 +357,12 @@ function MemberAccountContent() {
       if (res.status === 401) { await endDeadSession(); return }
       if (!res.ok) {
         const data = await res.json().catch(() => null)
+        if (isDemoSignUpClosed(res.status, data)) {
+          // Not a member here and can't become one: sign the browser out so the form shows again.
+          await endDeadSession()
+          setAuthMessage(DEMO_SIGN_UP_CLOSED_MESSAGE)
+          return
+        }
         const message: string = data?.error ?? ''
         if (message.includes('Terms & Conditions') || message.includes('Liability Waiver')) {
           setWaiverLoading(true)
@@ -411,6 +420,7 @@ function MemberAccountContent() {
         const { data: { session } } = await supabase.auth.getSession()
         if (session && isSessionExpiredByPolicy()) {
           // "Keep me signed in" was off and the session cap has passed — drop back to the gate.
+          await forgetPushDevice(studioSlug, session.access_token)
           await supabase.auth.signOut()
           clearRememberChoice()
         } else if (session) {
@@ -1197,6 +1207,10 @@ function MemberAccountContent() {
               </div>
             )}
 
+            {tab === 'profile' && profile && (
+              <PushSettings variant="card" api={authedFetch} apiUrl={apiUrl} orgId={orgId} studioSlug={studioSlug} brand={brand} />
+            )}
+
             {/* Mounted once the first portal load is done, so the summary isn't fetched before
                 it and then again after it. */}
             {tab === 'home' && portalLoaded && (
@@ -1210,6 +1224,7 @@ function MemberAccountContent() {
                 timeZone={org?.timezone ?? null}
                 onOpenTab={chooseTab}
                 nextClassActions={renderNextClassActions}
+                notificationsPrompt={<PushSettings variant="prompt" api={authedFetch} apiUrl={apiUrl} orgId={orgId} studioSlug={studioSlug} brand={brand} />}
               />
             )}
 

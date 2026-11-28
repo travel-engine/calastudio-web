@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { STUDIO_DOMAIN, STUDIO_SUBDOMAINS, studioOrigin, studioSlugFromHost } from '@/lib/seo'
+import { DEMO_HOST } from '@/lib/demoUrl'
 
 // Studio public sites live at {slug}.{STUDIO_DOMAIN}; the app serves them from app/[studioSlug].
 // This maps the one onto the other. Host routing only — no auth here (auth is client-side).
@@ -16,11 +17,11 @@ import { STUDIO_DOMAIN, STUDIO_SUBDOMAINS, studioOrigin, studioSlugFromHost } fr
 // when adding a top-level route, or the apex will redirect it to a studio subdomain.
 const APEX_ROUTES = new Set([
   'dashboard', 'onboarding', 'login', 'register', 'set-password', 'forgot-password',
-  'auth', 'help', 'api', 'admin', 'terms', 'privacy', 'embed',
+  'auth', 'help', 'api', 'admin', 'terms', 'privacy', 'embed', 'demo',
 ])
 
 // Apex-only pages: on a studio subdomain, send them to the apex.
-const APEX_ONLY = new Set(['dashboard', 'onboarding', 'login', 'register', 'forgot-password', 'help', 'admin', 'terms', 'privacy'])
+const APEX_ONLY = new Set(['dashboard', 'onboarding', 'login', 'register', 'forgot-password', 'help', 'admin', 'terms', 'privacy', 'demo'])
 
 // Served as-is on a studio subdomain: the email-link callback and the password page members land
 // on from it must run on the studio host so the session cookie is set there. `embed` is the website
@@ -32,6 +33,11 @@ export function proxy(request: NextRequest) {
 
   const { pathname, search } = request.nextUrl
   const host = request.headers.get('host') ?? ''
+
+  // The demo's own address opens straight on its sign-up / persona picker.
+  if (DEMO_HOST && host.toLowerCase() === DEMO_HOST && pathname === '/') {
+    return NextResponse.redirect(new URL(`/demo${search}`, request.url), 307)
+  }
   const first = pathname.split('/')[1] ?? ''
   const slug = studioSlugFromHost(host)
 

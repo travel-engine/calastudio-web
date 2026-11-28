@@ -19,6 +19,7 @@ import EarlyBirdPrice from './EarlyBirdPrice'
 import SocialSignIn from '@/app/components/SocialSignIn'
 import { BOOKING_RESUME_KEY } from '@/lib/bookingResume'
 import { clearDeadSession, SESSION_EXPIRED_MESSAGE } from '@/lib/deadSession'
+import { DEMO_SIGN_UP_CLOSED_MESSAGE, isDemoSignUpClosed } from '@/lib/demo'
 import { useMemberSchedule } from '@/lib/store/memberSchedule'
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
@@ -244,6 +245,12 @@ export default function BookingDrawer() {
     if (registerRes.status === 401) { await handleDeadSession(); return }
     if (!registerRes.ok) {
       const data = await registerRes.json().catch(() => null)
+      if (isDemoSignUpClosed(registerRes.status, data)) {
+        // Not a member here and can't become one: sign the browser out so the form shows again.
+        await handleDeadSession()
+        setAuthMessage(DEMO_SIGN_UP_CLOSED_MESSAGE)
+        return
+      }
       const message: string = data?.error ?? ''
       if (isWaiverOrTermsError(message)) {
         if (agreementsLoopExhausted(message)) return

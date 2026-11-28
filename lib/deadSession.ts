@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase'
 import { clearRememberChoice } from '@/lib/authRemember'
+import { unsubscribeDevice } from '@/lib/push'
 
 // The browser can hold tokens for a sign-in session Supabase has already ended (signed out on
 // another device, "sign out everywhere", session removed). The page then looks signed in but the
@@ -14,4 +15,7 @@ export async function clearDeadSession(): Promise<void> {
     await createClient().auth.signOut({ scope: 'local' })
   } catch { /* nothing to clear */ }
   clearRememberChoice()
+  // The API can't be told (the token is dead); it prunes the subscription once the push service
+  // reports it gone. Unsubscribing here stops this phone getting that member's notifications.
+  await unsubscribeDevice()
 }
