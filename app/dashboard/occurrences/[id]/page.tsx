@@ -850,8 +850,12 @@ export default function OccurrenceDetailPage() {
   // The API counts from the start; the roster labels it only once the class has ended, so
   // latecomers being checked in mid-class aren't tagged.
   const classEnded = new Date(occurrence.ends_at).getTime() <= Date.now()
-  const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show')
-  const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel')
+  const memberName = (b: Booking) => displayName(b.user) || b.member_name || 'Unknown member'
+  // Rosters (and the sign-in sheet) read alphabetically by the name as shown, so the front desk can
+  // find someone at a glance. Guests ride along under their member. The waitlist keeps queue order.
+  const byName = (a: Booking, b: Booking) => memberName(a).localeCompare(memberName(b), undefined, { sensitivity: 'base' })
+  const bookedRows = bookings.filter(b => b.status === 'confirmed' || b.status === 'attended' || b.status === 'no_show').sort(byName)
+  const cancelledRows = bookings.filter(b => b.status === 'cancelled' || b.status === 'late_cancel').sort(byName)
 
   // Guests cancelled one-by-one (admin per-guest cancel) — the owning booking is still Confirmed,
   // so it isn't in cancelledRows. Surface each here, tied back to its booking's member.
@@ -865,7 +869,6 @@ export default function OccurrenceDetailPage() {
   const canAdd = occurrence.status === 'scheduled' && (canManageBookings(roles) || canAddStudent(roles))
   const statusChip = occurrenceStatusChip[occurrence.status] ?? { label: occurrence.status, tone: 'neutral' as const }
   const dateLabel = formatShortDate(occurrence.starts_at, timeZone)
-  const memberName = (b: Booking) => displayName(b.user) || b.member_name || 'Unknown member'
 
   // A printable sign-in sheet: the booked list as CSV (names, payment, guests, status).
   const exportSignInSheet = () => {
