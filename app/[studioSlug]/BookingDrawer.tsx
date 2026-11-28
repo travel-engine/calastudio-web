@@ -436,7 +436,7 @@ export default function BookingDrawer() {
     if (data.session) {
       await resolveAuth(data.session.access_token)
     } else {
-      setAuthMessage('Check your email for a verification link, then come back here to finish booking.')
+      setAuthMessage("Check your email for a link to finish signing up, then come back here to book. It comes from CalaStudio, your studio's booking system. If it's not in your inbox within a minute, check your Junk or Spam folder.")
     }
     setAuthBusy(false)
   }
@@ -451,7 +451,7 @@ export default function BookingDrawer() {
       redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
     })
     // Same neutral wording regardless of whether the address is registered — don't leak that.
-    setAuthMessage(error ? error.message : `Check your email — if an account exists for ${email}, a reset link is on its way.`)
+    setAuthMessage(error ? error.message : `Check your email — if an account exists for ${email}, a reset link is on its way. If it's not in your inbox within a minute, check your Junk or Spam folder.`)
     setAuthBusy(false)
   }
 

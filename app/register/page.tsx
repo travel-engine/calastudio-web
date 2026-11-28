@@ -33,7 +33,7 @@ export default function RegisterPage() {
     if (error) {
       setMessage(authErrorMessage(error))
     } else {
-      setMessage('Check your email for a verification link!')
+      setMessage("Check your email for a verification link. If it's not in your inbox within a minute, check your Junk or Spam folder.")
     }
     setLoading(false)
   }
