@@ -527,7 +527,7 @@ function MemberAccountContent() {
       setAccessToken(data.session.access_token)
       await resolveMembership(data.session.access_token, { first_name: first, last_name: last, phone })
     } else {
-      setAuthMessage('Check your email for a verification link to finish signing up!')
+      setAuthMessage(`Check your email for a link to finish signing up. It comes from CalaStudio, the booking system ${org?.name ?? 'your studio'} uses. If it's not in your inbox within a minute, check your Junk or Spam folder.`)
     }
     setAuthBusy(false)
   }
@@ -542,7 +542,7 @@ function MemberAccountContent() {
       redirectTo: `${window.location.origin}/auth/callback?next=/set-password`,
     })
     // Neutral wording either way — don't reveal whether the address is registered.
-    setAuthMessage(error ? error.message : `Check your email — if an account exists for ${email}, a reset link is on its way.`)
+    setAuthMessage(error ? error.message : `Check your email — if an account exists for ${email}, a reset link is on its way. If it's not in your inbox within a minute, check your Junk or Spam folder.`)
     setAuthBusy(false)
   }
 
