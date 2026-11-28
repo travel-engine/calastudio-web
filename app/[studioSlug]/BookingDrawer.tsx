@@ -656,9 +656,14 @@ export default function BookingDrawer() {
   const creditsCost = bookingOptions
     ? bookingOptions.member_credits_cost + guestCount * bookingOptions.guest_credits_cost
     : 0
-  const passCreditsShort = !!bookingOptions?.usable_pass_id
-    && bookingOptions.usable_pass_credits_remaining != null
-    && creditsCost > bookingOptions.usable_pass_credits_remaining
+  // Guests can be paid from several of the member's passes (the API draws the rest after the first),
+  // so "short" means more guests than all their passes cover together.
+  const guestsCovered = bookingOptions?.guest_max_with_passes
+  const passCreditsShort = !!bookingOptions?.usable_pass_id && (guestsCovered != null
+    ? guestCount > guestsCovered
+    : bookingOptions.usable_pass_credits_remaining != null && creditsCost > bookingOptions.usable_pass_credits_remaining)
+  const spillsToOtherPasses = !!bookingOptions?.usable_pass_id && !passCreditsShort
+    && bookingOptions.usable_pass_credits_remaining != null && creditsCost > bookingOptions.usable_pass_credits_remaining
 
   // The studio's passes, each with Buy now → Stripe → pass issued → booking made. Shown when the
   // member has no usable pass, and when their pass is short of credits for this booking.
@@ -1027,13 +1032,20 @@ export default function BookingDrawer() {
                     </div>
                   </div>
                   {renderGuestSelector()}
+                  {spillsToOtherPasses && (
+                    <div style={{ fontSize: '14px', color: 'var(--text-meta)', marginTop: '8px' }}>
+                      The rest of the credits come from your other passes.
+                    </div>
+                  )}
                   {passCreditsShort && (() => {
                     const left = bookingOptions.usable_pass_credits_remaining ?? 0
                     const offers = canPay && (bookingOptions.purchasable_pass_templates?.length ?? 0) > 0
                     return (
                       <>
                         <div className={styles.noticeError}>
-                          This booking needs {creditsCost} credits, but your pass has {left} left.{' '}
+                          {guestsCovered != null
+                            ? `Your passes have enough credits for ${guestsCovered === 0 ? 'no guests' : `${guestsCovered} guest${guestsCovered === 1 ? '' : 's'}`} in this class.`
+                            : `This booking needs ${creditsCost} credits, but your pass has ${left} left.`}{' '}
                           {offers ? 'Bring fewer guests, or buy a new pass below.' : 'Bring fewer guests, or contact the studio.'}
                         </div>
                         {offers && <div style={{ marginTop: '12px' }}>{renderPassOffers()}</div>}

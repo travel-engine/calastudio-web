@@ -106,7 +106,10 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
       if (!ok) { setError(ERRORS[data?.code] ?? data?.error ?? "Couldn't add your guest. Please try again."); return }
       setMode('idle'); setCount(1)
       const used = count * (chosen?.credits_per_guest ?? booking.credits_per_guest ?? 0)
-      setNotice(`${count === 1 ? 'Guest' : `${count} guests`} added.${used ? ` ${plural(used, 'credit')} used from ${chosen ? `your ${chosen.name}` : 'your pass'}.` : ''}`)
+      // More than the chosen pass holds: the API took the rest from the member's other passes.
+      const spread = chosen?.credits_remaining != null && used > chosen.credits_remaining
+      const from = spread ? 'your passes' : chosen ? `your ${chosen.name}` : 'your pass'
+      setNotice(`${count === 1 ? 'Guest' : `${count} guests`} added.${used ? ` ${plural(used, 'credit')} used from ${from}.` : ''}`)
       await onUpdated(data as B)
     } catch {
       setError("Couldn't reach the server. Please try again.")
@@ -227,7 +230,7 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
           </strong>
           {passOptions.length > 1 && (
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14, color: 'var(--ink)' }}>
-              Pay with
+              Use first
               <select value={chosen?.member_pass_id ?? ''} onChange={e => { setPassId(e.target.value); setCount(1) }} style={select}>
                 {passOptions.map(p => (
                   <option key={p.member_pass_id} value={p.member_pass_id}>
@@ -248,7 +251,9 @@ export default function BookingGuests<B extends GuestBooking>({ booking, memberN
             <button type="button" style={btn} disabled={!!busy} onClick={() => setMode('idle')}>Cancel</button>
           </div>
           {chosen && chosen.credits_per_guest > 0 && (
-            <span style={meta}>{`Uses ${plural(count * chosen.credits_per_guest, 'credit')} from your ${chosen.name}.`}</span>
+            <span style={meta}>{chosen.credits_remaining != null && count * chosen.credits_per_guest > chosen.credits_remaining
+              ? `Uses ${plural(count * chosen.credits_per_guest, 'credit')}: ${chosen.credits_remaining} from your ${chosen.name}, the rest from your other passes.`
+              : `Uses ${plural(count * chosen.credits_per_guest, 'credit')} from your ${chosen.name}.`}</span>
           )}
         </div>
       )}
