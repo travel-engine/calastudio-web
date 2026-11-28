@@ -35,19 +35,30 @@ self.addEventListener('push', event => {
   try { data = event.data ? event.data.json() : {} } catch { data = { body: event.data && event.data.text() } }
 
   const title = data.title || 'Studio update'
+  // Optional buttons, e.g. [{ action: 'yes', title: "Yes, I'm coming", url: '/account?…' }]. Android shows up to
+  // two; iPhone (and anything without action support) ignores them and a tap opens data.url as usual.
+  const actions = Array.isArray(data.actions)
+    ? data.actions.filter(a => a && a.action && a.title).slice(0, 2)
+    : []
   const options = {
     body: data.body || '',
     tag: data.tag || undefined,
     renotify: !!data.tag,
     icon: data.icon || undefined,
-    data: { url: studioUrl(STUDIO_SLUG, data.url || '/account?tab=home') },
+    data: {
+      url: studioUrl(STUDIO_SLUG, data.url || '/account?tab=home'),
+      actionUrls: Object.fromEntries(actions.filter(a => a.url).map(a => [a.action, studioUrl(STUDIO_SLUG, a.url)])),
+    },
+    ...(actions.length ? { actions: actions.map(a => ({ action: a.action, title: a.title })) } : {}),
   }
   event.waitUntil(self.registration.showNotification(title, options))
 })
 
 self.addEventListener('notificationclick', event => {
   event.notification.close()
-  const target = (event.notification.data && event.notification.data.url) || self.location.origin
+  const d = event.notification.data || {}
+  // A button tap opens that button's page; a tap on the notification itself opens the main one.
+  const target = (event.action && d.actionUrls && d.actionUrls[event.action]) || d.url || self.location.origin
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     // Reuse an open window of the site if there is one.
