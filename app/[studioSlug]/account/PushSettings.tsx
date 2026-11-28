@@ -223,11 +223,37 @@ export default function PushSettings({ variant, api, apiUrl, orgId, studioSlug, 
             <BellOff size={14} aria-hidden style={{ marginRight: 6, verticalAlign: '-2px' }} />
             Turn off on this phone
           </button>
+          {isDevSite() && (
+            <button onClick={() => void showTestButtons()}
+              style={{ display: 'block', marginTop: 12, background: 'none', border: 'none', padding: 0, color: 'var(--text-meta)', fontSize: 14, cursor: 'pointer', textDecoration: 'underline' }}>
+              Dev only: show a test notification with Yes/No buttons (in 5 seconds)
+            </button>
+          )}
         </>
       )}
       {error && <div role="alert" style={{ marginTop: 10, fontSize: 14, color: 'var(--text-warn)' }}>{error}</div>}
     </section>
   )
+}
+
+// Dev site only (never calastudio.app): preview how notification buttons look on this phone. Shown by
+// the app's own service worker, so it looks exactly like a pushed one; the buttons just open pages.
+function isDevSite() {
+  if (typeof window === 'undefined') return false
+  const h = window.location.hostname
+  return h === 'localhost' || h.endsWith('.dev.calastudio.app') || h === 'dev.calastudio.app'
+}
+async function showTestButtons() {
+  const reg = await navigator.serviceWorker.ready
+  const page = (q: string) => `${window.location.origin}${window.location.pathname}?${q}`
+  setTimeout(() => {
+    void reg.showNotification('Still coming to Saturday Vinyasa?', {
+      body: 'Sat 7:00am · Yes keeps your spot, No cancels it (free until 8pm Friday)',
+      tag: 'test-actions',
+      data: { url: page('tab=home'), actionUrls: { yes: page('tab=home&still_coming=yes'), no: page('tab=home&still_coming=no') } },
+      actions: [{ action: 'yes', title: "Yes, I'm coming" }, { action: 'no', title: 'No, cancel' }],
+    } as NotificationOptions)
+  }, 5000)
 }
 
 function Switch({ on, brand, onChange, label }: { on: boolean; brand: string; onChange: () => void; label: string }) {
