@@ -95,7 +95,7 @@ type FormState = {
   // Emails to the studio's own address when a member does something (spec 07 §7.3, studio-facing).
   notifyMemberRegistered: boolean; notifyPassPurchased: boolean; notifyBookingCreated: boolean; notifyBookingCancelled: boolean
   // Push notifications to members' phones (spec 07 §7.10). null = the API doesn't have them yet.
-  memberPushEnabled: boolean | null
+  memberPushEnabled: boolean | null; lockInPromptsEnabled: boolean | null
 }
 type Key = keyof FormState
 
@@ -115,7 +115,7 @@ const EMPTY_FORM: FormState = {
   guestsEnabled: false, guestMaxPerBooking: '1', guestCreditsCost: '1',
   passExpiryDays: null,
   notifyMemberRegistered: true, notifyPassPurchased: true, notifyBookingCreated: true, notifyBookingCancelled: true,
-  memberPushEnabled: null,
+  memberPushEnabled: null, lockInPromptsEnabled: null,
 }
 
 // Which fields each card saves. Every save still sends the whole organisation (see saveSection).
@@ -125,7 +125,7 @@ const SECTION_KEYS = {
   policy: ['cancellationHours', 'bookingWindowDays', 'minAdvanceBookingHours', 'lateCancelCreditsForfeited'],
   guests: ['guestsEnabled', 'guestMaxPerBooking', 'guestCreditsCost'],
   reminders: ['passExpiryDays'],
-  push: ['memberPushEnabled'],
+  push: ['memberPushEnabled', 'lockInPromptsEnabled'],
   notifications: ['notifyMemberRegistered', 'notifyPassPurchased', 'notifyBookingCreated', 'notifyBookingCancelled'],
   waiver: ['liabilityWaiverRequired'],
   tax: ['taxEnabled', 'taxLabel', 'taxRegistrationNumber'],
@@ -195,6 +195,7 @@ function orgBody(f: FormState) {
     ...(f.memberPushEnabled !== null
       ? { member_push_enabled: f.memberPushEnabled }
       : {}),
+    ...(f.lockInPromptsEnabled !== null ? { lock_in_prompts_enabled: f.lockInPromptsEnabled } : {}),
   }
 }
 
@@ -423,6 +424,7 @@ function SettingsPageContent() {
           ? [0, 1, 2].map(i => (org.pass_expiry_reminder_days[i] != null ? String(org.pass_expiry_reminder_days[i]) : ''))
           : null,
         memberPushEnabled: typeof org.member_push_enabled === 'boolean' ? org.member_push_enabled : null,
+        lockInPromptsEnabled: typeof org.lock_in_prompts_enabled === 'boolean' ? org.lock_in_prompts_enabled : null,
       }
       setForm(loaded)
       setSavedForm(loaded)
@@ -1039,6 +1041,15 @@ function SettingsPageContent() {
                           A waitlist spot opening, class reminders, a class cancelled or changed, and passes or payments that need attention. Members choose which ones they get. Class reminders go 1 hour before the cancellation cutoff (1 hour before class if there’s no cutoff), the same as the reminder email.
                         </span>
                       </div>
+                      {form.memberPushEnabled && form.lockInPromptsEnabled !== null && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <Toggle checked={!!form.lockInPromptsEnabled} onChange={v => update('lockInPromptsEnabled', v)}
+                            label="Offer the next class after each class" />
+                          <span style={{ fontSize: 13, color: color.muted, lineHeight: 1.4, paddingLeft: 54 }}>
+                            10 minutes after a class ends, members get “Lock in next week?” with a Book it button. Only when the next class has space and they aren’t already booked.
+                          </span>
+                        </div>
+                      )}
                     </>
                   ), 'push')}
 

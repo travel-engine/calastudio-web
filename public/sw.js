@@ -48,6 +48,8 @@ self.addEventListener('push', event => {
     data: {
       url: studioUrl(STUDIO_SLUG, data.url || '/account?tab=home'),
       actionUrls: Object.fromEntries(actions.filter(a => a.url).map(a => [a.action, studioUrl(STUDIO_SLUG, a.url)])),
+      // A button that acts without opening the app (e.g. "Book it"): POST {token} to its API url.
+      actionPosts: Object.fromEntries(actions.filter(a => a.post && a.token).map(a => [a.action, { post: a.post, token: a.token }])),
     },
     ...(actions.length ? { actions: actions.map(a => ({ action: a.action, title: a.title })) } : {}),
   }
@@ -57,6 +59,15 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close()
   const d = event.notification.data || {}
+  // Act in the background, then say how it went in a follow-up notification. If it couldn't be done
+  // here (no pass covers it, full, expired…), tapping that follow-up opens the main page instead.
+  const post = event.action && d.actionPosts && d.actionPosts[event.action]
+  if (post) {
+    event.waitUntil(runAction(post, event.notification, d.url))
+    return
+  }
+  // A button with nothing to do ("Not yet") just closes the notification.
+  if (event.action && !(d.actionUrls && d.actionUrls[event.action])) return
   // A button tap opens that button's page; a tap on the notification itself opens the main one.
   const target = (event.action && d.actionUrls && d.actionUrls[event.action]) || d.url || self.location.origin
   event.waitUntil((async () => {
@@ -72,3 +83,26 @@ self.addEventListener('notificationclick', event => {
     await self.clients.openWindow(target)
   })())
 })
+
+async function runAction(post, notification, fallbackUrl) {
+  let data = null
+  try {
+    const res = await fetch(post.post, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: post.token }) })
+    data = await res.json().catch(() => null)
+  } catch { /* offline: fall through to the message below */ }
+  const tag = (notification.tag || 'action') + '-result'
+  if (data && data.booked && data.occurrence) {
+    const when = new Date(data.occurrence.starts_at).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+    const paid = data.pass_name || data.membership_name
+    return self.registration.showNotification("You're booked ✓", {
+      body: data.occurrence.session_name + ', ' + when + (paid ? ' · ' + paid : ''),
+      tag, icon: notification.icon || undefined,
+      data: { url: studioUrl(STUDIO_SLUG, '/account?tab=upcoming') },
+    })
+  }
+  return self.registration.showNotification("Couldn't book it", {
+    body: (data && data.message) || 'Tap to book it in the app.',
+    tag, icon: notification.icon || undefined,
+    data: { url: fallbackUrl || studioUrl(STUDIO_SLUG, '/account?tab=home') },
+  })
+}

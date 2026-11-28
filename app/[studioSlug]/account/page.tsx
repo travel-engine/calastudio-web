@@ -276,6 +276,10 @@ function MemberAccountContent() {
 
   const [tab, setTab] = useState<AccountTab>('home')
   const urlTab = searchParams.get('tab')
+  // ?lock_in= from the after-class notification: kept in state, as choosing a tab clears the query.
+  const [lockInToken, setLockInToken] = useState<string | null>(null)
+  const urlLockIn = searchParams.get('lock_in')
+  useEffect(() => { if (urlLockIn) setLockInToken(urlLockIn) }, [urlLockIn])
   useEffect(() => {
     if (urlTab && (TAB_KEYS as readonly string[]).includes(urlTab)) setTab(urlTab as AccountTab)
   }, [urlTab])
@@ -1224,6 +1228,8 @@ function MemberAccountContent() {
                 timeZone={org?.timezone ?? null}
                 onOpenTab={chooseTab}
                 nextClassActions={renderNextClassActions}
+                lockInToken={lockInToken}
+                onLockInDone={() => setLockInToken(null)}
                 notificationsPrompt={<PushSettings variant="prompt" api={authedFetch} apiUrl={apiUrl} orgId={orgId} studioSlug={studioSlug} brand={brand} />}
               />
             )}

@@ -14,6 +14,7 @@ import { formatClock, formatDayLabel, formatShortDate } from '@/lib/dates'
 import { studioPath } from '@/lib/seo'
 import { formatMoney as money } from '@/lib/money'
 import BookAClass from './BookAClass'
+import LockInCard from './LockInCard'
 
 // ── Types (GET /api/organisations/{orgId}/members/me/home) ──────────────────────────────────
 interface AttentionItem {
@@ -154,6 +155,7 @@ function Bar({ value, total, color }: { value: number; total: number; color: str
 // ── Component ───────────────────────────────────────────────────────────────────────────────
 export default function MemberHome({
   api, apiUrl, orgId, accessToken, studioSlug, brand, timeZone, onOpenTab, nextClassActions, refreshKey, notificationsPrompt,
+  lockInToken, onLockInDone,
 }: {
   api: (path: string, init?: RequestInit) => Promise<Response>
   apiUrl: string | undefined
@@ -169,7 +171,11 @@ export default function MemberHome({
   refreshKey?: number
   /** The "turn on notifications" nudge, shown under the attention box. */
   notificationsPrompt?: ReactNode
+  /** From an after-class "lock in the next one?" notification (?lock_in=). */
+  lockInToken?: string | null
+  onLockInDone?: () => void
 }) {
+  const [drawerFor, setDrawerFor] = useState<string | null>(null)
   const router = useRouter()
   const [home, setHome] = useState<MemberHomeData | null>(null)
   const [failed, setFailed] = useState(false)
@@ -282,6 +288,11 @@ export default function MemberHome({
         </section>
       )}
 
+      {lockInToken && (
+        <LockInCard apiUrl={apiUrl} token={lockInToken} brand={brand} timeZone={timeZone}
+          onBooked={() => void load()} onOpenDrawer={setDrawerFor} onClose={() => onLockInDone?.()} />
+      )}
+
       {notificationsPrompt}
 
       {/* Next class */}
@@ -337,7 +348,7 @@ export default function MemberHome({
       )}
 
       {/* Book a class: the next classes on the schedule, booked right here */}
-      <BookAClass apiUrl={apiUrl} studioSlug={studioSlug} orgId={orgId} accessToken={accessToken} brand={brand} timeZone={tz} onBooked={load} />
+      <BookAClass apiUrl={apiUrl} studioSlug={studioSlug} orgId={orgId} accessToken={accessToken} brand={brand} timeZone={tz} onBooked={load} openOccurrenceId={drawerFor} />
 
       {/* Recent activity */}
       {home.activity.length > 0 && (

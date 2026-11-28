@@ -18,6 +18,7 @@ const TYPES: { key: PushPrefKey; label: string; hint: string }[] = [
   { key: 'reminders', label: 'Class reminders', hint: "Before each class you've booked" },
   { key: 'class_changes', label: 'Class cancelled or changed', hint: 'Time, teacher or cancellation' },
   { key: 'account', label: 'Passes and payments', hint: "Credits about to expire, a payment that didn't go through" },
+  { key: 'booking_suggestions', label: 'Book the next class', hint: 'After a class, an offer to book the next one' },
 ]
 
 const dismissKey = (slug: string) => `cs-push-prompt-dismissed:${slug}`
@@ -130,7 +131,7 @@ export default function PushSettings({ variant, api, apiUrl, orgId, studioSlug, 
     setError('')
     const res = await api('/members/me/push-preferences', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ waitlist: next.waitlist, reminders: next.reminders, class_changes: next.class_changes, account: next.account }),
+      body: JSON.stringify({ waitlist: next.waitlist, reminders: next.reminders, class_changes: next.class_changes, account: next.account, booking_suggestions: next.booking_suggestions }),
     }).catch(() => null)
     if (res?.ok) {
       const saved: PushPreferences = await res.json().catch(() => next)
@@ -208,7 +209,8 @@ export default function PushSettings({ variant, api, apiUrl, orgId, studioSlug, 
         <>
           <p style={pStyle}>On for this phone. Choose what you&apos;d like to hear about:</p>
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-            {TYPES.map(t => (
+            {/* Only the kinds this API knows about (booking_suggestions is newer). */}
+            {TYPES.filter(t => typeof state.prefs[t.key] === 'boolean').map(t => (
               <label key={t.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid var(--line)', cursor: 'pointer' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>{t.label}</div>
